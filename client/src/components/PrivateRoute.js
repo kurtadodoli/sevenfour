@@ -1,16 +1,44 @@
-// src/components/PrivateRoute.js
-import React from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-const PrivateRoute = ({ children }) => {
-  // This is a simplified version - you'll need to integrate with AuthContext
-  const isAuthenticated = false; // Change this to use context
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+// Component for protecting routes that require authentication
+export const PrivateRoute = () => {
+  const { currentUser, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
-  
-  return children;
+
+  return currentUser ? <Outlet /> : <Navigate to="/login" />;
 };
 
-export default PrivateRoute;
+// Component for protecting routes that require admin role
+export const AdminRoute = () => {
+  const { currentUser, loading, isAdmin } = useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return currentUser && isAdmin() ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/unauthorized" />
+  );
+};
+
+// Component for protecting routes that require staff or admin role
+export const StaffRoute = () => {
+  const { currentUser, loading, isAdmin, isStaff } = useContext(AuthContext);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return currentUser && (isAdmin() || isStaff()) ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/unauthorized" />
+  );
+};

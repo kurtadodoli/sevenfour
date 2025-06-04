@@ -1,25 +1,35 @@
 {
   "name": "seven-four-clothing",
   "version": "1.0.0",
-  "description": "Seven Four Clothing Web-Based Application",
-  "main": "index.js",
+  "description": "Seven Four Clothing Full Stack Application",
+  "main": "server/server.js",
   "scripts": {
-    "client": "cd client && npm start",
-    "server": "cd server && npm start",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start"
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "server": "nodemon server/server.js",
+    "client": "npm start --prefix client",
+    "build": "npm run build --prefix client",
+    "install-server": "npm install --prefix server",
+    "install-client": "npm install --prefix client",
+    "install-all": "npm run install-server && npm run install-client",
+    "heroku-postbuild": "npm run install-all && npm run build"
   },
-  "keywords": [
-    "clothing",
-    "ecommerce",
-    "management",
-    "system"
-  ],
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.2",
+    "mysql2": "^3.14.1"
+  },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
   }
 }

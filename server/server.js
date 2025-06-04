@@ -1,46 +1,70 @@
-// server/server.js
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
 const morgan = require('morgan');
-const path = require('path'); // Added path module
+const mysql = require('mysql2');
 require('dotenv').config();
 
-// Initialize express app
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(helmet());
-app.use(morgan('dev'));
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
 
-// Routes
-app.use('/api/users', require('./routes/users'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/inventory', require('./routes/inventory'));
-app.use('/api/delivery', require('./routes/delivery'));
-app.use('/api/reports', require('./routes/reports'));
+// Create database connection
+const db = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+}).promise();
 
-// Production configuration - Serve static files from React build
-app.use(express.static(path.join(__dirname, '../client/build')));
+// Test database connection
+db.getConnection()
+  .then(connection => {
+    console.log('Database connected successfully');
+    connection.release();
+  })
+  .catch(err => {
+    console.error('Error connecting to the database:', err);
+  });
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
+// Test route
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to Seven Four Clothing API' });
 });
+
+// Database test route
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const [result] = await db.query('SELECT 1 + 1 AS result');
+    res.json({ 
+      status: 'ok',
+      message: 'Database connected!',
+      result: result[0]
+    });
+  } catch (error) {
+    console.error('Database Error:', error);
+    res.status(500).json({ 
+      status: 'error',
+      message: 'Database connection failed'
+    });
+  }
+});
+
+const authRoutes = require('./routes/auth');
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send({ message: 'Something went wrong!' });
+  res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001; // Changed from 5000 to 3001
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

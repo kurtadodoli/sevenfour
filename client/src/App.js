@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import logoImg from './assets/images/sfc-logo.png'; // Import your logo
+import logoImg from './assets/images/sfc-logo-white.png'; // Import your logo
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -13,6 +13,15 @@ import ProductDetailPage from './pages/ProductDetailPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardPage from './pages/DashboardPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import UnauthorizedPage from './pages/UnauthorizedPage';
+import UsersPage from './pages/UsersPage';
+import ReportsPage from './pages/ReportsPage';
+import SettingsPage from './pages/SettingsPage';
+
+// Route protection components
+import { PrivateRoute, AdminRoute, StaffRoute } from './components/PrivateRoute';
 
 // Components
 import Header from './components/Header';
@@ -50,14 +59,39 @@ function App() {
           <Header />
           <main>
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/products/:id" element={<ProductDetailPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password/:resetToken" element={<ResetPasswordPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+              {/* Protected Routes - Customer */}
+              <Route element={<PrivateRoute />}>
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+                {/* Comment out until ProfilePage is created */}
+                {/* <Route path="/profile" element={<ProfilePage />} /> */}
+              </Route>
+
+              {/* Protected Routes - Staff & Admin */}
+              <Route element={<StaffRoute />}>
+                <Route path="/staff" element={<DashboardPage />} />
+                {/* Comment out until these pages are created */}
+                {/* <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/inventory" element={<InventoryPage />} /> */}
+              </Route>
+
+              {/* Protected Routes - Admin Only */}
+              <Route element={<AdminRoute />}>
+                <Route path="/admin" element={<DashboardPage />} />
+                <Route path="/admin/users" element={<UsersPage />} />
+                <Route path="/admin/reports" element={<ReportsPage />} />
+                <Route path="/admin/settings" element={<SettingsPage />} />
+              </Route>
             </Routes>
           </main>
           <Footer />
