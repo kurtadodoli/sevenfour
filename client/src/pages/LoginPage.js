@@ -1,12 +1,12 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 
 const LoginPage = () => {
     const navigate = useNavigate();
-    const { setAuth } = useContext(AuthContext);
+    const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -33,18 +33,9 @@ const LoginPage = () => {
             );
 
             if (response.data.success) {
-                // Store token and user data
+                await login(response.data.user);
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-                
-                // Update auth context
-                setAuth({
-                    isAuthenticated: true,
-                    user: response.data.user,
-                    token: response.data.token
-                });
-
-                // Redirect to profile page
                 navigate('/profile');
             }
         } catch (error) {
@@ -59,45 +50,41 @@ const LoginPage = () => {
 
     return (
         <Container>
-            <LoginForm onSubmit={handleSubmit}>
-                <Title>Login</Title>
-                {error && <ErrorMessage>{error}</ErrorMessage>}
-                
-                <FormGroup>
-                    <Label>Email</Label>
-                    <Input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        required
-                    />
-                </FormGroup>
-
-                <FormGroup>
-                    <Label>Password</Label>
-                    <Input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        required
-                    />
-                </FormGroup>
-
-                <Button type="submit" disabled={isLoading}>
-                    {isLoading ? 'Logging in...' : 'Login'}
-                </Button>
-
-                <Links>
-                    <Link onClick={() => navigate('/register')}>
-                        Don't have an account? Register
-                    </Link>
-                    <Link onClick={() => navigate('/forgot-password')}>
-                        Forgot Password?
-                    </Link>
-                </Links>
-            </LoginForm>
+            <LoginCard>
+                <Title>Welcome Back</Title>
+                <Form onSubmit={handleSubmit}>
+                    {error && <ErrorMessage>{error}</ErrorMessage>}
+                    <FormGroup>
+                        <Label>Email</Label>
+                        <Input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </FormGroup>
+                    <FormGroup>
+                        <Label>Password</Label>
+                        <Input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                        />
+                    </FormGroup>
+                    <LoginButton type="submit" disabled={isLoading}>
+                        {isLoading ? 'Signing in...' : 'Sign In'}
+                    </LoginButton>
+                </Form>
+                <RegisterPrompt>
+                    Don't have an account yet? <StyledLink to="/register">Sign up</StyledLink>
+                </RegisterPrompt>
+                <ForgotPasswordLink>
+                    <StyledLink to="/forgot-password">Forgot Password?</StyledLink>
+                </ForgotPasswordLink>
+            </LoginCard>
         </Container>
     );
 };
@@ -111,33 +98,39 @@ const Container = styled.div`
     background-color: #f5f5f5;
 `;
 
-const LoginForm = styled.form`
-    width: 100%;
-    max-width: 400px;
-    padding: 2rem;
+const LoginCard = styled.div`
     background: white;
+    padding: 2rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
 `;
 
 const Title = styled.h1`
-    text-align: center;
-    margin-bottom: 2rem;
     color: #333;
+    margin-bottom: 2rem;
+    text-align: center;
+`;
+
+const Form = styled.form`
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 `;
 
 const FormGroup = styled.div`
-    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 `;
 
 const Label = styled.label`
-    display: block;
-    margin-bottom: 0.5rem;
     color: #666;
+    font-size: 0.9rem;
 `;
 
 const Input = styled.input`
-    width: 100%;
     padding: 0.75rem;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -145,23 +138,22 @@ const Input = styled.input`
 
     &:focus {
         outline: none;
-        border-color: #007bff;
+        border-color: #1a1a1a;
     }
 `;
 
-const Button = styled.button`
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #1a1a1a;
+const LoginButton = styled.button`
+    background: #1a1a1a;
     color: white;
+    padding: 0.75rem;
     border: none;
     border-radius: 4px;
     font-size: 1rem;
     cursor: pointer;
-    margin-top: 1rem;
+    transition: opacity 0.3s ease;
 
     &:hover {
-        background-color: #333;
+        opacity: 0.9;
     }
 
     &:disabled {
@@ -172,28 +164,32 @@ const Button = styled.button`
 
 const ErrorMessage = styled.div`
     color: #dc3545;
-    text-align: center;
-    margin-bottom: 1rem;
+    background: #ffe5e5;
     padding: 0.5rem;
     border-radius: 4px;
-`;
-
-const Links = styled.div`
-    margin-top: 1rem;
+    margin-bottom: 1rem;
     text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
 `;
 
-const Link = styled.span`
-    color: #007bff;
-    cursor: pointer;
+const RegisterPrompt = styled.p`
+    text-align: center;
+    margin-top: 1.5rem;
+    color: #666;
+`;
+
+const StyledLink = styled(Link)`
+    color: #1a1a1a;
     text-decoration: none;
+    font-weight: 600;
 
     &:hover {
         text-decoration: underline;
     }
+`;
+
+const ForgotPasswordLink = styled.div`
+    text-align: center;
+    margin-top: 1rem;
 `;
 
 export default LoginPage;

@@ -1,7 +1,7 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
 import styled from 'styled-components';
+import { useAuth } from '../context/AuthContext'; // Update this line
 
 const ResetContainer = styled.div`
   max-width: 400px;
@@ -71,7 +71,7 @@ const LoginLink = styled.p`
 const ResetPasswordPage = () => {
   const { resetToken } = useParams();
   const navigate = useNavigate();
-  const { resetPassword, error } = useContext(AuthContext);
+  const { resetPassword } = useAuth(); // Use the hook instead of useContext
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: ''
@@ -141,7 +141,6 @@ const ResetPasswordPage = () => {
         </FormGroup>
         
         {formError && <Message type="error">{formError}</Message>}
-        {error && <Message type="error">{error}</Message>}
         {success && (
           <Message type="success">
             Password has been reset successfully! Redirecting to login page...

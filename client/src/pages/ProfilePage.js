@@ -1,12 +1,12 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { AuthContext } from '../context/AuthContext';
 import Welcome from '../components/Welcome';
 
 const ProfilePage = () => {
-    const navigate = useNavigate();
     const { auth, logout } = useContext(AuthContext);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!auth.isAuthenticated) {
@@ -14,8 +14,8 @@ const ProfilePage = () => {
         }
     }, [auth.isAuthenticated, navigate]);
 
-    const handleLogout = async () => {
-        await logout();
+    const handleLogout = () => {
+        logout();
         navigate('/login');
     };
 
@@ -24,7 +24,6 @@ const ProfilePage = () => {
     return (
         <PageContainer>
             <Welcome user={auth.user} />
-            
             <ProfileSection>
                 <Header>
                     <Title>My Profile</Title>
@@ -47,24 +46,6 @@ const ProfilePage = () => {
                                 <Label>Username</Label>
                                 <Value>{auth.user.username}</Value>
                             </InfoItem>
-                            <InfoItem>
-                                <Label>Gender</Label>
-                                <Value>{auth.user.gender}</Value>
-                            </InfoItem>
-                        </InfoGrid>
-                    </InfoGroup>
-
-                    <InfoGroup>
-                        <GroupTitle>Location</GroupTitle>
-                        <InfoGrid>
-                            <InfoItem>
-                                <Label>Province</Label>
-                                <Value>{auth.user.province_name}</Value>
-                            </InfoItem>
-                            <InfoItem>
-                                <Label>City</Label>
-                                <Value>{auth.user.city_name}</Value>
-                            </InfoItem>
                         </InfoGrid>
                     </InfoGroup>
                 </InfoContainer>
@@ -75,16 +56,18 @@ const ProfilePage = () => {
 
 const PageContainer = styled.div`
     padding: 2rem;
-    margin-left: 250px;
+    background: #f5f5f5;
     min-height: 100vh;
-    background-color: #f5f5f5;
 `;
 
 const ProfileSection = styled.div`
     background: white;
-    border-radius: 10px;
-    padding: 2rem;
+    border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 2rem;
+    margin-top: 2rem;
+    max-width: 800px;
+    margin: 2rem auto;
 `;
 
 const Header = styled.div`
@@ -92,25 +75,26 @@ const Header = styled.div`
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #eee;
 `;
 
-const Title = styled.h1`
-    font-size: 2rem;
-    color: #333;
+const Title = styled.h2`
+    color: #2c3e50;
+    margin: 0;
 `;
 
 const LogoutButton = styled.button`
-    padding: 0.75rem 1.5rem;
-    background-color: #dc3545;
+    background: #e74c3c;
     color: white;
     border: none;
+    padding: 0.5rem 1rem;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 1rem;
-    transition: background-color 0.3s;
+    font-weight: 500;
 
     &:hover {
-        background-color: #c82333;
+        background: #c0392b;
     }
 `;
 
@@ -127,46 +111,31 @@ const InfoGroup = styled.div`
 `;
 
 const GroupTitle = styled.h3`
+    color: #34495e;
+    margin: 0 0 1rem 0;
     font-size: 1.2rem;
-    color: #666;
-    margin-bottom: 1rem;
 `;
 
 const InfoGrid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
 `;
 
 const InfoItem = styled.div`
     display: flex;
     flex-direction: column;
+    gap: 0.5rem;
 `;
 
-const Label = styled.div`
+const Label = styled.span`
+    color: #7f8c8d;
     font-size: 0.9rem;
-    color: #666;
-    margin-bottom: 0.5rem;
 `;
 
-const Value = styled.div`
-    font-size: 1.1rem;
-    color: #333;
+const Value = styled.span`
+    color: #2c3e50;
     font-weight: 500;
-`;
-
-const LoadingWrapper = styled.div`
-    text-align: center;
-    padding: 2rem;
-    font-size: 1.2rem;
-    color: #666;
-`;
-
-const ErrorWrapper = styled.div`
-    text-align: center;
-    padding: 2rem;
-    color: #dc3545;
-    font-size: 1.2rem;
 `;
 
 export default ProfilePage;

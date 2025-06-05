@@ -20,6 +20,13 @@ import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
+import Maintenance from './pages/Maintenance'; // Import Maintenance page
+import HelpPage from './pages/HelpPage'; // Import HelpPage
+import AboutPage from './pages/AboutPage'; // Import AboutPage
+import InventoryPage from './pages/InventoryPage'; // Import InventoryPage
+import OrdersPage from './pages/OrdersPage'; // Import OrdersPage
+import TrackingPage from './pages/TrackingPage'; // Import TrackingPage
+import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 
 // Route protection components
 import { PrivateRoute, AdminRoute, StaffRoute } from './components/PrivateRoute';
@@ -28,52 +35,51 @@ import { PrivateRoute, AdminRoute, StaffRoute } from './components/PrivateRoute'
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
-
+import TopBar from './components/TopBar';
 // CSS
 import './App.css';
 import styled from 'styled-components';
-
 const AppContainer = styled.div`
-  display: flex;
   min-height: 100vh;
+  width: 100%;
 `;
-
 const MainContent = styled.div`
-  flex: 1;
-  margin-left: 250px;
-  min-height: 100vh;
+    width: 100%;
+    min-height: 100vh;
+    padding-top: 60px; // Add padding for TopBar height
+    transition: all 0.3s ease;
 `;
-
+const AppLayout = styled.div`
+  position: relative;
+  width: 100%;
+`;
 function App() {
   // Function to set favicon and title dynamically
   useEffect(() => {
     // Set page title
     document.title = "Seven Four Clothing";
-    
     // Create favicon link
     const favicon = document.createElement('link');
     favicon.rel = 'icon';
     favicon.href = logoImg;
     favicon.type = 'image/png';
-    
     // Remove any existing favicon
     const existingFavicon = document.querySelector('link[rel="icon"]');
     if (existingFavicon) {
       document.head.removeChild(existingFavicon);
     }
-    
     // Add the new favicon
     document.head.appendChild(favicon);
   }, []);
-
   return (
     <Router>
       <AuthProvider>
-        <AppContainer>
-          <Sidebar />
-          <MainContent>
-            <Header />
-            <main>
+        <div className="App">
+          <AppLayout>
+            <Sidebar />
+            <MainContent>
+              <TopBar />
+              <Header />
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<HomePage />} />
@@ -82,24 +88,19 @@ function App() {
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/products/:id" element={<ProductDetailPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                <Route path="/reset-password/:resetToken" element={<ResetPasswordPage />} />
-                <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
+                <Route path="/maintenance" element={<Maintenance />} /> {/* Moved to public routes */}
                 {/* Protected Routes - Customer */}
                 <Route element={<PrivateRoute />}>
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/checkout" element={<CheckoutPage />} />
                   <Route path="/profile" element={<ProfilePage />} /> {/* Add ProfilePage route */}
                 </Route>
-
                 {/* Protected Routes - Staff & Admin */}
                 <Route element={<StaffRoute />}>
                   <Route path="/staff" element={<DashboardPage />} />
-                  {/* Comment out until these pages are created */}
-                  {/* <Route path="/orders" element={<OrdersPage />} />
-                  <Route path="/inventory" element={<InventoryPage />} /> */}
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/inventory" element={<InventoryPage />} />
                 </Route>
-
                 {/* Protected Routes - Admin Only */}
                 <Route element={<AdminRoute />}>
                   <Route path="/admin" element={<DashboardPage />} />
@@ -107,14 +108,19 @@ function App() {
                   <Route path="/admin/reports" element={<ReportsPage />} />
                   <Route path="/admin/settings" element={<SettingsPage />} />
                 </Route>
+                {/* Additional Routes */}
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/tracking" element={<TrackingPage />} />
+                <Route path="/shipping" element={<ShippingPage />} />
               </Routes>
-            </main>
-            <Footer />
-          </MainContent>
-        </AppContainer>
+            </MainContent>
+          </AppLayout>
+          <Footer />
+        </div>
       </AuthProvider>
     </Router>
   );
 }
-
 export default App;

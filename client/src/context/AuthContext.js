@@ -1,55 +1,57 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import axios from 'axios';
 
-export const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+export const useAuth = () => {
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
+};
 
 export const AuthProvider = ({ children }) => {
-    const [auth, setAuth] = useState({
-        isAuthenticated: false,
-        user: null
-    });
+    const [currentUser, setCurrentUser] = useState(null);
 
-    const login = async (formData) => {
+    const login = async (userData) => {
+        setCurrentUser(userData);
+        // Add login logic here
+    };
+
+    const logout = async () => {
+        setCurrentUser(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    };
+
+    const resetPassword = async (email) => {
+        // Add password reset logic here
+    };
+
+    const register = async (userData) => {
         try {
-            console.log('Login attempt:', {
-                email: formData.email,
-                hasPassword: !!formData.password
-            });
-
-            const response = await axios.post('http://localhost:5001/api/auth/login', formData);
-            console.log('Server response:', response.data);
-
-            if (response.data.success) {
-                console.log('Login successful:', response.data.user);
-                setAuth({
-                    isAuthenticated: true,
-                    user: response.data.user
-                });
-                return { success: true, user: response.data.user };
-            }
-
-            console.log('Login failed:', response.data);
+            const response = await axios.post('http://localhost:5001/api/auth/register', userData);
             return response.data;
-
         } catch (error) {
-            console.error('Login error:', error.response?.data || error.message);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Login failed'
-            };
+            throw error;
         }
     };
 
-    const logout = () => {
-        setAuth({
-            isAuthenticated: false,
-            user: null
-        });
+    const value = {
+        currentUser,
+        login,
+        logout,
+        register,
+        resetPassword
     };
 
     return (
-        <AuthContext.Provider value={{ auth, login, logout }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );
 };
+
+// Export the context as well for components that need direct access
+export { AuthContext };

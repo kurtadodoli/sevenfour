@@ -101,7 +101,7 @@ router.post('/login', async (req, res) => {
         const { email, password } = req.body;
         console.log('\n=== Login Attempt ===');
         console.log('Email:', email);
-        console.log('Provided password:', password);
+        console.log('Password:', password); // Remove in production
 
         // Find user
         const [users] = await pool.query(
@@ -124,51 +124,43 @@ router.post('/login', async (req, res) => {
             storedHash: user.password
         });
 
-        // Debug password check
-        try {
-            const isValidPassword = await bcrypt.compare(password, user.password);
-            console.log('Password check:', {
-                providedPassword: password,
-                storedHash: user.password,
-                isValid: isValidPassword
+        // Verify password
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        console.log('Password verification:', {
+            result: isValidPassword
+        });
+
+        if (!isValidPassword) {
+            console.log('❌ Password invalid');
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid email or password'
             });
-
-            if (!isValidPassword) {
-                console.log('❌ Password verification failed');
-                return res.status(401).json({
-                    success: false,
-                    message: 'Invalid email or password'
-                });
-            }
-
-            console.log('✅ Password verified successfully');
-
-            // Generate token
-            const token = jwt.sign(
-                { userId: user.id },
-                process.env.JWT_SECRET || 'your-secret-key',
-                { expiresIn: '24h' }
-            );
-
-            res.json({
-                success: true,
-                token,
-                user: {
-                    id: user.id,
-                    email: user.email,
-                    first_name: user.first_name,
-                    last_name: user.last_name,
-                    username: user.username
-                }
-            });
-
-        } catch (bcryptError) {
-            console.error('Password verification error:', bcryptError);
-            throw bcryptError;
         }
 
+        // Generate JWT token
+        const token = jwt.sign(
+            { userId: user.id },
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        console.log('✅ Login successful');
+
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name
+            }
+        });
+
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('❌ Login error:', error);
         res.status(500).json({
             success: false,
             message: 'Login failed: ' + error.message
