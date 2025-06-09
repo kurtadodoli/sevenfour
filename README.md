@@ -1,5 +1,5 @@
 # ![WebApp](https://iharsh234.github.io/WebApp/images/demo/demo_landing.JPG)
-# WebApp
+# Product Management System for Seven Four Clothing
 <table>
 <tr>
 <td>
