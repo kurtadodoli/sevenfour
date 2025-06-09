@@ -1,4 +1,4 @@
-# ![WebApp](https://iharsh234.github.io/WebApp/images/demo/demo_landing.JPG)
+# ![WebApp](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-logo.png)
 # Product Management System for Seven Four Clothing
 <table>
 <tr>
