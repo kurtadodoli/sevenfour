@@ -19,9 +19,9 @@ import UnauthorizedPage from './pages/UnauthorizedPage';
 import UsersPage from './pages/UsersPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
-import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
 import Maintenance from './pages/Maintenance'; // Import Maintenance page
 import HelpPage from './pages/HelpPage'; // Import HelpPage
+import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
 import AboutPage from './pages/AboutPage'; // Import AboutPage
 import InventoryPage from './pages/InventoryPage'; // Import InventoryPage
 import OrdersPage from './pages/OrdersPage'; // Import OrdersPage
@@ -91,9 +91,9 @@ function App() {
                 <Route path="/maintenance" element={<Maintenance />} /> {/* Moved to public routes */}
                 {/* Protected Routes - Customer */}
                 <Route element={<PrivateRoute />}>
+                  <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/cart" element={<CartPage />} />
                   <Route path="/checkout" element={<CheckoutPage />} />
-                  <Route path="/profile" element={<ProfilePage />} /> {/* Add ProfilePage route */}
                 </Route>
                 {/* Protected Routes - Staff & Admin */}
                 <Route element={<StaffRoute />}>

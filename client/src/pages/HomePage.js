@@ -9,6 +9,7 @@ import { jacketProducts } from '../data/jacketProducts'; // Import jacket produc
 
 // Import your images with their proper file extensions
 import heroImage from '../assets/images/seven-four-hero.jpg';
+import sfcLogo from '../assets/images/sfc-logo.png';
 import tshirtImage from '../assets/images/seven-four-tshirt.jpg';
 import shortsImage from '../assets/images/seven-four-shorts.jpg';
 import hatImage from '../assets/images/seven-four-hat.jpg';
@@ -18,6 +19,17 @@ import jacketImage from '../assets/images/seven-four-jacket.jpg';
 import jerseyImage from '../assets/images/seven-four-jersey.jpg';
 import sweaterImage from '../assets/images/seven-four-sweater.jpg';
 import bagImage from '../assets/images/seven-four-bag.jpg';
+
+const HeroLogo = styled.img`
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: auto;
+  z-index: 3;
+  opacity: 0.9;
+`;
 
 const HeroSection = styled.section`
   height: 80vh;
@@ -219,16 +231,15 @@ const HomePage = () => {
     <main>
       <HeroSection>
         <HeroImage src={heroImage} alt="Seven Four Clothing Hero" />
-        <div style={{ position: 'absolute', width: '100%', height: '100%', backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1 }}></div>
+        <HeroLogo src={sfcLogo} alt="Seven Four Clothing Logo" />
         <HeroContent>
-          <HeroTitle>Seven Four Clothing</HeroTitle>
+          <HeroTitle>Welcome to Seven Four Clothing</HeroTitle>
           <HeroSubtitle>Discover our latest collection of premium streetwear designed for comfort and style.</HeroSubtitle>
           <ShopButton to="/products">Shop Now</ShopButton>
         </HeroContent>
       </HeroSection>
-      
-      <CategorySection>
-        <SectionTitle>Shop by Category</SectionTitle>
+        <CategorySection>
+        <SectionTitle>Shop</SectionTitle>
         <CategoryGrid>
           {categories.map(category => (
             <ProductCard key={category.id}>

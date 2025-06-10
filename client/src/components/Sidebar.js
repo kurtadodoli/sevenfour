@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
 import { Link, useLocation } from 'react-router-dom';
+import styled from 'styled-components';
 import logo from '../assets/images/sfc-logo-white.png';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
-    const location = useLocation();
     const [isMinimized, setIsMinimized] = useState(false);
+    const location = useLocation();
+    const { currentUser } = useAuth();
+    const isAdmin = currentUser?.role === 'admin';
 
     const toggleSidebar = () => {
         setIsMinimized(!isMinimized);
@@ -14,81 +17,122 @@ const Sidebar = () => {
     return (
         <SidebarContainer minimized={isMinimized}>
             <LogoSection onClick={toggleSidebar}>
-                <Logo src={logo} alt="Seven Four Clothing" minimized={isMinimized} />
+                <LogoWrapper minimized={isMinimized}>
+                    <Logo src={logo} alt="Seven Four Clothing" />
+                </LogoWrapper>
             </LogoSection>
             <NavLinks>
-                <SectionTitle>{!isMinimized && 'Main'}</SectionTitle>
+                {/* Main section - visible to all */}
+                <SectionTitle minimized={isMinimized}>{!isMinimized && 'Main'}</SectionTitle>
                 <NavItem active={location.pathname === '/'}>
                     <StyledLink to="/" minimized={isMinimized}>
-                        <IconWrapper>🏠</IconWrapper>
+                        <IconWrapper>
+                            <HomeIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>Home</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem active={location.pathname === '/dashboard'}>
-                    <StyledLink to="/dashboard" minimized={isMinimized}>
-                        <IconWrapper>📊</IconWrapper>
-                        {!isMinimized && <span>Dashboard</span>}
-                    </StyledLink>
-                </NavItem>
 
-                <SectionTitle>{!isMinimized && 'Shop'}</SectionTitle>
+                {/* Dashboard - admin only */}
+                {isAdmin && (
+                    <NavItem active={location.pathname === '/dashboard'}>
+                        <StyledLink to="/dashboard" minimized={isMinimized}>
+                            <IconWrapper>
+                                <DashboardIcon />
+                            </IconWrapper>
+                            {!isMinimized && <span>Dashboard</span>}
+                        </StyledLink>
+                    </NavItem>
+                )}
+
+                {/* Shop section - visible to all */}
+                <SectionTitle minimized={isMinimized}>{!isMinimized && 'Shop'}</SectionTitle>
                 <NavItem active={location.pathname === '/products'}>
                     <StyledLink to="/products" minimized={isMinimized}>
-                        <IconWrapper>👕</IconWrapper>
+                        <IconWrapper>
+                            <ProductIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>Products</span>}
                     </StyledLink>
                 </NavItem>
                 <NavItem active={location.pathname === '/cart'}>
                     <StyledLink to="/cart" minimized={isMinimized}>
-                        <IconWrapper>🛒</IconWrapper>
+                        <IconWrapper>
+                            <CartIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>Cart</span>}
                     </StyledLink>
                 </NavItem>
 
+                {/* Delivery section - conditional rendering */}
                 <SectionTitle>{!isMinimized && 'Delivery'}</SectionTitle>
                 <NavItem active={location.pathname === '/orders'}>
                     <StyledLink to="/orders" minimized={isMinimized}>
-                        <IconWrapper>📦</IconWrapper>
+                        <IconWrapper>
+                            <OrderIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>Orders</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem active={location.pathname === '/tracking'}>
-                    <StyledLink to="/tracking" minimized={isMinimized}>
-                        <IconWrapper>🚚</IconWrapper>
-                        {!isMinimized && <span>Tracking</span>}
-                    </StyledLink>
-                </NavItem>
-                <NavItem active={location.pathname === '/shipping'}>
-                    <StyledLink to="/shipping" minimized={isMinimized}>
-                        <IconWrapper>📍</IconWrapper>
-                        {!isMinimized && <span>Shipping</span>}
-                    </StyledLink>
-                </NavItem>
+                {isAdmin && (
+                    <>
+                        <NavItem active={location.pathname === '/tracking'}>
+                            <StyledLink to="/tracking" minimized={isMinimized}>
+                                <IconWrapper>
+                                    <TruckIcon />
+                                </IconWrapper>
+                                {!isMinimized && <span>Tracking</span>}
+                            </StyledLink>
+                        </NavItem>
+                        <NavItem active={location.pathname === '/shipping'}>
+                            <StyledLink to="/shipping" minimized={isMinimized}>
+                                <IconWrapper>
+                                    <ShippingIcon />
+                                </IconWrapper>
+                                {!isMinimized && <span>Shipping</span>}
+                            </StyledLink>
+                        </NavItem>
+                    </>
+                )}
 
-                <SectionTitle>{!isMinimized && 'Management'}</SectionTitle>
-                <NavItem active={location.pathname === '/maintenance'}>
-                    <StyledLink to="/maintenance" minimized={isMinimized}>
-                        <IconWrapper>⚙️</IconWrapper>
-                        {!isMinimized && <span>Maintenance</span>}
-                    </StyledLink>
-                </NavItem>
-                <NavItem active={location.pathname === '/inventory'}>
-                    <StyledLink to="/inventory" minimized={isMinimized}>
-                        <IconWrapper>📦</IconWrapper>
-                        {!isMinimized && <span>Inventory</span>}
-                    </StyledLink>
-                </NavItem>
+                {/* Management section - admin only */}
+                {isAdmin && (
+                    <>
+                        <SectionTitle>{!isMinimized && 'Management'}</SectionTitle>
+                        <NavItem active={location.pathname === '/maintenance'}>
+                            <StyledLink to="/maintenance" minimized={isMinimized}>
+                                <IconWrapper>
+                                    <SettingsIcon />
+                                </IconWrapper>
+                                {!isMinimized && <span>Maintenance</span>}
+                            </StyledLink>
+                        </NavItem>
+                        <NavItem active={location.pathname === '/inventory'}>
+                            <StyledLink to="/inventory" minimized={isMinimized}>
+                                <IconWrapper>
+                                    <InventoryIcon />
+                                </IconWrapper>
+                                {!isMinimized && <span>Inventory</span>}
+                            </StyledLink>
+                        </NavItem>
+                    </>
+                )}
 
+                {/* Support section - visible to all */}
                 <SectionTitle>{!isMinimized && 'Support'}</SectionTitle>
                 <NavItem active={location.pathname === '/help'}>
                     <StyledLink to="/help" minimized={isMinimized}>
-                        <IconWrapper>❓</IconWrapper>
+                        <IconWrapper>
+                            <HelpIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>Help</span>}
                     </StyledLink>
                 </NavItem>
                 <NavItem active={location.pathname === '/about'}>
                     <StyledLink to="/about" minimized={isMinimized}>
-                        <IconWrapper>ℹ️</IconWrapper>
+                        <IconWrapper>
+                            <InfoIcon />
+                        </IconWrapper>
                         {!isMinimized && <span>About</span>}
                     </StyledLink>
                 </NavItem>
@@ -100,97 +144,172 @@ const Sidebar = () => {
 const SidebarContainer = styled.div`
     width: ${props => props.minimized ? '80px' : '250px'};
     height: 100vh;
-    background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%);
+    background: #1a1a1a;
     position: fixed;
     left: 0;
     top: 0;
+    transition: width 0.3s ease;
     z-index: 1000;
-    transition: all 0.3s ease;
-    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.1);
 `;
 
 const LogoSection = styled.div`
-    padding: 1.5rem;
+    padding: 20px;
+    cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+    height: 80px;
+`;
 
-    &:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
+const LogoWrapper = styled.div`
+    width: ${props => props.minimized ? '40px' : '120px'}; // Reduced from 160px to 120px
+    height: ${props => props.minimized ? '40px' : '40px'}; // Fixed height to maintain aspect ratio
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    overflow: hidden; // Prevent logo overflow
 `;
 
 const Logo = styled.img`
-    height: 50px;
-    width: ${props => props.minimized ? '40px' : 'auto'};
-    transition: all 0.3s ease;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    transform: ${props => props.minimized ? 'scale(0.8)' : 'scale(1)'};
 `;
 
-const NavLinks = styled.ul`
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0;
+const NavLinks = styled.div`
+    padding: 20px 0;
     overflow-y: auto;
-    height: calc(100vh - 100px);
-
-    &::-webkit-scrollbar {
-        width: 5px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 3px;
-    }
+    height: calc(100vh - 80px);
 `;
 
-const NavItem = styled.li`
-    margin: 0.25rem 0.75rem;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    background: ${props => props.active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateX(5px);
-    }
+const NavItem = styled.div`
+    margin: 4px 0;
+    padding: 0 16px;
 `;
 
 const StyledLink = styled(Link)`
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
-    color: ${props => props.active ? '#ffffff' : '#b3b3b3'};
+    padding: 12px;
+    color: white;
     text-decoration: none;
-    transition: all 0.3s ease;
-    gap: 1rem;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
 
     &:hover {
-        color: white;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    span {
+        margin-left: 12px;
+        font-size: 14px;
     }
 `;
 
 const IconWrapper = styled.div`
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 24px;
-    font-size: 1.2rem;
 `;
 
 const SectionTitle = styled.div`
     color: #666;
-    font-size: 0.75rem;
+    font-size: 12px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 1.5rem 1.5rem 0.5rem;
-    font-weight: 600;
+    padding: 16px 28px 8px;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding-left: ${props => props.minimized ? '16px' : '28px'};
 `;
+
+// White SVG Icons
+const HomeIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+    </svg>
+);
+
+const DashboardIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <rect x="3" y="3" width="7" height="7" />
+        <rect x="14" y="3" width="7" height="7" />
+        <rect x="14" y="14" width="7" height="7" />
+        <rect x="3" y="14" width="7" height="7" />
+    </svg>
+);
+
+const ProductIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/>
+    </svg>
+);
+
+const CartIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6"/>
+    </svg>
+);
+
+const OrderIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+    </svg>
+);
+
+const TruckIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M16 16h6V8l-6-6H2v14h14v-6zM16 16l6-6"/>
+        <circle cx="7" cy="20" r="2"/>
+        <circle cx="17" cy="20" r="2"/>
+    </svg>
+);
+
+const ShippingIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/>
+        <circle cx="12" cy="10" r="3"/>
+    </svg>
+);
+
+const SettingsIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+);
+
+const InventoryIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <path d="M21 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v3"/>
+        <path d="M3 16v3a2 2 0 002 2h14a2 2 0 002-2v-3"/>
+        <path d="M3 8h18v8H3z"/>
+    </svg>
+);
+
+const HelpIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+        <line x1="12" y1="17" x2="12" y2="17"/>
+    </svg>
+);
+
+const InfoIcon = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="8"/>
+    </svg>
+);
 
 export default Sidebar;

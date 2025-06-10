@@ -79,4 +79,22 @@ UserSchema.methods.getResetPasswordToken = function() {
   return resetToken;
 };
 
+UserSchema.statics.create = async function(userData) {
+  const { firstName, lastName, email, password, gender, birthday } = userData;
+  
+  // Hash password
+  const hashedPassword = await bcrypt.hash(password, 10);
+  
+  try {
+      const [result] = await db.execute(
+          'INSERT INTO users (first_name, last_name, email, password, gender, birthday) VALUES (?, ?, ?, ?, ?, ?)',
+          [firstName, lastName, email, hashedPassword, gender, birthday]
+      );
+      
+      return result.insertId;
+  } catch (error) {
+      throw new Error('Error creating user: ' + error.message);
+  }
+};
+
 module.exports = mongoose.model('User', UserSchema);

@@ -3,6 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../config/db');
+const { authenticateUser } = require('../../middleware/auth');
 const router = express.Router();
 
 // @route   POST /api/users/register
@@ -116,13 +117,108 @@ router.post('/login', async (req, res) => {
 // @route   GET /api/users/profile
 // @desc    Get user profile
 // @access  Private
-router.get('/profile', async (req, res) => {
+router.get('/profile', authenticateUser, async (req, res) => {
   try {
-    // This would need auth middleware to work properly
-    res.json({ message: 'Profile route - authentication needed' });
+    const userId = req.user.id; // From auth middleware    // Get user profile data with all necessary fields
+    const [users] = await pool.execute(
+      `SELECT id, first_name, last_name, email, gender, street_address, apartment_suite, 
+              city, state_province, postal_code, country, profile_picture_url,
+              created_at, updated_at 
+       FROM users WHERE id = ?`,
+      [userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User profile not found' 
+      });
+    }
+
+    // Send the profile data with success flag
+    res.json({
+      success: true,
+      data: users[0],
+      message: 'Profile data retrieved successfully'
+    });
   } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while fetching profile data',
+      error: error.message 
+    });
+  }
+});
+
+// @route   PUT /api/users/profile
+// @desc    Update user profile
+// @access  Private
+router.put('/profile', authenticateUser, async (req, res) => {
+  try {
+    const { 
+      first_name, 
+      last_name, 
+      gender,
+      profile_picture_url,
+      street_address, 
+      apartment_suite, 
+      city, 
+      state_province, 
+      postal_code, 
+      country 
+    } = req.body;
+    const userId = req.user.id; // From auth middleware
+    const updateFields = {};
+
+    // Only include fields that are provided in the request
+    if (first_name !== undefined) updateFields.first_name = first_name;
+    if (last_name !== undefined) updateFields.last_name = last_name;
+    if (gender !== undefined) updateFields.gender = gender;
+    if (profile_picture_url !== undefined) updateFields.profile_picture_url = profile_picture_url;
+    if (street_address !== undefined) updateFields.street_address = street_address;
+    if (apartment_suite !== undefined) updateFields.apartment_suite = apartment_suite;
+    if (city !== undefined) updateFields.city = city;
+    if (state_province !== undefined) updateFields.state_province = state_province;
+    if (postal_code !== undefined) updateFields.postal_code = postal_code;
+    if (country !== undefined) updateFields.country = country;
+
+    // Update user profile
+    const query = `
+      UPDATE users
+      SET ${Object.keys(updateFields).map(key => `${key} = ?`).join(', ')}
+      WHERE id = ?
+    `;
+    
+    const values = [...Object.values(updateFields), userId];
+    await pool.execute(query, values);
+
+    // Fetch updated user data
+    const [rows] = await pool.execute(
+      'SELECT id, email, first_name, last_name, gender, profile_picture_url, street_address, apartment_suite, city, state_province, postal_code, country FROM users WHERE id = ?',
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const updatedUser = rows[0];
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile'
+    });
   }
 });
 

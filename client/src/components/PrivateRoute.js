@@ -4,14 +4,23 @@ import { AuthContext } from '../context/AuthContext';
 
 // Component for protecting routes that require authentication
 export const PrivateRoute = () => {
-  const { currentUser, loading } = useContext(AuthContext);
+  const { auth, loading } = useContext(AuthContext);
   const location = useLocation();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        Loading...
+      </div>
+    );
   }
 
-  if (!currentUser) {
+  if (!auth.isAuthenticated) {
     // Redirect to login page with return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -21,13 +30,13 @@ export const PrivateRoute = () => {
 
 // Component for protecting routes that require admin role
 export const AdminRoute = () => {
-  const { currentUser, loading, isAdmin } = useContext(AuthContext);
+  const { auth, loading } = useContext(AuthContext);
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return currentUser && isAdmin() ? (
+  return auth.isAuthenticated && auth.user.role === 'admin' ? (
     <Outlet />
   ) : (
     <Navigate to="/unauthorized" />
@@ -36,13 +45,13 @@ export const AdminRoute = () => {
 
 // Component for protecting routes that require staff or admin role
 export const StaffRoute = () => {
-  const { currentUser, loading, isAdmin, isStaff } = useContext(AuthContext);
+  const { auth, loading } = useContext(AuthContext);
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return currentUser && (isAdmin() || isStaff()) ? (
+  return auth.isAuthenticated && ['admin', 'staff'].includes(auth.user.role) ? (
     <Outlet />
   ) : (
     <Navigate to="/unauthorized" />

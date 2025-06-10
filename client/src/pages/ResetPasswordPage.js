@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import { useAuth } from '../context/AuthContext'; // Update this line
+import axios from 'axios';
+import logo from '../assets/images/sfc-logo.png';
 
 const ResetContainer = styled.div`
   max-width: 400px;
@@ -68,93 +69,175 @@ const LoginLink = styled.p`
   margin-top: 1.5rem;
 `;
 
+const LogoContainer = styled.div`
+    text-align: center;
+    margin-bottom: 2rem;
+`;
+
+const Logo = styled.img`
+    height: 60px;
+`;
+
+const SuccessMessage = styled.div`
+    color: #28a745;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+`;
+
+const ErrorMessage = styled.div`
+    color: #dc3545;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+`;
+
+const BackToLogin = styled.div`
+    text-align: center;
+    margin-top: 1rem;
+    
+    a {
+        color: #000;
+        text-decoration: none;
+        
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+`;
+
 const ResetPasswordPage = () => {
-  const { resetToken } = useParams();
-  const navigate = useNavigate();
-  const { resetPassword } = useAuth(); // Use the hook instead of useContext
-  const [formData, setFormData] = useState({
-    password: '',
-    confirmPassword: ''
-  });
-  const [formError, setFormError] = useState('');
-  const [success, setSuccess] = useState(false);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const [formData, setFormData] = useState({
+        email: location.state?.email || '',
+        resetCode: '',
+        newPassword: '',
+        confirmPassword: ''
+    });
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [message, setMessage] = useState('');
 
-  const { password, confirmPassword } = formData;
+    const handleChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
+    };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError('');
+        setMessage('');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validate passwords
-    if (password !== confirmPassword) {
-      setFormError('Passwords do not match');
-      return;
-    }
-    
-    if (password.length < 6) {
-      setFormError('Password must be at least 6 characters');
-      return;
-    }
-    
-    try {
-      await resetPassword(resetToken, password);
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-    } catch (err) {
-      setSuccess(false);
-      // Error is already handled in the AuthContext
-    }
-  };
+        // Validate passwords match
+        if (formData.newPassword !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+        }
 
-  return (
-    <ResetContainer>
-      <Title>Reset Password</Title>
-      <Form onSubmit={handleSubmit}>
-        <FormGroup>
-          <Label htmlFor="password">New Password</Label>
-          <Input
-            type="password"
-            id="password"
-            name="password"
-            value={password}
-            onChange={handleChange}
-            required
-            minLength="6"
-          />
-        </FormGroup>
-        <FormGroup>
-          <Label htmlFor="confirmPassword">Confirm New Password</Label>
-          <Input
-            type="password"
-            id="confirmPassword"
-            name="confirmPassword"
-            value={confirmPassword}
-            onChange={handleChange}
-            required
-            minLength="6"
-          />
-        </FormGroup>
-        
-        {formError && <Message type="error">{formError}</Message>}
-        {success && (
-          <Message type="success">
-            Password has been reset successfully! Redirecting to login page...
-          </Message>
-        )}
-        
-        <Button type="submit">Reset Password</Button>
-      </Form>
-      
-      <LoginLink>
-        Remember your password? <Link to="/login">Sign in</Link>
-      </LoginLink>
-    </ResetContainer>
-  );
+        try {
+            const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
+                email: formData.email,
+                resetCode: formData.resetCode,
+                newPassword: formData.newPassword
+            });
+
+            if (response.data.success) {
+                setMessage('Password successfully reset');
+                // Navigate to login page after 3 seconds
+                setTimeout(() => {
+                    navigate('/login');
+                }, 3000);
+            }
+        } catch (err) {
+            setError(err.response?.data?.message || 'Error resetting password');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <ResetContainer>
+            <LogoContainer>
+                <Logo src={logo} alt="Seven Four Clothing" />
+            </LogoContainer>
+            <Title>Reset Password</Title>
+            
+            {error && <ErrorMessage>{error}</ErrorMessage>}
+            {message && <SuccessMessage>{message}</SuccessMessage>}
+
+            <Form onSubmit={handleSubmit}>
+                <FormGroup>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        required
+                        disabled={location.state?.email}
+                    />
+                </FormGroup>
+
+                <FormGroup>
+                    <Label htmlFor="resetCode">Verification Code</Label>
+                    <Input
+                        type="text"
+                        id="resetCode"
+                        name="resetCode"
+                        value={formData.resetCode}
+                        onChange={handleChange}
+                        required
+                        placeholder="Enter 6-digit code"
+                        maxLength="6"
+                    />
+                </FormGroup>
+
+                <FormGroup>
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                        type="password"
+                        id="newPassword"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleChange}
+                        required
+                        minLength="6"
+                    />
+                </FormGroup>
+
+                <FormGroup>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        minLength="6"
+                    />
+                </FormGroup>
+
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Resetting...' : 'Reset Password'}
+                </Button>
+
+                <BackToLogin>
+                    <Link to="/login">Back to Login</Link>
+                </BackToLogin>
+            </Form>
+        </ResetContainer>
+    );
 };
 
 export default ResetPasswordPage;

@@ -18,23 +18,19 @@ async function testAuth() {
         // Create a test user with known password
         const password = 'Test123!@#';
         const hashedPassword = await bcrypt.hash(password, 10);
-        
-        await pool.query(`
+          await pool.query(`
             INSERT INTO users (
-                username, email, password, first_name, last_name, 
-                birthday, gender, province_id, city_id, newsletter
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                email, password, first_name, last_name, 
+                birthday, gender, role
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         `, [
-            'test_user',
             'test@example.com',
             hashedPassword,
             'Test',
             'User',
             '1990-01-01',
             'MALE',
-            1,
-            1,
-            false
+            'customer'
         ]);
 
         // Verify the user exists

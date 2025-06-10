@@ -1,86 +1,132 @@
--- Drop database if exists and create new
+-- Drop database if exists and create new one
 DROP DATABASE IF EXISTS seven_four_clothing;
 CREATE DATABASE seven_four_clothing;
 USE seven_four_clothing;
 
--- Drop existing tables in correct order
-DROP TABLE IF EXISTS cities;
-DROP TABLE IF EXISTS provinces;
-DROP TABLE IF EXISTS users;
+-- Products related tables
+-- Drop tables if they exist
+DROP TABLE IF EXISTS delivery_schedules;
+DROP TABLE IF EXISTS inventory;
+DROP TABLE IF EXISTS product_sizes;
+DROP TABLE IF EXISTS product_colors;
+DROP TABLE IF EXISTS product_images;
+DROP TABLE IF EXISTS products;
 
--- Create users table
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    birthday DATE NOT NULL,
-    gender ENUM('MALE', 'FEMALE', 'PREFER_NOT_TO_SAY') NOT NULL,
-    province_id INT NOT NULL,
-    city_id INT NOT NULL,
-    newsletter BOOLEAN DEFAULT false,
+-- Create products table
+CREATE TABLE products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    category VARCHAR(50) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (province_id) REFERENCES provinces(id),
-    FOREIGN KEY (city_id) REFERENCES cities(id)
+    is_archived BOOLEAN DEFAULT FALSE,
+    INDEX idx_category (category),
+    INDEX idx_archived (is_archived)
 );
 
--- Create provinces table
-CREATE TABLE provinces (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    province_name VARCHAR(100) NOT NULL UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create cities table
-CREATE TABLE cities (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    city_name VARCHAR(100) NOT NULL,
-    province_id INT NOT NULL,
+-- Create product_images table
+CREATE TABLE product_images (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    image_url VARCHAR(255) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (province_id) REFERENCES provinces(id) ON DELETE CASCADE,
-    UNIQUE KEY unique_city_province (city_name, province_id)
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    INDEX idx_product_images (product_id)
 );
 
--- Add foreign keys to users table
-ALTER TABLE users
-    ADD CONSTRAINT fk_user_province FOREIGN KEY (province_id) REFERENCES provinces(id),
-    ADD CONSTRAINT fk_user_city FOREIGN KEY (city_id) REFERENCES cities(id);
+-- Create product_colors table
+CREATE TABLE product_colors (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_product_color (product_id, color),
+    INDEX idx_product_colors (product_id)
+);
 
--- Insert default provinces
-INSERT INTO provinces (province_name) VALUES 
-('Metro Manila'),
-('Cebu'),
-('Davao'),
-('Pampanga'),
-('Batangas');
+-- Create product_sizes table
+CREATE TABLE product_sizes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    size VARCHAR(10) NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_product_size (product_id, size),
+    INDEX idx_product_sizes (product_id)
+);
 
--- Insert default cities
-INSERT INTO cities (city_name, province_id) VALUES 
--- Metro Manila cities
-('Makati', 1),
-('Quezon City', 1),
-('Manila', 1),
-('Taguig', 1),
--- Cebu cities
-('Cebu City', 2),
-('Mandaue', 2),
-('Lapu-Lapu', 2),
--- Davao cities
-('Davao City', 3),
-('Tagum', 3),
-('Digos', 3),
--- Pampanga cities
-('San Fernando', 4),
-('Angeles', 4),
-('Mabalacat', 4),
--- Batangas cities
-('Batangas City', 5),
-('Lipa', 5),
-('Tanauan', 5);
+-- Create inventory table
+CREATE TABLE inventory (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    color_id INT NOT NULL,
+    size_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 0,
+    critical_level INT NOT NULL DEFAULT 5,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (color_id) REFERENCES product_colors(id) ON DELETE CASCADE,
+    FOREIGN KEY (size_id) REFERENCES product_sizes(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_product_color_size (product_id, color_id, size_id),
+    INDEX idx_inventory_product (product_id)
+);
 
--- Insert default user
-INSERT INTO users (username, email, password, first_name, last_name, birthday, gender, province_id, city_id, newsletter) VALUES 
-('john_doe', 'john@example.com', 'Test123!@#', 'John', 'Doe', '1990-01-01', 'MALE', 1, 1, false);
+-- Create delivery_schedules table
+CREATE TABLE delivery_schedules (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    product_id INT NOT NULL,
+    estimated_days INT NOT NULL DEFAULT 3,
+    shipping_cost DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    available_regions JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    INDEX idx_delivery_product (product_id)
+);
+
+-- Create users table with proper constraints and types
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    gender ENUM('male', 'female', 'other') NOT NULL,
+    birthday DATE NOT NULL,
+    role ENUM('customer', 'admin', 'staff') DEFAULT 'customer',
+    profile_picture_url VARCHAR(255),
+    street_address VARCHAR(255),
+    apartment_suite VARCHAR(50),
+    city VARCHAR(100),
+    state_province VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    reset_code VARCHAR(6) NULL,
+    reset_code_expiry TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE KEY unique_email (email),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create default admin user
+INSERT INTO users (
+    first_name,
+    last_name,
+    email,
+    password,
+    gender,
+    birthday,
+    role
+) VALUES (
+    'Admin',
+    'User',
+    'admin@sevenfour.com',
+    '$2b$10$PKFUVWJpS8fwpt9xbxEJNelL6jYIOzWfRFcB9C.YO0sXu5W2Id5MS',
+    'other',
+    '1990-01-01',
+    'admin'
+);

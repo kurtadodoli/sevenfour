@@ -1,11 +1,15 @@
 import React from 'react';
 import styled from 'styled-components';
+import { useAuth } from '../context/AuthContext';
 
-const Welcome = ({ user }) => {
+const Welcome = () => {
+    const { auth } = useAuth();
+    const user = auth.user || {};
+    
     return (
         <WelcomeContainer>
             <WelcomeMessage>
-                Welcome back, {user.first_name}!
+                Welcome back, {user.first_name || 'User'}!
             </WelcomeMessage>
             <LoginStatus>
                 ✅ You are successfully logged in
@@ -13,11 +17,11 @@ const Welcome = ({ user }) => {
             <UserInfo>
                 <InfoItem>
                     <Label>Email:</Label>
-                    <Value>{user.email}</Value>
+                    <Value>{user.email || 'Not available'}</Value>
                 </InfoItem>
                 <InfoItem>
-                    <Label>Username:</Label>
-                    <Value>{user.username}</Value>
+                    <Label>Name:</Label>
+                    <Value>{user.first_name ? `${user.first_name} ${user.last_name || ''}` : 'Not set'}</Value>
                 </InfoItem>
             </UserInfo>
         </WelcomeContainer>

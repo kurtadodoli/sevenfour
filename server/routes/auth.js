@@ -1,116 +1,78 @@
-// filepath: c:\seven-four-clothing\server\routes\auth.js
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
+const db = require('../config/database');
+const verifyToken = require('../middleware/auth');
+const { sendResetCode } = require('../utils/emailService');
 const jwt = require('jsonwebtoken');
-const { pool } = require('../config/database');
-const authMiddleware = require('../middleware/auth');
 
+// Register route
 router.post('/register', async (req, res) => {
     try {
-        const {
-            username,
-            email,
-            password,
-            firstName,
-            lastName,
-            birthday,
-            gender,
-            province_id,
-            city_id,
-            newsletter
-        } = req.body;
+        const { firstName, lastName, email, password, gender, birthday } = req.body;
+        
+        // Check for existing user
+        const [existingUsers] = await db.execute(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
 
-        // Log registration attempt
-        console.log('Registration attempt:', {
-            email,
-            firstName,
-            lastName,
-            province_id,
-            city_id
-        });
-
-        // Validate required fields
-        if (!username || !email || !password || !firstName || !lastName || !birthday || !gender || !province_id || !city_id) {
-            console.log('Missing required fields');
+        if (existingUsers.length > 0) {
             return res.status(400).json({
-                success: false,
-                message: 'All fields are required'
-            });
-        }
-
-        // Check if email already exists
-        const [existingUser] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
-        if (existingUser.length > 0) {
-            console.log('Email already exists:', email);
-            return res.status(409).json({
                 success: false,
                 message: 'Email already registered'
             });
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
         // Insert new user
-        const [result] = await pool.query(`
-            INSERT INTO users (
-                username,
-                email,
-                password,
-                first_name,
-                last_name,
-                birthday,
-                gender,
-                province_id,
-                city_id,
-                newsletter
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            username,
-            email,
-            hashedPassword,
-            firstName,
-            lastName,
-            birthday,
-            gender,
-            province_id,
-            city_id,
-            newsletter || false
-        ]);
-
-        console.log('User registered successfully:', result.insertId);
+        await db.execute(
+            `INSERT INTO users (first_name, last_name, email, password, gender, birthday, role) 
+             VALUES (?, ?, ?, ?, ?, ?, 'customer')`,
+            [firstName, lastName, email, hashedPassword, gender, birthday]
+        );
 
         res.status(201).json({
             success: true,
-            message: 'Registration successful',
-            userId: result.insertId
+            message: 'Registration successful'
         });
 
     } catch (error) {
         console.error('Registration error:', error);
         res.status(500).json({
             success: false,
-            message: 'Registration failed: ' + error.message
+            message: 'Server error during registration'
         });
     }
 });
 
+// Login route
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log('\n=== Login Attempt ===');
-        console.log('Email:', email);
-        console.log('Password:', password); // Remove in production
+        
+        if (!email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide both email and password'
+            });
+        }
 
-        // Find user
-        const [users] = await pool.query(
-            'SELECT * FROM users WHERE email = ?',
+        // Find user by email with all necessary fields
+        const [users] = await db.execute(
+            `SELECT id, email, password, first_name, last_name, gender, 
+             profile_picture_url, role, street_address, apartment_suite,
+             city, state_province, postal_code, country
+             FROM users WHERE email = ?`,
             [email]
         );
+        console.log('Login attempt for email:', email);
 
         if (users.length === 0) {
-            console.log('❌ User not found');
+            console.log('No user found with email:', email);
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
@@ -118,116 +80,85 @@ router.post('/login', async (req, res) => {
         }
 
         const user = users[0];
-        console.log('✅ User found:', {
-            id: user.id,
-            email: user.email,
-            storedHash: user.password
-        });
-
-        // Verify password
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        console.log('Password verification:', {
-            result: isValidPassword
-        });
-
-        if (!isValidPassword) {
-            console.log('❌ Password invalid');
+          // Verify password
+        const isMatch = await bcrypt.compare(password, user.password);
+        console.log('Password match result:', isMatch);
+        
+        if (!isMatch) {
+            console.log('Password verification failed for user:', email);
+            // Log failed login attempt
+            await db.execute(
+                'INSERT INTO login_attempts (email, ip_address, user_agent, success) VALUES (?, ?, ?, ?)',
+                [email, req.ip, req.headers['user-agent'], 0]
+            );
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
             });
         }
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { userId: user.id },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
-        );
+        // Update last login
+        await db.execute(
+            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
+            [user.id]
+        );        // Create token with user role and ID
+        const token = jwt.sign({ 
+            id: user.id,
+            role: user.role,
+            email: user.email
+        }, process.env.JWT_SECRET, { 
+            expiresIn: '24h'
+        });
+        
+        // Get complete user profile data
+        const userData = {
+            id: user.id,
+            email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            gender: user.gender,
+            profile_picture_url: user.profile_picture_url,
+            street_address: user.street_address,
+            apartment_suite: user.apartment_suite,
+            city: user.city,
+            state_province: user.state_province,
+            postal_code: user.postal_code,
+            country: user.country
+        };
 
-        console.log('✅ Login successful');
-
-        res.json({
+        res.status(200).json({
             success: true,
+            message: 'Login successful',
             token,
-            user: {
-                id: user.id,
-                email: user.email,
-                username: user.username,
-                first_name: user.first_name,
-                last_name: user.last_name
-            }
+            user: userData
         });
 
     } catch (error) {
-        console.error('❌ Login error:', error);
+        console.error('Login error:', error);
         res.status(500).json({
             success: false,
-            message: 'Login failed: ' + error.message
+            message: 'Server error during login'
         });
     }
 });
 
-router.post('/logout', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Logged out successfully'
-    });
-});
-
-router.get('/provinces', async (req, res) => {
+// Get user profile
+router.get('/profile', verifyToken, async (req, res) => {
     try {
-        const [provinces] = await pool.query('SELECT * FROM provinces');
-        res.json(provinces);
-    } catch (error) {
-        console.error('Error fetching provinces:', error);
-        res.status(500).json({ message: 'Failed to fetch provinces' });
-    }
-});
-
-router.get('/cities/:provinceId', async (req, res) => {
-    try {
-        const [cities] = await pool.query(
-            'SELECT * FROM cities WHERE province_id = ?',
-            [req.params.provinceId]
+        const [users] = await db.execute(
+            `SELECT id, first_name, last_name, email, gender, 
+             birthday, role, created_at, last_login 
+             FROM users WHERE id = ?`,
+            [req.user.id]
         );
-        res.json(cities);
-    } catch (error) {
-        console.error('Error fetching cities:', error);
-        res.status(500).json({ message: 'Failed to fetch cities' });
-    }
-});
-
-router.get('/profile', authMiddleware, async (req, res) => {
-    try {
-        console.log('Fetching profile for user:', req.user.userId); // Debug log
-
-        const [users] = await pool.query(`
-            SELECT 
-                u.id,
-                u.username,
-                u.email,
-                u.first_name,
-                u.last_name,
-                u.birthday,
-                u.gender,
-                p.province_name,
-                c.city_name
-            FROM users u
-            LEFT JOIN provinces p ON u.province_id = p.id
-            LEFT JOIN cities c ON u.city_id = c.id
-            WHERE u.id = ?
-        `, [req.user.userId]);
 
         if (users.length === 0) {
-            console.log('User not found:', req.user.userId);
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
             });
         }
 
-        console.log('Profile fetched successfully');
         res.json({
             success: true,
             user: users[0]
@@ -237,67 +168,112 @@ router.get('/profile', authMiddleware, async (req, res) => {
         console.error('Profile fetch error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch profile'
+            message: 'Server error while fetching profile'
         });
     }
 });
 
-// Update the test user creation route
-router.post('/test/create-user', async (req, res) => {
+// Request password reset
+router.post('/forgot-password', async (req, res) => {
     try {
-        // First, delete if exists
-        await pool.query("DELETE FROM users WHERE email = 'test@example.com'");
+        const { email } = req.body;
+        console.log('Received forgot password request for:', email);
 
-        // Create test user with known password
-        const password = 'Test123!@#';
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Check if user exists
+        const [users] = await db.execute(
+            'SELECT * FROM users WHERE email = ?',
+            [email]
+        );
 
-        // Insert test user
-        const [result] = await pool.query(`
-            INSERT INTO users (
-                username,
-                email,
-                password,
-                first_name,
-                last_name,
-                birthday,
-                gender,
-                province_id,
-                city_id,
-                newsletter
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [
-            'test_user',
-            'test@example.com',
-            hashedPassword,
-            'Test',
-            'User',
-            '1990-01-01',
-            'MALE',
-            1,
-            1,
-            false
-        ]);
+        if (users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No account found with this email'
+            });
+        }
 
-        console.log('Test user created successfully:', {
-            id: result.insertId,
-            email: 'test@example.com',
-            passwordHash: hashedPassword
-        });
+        // Generate 6-digit code
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const resetCodeExpiry = new Date(Date.now() + 15 * 60000); // 15 minutes from now
+
+        // Save reset code in database
+        await db.execute(
+            'UPDATE users SET reset_code = ?, reset_code_expiry = ? WHERE email = ?',
+            [resetCode, resetCodeExpiry, email]
+        );        // Send email with reset code
+        try {
+            console.log('Attempting to send reset code...');
+            const emailSent = await sendResetCode(email, resetCode);
+
+            if (!emailSent) {
+                console.error('Failed to send reset code email');
+                return res.status(500).json({
+                    success: false,
+                    message: 'Error sending reset code email. Please try again later.'
+                });
+            }
+
+            console.log('Reset code email sent successfully');
+        } catch (emailError) {
+            console.error('Email error:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Error sending reset code email. Please try again later.'
+            });
+        }
 
         res.json({
             success: true,
-            message: 'Test user created successfully',
-            userId: result.insertId,
-            email: 'test@example.com',
-            passwordHash: hashedPassword
+            message: 'Reset code sent to your email'
         });
 
     } catch (error) {
-        console.error('Error creating test user:', error);
+        console.error('Forgot password error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create test user'
+            message: 'Server error during password reset request'
+        });
+    }
+});
+
+// Verify reset code and update password
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, resetCode, newPassword } = req.body;
+
+        // Find user and verify reset code
+        const [users] = await db.execute(
+            'SELECT * FROM users WHERE email = ? AND reset_code = ? AND reset_code_expiry > NOW()',
+            [email, resetCode]
+        );
+
+        if (users.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset code'
+            });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update password and clear reset code
+        await db.execute(
+            'UPDATE users SET password = ?, reset_code = NULL, reset_code_expiry = NULL WHERE email = ?',
+            [hashedPassword, email]
+        );
+
+        res.json({
+            success: true,
+            message: 'Password successfully reset'
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during password reset'
         });
     }
 });
