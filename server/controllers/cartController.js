@@ -1,4 +1,4 @@
-const { pool } = require('../config/db');
+const { pool } = require('../config/db.js');
 
 // Get the user's cart
 exports.getCart = async (req, res) => {
@@ -243,4 +243,12 @@ exports.clearCart = async (req, res) => {
     console.error('Error clearing cart:', error);
     res.status(500).json({ message: 'Server error' });
   }
+}; 
+
+module.exports = {
+  getCart: exports.getCart,
+  addToCart: exports.addToCart,
+  updateCartItem: exports.updateCartItem,
+  removeFromCart: exports.removeFromCart,
+  clearCart: exports.clearCart,
 };

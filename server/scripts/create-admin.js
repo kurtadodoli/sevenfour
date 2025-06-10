@@ -32,7 +32,7 @@ async function createAdminUser() {
             [
                 'Admin',
                 'User',
-                'admin@sevenfour.com',
+                'Adminjohnjoshandre@gmail.com',
                 hashedPassword,
                 'other',
                 '1990-01-01',
@@ -41,7 +41,7 @@ async function createAdminUser() {
         );
 
         console.log('Admin user created successfully');
-        console.log('Email: admin@sevenfour.com');
+        console.log('Email: Adminjohnjoshandre@gmail.com');
         console.log('Password: Admin@123');
         
     } catch (error) {

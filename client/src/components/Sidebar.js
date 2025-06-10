@@ -15,17 +15,17 @@ const Sidebar = () => {
     };
 
     return (
-        <SidebarContainer minimized={isMinimized}>
+        <SidebarContainer $minimized={isMinimized}>
             <LogoSection onClick={toggleSidebar}>
-                <LogoWrapper minimized={isMinimized}>
+                <LogoWrapper $minimized={isMinimized}>
                     <Logo src={logo} alt="Seven Four Clothing" />
                 </LogoWrapper>
             </LogoSection>
             <NavLinks>
                 {/* Main section - visible to all */}
-                <SectionTitle minimized={isMinimized}>{!isMinimized && 'Main'}</SectionTitle>
-                <NavItem active={location.pathname === '/'}>
-                    <StyledLink to="/" minimized={isMinimized}>
+                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Main'}</SectionTitle>
+                <NavItem $active={location.pathname === '/'}>
+                    <StyledLink to="/" $minimized={isMinimized}>
                         <IconWrapper>
                             <HomeIcon />
                         </IconWrapper>
@@ -35,8 +35,8 @@ const Sidebar = () => {
 
                 {/* Dashboard - admin only */}
                 {isAdmin && (
-                    <NavItem active={location.pathname === '/dashboard'}>
-                        <StyledLink to="/dashboard" minimized={isMinimized}>
+                    <NavItem $active={location.pathname === '/dashboard'}>
+                        <StyledLink to="/dashboard" $minimized={isMinimized}>
                             <IconWrapper>
                                 <DashboardIcon />
                             </IconWrapper>
@@ -46,17 +46,17 @@ const Sidebar = () => {
                 )}
 
                 {/* Shop section - visible to all */}
-                <SectionTitle minimized={isMinimized}>{!isMinimized && 'Shop'}</SectionTitle>
-                <NavItem active={location.pathname === '/products'}>
-                    <StyledLink to="/products" minimized={isMinimized}>
+                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Shop'}</SectionTitle>
+                <NavItem $active={location.pathname === '/products'}>
+                    <StyledLink to="/products" $minimized={isMinimized}>
                         <IconWrapper>
                             <ProductIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Products</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem active={location.pathname === '/cart'}>
-                    <StyledLink to="/cart" minimized={isMinimized}>
+                <NavItem $active={location.pathname === '/cart'}>
+                    <StyledLink to="/cart" $minimized={isMinimized}>
                         <IconWrapper>
                             <CartIcon />
                         </IconWrapper>
@@ -66,8 +66,8 @@ const Sidebar = () => {
 
                 {/* Delivery section - conditional rendering */}
                 <SectionTitle>{!isMinimized && 'Delivery'}</SectionTitle>
-                <NavItem active={location.pathname === '/orders'}>
-                    <StyledLink to="/orders" minimized={isMinimized}>
+                <NavItem $active={location.pathname === '/orders'}>
+                    <StyledLink to="/orders" $minimized={isMinimized}>
                         <IconWrapper>
                             <OrderIcon />
                         </IconWrapper>
@@ -76,16 +76,16 @@ const Sidebar = () => {
                 </NavItem>
                 {isAdmin && (
                     <>
-                        <NavItem active={location.pathname === '/tracking'}>
-                            <StyledLink to="/tracking" minimized={isMinimized}>
+                        <NavItem $active={location.pathname === '/tracking'}>
+                            <StyledLink to="/tracking" $minimized={isMinimized}>
                                 <IconWrapper>
                                     <TruckIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Tracking</span>}
                             </StyledLink>
                         </NavItem>
-                        <NavItem active={location.pathname === '/shipping'}>
-                            <StyledLink to="/shipping" minimized={isMinimized}>
+                        <NavItem $active={location.pathname === '/shipping'}>
+                            <StyledLink to="/shipping" $minimized={isMinimized}>
                                 <IconWrapper>
                                     <ShippingIcon />
                                 </IconWrapper>
@@ -99,16 +99,16 @@ const Sidebar = () => {
                 {isAdmin && (
                     <>
                         <SectionTitle>{!isMinimized && 'Management'}</SectionTitle>
-                        <NavItem active={location.pathname === '/maintenance'}>
-                            <StyledLink to="/maintenance" minimized={isMinimized}>
+                        <NavItem $active={location.pathname === '/maintenance'}>
+                            <StyledLink to="/maintenance" $minimized={isMinimized}>
                                 <IconWrapper>
                                     <SettingsIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Maintenance</span>}
                             </StyledLink>
                         </NavItem>
-                        <NavItem active={location.pathname === '/inventory'}>
-                            <StyledLink to="/inventory" minimized={isMinimized}>
+                        <NavItem $active={location.pathname === '/inventory'}>
+                            <StyledLink to="/inventory" $minimized={isMinimized}>
                                 <IconWrapper>
                                     <InventoryIcon />
                                 </IconWrapper>
@@ -120,16 +120,16 @@ const Sidebar = () => {
 
                 {/* Support section - visible to all */}
                 <SectionTitle>{!isMinimized && 'Support'}</SectionTitle>
-                <NavItem active={location.pathname === '/help'}>
-                    <StyledLink to="/help" minimized={isMinimized}>
+                <NavItem $active={location.pathname === '/help'}>
+                    <StyledLink to="/help" $minimized={isMinimized}>
                         <IconWrapper>
                             <HelpIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Help</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem active={location.pathname === '/about'}>
-                    <StyledLink to="/about" minimized={isMinimized}>
+                <NavItem $active={location.pathname === '/about'}>
+                    <StyledLink to="/about" $minimized={isMinimized}>
                         <IconWrapper>
                             <InfoIcon />
                         </IconWrapper>
@@ -142,14 +142,16 @@ const Sidebar = () => {
 };
 
 const SidebarContainer = styled.div`
-    width: ${props => props.minimized ? '80px' : '250px'};
+    width: ${props => props.$minimized ? '80px' : '240px'};
     height: 100vh;
-    background: #1a1a1a;
+    background-color: #1a1a1a;
+    color: white;
+    transition: width 0.3s ease;
     position: fixed;
     left: 0;
     top: 0;
-    transition: width 0.3s ease;
     z-index: 1000;
+    overflow-y: auto;
 `;
 
 const LogoSection = styled.div`
@@ -158,56 +160,53 @@ const LogoSection = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 80px;
 `;
 
 const LogoWrapper = styled.div`
-    width: ${props => props.minimized ? '40px' : '120px'}; // Reduced from 160px to 120px
-    height: ${props => props.minimized ? '40px' : '40px'}; // Fixed height to maintain aspect ratio
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s ease;
-    overflow: hidden; // Prevent logo overflow
+    width: ${props => props.$minimized ? '40px' : '120px'};
+    transition: width 0.3s ease;
 `;
 
 const Logo = styled.img`
-    max-width: 100%;
-    max-height: 100%;
-    width: auto;
+    width: 100%;
     height: auto;
-    object-fit: contain;
-    transition: transform 0.3s ease;
-    transform: ${props => props.minimized ? 'scale(0.8)' : 'scale(1)'};
 `;
 
 const NavLinks = styled.div`
     padding: 20px 0;
-    overflow-y: auto;
-    height: calc(100vh - 80px);
+`;
+
+const SectionTitle = styled.div`
+    padding: ${props => props.$minimized ? '10px' : '10px 20px'};
+    color: #666;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: ${props => props.$minimized ? '0' : '1'};
 `;
 
 const NavItem = styled.div`
-    margin: 4px 0;
-    padding: 0 16px;
+    background-color: ${props => props.$active ? '#333' : 'transparent'};
+    &:hover {
+        background-color: #333;
+    }
 `;
 
 const StyledLink = styled(Link)`
-    display: flex;
-    align-items: center;
-    padding: 12px;
     color: white;
     text-decoration: none;
-    border-radius: 8px;
-    transition: background-color 0.3s ease;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
+    padding: ${props => props.$minimized ? '15px' : '15px 20px'};
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    
     span {
-        margin-left: 12px;
-        font-size: 14px;
+        opacity: ${props => props.$minimized ? '0' : '1'};
+        transition: opacity 0.3s ease;
+    }
+    
+    &:hover {
+        color: #ddd;
     }
 `;
 
@@ -217,16 +216,6 @@ const IconWrapper = styled.div`
     display: flex;
     align-items: center;
     justify-content: center;
-`;
-
-const SectionTitle = styled.div`
-    color: #666;
-    font-size: 12px;
-    text-transform: uppercase;
-    padding: 16px 28px 8px;
-    letter-spacing: 0.5px;
-    text-align: left;
-    padding-left: ${props => props.minimized ? '16px' : '28px'};
 `;
 
 // White SVG Icons

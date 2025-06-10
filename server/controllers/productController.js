@@ -631,3 +631,37 @@ exports.restoreFromBackup = async (req, res) => {
     if (connection) connection.release();
   }
 };
+
+// Delete a product
+exports.deleteProduct = async (req, res) => {
+  const { id } = req.params;
+
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    // Delete from delivery schedules
+    await connection.query('DELETE FROM delivery_schedules WHERE product_id = ?', [id]);
+    // Delete from product images
+    await connection.query('DELETE FROM product_images WHERE product_id = ?', [id]);
+    // Delete from product sizes
+    await connection.query('DELETE FROM product_sizes WHERE product_id = ?', [id]);
+    // Delete from product colors
+    await connection.query('DELETE FROM product_colors WHERE product_id = ?', [id]);
+    // Delete from products
+    await connection.query('DELETE FROM products WHERE product_id = ?', [id]);
+
+    await connection.commit();
+    res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    if (connection) await connection.rollback();
+    console.error('Error deleting product:', error);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Ensure deleteProduct is exported (in case of export issues)
+exports.deleteProduct = exports.deleteProduct;

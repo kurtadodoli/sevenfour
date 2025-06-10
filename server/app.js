@@ -6,13 +6,17 @@ const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const security = require('./middleware/security');
+const corsOptions = require('./config/cors');
 const { testConnection } = require('./config/db');
 
 // Initialize Express app
 const app = express();
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" }
+}));
 app.use(security);
 
 // Rate limiting
@@ -35,13 +39,10 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 // CORS configuration
-app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? process.env.CLIENT_URL 
-        : ['http://localhost:3000', 'http://localhost:5001'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-}));
+app.use(cors(corsOptions));
+
+// Pre-flight requests
+app.options('*', cors(corsOptions));
 
 // Logging
 app.use(morgan('dev'));
@@ -84,6 +85,18 @@ app.get('/api/test', (req, res) => {
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log('Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        DB_HOST: process.env.DB_HOST,
+        DB_NAME: process.env.DB_NAME,
+        PORT: process.env.PORT
+    });
 });
 
 module.exports = app;

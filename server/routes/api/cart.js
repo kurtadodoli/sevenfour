@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const cartController = require('../../controllers/cartController');
-const { authenticateUser } = require('../../middleware/auth');
+const { authenticateUser } = require('../../middleware/auth'); 
+console.log('cartController.getCart:', typeof cartController.getCart);
+console.log('authenticateUser:', typeof authenticateUser);
+
 
 // @route   GET api/cart
 // @desc    Get the user's cart
@@ -26,6 +29,12 @@ router.delete('/item/:itemId', authenticateUser, cartController.removeFromCart);
 // @route   DELETE api/cart
 // @desc    Clear cart
 // @access  Private
-router.delete('/', authenticateUser, cartController.clearCart);
+router.delete('/', authenticateUser, cartController.clearCart); 
+
+router.get('/test', (req, res) => res.send('Cart test route working!'));
+
+router.get('/cart', authenticateUser, cartController.getCart);
+
+
 
 module.exports = router;

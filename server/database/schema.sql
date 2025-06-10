@@ -124,8 +124,8 @@ INSERT INTO users (
 ) VALUES (
     'Admin',
     'User',
-    'admin@sevenfour.com',
-    '$2b$10$PKFUVWJpS8fwpt9xbxEJNelL6jYIOzWfRFcB9C.YO0sXu5W2Id5MS',
+    'Adminjohnjoshandre@gmail.com',
+    'Admin@123',
     'other',
     '1990-01-01',
     'admin'

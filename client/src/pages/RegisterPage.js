@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
 import logo from '../assets/images/sfc-logo.png';
 
 const RegisterPage = () => {
     const navigate = useNavigate();
-    const { register } = useAuth();
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -20,10 +19,51 @@ const RegisterPage = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        setError('');
+    };
+
+    const validateForm = () => {
+        // Name validation
+        if (!formData.firstName.trim()) return 'First name is required';
+        if (!formData.lastName.trim()) return 'Last name is required';
+        if (formData.firstName.length < 2 || formData.firstName.length > 50) 
+            return 'First name must be between 2 and 50 characters';
+        if (formData.lastName.length < 2 || formData.lastName.length > 50) 
+            return 'Last name must be between 2 and 50 characters';
+        
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!formData.email.trim()) return 'Email is required';
+        if (!emailRegex.test(formData.email)) return 'Please enter a valid email address';
+
+        // Password validation
+        if (!formData.password) return 'Password is required';
+        if (formData.password.length < 8) return 'Password must be at least 8 characters';
+        if (!/[A-Z]/.test(formData.password)) return 'Password must contain at least one uppercase letter';
+        if (!/[a-z]/.test(formData.password)) return 'Password must contain at least one lowercase letter';
+        if (!/[0-9]/.test(formData.password)) return 'Password must contain at least one number';
+        if (formData.password !== formData.confirmPassword) return 'Passwords do not match';
+
+        // Gender and birthday validation
+        if (!formData.gender) return 'Please select your gender';
+        if (!formData.birthday) return 'Birthday is required';
+        
+        // Validate age (must be at least 13 years old)
+        const birthDate = new Date(formData.birthday);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        if (age < 13) return 'You must be at least 13 years old to register';
+
+        return null;
     };
 
     const handleSubmit = async (e) => {
@@ -31,39 +71,59 @@ const RegisterPage = () => {
         setIsLoading(true);
         setError('');
 
-        // Validation
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
-            setIsLoading(false);
-            return;
-        }
-
-        if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-            setError('Please fill in all required fields');
+        // Validate form
+        const validationError = validateForm();
+        if (validationError) {
+            setError(validationError);
             setIsLoading(false);
             return;
         }
 
         try {
             const registerData = {
-                first_name: formData.firstName,
-                last_name: formData.lastName,
-                email: formData.email,
+                firstName: formData.firstName.trim(),
+                lastName: formData.lastName.trim(),
+                email: formData.email.trim().toLowerCase(),
                 password: formData.password,
-                gender: formData.gender || 'other',
-                birthday: formData.birthday || '1990-01-01'
+                gender: formData.gender,
+                birthday: formData.birthday
             };
 
-            const response = await register(registerData);
+            console.log('Attempting to register with data:', registerData);
             
-            if (response.success) {
-                navigate('/login');
+            const response = await axios.post(
+                'http://localhost:5000/api/auth/register',
+                registerData,
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            console.log('Registration response:', response.data);
+
+            if (response.data.success) {
+                // Store the token if provided
+                if (response.data.token) {
+                    localStorage.setItem('token', response.data.token);
+                }
+
+                navigate('/login', { 
+                    state: { 
+                        message: 'Registration successful! Please log in.',
+                        email: formData.email
+                    }
+                });
             } else {
-                setError(response.message || 'Registration failed. Please try again.');
+                setError(response.data.message || 'Registration failed. Please try again.');
             }
         } catch (error) {
-            console.error('Registration error:', error);
-            setError(error.response?.data?.message || 'Registration failed. Please try again.');
+            console.error('Registration error:', error.response || error);
+            setError(
+                error.response?.data?.message || 
+                'Registration failed. Please try again.'
+            );
         } finally {
             setIsLoading(false);
         }
@@ -89,6 +149,7 @@ const RegisterPage = () => {
                             value={formData.firstName}
                             onChange={handleChange}
                             required
+                            placeholder="Enter your first name"
                         />
                     </InputGroup>
 
@@ -100,6 +161,7 @@ const RegisterPage = () => {
                             value={formData.lastName}
                             onChange={handleChange}
                             required
+                            placeholder="Enter your last name"
                         />
                     </InputGroup>
 
@@ -111,6 +173,33 @@ const RegisterPage = () => {
                             value={formData.email}
                             onChange={handleChange}
                             required
+                            placeholder="Enter your email"
+                        />
+                    </InputGroup>
+
+                    <InputGroup>
+                        <Label>Password</Label>
+                        <Input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                            minLength={8}
+                            placeholder="Enter your password"
+                        />
+                    </InputGroup>
+
+                    <InputGroup>
+                        <Label>Confirm Password</Label>
+                        <Input
+                            type="password"
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleChange}
+                            required
+                            minLength={8}
+                            placeholder="Confirm your password"
                         />
                     </InputGroup>
 
@@ -141,37 +230,14 @@ const RegisterPage = () => {
                         />
                     </InputGroup>
 
-                    <InputGroup>
-                        <Label>Password</Label>
-                        <Input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            minLength="8"
-                        />
-                    </InputGroup>
+                    <RegisterButton type="submit" disabled={isLoading}>
+                        {isLoading ? 'Creating Account...' : 'Create Account'}
+                    </RegisterButton>
 
-                    <InputGroup>
-                        <Label>Confirm Password</Label>
-                        <Input
-                            type="password"
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            required
-                            minLength="6"
-                        />
-                    </InputGroup>
-
-                    <SubmitButton type="submit" disabled={isLoading}>
-                        {isLoading ? 'Creating Account...' : 'CREATE MY ACCOUNT'}
-                    </SubmitButton>
-
-                    <LoginLink>
-                        Already have an account? <StyledLink to="/login">Login here</StyledLink>
-                    </LoginLink>
+                    <LoginPrompt>
+                        Already have an account?{' '}
+                        <LoginLink to="/login">Sign in</LoginLink>
+                    </LoginPrompt>
                 </Form>
             </RegisterContainer>
         </PageContainer>
@@ -271,13 +337,13 @@ const ErrorMessage = styled.div`
     text-align: center;
 `;
 
-const LoginLink = styled.p`
+const LoginPrompt = styled.p`
     text-align: center;
     font-size: 14px;
     color: #666;
 `;
 
-const StyledLink = styled(Link)`
+const LoginLink = styled(Link)`
     color: #1a1a1a;
     text-decoration: none;
     font-weight: 600;
@@ -287,7 +353,7 @@ const StyledLink = styled(Link)`
     }
 `;
 
-const SubmitButton = styled.button`
+const RegisterButton = styled.button`
     background: #1a1a1a;
     color: white;
     padding: 15px;
