@@ -1,4 +1,4 @@
-# ![WebApp](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-logo.png)
+# ![WebApp](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample.png)
 # Product Management System for Seven Four Clothing
 <table>
 <tr>
