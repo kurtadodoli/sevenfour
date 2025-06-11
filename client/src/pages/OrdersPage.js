@@ -1,7 +1,29 @@
-import React from 'react';
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { AuthContext } from '../context/AuthContext';
 
 const OrdersPage = () => {
+    const { auth } = useContext(AuthContext);
+    const navigate = useNavigate();
+
+    // Check if user is authenticated
+    React.useEffect(() => {
+        if (!auth.isAuthenticated) {
+            navigate('/login', { 
+                state: { 
+                    message: 'Please login to view your orders',
+                    returnUrl: '/orders'
+                } 
+            });
+        }
+    }, [auth.isAuthenticated, navigate]);
+
+    // Show loading while checking auth status
+    if (!auth.isAuthenticated) {
+        return null; // Or a loading spinner
+    }
+
     return (
         <Container>
             <Header>

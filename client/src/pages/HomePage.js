@@ -1,6 +1,7 @@
 // client/src/pages/HomePage.js
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Carousel } from 'react-bootstrap';
 import styled from 'styled-components';
 import { tshirtProducts } from '../data/tshirtProducts';
 import { shortProducts } from '../data/shortProducts';
@@ -19,44 +20,62 @@ import jacketImage from '../assets/images/seven-four-jacket.jpg';
 import jerseyImage from '../assets/images/seven-four-jersey.jpg';
 import sweaterImage from '../assets/images/seven-four-sweater.jpg';
 import bagImage from '../assets/images/seven-four-bag.jpg';
+import secondImage from '../assets/images/seven-four-clothing-2ndhero.jpg';
+import thirdImage from '../assets/images/seven-four-clothing-3rdhero.jpg';
+import fourthImage from '../assets/images/seven-four-clothing-4thhero.jpg';
 
-const HeroLogo = styled.img`
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: auto;
-  z-index: 3;
-  opacity: 0.9;
+const CarouselImage = styled.img`
+  width: 100%;
+  height: 80vh;
+  object-fit: cover;
 `;
 
 const HeroSection = styled.section`
   height: 80vh;
-  background-color: #f5f5f5;
-  display: flex;
-  align-items: center;
   position: relative;
   overflow: hidden;
+
+  // Add styles to darken the carousel images
+  .carousel-item::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4); // Adds a dark overlay
+    z-index: 2;
+  }
+
+  // Hide the default Carousel captions
+  .carousel-caption {
+    display: none;
+  }
 `;
 
-const HeroImage = styled.img`
+const HeroLogo = styled.img`
   position: absolute;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
+  top: 20px; // Adjusted from -30px
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: auto;
+  z-index: 4; // Increased z-index to appear above everything
+  opacity: 0.9;
 `;
 
 const HeroContent = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
   padding: 0 2rem;
-  position: relative;
-  z-index: 2;
+  z-index: 3; // Increased z-index to appear above carousel
   color: #fff;
   text-align: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); // Added text shadow for better visibility
 `;
 
 const HeroTitle = styled.h1`
@@ -230,7 +249,52 @@ const HomePage = () => {
   return (
     <main>
       <HeroSection>
-        <HeroImage src={heroImage} alt="Seven Four Clothing Hero" />
+        <Carousel fade interval={3000}>
+          <Carousel.Item>
+            <CarouselImage 
+              src={heroImage} 
+              alt="Seven Four Hero"
+            />
+            <Carousel.Caption>
+              <h3>Welcome to Seven Four</h3>
+              <p>Discover our latest collection</p>
+            </Carousel.Caption>
+          </Carousel.Item>
+
+          {/* Add your next 3 images following this pattern: */}
+          <Carousel.Item>
+            <CarouselImage 
+              src={secondImage} 
+              alt="Second Slide"
+            />
+            <Carousel.Caption>
+              <h3>Welcome to Seven Four</h3>
+              <p>Discover our latest collection</p>
+            </Carousel.Caption>
+          </Carousel.Item>
+          
+          <Carousel.Item>
+            <CarouselImage 
+              src={thirdImage} 
+              alt="Third Slide"
+            />
+            <Carousel.Caption>
+              <h3>Welcome to Seven Four</h3>
+              <p>Discover our latest collection</p>
+            </Carousel.Caption>
+          </Carousel.Item>
+
+          <Carousel.Item>
+            <CarouselImage 
+              src={fourthImage} 
+              alt="Fourth Slide"
+            />
+            <Carousel.Caption>
+              <h3>Welcome to Seven Four</h3>
+              <p>Discover our latest collection</p>
+            </Carousel.Caption>
+          </Carousel.Item>
+        </Carousel>
         <HeroLogo src={sfcLogo} alt="Seven Four Clothing Logo" />
         <HeroContent>
           <HeroTitle>Welcome to Seven Four Clothing</HeroTitle>
@@ -238,24 +302,9 @@ const HomePage = () => {
           <ShopButton to="/products">Shop Now</ShopButton>
         </HeroContent>
       </HeroSection>
-        <CategorySection>
-        <SectionTitle>Shop</SectionTitle>
-        <CategoryGrid>
-          {categories.map(category => (
-            <ProductCard key={category.id}>
-              {/* Update link to properly filter products by category */}
-              <Link to={`/products?category=${category.id}`} style={{ textDecoration: 'none' }}>
-                <ProductImage src={category.image} alt={category.name} />
-                <ProductInfo>
-                  <ProductName>{category.name}</ProductName>
-                </ProductInfo>
-              </Link>
-            </ProductCard>
-          ))}
-        </CategoryGrid>
-      </CategorySection>
 
-      <FeaturedProductsSection>
+        <CategorySection>
+          <FeaturedProductsSection>
         <SectionTitle>Featured Products</SectionTitle>
         <FeaturedGrid>
           {featuredProducts.map(product => (
@@ -272,6 +321,24 @@ const HomePage = () => {
           ))}
         </FeaturedGrid>
       </FeaturedProductsSection>
+
+
+        <SectionTitle>Shop</SectionTitle>
+        <CategoryGrid>
+          {categories.map(category => (
+            <ProductCard key={category.id}>
+              {/* Update link to properly filter products by category */}
+              <Link to={`/products?category=${category.id}`} style={{ textDecoration: 'none' }}>
+                <ProductImage src={category.image} alt={category.name} />
+                <ProductInfo>
+                  <ProductName>{category.name}</ProductName>
+                </ProductInfo>
+              </Link>
+            </ProductCard>
+          ))}
+        </CategoryGrid>
+      </CategorySection>
+
     </main>
   );
 };

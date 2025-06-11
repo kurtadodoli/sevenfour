@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/images/sfc-logo.png';
 
 const LoginPage = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
@@ -14,6 +15,7 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
+    const returnUrl = location.state?.returnUrl || '/';
 
     const handleChange = (e) => {
         setFormData({
@@ -46,7 +48,7 @@ const LoginPage = () => {
                 setMessage('Login successful!');
                 // Navigate to home page after a short delay
                 setTimeout(() => {
-                    navigate('/');
+                    navigate(returnUrl);
                 }, 500);
             } else {
                 setError(response.message || 'Login failed. Please try again.');
