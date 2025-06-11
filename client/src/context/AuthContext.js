@@ -1,43 +1,77 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
+import { jwtDecode } from 'jwt-decode'; // Updated import
 
-// Create axios instance with base URL
-const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    validateStatus: status => status >= 200 && status < 500  // Handle HTTP errors in catch block
-});
+export const AuthContext = createContext(null); // Export the context directly
 
-// Add interceptors
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+export const AuthProvider = ({ children }) => {
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                await verifyAndSetUser(token);
+            } else {
+                setLoading(false);
+            }
+        };
+        checkAuth();
+    }, []);
+
+    const verifyAndSetUser = async (token) => {
+        try {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+            
+            const decoded = jwtDecode(token);
+            
+            const response = await axios.get('/api/auth/verify');
+            
+            if (response.data.user) {
+                setCurrentUser(response.data.user);
+            } else {
+                logout();
+            }
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            logout();
+        } finally {
+            setLoading(false);
         }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+    };
 
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
-    }
-);
+    const login = async (token) => {
+        localStorage.setItem('token', token);
+        await verifyAndSetUser(token);
+    };
 
-const AuthContext = createContext(null);
+    const logout = () => {
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['Authorization'];
+        setCurrentUser(null);
+    };
+
+    const updateUser = (userData) => {
+        setCurrentUser(prev => ({ ...prev, ...userData }));
+    };
+
+    return (
+        <AuthContext.Provider 
+            value={{
+                currentUser,
+                login,
+                logout,
+                updateUser,
+                isAdmin: currentUser?.role === 'admin',
+                isAuthenticated: !!currentUser,
+                loading
+            }}
+        >
+            {children}
+        </AuthContext.Provider>
+    );
+};
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
@@ -46,129 +80,3 @@ export const useAuth = () => {
     }
     return context;
 };
-
-export const AuthProvider = ({ children }) => {    const [loading, setLoading] = useState(true);
-    const [auth, setAuth] = useState(() => {
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user') || 'null');
-        return {
-            isAuthenticated: !!token && !!user,
-            user,
-            token
-        };
-    });    // Verify auth state on mount
-    useEffect(() => {
-        const verifyAuth = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setAuth({
-                    isAuthenticated: false,
-                    user: null,
-                    token: null
-                });
-                setLoading(false);
-                return;
-            }            try {
-                const response = await api.get('/profile');
-                if (response.data.success) {
-                    const user = response.data.data;
-                    setAuth({
-                        isAuthenticated: true,
-                        user,
-                        token
-                    });
-                    localStorage.setItem('user', JSON.stringify(user));
-                }
-            } catch (error) {
-                console.error('Auth verification failed:', error);
-                setAuth({
-                    isAuthenticated: false,
-                    user: null,
-                    token: null
-                });
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        verifyAuth();
-    }, []);    const login = async (credentials) => {
-        try {
-            console.log('Attempting login with:', credentials.email);
-            const response = await api.post('/auth/login', credentials);
-            console.log('Login response:', response.data);
-            
-            if (!response.data.success) {
-                throw new Error(response.data.message || 'Login failed');
-            }
-            
-            // Validate that we received the expected data
-            if (!response.data.token || !response.data.user) {
-                throw new Error('Invalid server response - missing token or user data');
-            }
-
-            const { token, user } = response.data;
-            
-            localStorage.setItem('token', token);
-            localStorage.setItem('user', JSON.stringify(user));
-            
-            setAuth({
-                isAuthenticated: true,
-                user,
-                token
-            });
-
-            return response.data;
-        } catch (error) {
-            console.error('Login error:', error);
-            throw error;
-        }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setAuth({
-            isAuthenticated: false,
-            user: null,
-            token: null
-        });
-    };
-
-    const register = async (userData) => {
-        try {
-            const response = await api.post('/auth/register', userData);
-            return response.data;
-        } catch (error) {
-            throw error;
-        }
-    };
-
-    const updateUser = useCallback((userData) => {
-        setAuth(prev => ({
-            ...prev,
-            user: {
-                ...prev.user,
-                ...userData
-            }
-        }));
-    }, []);
-
-    const value = useMemo(() => ({
-        auth,
-        login,
-        logout,
-        updateUser
-    }), [auth, login, logout, updateUser]);
-
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
-    );
-};
-
-// Export the context as well for components that need direct access
-export { AuthContext };

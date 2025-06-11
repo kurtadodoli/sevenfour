@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
+import styled from 'styled-components';
+import axios from 'axios';
 import logo from '../assets/images/sfc-logo.png';
 
 const LoginPage = () => {
@@ -18,44 +19,41 @@ const LoginPage = () => {
     const returnUrl = location.state?.returnUrl || '/';
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
         setError('');
-        setMessage('');
+        setIsLoading(true);
 
-        // Basic validation
-        if (!formData.email || !formData.password) {
-            setError('Please enter both email and password');
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            const credentials = {
-                email: formData.email.trim(),
-                password: formData.password
-            };
-            const response = await login(credentials);
+        try {            const response = await axios.post('/api/auth/login', formData);
             
-            if (response.success) {
+            if (response.data.token) {
+                // Store the token
+                localStorage.setItem('token', response.data.token);
+                
+                // Update auth context
+                await login(response.data.token);
+                
                 setMessage('Login successful!');
-                // Navigate to home page after a short delay
+                
+                // Navigate based on role and return URL
+                const redirectPath = response.data.user.role === 'admin' ? '/dashboard' : returnUrl;
                 setTimeout(() => {
-                    navigate(returnUrl);
+                    navigate(redirectPath);
                 }, 500);
-            } else {
-                setError(response.message || 'Login failed. Please try again.');
             }
-        } catch (err) {
-            console.error('Login error:', err);
-            setError(err.response?.data?.message || 'Invalid email or password');
+        } catch (error) {
+            console.error('Login error:', error);
+            setError(
+                error.response?.data?.message ||
+                'Invalid email or password. Please try again.'
+            );
         } finally {
             setIsLoading(false);
         }
@@ -72,7 +70,6 @@ const LoginPage = () => {
                     <SubTitle>Please sign in to your account</SubTitle>
 
                     {error && <ErrorMessage>{error}</ErrorMessage>}
-                    {message && <SuccessMessage>{message}</SuccessMessage>}
 
                     <Form onSubmit={handleSubmit}>
                         <InputGroup>
@@ -99,18 +96,18 @@ const LoginPage = () => {
                             />
                         </InputGroup>
 
-                        <ForgotPassword to="/forgot-password">
-                            Forgot your password?
-                        </ForgotPassword>
-
                         <LoginButton type="submit" disabled={isLoading}>
                             {isLoading ? 'Signing in...' : 'Sign In'}
                         </LoginButton>
 
-                        <RegisterPrompt>
-                            Don't have an account?{' '}
-                            <RegisterLink to="/register">Create one</RegisterLink>
-                        </RegisterPrompt>
+                        <Links>
+                            <StyledLink to="/forgot-password">
+                                Forgot Password?
+                            </StyledLink>
+                            <StyledLink to="/register">
+                                Don't have an account? Sign up
+                            </StyledLink>
+                        </Links>
                     </Form>
                 </FormSection>
             </LoginContainer>
@@ -221,27 +218,15 @@ const LoginButton = styled.button`
     }
 `;
 
-const ForgotPassword = styled(Link)`
-    color: #666;
-    font-size: 14px;
-    text-decoration: none;
-    text-align: right;
-    margin-top: -12px;
-
-    &:hover {
-        color: #1a1a1a;
-        text-decoration: underline;
-    }
-`;
-
-const RegisterPrompt = styled.p`
+const Links = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
     text-align: center;
-    font-size: 14px;
-    color: #666;
-    margin-top: 8px;
 `;
 
-const RegisterLink = styled(Link)`
+const StyledLink = styled(Link)`
     color: #1a1a1a;
     font-weight: 600;
     text-decoration: none;

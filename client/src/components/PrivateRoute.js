@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 
 // Component for protecting routes that require authentication
 export const PrivateRoute = () => {
-  const { auth, loading } = useContext(AuthContext);
+  const { currentUser, loading } = useContext(AuthContext);
   const location = useLocation();
 
   if (loading) {
@@ -20,7 +20,7 @@ export const PrivateRoute = () => {
     );
   }
 
-  if (!auth.isAuthenticated) {
+  if (!currentUser) {
     // Redirect to login page with return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -30,17 +30,18 @@ export const PrivateRoute = () => {
 
 // Component for protecting routes that require admin role
 export const AdminRoute = () => {
-  const { auth, loading } = useContext(AuthContext);
+  const { currentUser, loading, isAdmin } = useContext(AuthContext);
+  const location = useLocation();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return auth.isAuthenticated && auth.user.role === 'admin' ? (
-    <Outlet />
-  ) : (
-    <Navigate to="/unauthorized" />
-  );
+  if (!currentUser || !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
 };
 
 // Component for protecting routes that require staff or admin role

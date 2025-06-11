@@ -1,100 +1,116 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const db = require('../config/database').pool;
 
-const UserSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: [true, 'Please provide a username'],
-    unique: true,
-    trim: true,
-    maxlength: [50, 'Username cannot be more than 50 characters']
-  },
-  email: {
-    type: String,
-    required: [true, 'Please provide an email'],
-    unique: true,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please provide a valid email'
-    ]
-  },
-  password: {
-    type: String,
-    required: [true, 'Please provide a password'],
-    minlength: [6, 'Password must be at least 6 characters'],
-    select: false
-  },
-  role: {
-    type: String,
-    enum: ['customer', 'staff', 'admin'],
-    default: 'customer'
-  },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+class User {
+    constructor(userData) {
+        this.user_id = userData.user_id;
+        this.first_name = userData.first_name;
+        this.last_name = userData.last_name;
+        this.email = userData.email;
+        this.password = userData.password;
+        this.gender = userData.gender;
+        this.birthday = userData.birthday;
+        this.role = userData.role || 'user';
+    }
 
-// Encrypt password using bcrypt
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
+    static generateUserId() {
+        // Generate a random 8-digit number for the user ID
+        return Math.floor(10000000 + Math.random() * 90000000).toString();
+    }
 
-// Sign JWT and return
-UserSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign(
-    { id: this._id, role: this.role },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
-  );
-};
+    static async hashPassword(password) {
+        return await bcrypt.hash(password, 10);
+    }
 
-// Match user entered password to hashed password in database
-UserSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+    static async comparePassword(plainPassword, hashedPassword) {
+        return await bcrypt.compare(plainPassword, hashedPassword);
+    }
 
-// Generate and hash password token
-UserSchema.methods.getResetPasswordToken = function() {
-  // Generate token
-  const resetToken = crypto.randomBytes(20).toString('hex');
+    static async findByEmail(email) {
+        try {
+            const [rows] = await db.execute(
+                'SELECT * FROM users WHERE email = ?',
+                [email]
+            );
+            return rows.length ? new User(rows[0]) : null;
+        } catch (error) {
+            console.error('Error in findByEmail:', error);
+            throw error;
+        }
+    }
 
-  // Hash token and set to resetPasswordToken field
-  this.resetPasswordToken = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
+    static async findById(userId) {
+        try {
+            const [rows] = await db.execute(
+                'SELECT * FROM users WHERE user_id = ?',
+                [userId]
+            );
+            return rows.length ? new User(rows[0]) : null;
+        } catch (error) {
+            console.error('Error in findById:', error);
+            throw error;
+        }
+    }
 
-  // Set expire
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    async save() {
+        try {
+            if (!this.user_id) {
+                // New user
+                this.user_id = User.generateUserId();
+                if (!this.password.startsWith('$2')) { // Check if password is not already hashed
+                    this.password = await User.hashPassword(this.password);
+                }
 
-  return resetToken;
-};
+                const [result] = await db.execute(
+                    `INSERT INTO users (
+                        user_id, first_name, last_name, email, password, 
+                        gender, birthday, role
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        this.user_id,
+                        this.first_name,
+                        this.last_name,
+                        this.email,
+                        this.password,
+                        this.gender,
+                        this.birthday,
+                        this.role
+                    ]
+                );
+                return this.user_id;
+            } else {
+                // Update existing user
+                const [result] = await db.execute(
+                    `UPDATE users SET 
+                        first_name = ?, 
+                        last_name = ?, 
+                        email = ?, 
+                        gender = ?, 
+                        birthday = ?, 
+                        role = ?
+                    WHERE user_id = ?`,
+                    [
+                        this.first_name,
+                        this.last_name,
+                        this.email,
+                        this.gender,
+                        this.birthday,
+                        this.role,
+                        this.user_id
+                    ]
+                );
+                return result.affectedRows > 0;
+            }
+        } catch (error) {
+            console.error('Error in save:', error);
+            throw error;
+        }
+    }
 
-UserSchema.statics.create = async function(userData) {
-  const { firstName, lastName, email, password, gender, birthday } = userData;
-  
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
-  
-  try {
-      const [result] = await db.execute(
-          'INSERT INTO users (first_name, last_name, email, password, gender, birthday) VALUES (?, ?, ?, ?, ?, ?)',
-          [firstName, lastName, email, hashedPassword, gender, birthday]
-      );
-      
-      return result.insertId;
-  } catch (error) {
-      throw new Error('Error creating user: ' + error.message);
-  }
-};
+    toJSON() {
+        const { password, ...userWithoutPassword } = this;
+        return userWithoutPassword;
+    }
+}
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = User;

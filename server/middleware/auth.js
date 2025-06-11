@@ -1,32 +1,50 @@
 // middleware/auth.js
 const jwt = require('jsonwebtoken');
-const { pool } = require('../config/db.js');
+const User = require('../models/User');
 
 
-const authenticateUser = async (req, res, next) => {
-  const token = req.header('Authorization')?.replace('Bearer ', '');
+const auth = async (req, res, next) => {
+    try {
+        // Get token from header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ message: 'No token, authorization denied' });
+        }
 
-  if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
+        const token = authHeader.split(' ')[1];
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // include user's info (like id) from token
-    next();
-  } catch (err) {
-    console.error('JWT error:', err);
-    res.status(401).json({ message: 'Invalid token' });
-  }
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+
+        // Check if user still exists
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(401).json({ message: 'User not found' });
+        }
+
+        // Add user to request
+        req.user = user;
+        next();
+    } catch (error) {
+        console.error('Auth middleware error:', error);
+        res.status(401).json({ message: 'Token is not valid' });
+    }
 };
 
-const authorizeStaff = (req, res, next) => {
-  // Placeholder: allow all for now
-  next();
+// Middleware for admin-only routes
+const adminAuth = async (req, res, next) => {
+    try {
+        await auth(req, res, () => {
+            if (req.user.role !== 'admin') {
+                return res.status(403).json({ message: 'Access denied. Admin only.' });
+            }
+            next();
+        });
+    } catch (error) {
+        console.error('Admin auth middleware error:', error);
+        res.status(403).json({ message: 'Access denied' });
+    }
 };
 
-module.exports = {
-  authenticateUser,
-  authorizeStaff
-};
+module.exports = { auth, adminAuth };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext, useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 const PageContainer = styled.div`
@@ -150,7 +151,7 @@ const Chart = styled.div`
 `;
 
 const ReportsPage = () => {
-  const { isAdmin } = useContext(AuthContext);
+  const { currentUser, isAdmin } = useAuth();
   const [reportType, setReportType] = useState('sales');
   const [timeFrame, setTimeFrame] = useState('monthly');
   const [startDate, setStartDate] = useState('');
@@ -240,6 +241,10 @@ const ReportsPage = () => {
 
   if (loading && (!startDate || !endDate)) {
     return <PageContainer>Loading reports...</PageContainer>;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" />;
   }
 
   return (

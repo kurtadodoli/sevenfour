@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { AuthContext } from '../context/AuthContext';
 import axios from 'axios';
 import styled from 'styled-components';
+import { Navigate } from 'react-router-dom';
 
 const DashboardContainer = styled.div`
   max-width: 1200px;
@@ -73,7 +74,7 @@ const ReportCard = styled.div`
 `;
 
 const DashboardPage = () => {
-  const { currentUser } = useContext(AuthContext);
+  const { currentUser, isAdmin } = useContext(AuthContext);
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalOrders: 0,
@@ -101,6 +102,7 @@ const DashboardPage = () => {
 
   if (loading) return <DashboardContainer>Loading dashboard data...</DashboardContainer>;
   if (error) return <DashboardContainer>{error}</DashboardContainer>;
+  if (!isAdmin) return <Navigate to="/" />;
 
   return (
     <DashboardContainer>

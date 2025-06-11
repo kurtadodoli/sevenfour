@@ -3,7 +3,20 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { query } = require('../config/db');
+const User = require('../models/User');
 require('dotenv').config();
+
+const generateToken = (user) => {
+    return jwt.sign(
+        { 
+            id: user.user_id,
+            email: user.email,
+            role: user.role
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '24h' }
+    );
+};
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -20,6 +33,11 @@ exports.register = async (req, res) => {
       city, 
       newsletter 
     } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email || !password || !gender || !birthday) {
+        return res.status(400).json({ message: 'All fields are required' });
+    }
 
     // Check if user with same email exists
     const existingUserByEmail = await query('SELECT * FROM users WHERE email = ?', [email]);
@@ -51,11 +69,11 @@ exports.register = async (req, res) => {
     );
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: result.insertId, role: 'customer' },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = generateToken({ 
+        id: result.insertId, 
+        email, 
+        role: 'customer' 
+    });
 
     // Get the newly created user
     const newUser = await query('SELECT user_id, username, email, role FROM users WHERE user_id = ?', [result.insertId]);
@@ -80,16 +98,19 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if user exists
-    const users = await query('SELECT * FROM users WHERE email = ?', [email]);
-    if (users.length === 0) {
+    // Validate input
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
-
-    const user = users[0];
 
     // Check if password matches
     const isMatch = await bcrypt.compare(password, user.password);
@@ -116,11 +137,7 @@ exports.login = async (req, res) => {
     await query('UPDATE users SET last_login = NOW() WHERE user_id = ?', [user.user_id]);
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: user.user_id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = generateToken(user);
 
     res.status(200).json({
       success: true,
@@ -321,4 +338,30 @@ exports.logout = (req, res) => {
     success: true,
     message: 'Logged out successfully'
   });
+};
+
+// Initialize admin account
+exports.initializeAdmin = async () => {
+    try {
+        const adminEmail = 'admin@sevenfour.com';
+        let admin = await User.findByEmail(adminEmail);
+
+        if (!admin) {
+            const hashedPassword = await User.hashPassword('Admin@123');
+            admin = new User({
+                user_id: 'ADMIN000001',
+                first_name: 'Admin',
+                last_name: 'User',
+                email: adminEmail,
+                password: hashedPassword,
+                gender: 'other',
+                birthday: '2000-01-01',
+                role: 'admin'
+            });
+            await admin.save();
+            console.log('Admin account created successfully');
+        }
+    } catch (error) {
+        console.error('Error initializing admin account:', error);
+    }
 };

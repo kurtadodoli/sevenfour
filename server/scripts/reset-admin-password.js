@@ -2,13 +2,12 @@ const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: '../.env' });
 
-async function resetAdminPassword() {
-    const pool = mysql.createPool({
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-        port: process.env.DB_PORT
+async function resetAdminPassword() {    const pool = mysql.createPool({
+        host: 'localhost',
+        user: 'root',
+        password: 's3v3n-f0ur-cl0thing*',
+        database: 'seven_four_clothing',
+        port: 3306
     });
 
     try {

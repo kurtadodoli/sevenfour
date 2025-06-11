@@ -1,19 +1,15 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-// Create connection pool with better error handling
+// Create connection pool with updated configuration
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  password: process.env.DB_PASSWORD || 's3v3n-f0ur-cl0thing*',
   database: process.env.DB_NAME || 'seven_four_clothing',
-  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  acquireTimeout: 10000,
-  timeout: 10000,
-  charset: 'utf8mb4'
+  queueLimit: 0
 });
 
 // Test database connection function
