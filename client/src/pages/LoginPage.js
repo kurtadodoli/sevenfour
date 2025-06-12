@@ -1,168 +1,203 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styled from 'styled-components';
-import axios from 'axios';
 import logo from '../assets/images/sfc-logo.png';
 
 const LoginPage = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
     });
-    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState('');
-    const returnUrl = location.state?.returnUrl || '/';
+    const [showPassword, setShowPassword] = useState(false);
+    
+    const { login, currentUser, error, clearError } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    const from = location.state?.from?.pathname || '/';
 
-    const handleChange = (e) => {
+    // Redirect if already logged in
+    useEffect(() => {
+        if (currentUser) {
+            navigate(from, { replace: true });
+        }
+    }, [currentUser, navigate, from]);
+
+    // Clear errors when component mounts
+    useEffect(() => {
+        clearError();
+    }, [clearError]);
+
+    const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+        // Clear error when user starts typing
+        if (error) {
+            clearError();
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
-        setIsLoading(true);
+        
+        if (!formData.email || !formData.password) {
+            return;
+        }
 
-        try {            const response = await axios.post('/api/auth/login', formData);
-            
-            if (response.data.token) {
-                // Store the token
-                localStorage.setItem('token', response.data.token);
-                
-                // Update auth context
-                await login(response.data.token);
-                
-                setMessage('Login successful!');
-                
-                // Navigate based on role and return URL
-                const redirectPath = response.data.user.role === 'admin' ? '/dashboard' : returnUrl;
-                setTimeout(() => {
-                    navigate(redirectPath);
-                }, 500);
-            }
+        setIsLoading(true);
+        
+        try {
+            await login(formData);
+            // Navigation will happen automatically via useEffect when currentUser changes
         } catch (error) {
             console.error('Login error:', error);
-            setError(
-                error.response?.data?.message ||
-                'Invalid email or password. Please try again.'
-            );
+            // Error is already handled by auth context
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <PageContainer>
-            <LoginContainer>
+        <Container>
+            <LoginCard>
                 <LogoContainer>
                     <Logo src={logo} alt="Seven Four Clothing" />
+                    <CompanyName>Seven Four Clothing</CompanyName>
                 </LogoContainer>
-                <FormSection>
-                    <Title>Welcome Back</Title>
-                    <SubTitle>Please sign in to your account</SubTitle>
 
-                    {error && <ErrorMessage>{error}</ErrorMessage>}
+                <Title>Welcome Back</Title>
+                <Subtitle>Sign in to your account</Subtitle>
 
-                    <Form onSubmit={handleSubmit}>
-                        <InputGroup>
-                            <Label>Email</Label>
+                {error && (
+                    <ErrorMessage>
+                        {error}
+                    </ErrorMessage>
+                )}
+
+                <Form onSubmit={handleSubmit}>
+                    <InputGroup>
+                        <Label>Email Address</Label>
+                        <Input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="Enter your email"
+                            required
+                            disabled={isLoading}
+                        />
+                    </InputGroup>
+
+                    <InputGroup>
+                        <Label>Password</Label>
+                        <PasswordContainer>
                             <Input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                required
-                                placeholder="Enter your email"
-                            />
-                        </InputGroup>
-
-                        <InputGroup>
-                            <Label>Password</Label>
-                            <Input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 name="password"
                                 value={formData.password}
-                                onChange={handleChange}
-                                required
+                                onChange={handleInputChange}
                                 placeholder="Enter your password"
-                            />
-                        </InputGroup>
+                                required
+                                disabled={isLoading}
+                            />                            <PasswordToggle
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                disabled={isLoading}
+                            >
+                                {showPassword ? (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                                        <line x1="1" y1="1" x2="23" y2="23"/>
+                                    </svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                )}
+                            </PasswordToggle>
+                        </PasswordContainer>
+                    </InputGroup>                    <LoginButton type="submit" disabled={isLoading}>
+                        <span>{isLoading ? 'Signing in...' : 'Sign In'}</span>
+                    </LoginButton>
+                </Form>
 
-                        <LoginButton type="submit" disabled={isLoading}>
-                            {isLoading ? 'Signing in...' : 'Sign In'}
-                        </LoginButton>
+                <LinksContainer>
+                    <StyledLink to="/forgot-password">Forgot Password?</StyledLink>
+                </LinksContainer>
 
-                        <Links>
-                            <StyledLink to="/forgot-password">
-                                Forgot Password?
-                            </StyledLink>
-                            <StyledLink to="/register">
-                                Don't have an account? Sign up
-                            </StyledLink>
-                        </Links>
-                    </Form>
-                </FormSection>
-            </LoginContainer>
-        </PageContainer>
+                <RegisterPrompt>
+                    Don't have an account?{' '}
+                    <StyledLink to="/register">Sign up here</StyledLink>
+                </RegisterPrompt>
+
+                <TestAccountInfo>
+                    <h4>Test Admin Account:</h4>
+                    <p>Email: kurtadodoli@gmail.com</p>
+                    <p>Password: Admin123!@#</p>
+                </TestAccountInfo>
+            </LoginCard>
+        </Container>
     );
 };
 
-const PageContainer = styled.div`
+// Styled Components
+const Container = styled.div`
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #ffffff;
     padding: 20px;
-    background: #f8f9fa;
 `;
 
-const LoginContainer = styled.div`
+const LoginCard = styled.div`
+    background: #ffffff;
+    padding: 60px 40px;
     width: 100%;
-    max-width: 550px; // Increased from 450px
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    overflow: hidden;
-    margin-top: -60px;
+    max-width: 420px;
+    text-align: center;
 `;
 
 const LogoContainer = styled.div`
-    display: flex;
-    justify-content: center;
-    padding: 40px 0 20px;
+    margin-bottom: 50px;
 `;
 
 const Logo = styled.img`
-    height: 80px; // Increased from 60px
-    width: auto;
+    width: 60px;
+    height: 60px;
+    margin-bottom: 20px;
     object-fit: contain;
 `;
 
-const FormSection = styled.div`
-    padding: 50px; // Increased from 40px
+const CompanyName = styled.h1`
+    color: #000000;
+    font-size: 32px;
+    font-weight: 300;
+    margin: 0;
+    letter-spacing: 3px;
+    text-transform: uppercase;
 `;
 
-const Title = styled.h1`
-    font-size: 32px; // Increased from 28px
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 12px; // Increased from 8px
-    text-align: center;
+const Title = styled.h2`
+    color: #000000;
+    font-size: 24px;
+    font-weight: 400;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
 `;
 
-const SubTitle = styled.p`
-    font-size: 18px; // Increased from 16px
-    color: #666;
-    margin-bottom: 40px; // Increased from 32px
-    text-align: center;
+const Subtitle = styled.p`
+    color: #666666;
+    font-size: 14px;
+    margin-bottom: 40px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
 `;
 
 const Form = styled.form`
@@ -172,88 +207,184 @@ const Form = styled.form`
 `;
 
 const InputGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    text-align: left;
 `;
 
 const Label = styled.label`
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
+    display: block;
+    margin-bottom: 8px;
+    color: #000000;
+    font-weight: 400;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 `;
 
 const Input = styled.input`
-    padding: 14px 18px; // Increased from 12px 16px
-    border: 1.5px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 16px; // Increased from 15px
+    width: 100%;
+    padding: 16px 0;
+    border: none;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 16px;
     transition: all 0.3s ease;
+    box-sizing: border-box;
+    background-color: transparent;
+    font-weight: 300;
 
     &:focus {
         outline: none;
-        border-color: #1a1a1a;
-        box-shadow: 0 0 0 2px rgba(26, 26, 26, 0.1);
+        border-bottom: 1px solid #000000;
+    }
+
+    &:disabled {
+        background-color: transparent;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    &::placeholder {
+        color: #999999;
+        font-weight: 300;
+    }
+`;
+
+const PasswordContainer = styled.div`
+    position: relative;
+    display: flex;
+    align-items: center;
+`;
+
+const PasswordToggle = styled.button`
+    position: absolute;
+    right: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: #999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    
+    &:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    &:hover:not(:disabled) {
+        color: #000000;
+    }
+
+    svg {
+        transition: color 0.3s ease;
     }
 `;
 
 const LoginButton = styled.button`
-    background: #1a1a1a;
-    color: white;
-    padding: 16px; // Increased from 14px
+    background: #000000;
+    color: #ffffff;
     border: none;
-    border-radius: 8px;
-    font-size: 18px; // Increased from 16px
-    font-weight: 600;
+    padding: 18px 32px;
+    font-size: 14px;
+    font-weight: 400;
     cursor: pointer;
-    transition: opacity 0.3s ease;
+    transition: all 0.4s ease;
+    margin-top: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    position: relative;
+    overflow: hidden;
 
-    &:hover {
-        opacity: 0.9;
+    &:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        transition: left 0.4s ease;
+        z-index: 0;
+    }
+
+    &:hover:not(:disabled):before {
+        left: 0;
+    }
+
+    &:hover:not(:disabled) {
+        color: #000000;
     }
 
     &:disabled {
-        background: #666;
+        opacity: 0.6;
         cursor: not-allowed;
     }
-`;
 
-const Links = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-top: 16px;
-    text-align: center;
-`;
-
-const StyledLink = styled(Link)`
-    color: #1a1a1a;
-    font-weight: 600;
-    text-decoration: none;
-
-    &:hover {
-        text-decoration: underline;
+    span {
+        position: relative;
+        z-index: 1;
     }
 `;
 
 const ErrorMessage = styled.div`
-    background: #ffe5e5;
-    color: #dc3545;
-    padding: 12px 16px;
-    border-radius: 8px;
+    background: #f8f8f8;
+    color: #000000;
+    padding: 16px;
+    margin-bottom: 24px;
     font-size: 14px;
-    margin-bottom: 16px;
-    text-align: center;
+    font-weight: 300;
+    border-left: 3px solid #000000;
 `;
 
-const SuccessMessage = styled.div`
-    background: #d1e7dd;
-    color: #0f5132;
-    padding: 12px 16px;
-    border-radius: 8px;
+const LinksContainer = styled.div`
+    margin: 30px 0 20px 0;
+`;
+
+const StyledLink = styled(Link)`
+    color: #666666;
+    text-decoration: none;
+    font-weight: 300;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: color 0.3s ease;
+
+    &:hover {
+        color: #000000;
+    }
+`;
+
+const RegisterPrompt = styled.p`
+    margin-top: 40px;
+    color: #666666;
     font-size: 14px;
-    margin-bottom: 16px;
-    text-align: center;
+    font-weight: 300;
+`;
+
+const TestAccountInfo = styled.div`
+    margin-top: 40px;
+    padding: 24px;
+    background: #f8f8f8;
+    text-align: left;
+    
+    h4 {
+        margin: 0 0 16px 0;
+        color: #000000;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 400;
+    }
+    
+    p {
+        margin: 8px 0;
+        font-size: 12px;
+        color: #666666;
+        font-family: 'Courier New', monospace;
+        font-weight: 300;
+    }
 `;
 
 export default LoginPage;

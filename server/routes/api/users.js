@@ -3,7 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../../config/db');
-const { authenticateUser } = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 const router = express.Router();
 
 // @route   POST /api/users/register
@@ -117,7 +117,7 @@ router.post('/login', async (req, res) => {
 // @route   GET /api/users/profile
 // @desc    Get user profile
 // @access  Private
-router.get('/profile', authenticateUser, async (req, res) => {
+router.get('/profile', auth, async (req, res) => {
   try {
     const userId = req.user.id; // From auth middleware    // Get user profile data with all necessary fields
     const [users] = await pool.execute(
@@ -154,7 +154,7 @@ router.get('/profile', authenticateUser, async (req, res) => {
 // @route   PUT /api/users/profile
 // @desc    Update user profile
 // @access  Private
-router.put('/profile', authenticateUser, async (req, res) => {
+router.put('/profile', auth, async (req, res) => {
   try {
     const { 
       first_name, 

@@ -1,26 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../../middleware/auth');
-const profileController = require('../../controllers/profileController');
+const { auth } = require('../../middleware/auth');
+const profileController = require('../../controllers/profileController-simple');
 const upload = require('../../utils/upload');
 
 // Using configured upload middleware from utils/upload.js
 
 // Get user profile
-router.get('/profile', authMiddleware.authenticateUser, profileController.getProfile);
+router.get('/profile', auth, profileController.getProfile);
 
 // Update user profile
-router.put('/profile', authMiddleware.authenticateUser, profileController.updateProfile);
+router.put('/profile', auth, profileController.updateProfile);
 
 // Update user preferences
-router.put('/profile/preferences', authMiddleware.authenticateUser, profileController.updatePreferences);
+router.put('/profile/preferences', auth, profileController.updatePreferences);
 
 // Change password
-router.post('/profile/change-password', authMiddleware.authenticateUser, profileController.changePassword);
+router.post('/profile/change-password', auth, profileController.changePassword);
 
 // Upload profile picture
 router.post('/profile/picture', 
-    authMiddleware.authenticateUser,
+    auth,
     upload.single('profile_picture'),
     profileController.uploadProfilePicture
 );

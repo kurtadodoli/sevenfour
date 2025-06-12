@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { upload, processImages, handleUploadErrors } = require('../../middleware/uploadMiddleware');
 const productController = require('../../controllers/productController');
-const { authenticateUser } = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 
 // Public routes
 router.get('/active', productController.getActiveProducts);
@@ -11,7 +11,7 @@ router.get('/:id', productController.getProduct);
 router.get('/:id/delivery-schedule', productController.getDeliverySchedule);
 
 // Protected routes (admin only)
-router.use(authenticateUser);
+router.use(auth);
 
 // Product management
 router.post('/', upload.array('images', 10), processImages, productController.createProduct);
