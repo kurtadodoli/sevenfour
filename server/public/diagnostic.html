@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        .group {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .field {
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>API Diagnostic Tool</h1>
+        
+        <div class="group">
+            <h2>Basic Health Check</h2>
+            <button id="checkHealth">Check API Health</button>
+            <button id="checkDatabase">Check Database</button>
+            <button id="checkCors">Check CORS</button>
+            <div id="healthResult" class="result"></div>
+        </div>
+        
+        <div class="group">
+            <h2>Authentication Tests</h2>
+            <button id="testRegistration">Test Registration</button>
+            <button id="testLogin">Test Login</button>
+            <button id="testTokenAuth">Test Token Auth</button>
+            <div id="authResult" class="result"></div>
+        </div>
+        
+        <div class="group">
+            <h2>Manual User Registration</h2>
+            <form id="registerForm">
+                <div class="field">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" required>
+                </div>
+                <div class="field">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" required>
+                </div>
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" value="TestPass1!" required>
+                </div>
+                <div class="field">
+                    <label for="gender">Gender</label>
+                    <select id="gender" required>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="birthday">Birthday</label>
+                    <input type="date" id="birthday" value="1990-01-01" required>
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <div id="registerResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        
+        // Helper to log results
+        function logResult(elementId, message, type = 'info') {
+            const resultElement = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.classList.add(type);
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            resultElement.insertBefore(logEntry, resultElement.firstChild);
+        }
+        
+        // Helper for API requests
+        async function makeRequest(url, options = {}) {
+            try {
+                logResult('healthResult', `Sending request to ${url}...`);
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logResult('healthResult', `Success (${response.status}): ${JSON.stringify(data)}`, 'success');
+                } else {
+                    logResult('healthResult', `Error (${response.status}): ${JSON.stringify(data)}`, 'error');
+                }
+                
+                return { success: response.ok, status: response.status, data };
+            } catch (error) {
+                logResult('healthResult', `Request failed: ${error.message}`, 'error');
+                return { success: false, error };
+            }
+        }
+        
+        // Health check handlers
+        document.getElementById('checkHealth').addEventListener('click', async () => {
+            await makeRequest(`${API_URL}/health-check`);
+        });
+        
+        document.getElementById('checkDatabase').addEventListener('click', async () => {
+            await makeRequest(`${API_URL}/health-check/database`);
+        });
+        
+        document.getElementById('checkCors').addEventListener('click', async () => {
+            await makeRequest(`${API_URL}/health-check/cors`);
+        });
+        
+        // Generate a unique test user email
+        function generateTestEmail() {
+            return `test_${Date.now()}@example.com`;
+        }
+        
+        // Authentication test handlers
+        document.getElementById('testRegistration').addEventListener('click', async () => {
+            const testUser = {
+                first_name: 'Test',
+                last_name: 'User',
+                email: generateTestEmail(),
+                password: 'TestPass1!',
+                gender: 'other',
+                birthday: '1990-01-01'
+            };
+            
+            logResult('authResult', `Testing registration with: ${testUser.email}`);
+            
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(testUser)
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logResult('authResult', `Registration successful! User ID: ${data.data.user.id}`, 'success');
+                    logResult('authResult', `Token: ${data.data.token}`, 'success');
+                    
+                    // Store for later auth tests
+                    localStorage.setItem('testToken', data.data.token);
+                    localStorage.setItem('testUser', JSON.stringify(data.data.user));
+                } else {
+                    logResult('authResult', `Registration failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logResult('authResult', `Request error: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            // Try to get stored test user
+            const testUserStr = localStorage.getItem('testUser');
+            if (!testUserStr) {
+                logResult('authResult', 'No test user available. Please register a test user first.', 'error');
+                return;
+            }
+            
+            const testUser = JSON.parse(testUserStr);
+            logResult('authResult', `Testing login with: ${testUser.email}`);
+            
+            const loginData = {
+                email: testUser.email,
+                password: 'TestPass1!' // This was the password used for test users
+            };
+            
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(loginData)
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logResult('authResult', `Login successful!`, 'success');
+                    logResult('authResult', `Token: ${data.data.token}`, 'success');
+                    localStorage.setItem('testToken', data.data.token);
+                } else {
+                    logResult('authResult', `Login failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logResult('authResult', `Request error: ${error.message}`, 'error');
+            }
+        });
+        
+        document.getElementById('testTokenAuth').addEventListener('click', async () => {
+            const token = localStorage.getItem('testToken');
+            if (!token) {
+                logResult('authResult', 'No token available. Please login first.', 'error');
+                return;
+            }
+            
+            logResult('authResult', 'Testing token authentication...');
+            
+            const options = {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/verify`, options);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logResult('authResult', `Token verification successful!`, 'success');
+                    logResult('authResult', `User data: ${JSON.stringify(data.data.user)}`, 'success');
+                } else {
+                    logResult('authResult', `Token verification failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logResult('authResult', `Request error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Handle manual registration form
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userData = {
+                first_name: document.getElementById('first_name').value,
+                last_name: document.getElementById('last_name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                gender: document.getElementById('gender').value,
+                birthday: document.getElementById('birthday').value
+            };
+            
+            logResult('registerResult', `Attempting to register: ${userData.email}`);
+            
+            // First try XMLHttpRequest
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${API_URL}/auth/register`, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        logResult('registerResult', `Registration successful via XHR! User ID: ${data.data.user.id}`, 'success');
+                    } catch (e) {
+                        logResult('registerResult', `Error parsing XHR response: ${e.message}`, 'error');
+                    }
+                } else {
+                    try {
+                        const error = JSON.parse(xhr.responseText);
+                        logResult('registerResult', `XHR registration failed: ${error.message}`, 'error');
+                    } catch (e) {
+                        logResult('registerResult', `XHR failed with status ${xhr.status}`, 'error');
+                    }
+                    
+                    // Try with fetch as fallback
+                    tryFetchRegistration(userData);
+                }
+            };
+            
+            xhr.onerror = function() {
+                logResult('registerResult', 'XHR request failed, trying fetch...', 'error');
+                tryFetchRegistration(userData);
+            };
+            
+            try {
+                xhr.send(JSON.stringify(userData));
+            } catch (error) {
+                logResult('registerResult', `XHR send error: ${error.message}`, 'error');
+                tryFetchRegistration(userData);
+            }
+        });
+        
+        async function tryFetchRegistration(userData) {
+            logResult('registerResult', 'Attempting fetch registration as fallback...');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    logResult('registerResult', `Registration successful via fetch! User ID: ${data.data.user.id}`, 'success');
+                } else {
+                    logResult('registerResult', `Fetch registration failed: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                logResult('registerResult', `Fetch error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

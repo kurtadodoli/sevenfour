@@ -4,8 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import styled from 'styled-components';
 import logo from '../assets/images/sfc-logo.png';
 
-const RegisterPage = () => {
-    const [formData, setFormData] = useState({
+const RegisterPage = () => {    const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
         email: '',
@@ -16,9 +15,9 @@ const RegisterPage = () => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);    const [validationError, setValidationError] = useState('');
 
-    const { register, currentUser, error, clearError } = useAuth();
+    const { currentUser, error, clearError, register } = useAuth();
     const navigate = useNavigate();
 
     // Redirect if already logged in
@@ -31,21 +30,48 @@ const RegisterPage = () => {
     // Clear errors when component mounts
     useEffect(() => {
         clearError();
-    }, [clearError]);
-
-    const handleChange = (e) => {
+    }, [clearError]);    const handleChange = (e) => {
         const { name, value } = e.target;
+        // Trim whitespace for email and names, leave as-is for password fields
+        const trimmedValue = (name === 'password' || name === 'confirmPassword') 
+            ? value 
+            : value.trim();
+            
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: trimmedValue
         }));
-        // Clear error when user starts typing
+        
+        // Clear errors when user starts typing
         if (error) {
             clearError();
         }
+        if (validationError) {
+            setValidationError('');
+        }
     };
 
-    const validateForm = () => {
+    // Password strength validation
+    const validatePasswordStrength = (password) => {
+        const errors = [];
+        if (password.length < 8) {
+            errors.push('Password must be at least 8 characters long');
+        }
+        if (!/[A-Z]/.test(password)) {
+            errors.push('Password must contain at least one uppercase letter');
+        }
+        if (!/[a-z]/.test(password)) {
+            errors.push('Password must contain at least one lowercase letter');
+        }
+        if (!/[0-9]/.test(password)) {
+            errors.push('Password must contain at least one number');
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            errors.push('Password must contain at least one special character');
+        }
+        return errors;
+    };
+      const validateForm = () => {
         if (!formData.first_name.trim()) {
             return 'First name is required';
         }
@@ -73,50 +99,84 @@ const RegisterPage = () => {
         if (!emailRegex.test(formData.email)) {
             return 'Please enter a valid email address';
         }
+        
+        // Password strength validation
+        const passwordErrors = validatePasswordStrength(formData.password);
+        if (passwordErrors.length > 0) {
+            return passwordErrors[0]; // Return the first error
+        }
 
         // Password match validation
         if (formData.password !== formData.confirmPassword) {
             return 'Passwords do not match';
-        }
-
-        // Age validation (must be at least 13 years old)
+        }// Age validation (must be at least 13 years old)
         const today = new Date();
         const birthDate = new Date(formData.birthday);
-        const age = today.getFullYear() - birthDate.getFullYear();
+        let ageValue = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
         
         if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
+            ageValue--;
         }
 
-        if (age < 13) {
+        if (ageValue < 13) {
             return 'You must be at least 13 years old to register';
         }
 
-        return null;
-    };
+        // Password validation
+        if (formData.password) {
+            const passwordErrors = validatePasswordStrength(formData.password);
+            if (passwordErrors.length > 0) {
+                return passwordErrors[0]; // Return the first error
+            }
+        }
 
-    const handleSubmit = async (e) => {
+        return null;
+    };    const handleSubmit = async (e) => {
         e.preventDefault();
         
-        const validationError = validateForm();
-        if (validationError) {
-            // We can't use setError directly since error comes from AuthContext
-            // Instead, let the validation show in the UI or use a local error state
+        // Clear previous errors
+        setValidationError('');
+        clearError();
+        
+        const validateResult = validateForm();
+        if (validateResult) {
+            setValidationError(validateResult);
             return;
         }
 
-        setIsLoading(true);
-        
-        try {
+        setIsLoading(true);        try {
             // Remove confirmPassword before sending to API
             const { confirmPassword, ...registerData } = formData;
             
-            await register(registerData);
-            // Navigation will happen automatically via useEffect when currentUser changes
+            console.log('Submitting registration form with data:', registerData);
+            
+            // Use the register method from AuthContext
+            const result = await register(registerData);
+            
+            console.log('Registration result:', result);
+            
+            // Success is handled by the AuthContext:
+            // - It sets the token in localStorage
+            // - It sets the currentUser state
+            // - The useEffect above will detect the currentUser and navigate automatically
+            
+            // Clear form after successful registration
+            setFormData({
+                first_name: '',
+                last_name: '',
+                email: '',
+                password: '',
+                confirmPassword: '',
+                gender: '',
+                birthday: ''
+            });
         } catch (error) {
             console.error('Registration error:', error);
-            // Error is already handled by auth context
+            
+            // Use both the error from context and our local validation error
+            const errorMessage = error.message || 'Registration failed. Please try again.';
+            setValidationError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -131,11 +191,9 @@ const RegisterPage = () => {
                 </LogoContainer>
 
                 <Title>Create Account</Title>
-                <Subtitle>Join our community today</Subtitle>
-
-                {error && (
+                <Subtitle>Join our community today</Subtitle>                {(error || validationError) && (
                     <ErrorMessage>
-                        {error}
+                        {validationError || error}
                     </ErrorMessage>
                 )}
 

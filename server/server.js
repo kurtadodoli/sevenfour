@@ -6,10 +6,34 @@ require('dotenv').config();
 
 const app = express();
 
+// Enhanced error logging
+const logError = (err) => {
+    console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        code: err.code
+    });
+};
+
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Add request logging middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`, {
+        body: req.body,
+        query: req.query,
+        headers: req.headers
+    });
+    next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -19,14 +43,18 @@ app.get('/health', async (req, res) => {
     const isConnected = await testConnection();
     res.json({ 
         status: isConnected ? 'healthy' : 'unhealthy',
-        database: isConnected ? 'connected' : 'disconnected'
+        database: isConnected ? 'connected' : 'disconnected',
+        timestamp: new Date().toISOString()
     });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: 'Something broke!' });
+    logError(err);
+    res.status(500).json({ 
+        message: 'Something broke!',
+        error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
 });
 
 const PORT = process.env.PORT || 5000;
@@ -40,12 +68,12 @@ const startServer = async () => {
             process.exit(1);
         }
 
-        app.listen(PORT, () => {
+        app.listen(PORT, '0.0.0.0', () => {
             console.log(`✅ Server is running on port ${PORT}`);
             console.log(`🔗 http://localhost:${PORT}`);
         });
     } catch (error) {
-        console.error('❌ Server failed to start:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
     }
 };

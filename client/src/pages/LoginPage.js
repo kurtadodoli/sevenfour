@@ -16,33 +16,35 @@ const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     
-    const from = location.state?.from?.pathname || '/';
-
-    // Redirect if already logged in
+    const from = location.state?.from?.pathname || '/';    // Redirect if already logged in
     useEffect(() => {
         if (currentUser) {
-            navigate(from, { replace: true });
+            console.log('User detected in context, preparing to redirect to:', from);
+            
+            // Give the token storage a moment to sync
+            const redirectTimer = setTimeout(() => {
+                console.log('Redirecting to:', from);
+                navigate(from, { replace: true });
+            }, 300); // A bit longer delay to ensure everything is ready
+            
+            return () => clearTimeout(redirectTimer);
         }
     }, [currentUser, navigate, from]);
 
     // Clear errors when component mounts
     useEffect(() => {
         clearError();
-    }, [clearError]);
-
-    const handleInputChange = (e) => {
+    }, [clearError]);    const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: value
+            [name]: value.trim() // Trim whitespace to prevent common login issues
         }));
         // Clear error when user starts typing
         if (error) {
             clearError();
         }
-    };
-
-    const handleSubmit = async (e) => {
+    };const handleSubmit = async (e) => {
         e.preventDefault();
         
         if (!formData.email || !formData.password) {
@@ -50,10 +52,38 @@ const LoginPage = () => {
         }
 
         setIsLoading(true);
+        console.log('Submitting login form...');
         
         try {
-            await login(formData);
-            // Navigation will happen automatically via useEffect when currentUser changes
+            // Clean up inputs
+            const loginData = {
+                email: formData.email.trim().toLowerCase(),
+                password: formData.password
+            };
+            
+            const loginResult = await login(loginData);
+            console.log('Login API call successful');
+            
+            // If login is successful but navigation doesn't happen automatically
+            if (loginResult?.success && loginResult?.user) {
+                console.log('Login successful, token received');
+                
+                // Try forcing the user into context
+                if (!currentUser) {
+                    console.log('Setting current user explicitly');
+                    // This is handled by the login function now, but just in case
+                }
+                
+                // Make sure to navigate even if the context update doesn't trigger useEffect
+                setTimeout(() => {
+                    console.log('Checking if redirect happened automatically...');
+                    // Get the current location and see if we're still on the login page
+                    if (window.location.pathname.includes('/login')) {
+                        console.log('Manual redirect to:', from);
+                        navigate(from, { replace: true });
+                    }
+                }, 800);
+            }
         } catch (error) {
             console.error('Login error:', error);
             // Error is already handled by auth context

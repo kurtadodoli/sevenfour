@@ -1,40 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const { upload, processImages, handleUploadErrors } = require('../../middleware/uploadMiddleware');
+const upload = require('../../middleware/upload-memory');
 const productController = require('../../controllers/productController');
 const { auth } = require('../../middleware/auth');
+const adminCheck = require('../../middleware/adminCheck');
 
 // Public routes
-router.get('/active', productController.getActiveProducts);
+router.get('/', productController.getActiveProducts);
 router.get('/archived', productController.getArchivedProducts);
-router.get('/:id', productController.getProduct);
-router.get('/:id/delivery-schedule', productController.getDeliverySchedule);
+router.get('/categories', productController.getProductCategories);
 
 // Protected routes (admin only)
 router.use(auth);
 
-// Product management
-router.post('/', upload.array('images', 10), processImages, productController.createProduct);
-router.put('/:id', upload.array('images', 10), processImages, productController.updateProduct);
-router.delete('/:id', productController.deleteProduct);
+// Admin-only routes - add adminCheck middleware
+router.get('/admin/all', adminCheck, productController.getAllProducts);
+
+// This route must come after more specific routes
+router.get('/:id', productController.getProduct);
+router.post('/', adminCheck, productController.createProduct);
+router.put('/:id', adminCheck, productController.updateProduct);
+router.delete('/:id', adminCheck, productController.deleteProduct);
 
 // Image management
-router.post('/:id/images', upload.array('images', 10), processImages, productController.uploadImages);
-router.delete('/:id/images/:imageId', productController.removeImage);
-router.put('/:id/images/reorder', productController.reorderImages);
+router.post('/:id/images', adminCheck, upload.single('image'), productController.uploadProductImage);
+router.put('/:id/stock', adminCheck, productController.updateProductStock);
 
-// Product archiving
-router.post('/:id/archive', productController.archiveProduct);
-router.post('/:id/restore', productController.restoreProduct);
-
-// Delivery schedule
-router.put('/:id/delivery-schedule', productController.updateDeliverySchedule);
-
-// Backup and restore
-router.get('/backup', productController.backupProducts);
-router.post('/restore', upload.single('backup'), productController.restoreFromBackup);
-
-// Error handling
-router.use(handleUploadErrors);
+// Product archiving and audit
+router.post('/:id/restore', adminCheck, productController.restoreProduct);
+router.get('/:id/audit-log', adminCheck, productController.getProductAuditLog);
 
 module.exports = router;

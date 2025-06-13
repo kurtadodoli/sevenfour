@@ -9,7 +9,10 @@ const corsOptions = {
       'http://localhost:5001',
       'http://127.0.0.1:3000',
       'http://127.0.0.1:3001',
-      'http://127.0.0.1:5001'
+      'http://127.0.0.1:5001',
+      // Add explicit origins for testing
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
     ];
     
     // Add production URLs if needed
@@ -17,11 +20,13 @@ const corsOptions = {
       allowedOrigins.push(process.env.CLIENT_URL);
     }
     
+    console.log('Request origin:', origin);
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow for development - change to false for production
+      console.log('CORS allowing new origin:', origin);
+      callback(null, true); // Allow all origins in development
     }
   },
   credentials: true,

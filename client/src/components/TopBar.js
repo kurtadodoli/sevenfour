@@ -5,70 +5,203 @@ import { useAuth } from '../context/AuthContext';
 import UserAvatar from './UserAvatar';
 import logo from '../assets/images/sfc-logo-white.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faUser, 
+  faHome, 
+  faShoppingBag, 
+  faShoppingCart, 
+  faBoxes, 
+  faQuestionCircle, 
+  faInfoCircle, 
+  faTimes, 
+  faBars, 
+  faSignOutAlt,
+  faCog,
+  faChartLine,
+  faClipboardList,
+  faTruck,
+  faShippingFast,
+  faClipboardCheck
+} from '@fortawesome/free-solid-svg-icons';
 
 const TopBarContainer = styled.div`
   height: 60px;
-  background: #1a1a1a;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #050505;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2rem;
+  padding: 0 1.25rem;
   position: fixed;
   top: 0;
   right: 0;
   left: 0;
   z-index: 900;
   color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 65px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1px;
+    height: 30px;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+    opacity: 0.7;
+  }
 `;
+
+// Removed unused MenuToggle component
 
 const LogoSection = styled.div`
   height: 60px;
-  width: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: opacity 0.2s ease;
+  padding: ${props => props.$isMenuToggle ? '0 8px' : '0'};
+  border-radius: 8px;
+  position: relative;  overflow: visible;
+  
+  // Remove the before pseudo-element for minimalist design
+  ${props => props.$isMenuToggle && `
+    &:hover {
+      opacity: 0.9;
+    }
+    
+    &:active {
+      opacity: 0.8;
+    }
+  `}
 `;
 
 const Logo = styled.img`
-  height: 40px;
-  width: 40px;
+  height: 28px;
+  width: 28px;
   object-fit: contain;
+  margin-left: 5px;
+  transition: opacity 0.2s ease;
+  position: relative;
+  z-index: 1;
+  opacity: 0.9;
+  
+  &:hover {
+    opacity: 1;
+  }
 `;
 
 const NavSection = styled.div`
   position: absolute;
   top: 60px;
-  left: ${props => props.$isOpen ? '0' : '-240px'};
-  width: 240px;
-  background: #1a1a1a;
+  left: ${props => props.$isOpen ? '0' : '-200px'};
+  width: 200px;
+  background: #0a0a0a;
   height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
-  padding: 1rem 0;
-  transition: left 0.3s ease;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  padding: 0.25rem 0;
+  transition: all 0.3s ease;
+  box-shadow: ${props => props.$isOpen ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'};
+  z-index: 990;
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const Overlay = styled.div`
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;  background-color: rgba(0, 0, 0, 0.2);
+  z-index: 980;
+  opacity: ${props => props.$isOpen ? 1 : 0};
+  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+  // Removed blur effect
+  }
+`;
+
+const NavSectionTitle = styled.div`
+  color: #888888;
+  font-size: 9px;
+  text-transform: uppercase;
+  margin: 14px 16px 4px;
+  padding: 0 6px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  position: relative;
+  opacity: 0.7;
 `;
 
 const NavLink = styled(Link)`
-  color: white;
+  color: #e0e0e0;
   text-decoration: none;
-  font-size: 1rem;
-  padding: 1rem 2rem;
-  opacity: 0.7;
+  font-size: 0.9rem;
+  padding: 0.6rem 1.1rem;
+  margin: 2px 6px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
   transition: all 0.2s ease;
-
-  &:hover {
+  position: relative;
+  border: none;
+  opacity: 0.85;.icon-container {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: white;
+    opacity: 0.8;
+    font-size: 16px;
+    background: transparent;
+    box-shadow: none;
+    border: none;
+  }    .nav-text {
+    font-weight: 400;
+    font-size: 12px;
+  }&.active {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+    border-left: 2px solid #ffffff;
+    
+    .icon-container {
+      opacity: 1;
+      color: #ffffff;
+    }
   }
-
-  &.active {
+    &:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.05);
-    border-left: 3px solid white;
+    background: rgba(255, 255, 255, 0.03);
+    transform: translateX(2px);
+    
+    .icon-container {
+      opacity: 1;
+      transform: scale(1.05);
+      color: #ffffff;
+    }
   }
 `;
 
@@ -99,25 +232,36 @@ const AccountLink = styled(Link)`
 const AccountButton = styled.button`
   display: flex;
   align-items: center;
-  background: #1a1a1a;
+  background: rgba(255, 255, 255, 0.08);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
-  gap: 0.5rem;
+  gap: 0.8rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   
   span {
-      font-size: 0.9rem;
+      font-size: 0.95rem;
+      font-weight: 500;
       white-space: nowrap;
       max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 
   &:hover {
-      background: #333;
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -142,13 +286,14 @@ const DropdownMenu = styled.div`
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-  padding: 0.5rem 0;
+  background: #1a1a1a;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+  min-width: 220px;
+  padding: 0.7rem 0;
   z-index: 1000;
-  animation: dropdownFade 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: dropdownFade 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   @keyframes dropdownFade {
       from {
@@ -167,37 +312,53 @@ const DropdownItem = styled.button`
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.8rem 1.2rem;
   border: none;
   background: none;
-  color: #333;
-  font-size: 0.9rem;
+  color: #e0e0e0;
+  font-size: 0.95rem;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  position: relative;
 
   svg {
-      color: #666;
+      color: #999;
+      transition: all 0.2s ease;
   }
 
   &:hover {
-      background-color: #f5f5f5;
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      
+      svg {
+          color: #ffffff;
+          transform: scale(1.1);
+      }
+  }
+  
+  &:active {
+      background-color: rgba(255, 255, 255, 0.12);
   }
 `;
 
 const DropdownDivider = styled.div`
   height: 1px;
-  background-color: #eee;
-  margin: 0.5rem 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+  margin: 0.5rem 1rem;
 `;
 
 const TopBar = () => {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { currentUser, loading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const logoRef = useRef(null);
+  
+  const isAuthenticated = !!currentUser && !loading;
 
   const handleLogout = async () => {
     try {
@@ -207,7 +368,6 @@ const TopBar = () => {
       console.error('Failed to logout:', error);
     }
   };
-
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -218,60 +378,140 @@ const TopBar = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
+    };  }, []);
+  
+  // Removed hint functionality
   return (
     <TopBarContainer>
-      <LogoSection onClick={() => setIsNavOpen(!isNavOpen)}>
-        <Logo src={logo} alt="Seven Four Clothing" />
-      </LogoSection>
-
+      <div style={{ display: 'flex', alignItems: 'center' }}>        <LogoSection 
+          onClick={() => setIsNavOpen(!isNavOpen)}
+          aria-label={isNavOpen ? "Close menu" : "Open menu"}
+          title={isNavOpen ? "Click to close menu" : "Click to open menu"}
+          $isMenuToggle={true}
+          $isOpen={isNavOpen}
+          ref={logoRef}
+        ><Logo 
+            src={logo} 
+            alt="Seven Four Clothing" 
+            $isMenuToggle={true}
+          />
+        </LogoSection>
+      </div>
+      {isNavOpen && <Overlay $isOpen={isNavOpen} onClick={() => setIsNavOpen(false)} />}
       <NavSection $isOpen={isNavOpen}>
-        <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-          Home
+        <NavSectionTitle>Main</NavSectionTitle>        <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
+          <div className="icon-container">
+            <FontAwesomeIcon icon={faHome} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">Home</span>
         </NavLink>
-        <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-          Shop
+        
+        {isAuthenticated && currentUser?.role === 'admin' && (
+          <NavLink to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>          <div className="icon-container">
+            <FontAwesomeIcon icon={faChartLine} style={{ color: 'white' }} />
+          </div>
+            <span className="nav-text">Dashboard</span>
+          </NavLink>
+        )}
+        
+        <NavSectionTitle>Shop</NavSectionTitle>
+        <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>          <div className="icon-container">
+            <FontAwesomeIcon icon={faShoppingBag} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">Products</span>
         </NavLink>
+        
         <NavLink to="/cart" className={location.pathname === '/cart' ? 'active' : ''}>
-          Cart
+          <div className="icon-container">
+            <FontAwesomeIcon icon={faShoppingCart} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">Cart</span>
         </NavLink>
+          <NavSectionTitle>Orders & Delivery</NavSectionTitle>
         <NavLink to="/orders" className={location.pathname === '/orders' ? 'active' : ''}>
-          Orders
+          <div className="icon-container">
+            <FontAwesomeIcon icon={faClipboardList} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">Orders</span>
         </NavLink>
+        
+        {isAuthenticated && currentUser?.role === 'admin' && (
+          <>
+            <NavLink to="/tracking" className={location.pathname === '/tracking' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Tracking</span>
+            </NavLink>
+            
+            <NavLink to="/shipping" className={location.pathname === '/shipping' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faShippingFast} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Shipping</span>
+            </NavLink>
+          </>
+        )}
+        
+        {isAuthenticated && currentUser?.role === 'admin' && (
+          <>
+            <NavSectionTitle>Management</NavSectionTitle>
+            <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faCog} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Maintenance</span>
+            </NavLink>
+            
+            <NavLink to="/inventory" className={location.pathname === '/inventory' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faBoxes} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Inventory</span>
+            </NavLink>
+          </>
+        )}
+        
+        <NavSectionTitle>Support</NavSectionTitle>
         <NavLink to="/help" className={location.pathname === '/help' ? 'active' : ''}>
-          Help
+          <div className="icon-container">
+            <FontAwesomeIcon icon={faQuestionCircle} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">Help</span>
         </NavLink>
+        
         <NavLink to="/about" className={location.pathname === '/about' ? 'active' : ''}>
-          About
+          <div className="icon-container">
+            <FontAwesomeIcon icon={faInfoCircle} style={{ color: 'white' }} />
+          </div>
+          <span className="nav-text">About</span>
         </NavLink>
       </NavSection>
 
-      <AccountSection>
-        {isAuthenticated ? (
+      <AccountSection>        {isAuthenticated ? (
           <AccountDropdown ref={dropdownRef}>
             <AccountButton onClick={() => setShowDropdown(!showDropdown)}>
               <UserAvatar 
-                src={user?.profile_picture_url}
-                alt={`${user?.first_name || 'User'}'s profile`}
+                src={currentUser?.profile_picture_url}
+                alt={`${currentUser?.first_name || 'User'}'s profile`}
               />
               <span>
-                {user?.first_name ? `${user.first_name} ${user.last_name}` : user.email}
+                {currentUser?.first_name ? `${currentUser.first_name} ${currentUser.last_name}` : currentUser.email}
               </span>
               <DropdownArrow $isOpen={showDropdown} />
             </AccountButton>
             {showDropdown && (
-              <DropdownMenu>
-                <DropdownItem onClick={() => {
+              <DropdownMenu>                <DropdownItem onClick={() => {
                   navigate('/profile');
                   setShowDropdown(false);
                 }}>
-                  My Profile
+                  <FontAwesomeIcon icon={faUser} style={{ width: 16 }} />
+                  <span style={{ marginLeft: '8px' }}>My Profile</span>
                 </DropdownItem>
                 <DropdownDivider />
                 <DropdownItem onClick={handleLogout}>
-                  Logout
+                  <FontAwesomeIcon icon={faSignOutAlt} style={{ width: 16 }} />
+                  <span style={{ marginLeft: '8px' }}>Logout</span>
                 </DropdownItem>
               </DropdownMenu>
             )}

@@ -31,14 +31,35 @@ app.use('/api/', apiLimiter);
 // Auth-specific rate limiting
 const authLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour window
-    max: 5, // start blocking after 5 requests
+    max: 30, // increased from 5 to 30 for development
     message: 'Too many login attempts, please try again after an hour'
 });
 
+// Login limiter (keep stricter)
 app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
 
-// CORS configuration
+// Registration limiter (more generous for development)
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour window
+    max: 50, // much higher limit for registration
+    message: 'Too many registration attempts, please try again after an hour'
+});
+app.use('/api/auth/register', registerLimiter);
+
+// Apply most permissive CORS settings for development
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// CORS configuration with our options as backup
 app.use(cors(corsOptions));
 
 // Pre-flight requests
@@ -51,7 +72,10 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: process.env.MAX_FILE_SIZE }));
 app.use(express.urlencoded({ extended: false, limit: process.env.MAX_FILE_SIZE }));
 
-// Secure static file serving
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Secure uploads serving
 app.use('/uploads', (req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'self'");
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -68,6 +92,8 @@ const productsRoutes = require('./routes/api/products');
 const ordersRoutes = require('./routes/api/orders');
 const profileRoutes = require('./routes/api/profile');
 const usersRoutes = require('./routes/api/users');
+const dbSetupRoutes = require('./routes/api/db-setup');
+const healthCheckRoutes = require('./routes/health-check');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -75,6 +101,8 @@ app.use('/api/products', productsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/db-setup', dbSetupRoutes);
+app.use('/health', healthCheckRoutes);
 
 // Simple test route
 app.get('/api/test', (req, res) => {

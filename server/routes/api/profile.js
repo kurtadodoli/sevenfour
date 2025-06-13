@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../../middleware/auth');
-const profileController = require('../../controllers/profileController-simple');
+const profileController = require('../../controllers/profileController');
 const upload = require('../../utils/upload');
 
 // Using configured upload middleware from utils/upload.js

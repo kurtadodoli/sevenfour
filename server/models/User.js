@@ -1,5 +1,5 @@
 const bcrypt = require('bcrypt');
-const db = require('../config/database').pool;
+const { pool, query } = require('../config/db');
 
 class User {
     constructor(userData) {
@@ -24,24 +24,29 @@ class User {
 
     static async comparePassword(plainPassword, hashedPassword) {
         return await bcrypt.compare(plainPassword, hashedPassword);
-    }
-
-    static async findByEmail(email) {
+    }    static async findByEmail(email) {
         try {
-            const [rows] = await db.execute(
-                'SELECT * FROM users WHERE email = ?',
+            const rows = await query(
+                `SELECT user_id, email, password, role, 
+                first_name, last_name, birthday, gender, 
+                is_active 
+                FROM users 
+                WHERE email = ? AND is_active = TRUE`,
                 [email]
             );
-            return rows.length ? new User(rows[0]) : null;
+            
+            if (!rows || rows.length === 0) {
+                return null;
+            }
+
+            return rows[0];
         } catch (error) {
             console.error('Error in findByEmail:', error);
             throw error;
         }
-    }
-
-    static async findById(userId) {
+    }    static async findById(userId) {
         try {
-            const [rows] = await db.execute(
+            const rows = await query(
                 'SELECT * FROM users WHERE user_id = ?',
                 [userId]
             );
@@ -61,7 +66,7 @@ class User {
                     this.password = await User.hashPassword(this.password);
                 }
 
-                const [result] = await db.execute(
+                const [result] =                await query(
                     `INSERT INTO users (
                         user_id, first_name, last_name, email, password, 
                         gender, birthday, role
@@ -80,7 +85,7 @@ class User {
                 return this.user_id;
             } else {
                 // Update existing user
-                const [result] = await db.execute(
+                const [result] =                await query(
                     `UPDATE users SET 
                         first_name = ?, 
                         last_name = ?, 

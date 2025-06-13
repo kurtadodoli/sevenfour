@@ -1,315 +1,104 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../utils/api';
-import ProfileImage from '../components/ProfileImage';
-import {
-    Container,
-    Section,
-    Form,
-    FormGroup,
-    Label,
-    Input,
-    Select,
-    Button,
-    FormRow,
-    TabContainer,
-    TabButton,
-    SuccessMessage,
-    ErrorMessage,
-    ProfileTitle,
-    ProfileSubtitle,
-    ValidationError
-} from '../components/StyledComponents';
+import styled from 'styled-components';
 
-// PersonalInfoForm component
-const PersonalInfoForm = ({ profile, handleInputChange, handleSubmit, loading, errors }) => (
-    <Form onSubmit={handleSubmit}>
-        <FormRow>
-            <FormGroup>
-                <Label>First Name</Label>
-                <Input
-                    type="text"
-                    name="first_name"
-                    value={profile.first_name}
-                    onChange={handleInputChange}
-                    required
-                    $error={errors.first_name}
-                />
-                {errors.first_name && <ValidationError>{errors.first_name}</ValidationError>}
-            </FormGroup>
-            <FormGroup>
-                <Label>Last Name</Label>
-                <Input
-                    type="text"
-                    name="last_name"
-                    value={profile.last_name}
-                    onChange={handleInputChange}
-                    required
-                    $error={errors.last_name}
-                />
-                {errors.last_name && <ValidationError>{errors.last_name}</ValidationError>}
-            </FormGroup>
-        </FormRow>
-
-        <FormRow>
-            <FormGroup style={{ flex: 1 }}>
-                <Label>Email</Label>
-                <Input
-                    type="email"
-                    name="email"
-                    value={profile.email}
-                    readOnly
-                    style={{ backgroundColor: '#f5f5f5' }}
-                />
-                <ValidationError style={{ color: '#666' }}>Email cannot be changed</ValidationError>
-            </FormGroup>
-            <FormGroup>
-                <Label>Gender</Label>
-                <Select
-                    name="gender"
-                    value={profile.gender || ''}
-                    onChange={handleInputChange}
-                >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Prefer not to say</option>
-                </Select>
-            </FormGroup>
-        </FormRow>
-
-        <Button type="submit" disabled={loading}>
-            {loading ? 'Updating...' : 'Update Info'}
-        </Button>
-    </Form>
-);
-
-const ProfilePage = () => {
-    const { auth, updateUser } = useAuth();
-    const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('personal');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [uploadLoading, setUploadLoading] = useState(false);
-    const [imagePreview, setImagePreview] = useState(null);
-    const [errors, setErrors] = useState({});
-
-    // Form state
-    const [profile, setProfile] = useState({
+const ProfilePage = () => {    const [profile, setProfile] = useState({
         first_name: '',
         last_name: '',
         email: '',
         gender: '',
-        street_address: '',
-        apartment_suite: '',
-        city: '',
-        state_province: '',
-        postal_code: '',
-        country: '',
+        birthday: '',
+        user_id: '',
+        role: '',
         profile_picture_url: ''
-    });
-
-    // Validation rules
-    const VALIDATION_RULES = {
-        name: {
-            pattern: /^[\p{L}\s'-]{2,30}$/u, // Allows letters, spaces, hyphens, and apostrophes from any language
-            message: 'Must be 2-30 characters long and contain only letters, spaces, hyphens, or apostrophes'
-        },
-        postal: {
-            pattern: /^[\w\s-]{3,10}$/, // More permissive postal code format
-            message: 'Please enter a valid postal code (3-10 characters)'
-        }
-    };
-
-    // Validation functions
-    const validatePersonalInfo = () => {
-        const newErrors = {};
-        
-        if (!profile.first_name?.trim()) {
-            newErrors.first_name = 'First name is required';
-        } else if (!VALIDATION_RULES.name.pattern.test(profile.first_name.trim())) {
-            newErrors.first_name = VALIDATION_RULES.name.message;
+    });    const [editMode, setEditMode] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
+    const [uploadingPicture, setUploadingPicture] = useState(false);    const { currentUser, getProfile, updateProfile, uploadProfilePicture, logout, isAdmin } = useAuth();
+    const navigate = useNavigate();    const loadProfile = useCallback(async () => {
+        if (!currentUser) {
+            // If no user is logged in, redirect to login
+            navigate('/login', { state: { from: { pathname: '/profile' } } });
+            throw new Error('No user logged in');
         }
         
-        if (!profile.last_name?.trim()) {
-            newErrors.last_name = 'Last name is required';
-        } else if (!VALIDATION_RULES.name.pattern.test(profile.last_name.trim())) {
-            newErrors.last_name = VALIDATION_RULES.name.message;
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const validateAddress = () => {
-        const newErrors = {};
-
-        if (!profile.street_address?.trim()) {
-            newErrors.street_address = 'Street address is required';
-        }
-
-        if (!profile.city?.trim()) {
-            newErrors.city = 'City is required';
-        }
-
-        if (!profile.state_province?.trim()) {
-            newErrors.state_province = 'State/Province is required';
-        }
-
-        if (profile.postal_code && !VALIDATION_RULES.postal.pattern.test(profile.postal_code)) {
-            newErrors.postal_code = VALIDATION_RULES.postal.message;
-        }
-
-        if (!profile.country?.trim()) {
-            newErrors.country = 'Country is required';
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    // Handle file selection for profile picture
-    const handleFileSelect = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        // Validate file type and size
-        if (!file.type.startsWith('image/')) {
-            setError('Please select an image file');
-            return;
-        }
-
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            setError('Image size should be less than 5MB');
-            return;
-        }
-
-        // Preview the image
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setImagePreview(reader.result);
-        };
-        reader.readAsDataURL(file);
-
-        // Upload the image
         try {
-            setUploadLoading(true);
-            setError('');
-            const formData = new FormData();
-            formData.append('profile_picture', file);
-
-            const response = await api.post('/api/users/profile/picture', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+            // Use getProfile from AuthContext to fetch the latest user data
+            const profileData = await getProfile();
+            
+            // Add safety check for profileData
+            if (!profileData) {
+                console.error('No profile data received');
+                setError('No profile data received');
+                throw new Error('No profile data received');
+            }
+            
+            // Update local state with profile data
+            setProfile({
+                first_name: profileData.first_name || '',
+                last_name: profileData.last_name || '',
+                email: profileData.email || '',
+                gender: profileData.gender || '',
+                birthday: profileData.birthday ? profileData.birthday.split('T')[0] : '',
+                user_id: profileData.id || '',
+                role: profileData.role || '',
+                profile_picture_url: profileData.profile_picture_url || ''
             });
-
-            if (response.data?.success) {
-                const newUrl = response.data.data?.url || response.data.data?.profile_picture_url;
-                if (newUrl) {
+            
+            return profileData;
+        } catch (error) {
+            console.error('Failed to load profile:', error);
+            setError('Failed to load profile data: ' + (error.message || 'Unknown error'));
+            throw error;
+        }
+    }, [currentUser, getProfile, navigate]);// Load profile data on component mount
+    useEffect(() => {
+        // Set loading state
+        setLoading(true);
+        
+        // Add console logs for debugging
+        console.log('ProfilePage: Loading profile data...');
+        
+        // Add a timeout to ensure loading state is eventually turned off
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.log('ProfilePage: Loading timeout reached, forcing loading state off');
+                setLoading(false);
+                setError('Loading took too long. Please try refreshing the page.');
+            }
+        }, 10000); // 10 second timeout
+        
+        loadProfile()
+            .then((profileData) => {
+                console.log('ProfilePage: Profile loaded successfully', profileData);
+                // Clear any errors on successful load
+                setError('');
+            })
+            .catch((err) => {
+                // Handle errors without crashing the component
+                console.error('Error in initial profile load:', err);
+                setError('Could not load profile. Please try refreshing the page.');
+                
+                // Provide reasonable fallback data if profile load fails
+                if (currentUser) {
                     setProfile(prev => ({
                         ...prev,
-                        profile_picture_url: newUrl
+                        email: currentUser.email || '',
+                        role: currentUser.role || '',
+                        user_id: currentUser.id || ''
                     }));
-                    updateUser({ profile_picture_url: newUrl });
-                    setSuccess('Profile picture updated successfully');
-                    setImagePreview(null);
-                } else {
-                    throw new Error('No image URL in response');
                 }
-            } else {
-                throw new Error(response.data?.message || 'Failed to upload image');
-            }
-        } catch (err) {
-            setError('Failed to upload profile picture: ' + (err.response?.data?.message || err.message));
-            console.error('Upload error:', err);
-        } finally {
-            setUploadLoading(false);
-        }
-    };
-
-    // Handle form updates
-    const handlePersonalInfoUpdate = async (e) => {
-        e.preventDefault();
-        if (!validatePersonalInfo()) return;
-
-        try {
-            setLoading(true);
-            setError('');
-            
-            const updatedData = {
-                first_name: profile.first_name.trim(),
-                last_name: profile.last_name.trim(),
-                gender: profile.gender || '',
-                profile_picture_url: profile.profile_picture_url,
-                street_address: profile.street_address,
-                apartment_suite: profile.apartment_suite,
-                city: profile.city,
-                state_province: profile.state_province,
-                postal_code: profile.postal_code,
-                country: profile.country
-            };
-
-            const response = await api.put('/api/users/profile', updatedData);
-
-            if (response.data?.success) {
-                const updatedProfile = response.data.data;
-                setProfile(prev => ({
-                    ...prev,
-                    ...updatedProfile
-                }));
-                updateUser({
-                    first_name: updatedProfile.first_name,
-                    last_name: updatedProfile.last_name,
-                    gender: updatedProfile.gender,
-                    profile_picture_url: updatedProfile.profile_picture_url
-                });
-                setSuccess('Personal information updated successfully');
-                setErrors({});
-            } else {
-                throw new Error(response.data?.message || 'Failed to update profile');
-            }
-        } catch (err) {
-            console.error('Profile update error:', err);
-            setError('Failed to update profile: ' + (err.response?.data?.message || err.message));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleAddressUpdate = async (e) => {
-        e.preventDefault();
-        if (!validateAddress()) return;
-
-        try {
-            setLoading(true);
-            const response = await api.put('/api/users/profile', {
-                street_address: profile.street_address,
-                apartment_suite: profile.apartment_suite,
-                city: profile.city,
-                state_province: profile.state_province,
-                postal_code: profile.postal_code,
-                country: profile.country
+            })
+            .finally(() => {
+                // Always turn off loading state
+                setLoading(false);
+                clearTimeout(timeoutId);
             });
-
-            if (response.data.success) {
-                const updatedProfile = response.data.data;
-                setProfile(prev => ({
-                    ...prev,
-                    ...updatedProfile
-                }));
-                setSuccess('Address updated successfully');
-            } else {
-                setError('Failed to update address: ' + (response.data.message || 'Unknown error'));
-            }
-        } catch (err) {
-            setError('Failed to update address. ' + (err.response?.data?.message || 'Network error occurred'));
-        } finally {
-            setLoading(false);
-        }
-    };
+            
+        return () => clearTimeout(timeoutId); // Clean up timeout on unmount
+    }, [loadProfile, currentUser, loading]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -317,232 +106,753 @@ const ProfilePage = () => {
             ...prev,
             [name]: value
         }));
-        // Clear error for the field being edited
-        if (errors[name]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: ''
-            }));
+        // Clear error when user starts typing
+        if (error) setError('');
+    };    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');        try {
+            // Remove email, user_id, and role from update data (they shouldn't be editable)
+            const { email, user_id, role, ...updateData } = profile;
+            await updateProfile(updateData);
+            
+            // Reload profile data from database to ensure consistency
+            await loadProfile();
+            
+            setMessage('Profile updated successfully!');
+            setEditMode(false);
+        } catch (error) {
+            console.error('Profile update error:', error);
+            setError(error.message || 'Failed to update profile');        } finally {
+            setLoading(false);
         }
     };
 
-    // Fetch profile data on component mount
-    useEffect(() => {
-        if (!auth.isAuthenticated) {
-            navigate('/login');
+    const handleProfilePictureUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            setError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
             return;
         }
 
-        const fetchProfile = async () => {
-            try {
-                setLoading(true);
-                setError('');
-                const response = await api.get('/api/users/profile');
-                
-                if (response.data?.success) {
-                    const profileData = response.data.data;
-                    setProfile(prev => ({
-                        ...prev,
-                        first_name: profileData.first_name || auth.user?.first_name || '',
-                        last_name: profileData.last_name || auth.user?.last_name || '',
-                        email: profileData.email || auth.user?.email || '',
-                        gender: profileData.gender || '',
-                        street_address: profileData.street_address || '',
-                        apartment_suite: profileData.apartment_suite || '',
-                        city: profileData.city || '',
-                        state_province: profileData.state_province || '',
-                        postal_code: profileData.postal_code || '',
-                        country: profileData.country || '',
-                        profile_picture_url: profileData.profile_picture_url || auth.user?.profile_picture_url || ''
-                    }));
-                } else {
-                    setProfile(prev => ({
-                        ...prev,
-                        first_name: auth.user?.first_name || '',
-                        last_name: auth.user?.last_name || '',
-                        email: auth.user?.email || '',
-                        gender: auth.user?.gender || '',
-                        profile_picture_url: auth.user?.profile_picture_url || ''
-                    }));
-                }
-            } catch (err) {
-                console.error('Profile fetch error:', err);
-                setError('Failed to load profile data. ' + (err.response?.data?.message || 'Network error occurred'));
-                
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Image file size should be less than 5MB');
+            return;
+        }
+
+        setUploadingPicture(true);
+        setError('');
+        setMessage('');        try {
+            const updatedProfile = await uploadProfilePicture(file);
+            
+            // Check if updatedProfile exists and has the expected structure
+            if (updatedProfile && updatedProfile.profile_picture_url !== undefined) {
                 setProfile(prev => ({
                     ...prev,
-                    first_name: auth.user?.first_name || '',
-                    last_name: auth.user?.last_name || '',
-                    email: auth.user?.email || '',
-                    gender: auth.user?.gender || '',
-                    profile_picture_url: auth.user?.profile_picture_url || ''
+                    profile_picture_url: updatedProfile.profile_picture_url
                 }));
-            } finally {
-                setLoading(false);
+                setMessage('Profile picture updated successfully!');
+            } else {
+                // Fallback: reload the entire profile
+                await loadProfile();
+                setMessage('Profile picture updated successfully!');
             }
-        };
-
-        fetchProfile();
-    }, [auth.isAuthenticated, auth.user, navigate]);
-
-    // Auto-dismiss success messages
-    useEffect(() => {
-        if (success) {
-            const timer = setTimeout(() => {
-                setSuccess('');
-            }, 3000);
-            return () => clearTimeout(timer);
+        } catch (error) {
+            console.error('Profile picture upload error:', error);
+            setError(error.message || 'Failed to upload profile picture');
+        } finally {
+            setUploadingPicture(false);
         }
-    }, [success]);
+    };const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
-    if (loading && !profile.email) {
+    const formatDate = (dateString) => {
+        if (!dateString) return 'Not provided';
+        return new Date(dateString).toLocaleDateString();
+    };    const formatRole = (role) => {
+        return role === 'admin' ? 'Administrator' : 'Customer';
+    };
+
+    const formatGender = (gender) => {
+        if (!gender) return 'Not provided';
+        switch(gender.toUpperCase()) {
+            case 'MALE': return 'Male';
+            case 'FEMALE': return 'Female';
+            case 'OTHER': return 'Other';
+            default: return gender;
+        }
+    };    if (!currentUser) {
         return (
             <Container>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
-                    Loading...
-                </div>
+                <ErrorMessage>Please log in to view your profile.</ErrorMessage>
+            </Container>
+        );
+    }
+
+    // Add safety check for profile data
+    if (!profile || !profile.first_name) {
+        return (
+            <Container>
+                <ProfileCard>
+                    <div>Loading profile...</div>
+                </ProfileCard>
+            </Container>
+        );
+    }    // Handle initial loading state
+    if (loading && !profile.user_id) {
+        return (
+            <Container>
+                <LoadingOverlay>
+                    <LoadingSpinner />
+                    <p>Loading profile...</p>
+                </LoadingOverlay>
+            </Container>
+        );
+    }
+    
+    // Handle case when user is not authenticated
+    if (!currentUser && !loading) {
+        // This will redirect, but we need a fallback UI
+        return (
+            <Container>
+                <ErrorContainer>
+                    <h2>Authentication Required</h2>
+                    <p>Please log in to view your profile.</p>
+                    <ActionButton 
+                        as="a" 
+                        href="/login" 
+                        $variant="primary"
+                    >
+                        Go to Login
+                    </ActionButton>
+                </ErrorContainer>
             </Container>
         );
     }
 
     return (
         <Container>
-            <ProfileTitle>My Profile</ProfileTitle>
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-            {success && <SuccessMessage>{success}</SuccessMessage>}
-            
-            <TabContainer>
-                <TabButton 
-                    active={activeTab === 'personal'} 
-                    onClick={() => {
-                        setActiveTab('personal');
-                        setErrors({});
-                        setError('');
-                        setSuccess('');
-                    }}
-                >
-                    Personal Info
-                </TabButton>
-                <TabButton 
-                    active={activeTab === 'address'} 
-                    onClick={() => {
-                        setActiveTab('address');
-                        setErrors({});
-                        setError('');
-                        setSuccess('');
-                    }}
-                >
-                    Address
-                </TabButton>
-            </TabContainer>
+            <ProfileCard>                <ProfileHeader>
+                    <ProfilePictureContainer>                        <Avatar $hasImage={!!(profile?.profile_picture_url)}>
+                            {profile?.profile_picture_url ? (
+                                <img 
+                                    src={`http://localhost:5000${profile.profile_picture_url}`} 
+                                    alt="Profile" 
+                                    onError={(e) => {
+                                        e.target.onerror = null; 
+                                        e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100%" height="100%" fill="%23888"/><text x="50%" y="50%" font-size="24" text-anchor="middle" dy=".3em" fill="%23fff">' + (profile?.first_name?.charAt(0) || '') + (profile?.last_name?.charAt(0) || '') + '</text></svg>';
+                                    }}
+                                />
+                            ) : (
+                                `${profile?.first_name?.charAt(0) || ''}${profile?.last_name?.charAt(0) || ''}`
+                            )}
+                        </Avatar><UploadOverlay className="upload-overlay">
+                            <FileInput
+                                type="file"
+                                accept="image/*"
+                                onChange={handleProfilePictureUpload}
+                                disabled={uploadingPicture}
+                                id="profile-picture-upload"
+                            />
+                            <FileInputLabel htmlFor="profile-picture-upload">
+                                {uploadingPicture ? 'Uploading...' : 'Change Picture'}
+                            </FileInputLabel>
+                        </UploadOverlay>
+                    </ProfilePictureContainer>                    <UserInfo>
+                        <UserName>{profile?.first_name || ''} {profile?.last_name || ''}</UserName>
+                        <UserEmail>{profile?.email || ''}</UserEmail>
+                        <UserRole $isAdmin={isAdmin}>{formatRole(currentUser?.role)}</UserRole>
+                    </UserInfo>
+                </ProfileHeader>
 
-            {activeTab === 'personal' && (
-                <Section>
-                    <div style={{ marginBottom: '3rem' }}>
-                        <ProfileSubtitle>Profile Picture</ProfileSubtitle>
-                        <ProfileImage 
-                            src={imagePreview || profile.profile_picture_url}
-                            alt="Profile"
-                            onFileSelect={handleFileSelect}
-                            loading={uploadLoading}
-                        />
-                    </div>
+                {message && <SuccessMessage>{message}</SuccessMessage>}
+                {error && <ErrorMessage>{error}</ErrorMessage>}
+
+                <ProfileContent>
+                    <SectionHeader>
+                        <SectionTitle>Personal Information</SectionTitle>
+                        <ActionButton
+                            type="button"
+                            onClick={() => setEditMode(!editMode)}
+                            $variant="secondary"
+                        >
+                            {editMode ? 'Cancel' : 'Edit Profile'}
+                        </ActionButton>
+                    </SectionHeader>
+
+                    {editMode ? (
+                        <Form onSubmit={handleSubmit}>
+                            <FormRow>
+                                <FormGroup>
+                                    <Label>First Name</Label>
+                                    <Input
+                                        type="text"
+                                        name="first_name"
+                                        value={profile.first_name}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label>Last Name</Label>
+                                    <Input
+                                        type="text"
+                                        name="last_name"
+                                        value={profile.last_name}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </FormGroup>
+                            </FormRow>                            <FormGroup>
+                                <Label>Email Address</Label>
+                                <Input
+                                    type="email"
+                                    value={profile.email}
+                                    disabled
+                                    style={{ backgroundColor: '#f5f5f5' }}
+                                />
+                                <HelpText>Email address cannot be changed</HelpText>
+                            </FormGroup>
+
+                            <FormRow>
+                                <FormGroup>
+                                    <Label>User ID</Label>
+                                    <Input
+                                        type="text"
+                                        value={profile.user_id}
+                                        disabled
+                                        style={{ backgroundColor: '#f5f5f5' }}
+                                    />
+                                    <HelpText>User ID cannot be changed</HelpText>
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label>Account Type</Label>
+                                    <Input
+                                        type="text"
+                                        value={formatRole(profile.role)}
+                                        disabled
+                                        style={{ backgroundColor: '#f5f5f5' }}
+                                    />
+                                    <HelpText>Role cannot be changed</HelpText>
+                                </FormGroup>
+                            </FormRow>
+
+                            <FormRow>
+                                <FormGroup>
+                                    <Label>Gender</Label>                                    <Select
+                                        name="gender"
+                                        value={profile.gender}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="MALE">Male</option>
+                                        <option value="FEMALE">Female</option>
+                                        <option value="OTHER">Other</option>
+                                    </Select>
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label>Birthday</Label>
+                                    <Input
+                                        type="date"
+                                        name="birthday"
+                                        value={profile.birthday}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </FormGroup>
+                            </FormRow>
+
+                            <ButtonGroup>
+                                <ActionButton type="submit" disabled={loading}>
+                                    {loading ? 'Updating...' : 'Save Changes'}
+                                </ActionButton>
+                                <ActionButton
+                                    type="button"
+                                    onClick={() => setEditMode(false)}
+                                    $variant="secondary"
+                                    disabled={loading}
+                                >
+                                    Cancel
+                                </ActionButton>
+                            </ButtonGroup>
+                        </Form>
+                    ) : (
+                        <ProfileView>
+                            <InfoRow>
+                                <InfoLabel>First Name:</InfoLabel>
+                                <InfoValue>{profile.first_name || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Last Name:</InfoLabel>
+                                <InfoValue>{profile.last_name || 'Not provided'}</InfoValue>
+                            </InfoRow>                            <InfoRow>
+                                <InfoLabel>Email:</InfoLabel>
+                                <InfoValue>{profile.email || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>User ID:</InfoLabel>
+                                <InfoValue>{profile.user_id || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Gender:</InfoLabel>
+                                <InfoValue>{formatGender(profile.gender)}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Birthday:</InfoLabel>
+                                <InfoValue>{formatDate(profile.birthday)}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Account Type:</InfoLabel>
+                                <InfoValue>{formatRole(profile.role)}</InfoValue>
+                            </InfoRow>
+                        </ProfileView>
+                    )}
+                </ProfileContent>
+
+                <ProfileActions>
+                    <ActionButton
+                        onClick={() => navigate('/change-password')}
+                        $variant="secondary"
+                    >
+                        Change Password
+                    </ActionButton>
                     
-                    <PersonalInfoForm
-                        profile={profile}
-                        handleInputChange={handleInputChange}
-                        handleSubmit={handlePersonalInfoUpdate}
-                        loading={loading}
-                        errors={errors}
-                    />
-                </Section>
-            )}
-
-            {activeTab === 'address' && (
-                <Section>
-                    <ProfileSubtitle>Address Information</ProfileSubtitle>
-                    <Form onSubmit={handleAddressUpdate}>
-                        <FormGroup>
-                            <Label>Street Address</Label>
-                            <Input
-                                type="text"
-                                name="street_address"
-                                value={profile.street_address}
-                                onChange={handleInputChange}
-                                required
-                                $error={errors.street_address}
-                            />
-                            {errors.street_address && <ValidationError>{errors.street_address}</ValidationError>}
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Apartment/Suite (optional)</Label>
-                            <Input
-                                type="text"
-                                name="apartment_suite"
-                                value={profile.apartment_suite}
-                                onChange={handleInputChange}
-                            />
-                        </FormGroup>
-                        <FormRow>
-                            <FormGroup>
-                                <Label>City</Label>
-                                <Input
-                                    type="text"
-                                    name="city"
-                                    value={profile.city}
-                                    onChange={handleInputChange}
-                                    required
-                                    $error={errors.city}
-                                />
-                                {errors.city && <ValidationError>{errors.city}</ValidationError>}
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>State/Province</Label>
-                                <Input
-                                    type="text"
-                                    name="state_province"
-                                    value={profile.state_province}
-                                    onChange={handleInputChange}
-                                    required
-                                    $error={errors.state_province}
-                                />
-                                {errors.state_province && <ValidationError>{errors.state_province}</ValidationError>}
-                            </FormGroup>
-                        </FormRow>
-                        <FormRow>
-                            <FormGroup>
-                                <Label>Postal Code</Label>
-                                <Input
-                                    type="text"
-                                    name="postal_code"
-                                    value={profile.postal_code}
-                                    onChange={handleInputChange}
-                                    required
-                                    $error={errors.postal_code}
-                                />
-                                {errors.postal_code && <ValidationError>{errors.postal_code}</ValidationError>}
-                            </FormGroup>
-                            <FormGroup>
-                                <Label>Country</Label>
-                                <Input
-                                    type="text"
-                                    name="country"
-                                    value={profile.country}
-                                    onChange={handleInputChange}
-                                    required
-                                    $error={errors.country}
-                                />
-                                {errors.country && <ValidationError>{errors.country}</ValidationError>}
-                            </FormGroup>
-                        </FormRow>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? 'Updating...' : 'Update Address'}
-                        </Button>
-                    </Form>
-                </Section>
-            )}
+                    {isAdmin && (
+                        <ActionButton
+                            onClick={() => navigate('/admin')}
+                            $variant="admin"
+                        >
+                            Admin Panel
+                        </ActionButton>
+                    )}
+                    
+                    <ActionButton
+                        onClick={handleLogout}
+                        $variant="danger"
+                    >
+                        Logout
+                    </ActionButton>
+                </ProfileActions>
+            </ProfileCard>
         </Container>
     );
 };
+
+// Styled Components
+const Container = styled.div`
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+`;
+
+const ProfileCard = styled.div`
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 700px;
+`;
+
+const ProfileHeader = styled.div`
+    display: flex;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+`;
+
+const Avatar = styled.div`
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: ${props => props.$hasImage ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-right: 20px;
+    overflow: hidden;
+    position: relative;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+`;
+
+const ProfilePictureContainer = styled.div`
+    position: relative;
+    display: inline-block;
+
+    &:hover {
+        .upload-overlay {
+            opacity: 1;
+        }
+    }
+`;
+
+const UploadOverlay = styled.div`
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 20px;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+`;
+
+const FileInput = styled.input`
+    display: none;
+`;
+
+const FileInputLabel = styled.label`
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    padding: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    transition: background 0.3s ease;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+`;
+
+const UserInfo = styled.div`
+    flex: 1;
+`;
+
+const UserName = styled.h1`
+    margin: 0 0 5px 0;
+    color: #333;
+    font-size: 28px;
+    font-weight: 600;
+`;
+
+const UserEmail = styled.p`
+    margin: 0 0 5px 0;
+    color: #666;
+    font-size: 16px;
+`;
+
+const UserRole = styled.span`
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: ${props => props.$isAdmin ? '#e3f2fd' : '#f3e5f5'};
+    color: ${props => props.$isAdmin ? '#1976d2' : '#7b1fa2'};
+`;
+
+const ProfileContent = styled.div`
+    margin-bottom: 30px;
+`;
+
+const SectionHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+`;
+
+const SectionTitle = styled.h2`
+    color: #333;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+`;
+
+const Form = styled.form`
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+`;
+
+const FormRow = styled.div`
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+`;
+
+const FormGroup = styled.div`
+    display: flex;
+    flex-direction: column;
+`;
+
+const Label = styled.label`
+    margin-bottom: 8px;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+`;
+
+const Input = styled.input`
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 10px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+
+    &:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+`;
+
+const Select = styled.select`
+    padding: 12px 16px;
+    border: 2px solid #e1e5e9;
+    border-radius: 10px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    background-color: white;
+
+    &:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+`;
+
+const HelpText = styled.small`
+    color: #666;
+    font-size: 12px;
+    margin-top: 4px;
+`;
+
+const ButtonGroup = styled.div`
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+`;
+
+const ActionButton = styled.button`
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    ${props => {
+        switch (props.$variant) {
+            case 'secondary':
+                return `
+                    background: #f8f9fa;
+                    color: #333;
+                    border: 2px solid #e1e5e9;
+                    
+                    &:hover:not(:disabled) {
+                        background: #e9ecef;
+                        border-color: #d1d5db;
+                    }
+                `;
+            case 'danger':
+                return `
+                    background: #dc3545;
+                    color: white;
+                    
+                    &:hover:not(:disabled) {
+                        background: #c82333;
+                        transform: translateY(-2px);
+                        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+                    }
+                `;
+            case 'admin':
+                return `
+                    background: #28a745;
+                    color: white;
+                    
+                    &:hover:not(:disabled) {
+                        background: #218838;
+                        transform: translateY(-2px);
+                        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+                    }
+                `;
+            default:
+                return `
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    
+                    &:hover:not(:disabled) {
+                        transform: translateY(-2px);
+                        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+                    }
+                `;
+        }
+    }}
+
+    &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none;
+    }
+`;
+
+const ProfileView = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+`;
+
+const InfoRow = styled.div`
+    display: flex;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    align-items: center;
+`;
+
+const InfoLabel = styled.span`
+    font-weight: 600;
+    color: #333;
+    width: 150px;
+    flex-shrink: 0;
+`;
+
+const InfoValue = styled.span`
+    color: #666;
+    flex: 1;
+`;
+
+const ProfileActions = styled.div`
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    border-top: 2px solid #f0f0f0;
+    padding-top: 20px;
+`;
+
+const SuccessMessage = styled.div`
+    background: #d4edda;
+    color: #155724;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #c3e6cb;
+    font-size: 14px;
+`;
+
+const ErrorMessage = styled.div`
+    background: #f8d7da;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #f5c6cb;
+    font-size: 14px;
+`;
+
+const LoadingOverlay = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    text-align: center;
+    
+    p {
+        margin-top: 20px;
+        font-size: 16px;
+        color: #666;
+    }
+`;
+
+const LoadingSpinner = styled.div`
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #000;
+    animation: spin 1s ease-in-out infinite;
+    margin: 0 auto;
+    
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+`;
+
+const ErrorContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    
+    h2 {
+        color: #333;
+        margin-bottom: 16px;
+    }
+    
+    p {
+        color: #666;
+        margin-bottom: 24px;
+    }
+    
+    a {
+        text-decoration: none;
+    }
+`;
 
 export default ProfilePage;

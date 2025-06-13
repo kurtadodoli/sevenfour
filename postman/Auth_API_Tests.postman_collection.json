@@ -1,0 +1,80 @@
+{
+	"info": {
+		"_postman_id": "random-uuid",
+		"name": "Auth API Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "login"]
+				}
+			},
+			"test": {
+				"script": {
+					"exec": [
+						"pm.test(\"Status code is 200\", function () {",
+						"    pm.response.to.have.status(200);",
+						"});",
+						"",
+						"pm.test(\"Response has token\", function () {",
+						"    var jsonData = pm.response.json();",
+						"    pm.expect(jsonData.token).to.exist;",
+						"});"
+					]
+				}
+			}
+		},
+		{
+			"name": "Register",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"newuser@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"New User\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/register",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "auth", "register"]
+				}
+			},
+			"test": {
+				"script": {
+					"exec": [
+						"pm.test(\"Status code is 201\", function () {",
+						"    pm.response.to.have.status(201);",
+						"});",
+						"",
+						"pm.test(\"Response has user data\", function () {",
+						"    var jsonData = pm.response.json();",
+						"    pm.expect(jsonData.user).to.exist;",
+						"    pm.expect(jsonData.token).to.exist;",
+						"});"
+					]
+				}
+			}
+		}
+	]
+}

@@ -6,22 +6,23 @@ import { useAuth } from '../context/AuthContext';
 
 // Styled Components
 const SidebarContainer = styled.div`
-  width: ${props => props.$minimized ? '80px' : '280px'};
+  width: ${props => props.$minimized ? '90px' : '300px'};
   height: 100vh;
-  background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+  background: linear-gradient(180deg, #121212 0%, #000000 100%);
   position: fixed;
   left: 0;
   top: 0;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: visible;
   z-index: 1000;
-  box-shadow: ${props => props.$minimized ? '6px 0 25px rgba(0, 0, 0, 0.4)' : '3px 0 15px rgba(0, 0, 0, 0.2)'};
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: ${props => props.$minimized ? '6px 0 30px rgba(0, 0, 0, 0.5)' : '3px 0 20px rgba(0, 0, 0, 0.3)'};
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
+  padding-bottom: 20px;
 `;
 
 const LogoSection = styled.div`
-  height: 90px;
+  height: 100px;
   display: flex;
   align-items: center;
   justify-content: ${props => props.$minimized ? 'center' : 'flex-start'};
@@ -29,10 +30,20 @@ const LogoSection = styled.div`
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 ${props => props.$minimized ? '0' : '28px'};
   position: relative;
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(90deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.1) 100%);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: ${props => props.$minimized ? '20%' : '5%'};
+    width: ${props => props.$minimized ? '60%' : '90%'};
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+  }
   
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
   }
   
   &:active {
@@ -41,40 +52,55 @@ const LogoSection = styled.div`
 `;
 
 const LogoWrapper = styled.div`
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: 15px;
+  background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   
   &:hover {
-    background: rgba(255, 255, 255, 0.12);
-    transform: scale(1.05);
-    border-color: rgba(255, 255, 255, 0.15);
+    transform: scale(1.08);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    border-color: rgba(255, 255, 255, 0.25);
   }
 `;
 
 const Logo = styled.img`
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   transition: transform 0.3s ease;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
+  
+  &:hover {
+    transform: scale(1.1);
+  }
 `;
 
 const CompanyName = styled.span`
   color: #ffffff;
-  font-size: 19px;
-  font-weight: 700;
-  margin-left: 18px;
+  font-size: 20px;
+  font-weight: 800;
+  margin-left: 20px;
   opacity: ${props => props.$minimized ? '0' : '1'};
-  transition: opacity 0.3s ease;
+  width: ${props => props.$minimized ? '0' : 'auto'};
+  overflow: hidden;
+  transition: all 0.4s ease;
   white-space: nowrap;
   letter-spacing: 0.8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  
+  /* Animated gradient text when hovered */
+  background-size: 200% auto;
+  background-image: linear-gradient(90deg, #ffffff 0%, #3a7bd5 50%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-transform: uppercase;
   font-family: 'Arial', sans-serif;
 `;
@@ -83,7 +109,9 @@ const NavLinks = styled.div`
   padding: 20px 0;
   overflow-y: auto;
   overflow-x: visible;
-  height: calc(100vh - 90px);
+  height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
   
   &::-webkit-scrollbar {
     width: 4px;
@@ -104,92 +132,140 @@ const NavLinks = styled.div`
 `;
 
 const SectionTitle = styled.h3`
-  color: #888;
-  font-size: 10px;
+  color: #a0a0a0;
+  font-size: 11px;
   text-transform: uppercase;
-  margin: 28px 28px 16px;
+  margin: ${props => props.$minimized ? '24px auto 8px' : '30px 24px 16px'};
+  padding: ${props => props.$minimized ? '0' : '0 8px'};
   transition: all 0.3s ease;
   opacity: ${props => props.$minimized ? '0' : '1'};
-  height: ${props => props.$minimized ? '0px' : 'auto'};
+  height: ${props => props.$minimized ? '3px' : 'auto'};
   overflow: hidden;
-  font-weight: 700;
-  letter-spacing: 1.2px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  position: relative;
+  width: ${props => props.$minimized ? '30px' : 'auto'};
+  text-align: ${props => props.$minimized ? 'center' : 'left'};
+  
+  ${props => props.$minimized && `
+    &::after {
+      content: '';
+      position: absolute;
+      width: 30px;
+      height: 3px;
+      background: ${props.$color || '#888'};
+      border-radius: 3px;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  `}
 `;
 
 const NavItem = styled.div`
-  margin: 6px 16px;
+  margin: ${props => props.$minimized ? '16px auto' : '8px 16px'};
   position: relative;
+  width: ${props => props.$minimized ? '60px' : 'auto'};
+  transition: transform 0.2s ease;
   
   &:hover {
-    transform: translateX(3px);
+    transform: translateX(${props => props.$minimized ? '0' : '3px'});
   }
-  
-  transition: transform 0.2s ease;
 `;
 
 const StyledLink = styled(Link)`
   display: flex;
   align-items: center;
-  padding: 16px 20px;
+  padding: ${props => props.$minimized ? '8px 0' : '12px 16px'};
   color: ${props => props.$active ? '#ffffff' : '#b8b8b8'};
   text-decoration: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 14px;
+  border-radius: 16px;
   position: relative;
   overflow: visible;
   background: ${props => props.$active ? 'rgba(255, 255, 255, 0.12)' : 'transparent'};
   border: 1px solid ${props => props.$active ? 'rgba(255, 255, 255, 0.15)' : 'transparent'};
+  margin: ${props => props.$minimized ? '16px auto' : '0'};
+  width: ${props => props.$minimized ? '80%' : '100%'};
+  justify-content: ${props => props.$minimized ? 'center' : 'flex-start'};
   
   span {
-    margin-left: 18px;
     opacity: ${props => props.$minimized ? '0' : '1'};
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease;
     white-space: nowrap;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
     letter-spacing: 0.3px;
+    width: ${props => props.$minimized ? '0' : 'auto'};
+    overflow: hidden;
+    color: ${props => props.$active ? '#ffffff' : '#cccccc'};
   }
 
   &:hover {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.10);
-    border-color: rgba(255, 255, 255, 0.18);
-    transform: translateX(6px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, ${props => props.$active ? '0.15' : '0.08'});
+    border-color: rgba(255, 255, 255, ${props => props.$active ? '0.25' : '0.12'});
+    transform: ${props => props.$minimized ? 'scale(1.08)' : 'translateX(5px)'};
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+    
+    span {
+      transform: translateX(3px);
+    }
   }
 
   &:active {
-    transform: scale(0.98) translateX(6px);
+    transform: ${props => props.$minimized ? 'scale(0.95)' : 'scale(0.98) translateX(5px)'};
+    transition: all 0.1s ease;
   }
 `;
 
 const IconWrapper = styled.div`
-  width: 24px;
-  height: 24px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
+  min-width: 38px;
   position: relative;
+  border-radius: 12px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    svg {
+  background: ${props => {
+    switch (props.$section) {
+      case 'main': return 'linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%)';
+      case 'shop': return 'linear-gradient(135deg, #f953c6 0%, #b91d73 100%)';
+      case 'delivery': return 'linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)';
+      case 'management': return 'linear-gradient(135deg, #4776E6 0%, #8E54E9 100%)';
+      case 'support': return 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)';
+      default: return 'rgba(255, 255, 255, 0.15)';
+    }
+  }};
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  margin-right: ${props => props.$minimized ? '0' : '16px'};
+
+  svg {
     width: 20px;
     height: 20px;
     transition: all 0.3s ease;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.3));
+    color: white;
   }
 
-  /* Enhanced glow effect when sidebar is minimized */
+  /* Enhanced effect when sidebar is minimized */
   ${props => props.$minimized && `
+    width: 48px;
+    height: 48px;
+    margin: 0 auto;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    
     &::before {
       content: '';
       position: absolute;
-      top: -8px;
-      left: -8px;
-      right: -8px;
-      bottom: -8px;
-      background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
-      border-radius: 50%;
+      top: -5px;
+      left: -5px;
+      right: -5px;
+      bottom: -5px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, transparent 70%);
+      border-radius: 16px;
       opacity: 0;
       transition: opacity 0.3s ease;
       z-index: -1;
@@ -201,13 +277,40 @@ const IconWrapper = styled.div`
 
     &:hover svg {
       transform: scale(1.2);
-      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.6));
+    }
+    
+    /* Tooltip for minimized mode */
+    &::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 60px;
+      padding: 8px 12px;
+      background: #333;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+    }
+    
+    &:hover::after {
+      opacity: 1;
+      transform: translateX(0);
     }
   `}
 
-  &:hover svg {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0px);
   }
 `;
 
@@ -298,6 +401,61 @@ const InfoIcon = () => (
     </svg>
 );
 
+const ProfileIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+);
+
+const MenuToggleIcon = ({isOpen}) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        {isOpen ? (
+            // Chevron left icon when open
+            <>
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </>
+        ) : (
+            // Chevron right icon when closed
+            <>
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </>
+        )}
+    </svg>
+);
+
+const ToggleButton = styled.button`
+    width: 42px;
+    height: 42px;
+    position: absolute;
+    right: -21px;
+    top: 120px;
+    background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 10;
+    color: white;
+    
+    &:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+    
+    &:active {
+        transform: scale(0.95);
+    }
+    
+    svg {
+        transition: transform 0.3s ease;
+    }
+`;
+
 const Sidebar = () => {
     const [isMinimized, setIsMinimized] = useState(false);
     const location = useLocation();
@@ -306,30 +464,34 @@ const Sidebar = () => {
 
     const toggleSidebar = () => {
         setIsMinimized(!isMinimized);
-    };
-
-    return (
-        <SidebarContainer $minimized={isMinimized}>            <LogoSection $minimized={isMinimized} onClick={toggleSidebar}>
+    };    return (
+        <SidebarContainer $minimized={isMinimized}>
+            <ToggleButton onClick={toggleSidebar} aria-label={isMinimized ? "Expand sidebar" : "Collapse sidebar"}>
+                <MenuToggleIcon isOpen={!isMinimized} />
+            </ToggleButton>
+            
+            <LogoSection $minimized={isMinimized} onClick={toggleSidebar}>
                 <LogoWrapper>
                     <Logo src={logo} alt="Seven Four Clothing" />
                 </LogoWrapper>
                 <CompanyName $minimized={isMinimized}>Seven Four</CompanyName>
-            </LogoSection>
-            <NavLinks>
+            </LogoSection><NavLinks>
                 {/* Main section - visible to all */}
-                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Main'}</SectionTitle>                <NavItem>
+                <SectionTitle $minimized={isMinimized} $color="#3a7bd5">{!isMinimized && 'Main'}</SectionTitle>
+                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/" $minimized={isMinimized} $active={location.pathname === '/'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="main" data-tooltip="Home">
                             <HomeIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Home</span>}
                     </StyledLink>
                 </NavItem>
 
-                {/* Dashboard - admin only */}                {isAdmin && (
-                    <NavItem>
+                {/* Dashboard - admin only */}
+                {isAdmin && (
+                    <NavItem $minimized={isMinimized}>
                         <StyledLink to="/dashboard" $minimized={isMinimized} $active={location.pathname === '/dashboard'}>
-                            <IconWrapper $minimized={isMinimized}>
+                            <IconWrapper $minimized={isMinimized} $section="main" data-tooltip="Dashboard">
                                 <DashboardIcon />
                             </IconWrapper>
                             {!isMinimized && <span>Dashboard</span>}
@@ -338,90 +500,197 @@ const Sidebar = () => {
                 )}
 
                 {/* Shop section - visible to all */}
-                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Shop'}</SectionTitle>                <NavItem>
+                <SectionTitle $minimized={isMinimized} $color="#f953c6">{!isMinimized && 'Shop'}</SectionTitle>
+                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/products" $minimized={isMinimized} $active={location.pathname === '/products'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="shop" data-tooltip="Products">
                             <ProductIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Products</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem>
+                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/cart" $minimized={isMinimized} $active={location.pathname === '/cart'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="shop" data-tooltip="Cart">
                             <CartIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Cart</span>}
                     </StyledLink>
-                </NavItem>{/* Delivery section - conditional rendering */}
-                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Delivery'}</SectionTitle>                <NavItem>
+                </NavItem>
+                
+                {/* Delivery section - conditional rendering */}
+                <SectionTitle $minimized={isMinimized} $color="#f2994a">{!isMinimized && 'Delivery'}</SectionTitle>                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/orders" $minimized={isMinimized} $active={location.pathname === '/orders'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Orders">
                             <OrderIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Orders</span>}
                     </StyledLink>
                 </NavItem>
                 {isAdmin && (
-                    <>                        <NavItem>
+                    <>
+                        <NavItem $minimized={isMinimized}>
                             <StyledLink to="/tracking" $minimized={isMinimized} $active={location.pathname === '/tracking'}>
-                                <IconWrapper $minimized={isMinimized}>
+                                <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Tracking">
                                     <TruckIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Tracking</span>}
                             </StyledLink>
-                        </NavItem>
-                        <NavItem>
+                        </NavItem>                        <NavItem $minimized={isMinimized}>
                             <StyledLink to="/shipping" $minimized={isMinimized} $active={location.pathname === '/shipping'}>
-                                <IconWrapper $minimized={isMinimized}>
+                                <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Shipping">
                                     <ShippingIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Shipping</span>}
                             </StyledLink>
                         </NavItem>
                     </>
-                )}
-
-                {/* Management section - admin only */}
+                )}                {/* Management section - admin only */}
                 {isAdmin && (
                     <>
-                        <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Management'}</SectionTitle>                        <NavItem>
+                        <SectionTitle $minimized={isMinimized} $color="#4776E6">{!isMinimized && 'Management'}</SectionTitle>
+                        <NavItem $minimized={isMinimized}>
                             <StyledLink to="/maintenance" $minimized={isMinimized} $active={location.pathname === '/maintenance'}>
-                                <IconWrapper $minimized={isMinimized}>
+                                <IconWrapper $minimized={isMinimized} $section="management" data-tooltip="Maintenance">
                                     <SettingsIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Maintenance</span>}
                             </StyledLink>
                         </NavItem>
-                        <NavItem>
+                        <NavItem $minimized={isMinimized}>
                             <StyledLink to="/inventory" $minimized={isMinimized} $active={location.pathname === '/inventory'}>
-                                <IconWrapper $minimized={isMinimized}>
+                                <IconWrapper $minimized={isMinimized} $section="management" data-tooltip="Inventory">
                                     <InventoryIcon />
                                 </IconWrapper>
                                 {!isMinimized && <span>Inventory</span>}
                             </StyledLink>
                         </NavItem>
                     </>
-                )}                {/* Support section - visible to all */}
-                <SectionTitle $minimized={isMinimized}>{!isMinimized && 'Support'}</SectionTitle>                <NavItem>
+                )}
+                
+                {/* Support section - visible to all */}
+                <SectionTitle $minimized={isMinimized} $color="#11998e">{!isMinimized && 'Support'}</SectionTitle>                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/help" $minimized={isMinimized} $active={location.pathname === '/help'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="support" data-tooltip="Help">
                             <HelpIcon />
                         </IconWrapper>
                         {!isMinimized && <span>Help</span>}
                     </StyledLink>
                 </NavItem>
-                <NavItem>
+                <NavItem $minimized={isMinimized}>
                     <StyledLink to="/about" $minimized={isMinimized} $active={location.pathname === '/about'}>
-                        <IconWrapper $minimized={isMinimized}>
+                        <IconWrapper $minimized={isMinimized} $section="support" data-tooltip="About">
                             <InfoIcon />
                         </IconWrapper>
                         {!isMinimized && <span>About</span>}
-                    </StyledLink>
-                </NavItem>
+                    </StyledLink>                </NavItem>
             </NavLinks>
+            
+            {/* User profile section */}
+            {currentUser && (
+                <UserProfileSection $minimized={isMinimized}>
+                    <UserAvatar $minimized={isMinimized}>
+                        {currentUser.profile_picture_url ? (
+                            <img 
+                                src={`http://localhost:5000${currentUser.profile_picture_url}`} 
+                                alt="Profile" 
+                                onError={(e) => {
+                                    e.target.onerror = null; 
+                                    e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100%" height="100%" fill="%23555"/><text x="50%" y="50%" font-size="24" text-anchor="middle" dy=".3em" fill="%23fff">' + (currentUser?.first_name?.charAt(0) || '') + (currentUser?.last_name?.charAt(0) || '') + '</text></svg>';
+                                }}
+                            />
+                        ) : (
+                            <span>{currentUser?.first_name?.charAt(0) || ''}{currentUser?.last_name?.charAt(0) || ''}</span>
+                        )}
+                    </UserAvatar>
+                    {!isMinimized && (
+                        <UserInfo>
+                            <UserName>{currentUser.first_name} {currentUser.last_name}</UserName>
+                            <UserRole>{currentUser.role}</UserRole>
+                        </UserInfo>
+                    )}
+                    <StyledLink to="/profile" $minimized={isMinimized} title="View Profile">
+                        <ProfileIcon />
+                    </StyledLink>
+                </UserProfileSection>
+            )}
         </SidebarContainer>
     );
 };
+
+// User Profile Section Styles
+const UserProfileSection = styled.div`
+    display: flex;
+    align-items: center;
+    padding: ${props => props.$minimized ? '12px 8px' : '16px 24px'};
+    margin-top: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+    
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: ${props => props.$minimized ? '20%' : '5%'};
+        width: ${props => props.$minimized ? '60%' : '90%'};
+        height: 1px;
+        background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+    }
+`;
+
+const UserAvatar = styled.div`
+    width: ${props => props.$minimized ? '40px' : '48px'};
+    height: ${props => props.$minimized ? '40px' : '48px'};
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: scale(1.05);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    span {
+        color: white;
+        font-weight: bold;
+        font-size: ${props => props.$minimized ? '14px' : '16px'};
+    }
+`;
+
+const UserInfo = styled.div`
+    margin-left: 12px;
+    flex-grow: 1;
+    overflow: hidden;
+`;
+
+const UserName = styled.div`
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+`;
+
+const UserRole = styled.div`
+    color: #b0b0b0;
+    font-size: 12px;
+    text-transform: capitalize;
+`;
 
 export default Sidebar;
