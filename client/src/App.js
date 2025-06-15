@@ -18,7 +18,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductsPage from './pages/ProductsPage';
-import ProductDetailPage from './pages/ProductDetailPage';
+import ProductDetailsPage from './pages/ProductDetailsPage'; // Changed from ProductDetailPage
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import DashboardPage from './pages/DashboardPage';
@@ -99,7 +99,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/products" element={<ProductsPage />} />
-                    <Route path="/products/:id" element={<ProductDetailPage />} />
+                    <Route path="/product/:id" element={<ProductDetailsPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/status" element={<StatusPage />} /> {/* New diagnostic page */}
                     <Route path="/reset-password" element={<ResetPasswordPage />} />

@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const security = require('./middleware/security');
 const corsOptions = require('./config/cors');
 const { testConnection } = require('./config/db');
+const mysql = require('mysql2/promise');
 
 // Load environment variables - handle both direct server run and root run
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -53,24 +54,16 @@ const registerLimiter = rateLimit({
 });
 app.use('/api/auth/register', registerLimiter);
 
-// Apply most permissive CORS settings for development
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-  next();
-});
+// Update CORS to match your client port (3002)
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-// CORS configuration with our options as backup
-app.use(cors(corsOptions));
-
-// Pre-flight requests
-app.options('*', cors(corsOptions));
+// Handle preflight requests
+app.options('*', cors());
 
 // Logging
 app.use(morgan('dev'));
@@ -88,6 +81,48 @@ app.use('/uploads', (req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     next();
 }, express.static(path.join(__dirname, 'public/uploads')));
+
+// Database configuration - ensure this matches your setup
+const dbConfig = {
+  host: 'localhost',
+  user: 'root',
+  password: 's3v3n-f0ur-cl0thing*',
+  database: 'seven_four_clothing',
+  port: 3306
+};
+
+// Test database connection and show table info
+async function testDbConnection() {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connected successfully');
+    
+    // Test if products table exists and show structure
+    const [tables] = await connection.execute("SHOW TABLES LIKE 'products'");
+    if (tables.length > 0) {
+      console.log('✅ Products table exists');
+      
+      // Show table structure
+      const [columns] = await connection.execute("DESCRIBE products");
+      console.log('📋 Products table structure:');
+      columns.forEach(col => {
+        console.log(`  - ${col.Field}: ${col.Type}`);
+      });
+      
+      // Show current product count
+      const [count] = await connection.execute('SELECT COUNT(*) as total FROM products');
+      console.log(`📊 Current products in database: ${count[0].total}`);
+    } else {
+      console.log('❌ Products table not found');
+    }
+    
+    await connection.end();
+    return true;
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+    return false;
+  }
+}
 
 // Test database connection
 testConnection();
@@ -129,16 +164,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-    console.log('Environment:', {
-        NODE_ENV: process.env.NODE_ENV,
-        DB_HOST: process.env.DB_HOST,
-        DB_NAME: process.env.DB_NAME,
-        PORT: process.env.PORT
-    });
-});
+// Use environment variable or default to 3001
+const PORT = process.env.PORT || 3001;
 
-module.exports = app;
+// Make sure server starts on port 3001
+app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Frontend should connect to: http://localhost:${PORT}`);
+    
+    // Test database connection
+    await testDbConnection();
+});

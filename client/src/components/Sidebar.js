@@ -694,3 +694,68 @@ const UserRole = styled.div`
 `;
 
 export default Sidebar;
+
+// Revert to the original sidebar design with proper styling
+const styles = {
+    sidebar: {
+        width: '250px',
+        height: '100vh',
+        backgroundColor: '#1a1a1a',
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        paddingTop: '60px',
+        zIndex: 1000,
+        overflowY: 'auto'
+    },
+    nav: {
+        padding: '0'
+    },
+    navItem: {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '15px 20px',
+        color: '#ffffff',
+        textDecoration: 'none',
+        fontSize: '16px',
+        transition: 'background-color 0.3s ease',
+        borderBottom: 'none'
+    },
+    navItemHover: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+    },
+    navIcon: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: '15px',
+        fontSize: '18px'
+    },
+    homeIcon: {
+        backgroundColor: '#3b82f6'
+    },
+    dashboardIcon: {
+        backgroundColor: '#3b82f6'
+    },
+    productsIcon: {
+        backgroundColor: '#ec4899'
+    },
+    cartIcon: {
+        backgroundColor: '#ec4899'
+    },
+    ordersIcon: {
+        backgroundColor: '#f59e0b'
+    },
+    trackingIcon: {
+        backgroundColor: '#f59e0b'
+    },
+    shippingIcon: {
+        backgroundColor: '#f59e0b'
+    },
+    maintenanceIcon: {
+        backgroundColor: '#6366f1'
+    }
+};
