@@ -9,6 +9,13 @@ const security = require('./middleware/security');
 const corsOptions = require('./config/cors');
 const { testConnection } = require('./config/db');
 
+// Load environment variables - handle both direct server run and root run
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Debug environment variables
+console.log('DB_PASSWORD loaded:', process.env.DB_PASSWORD ? '[SET]' : '[NOT SET]');
+console.log('DB_USER loaded:', process.env.DB_USER);
+
 // Initialize Express app
 const app = express();
 
@@ -93,7 +100,10 @@ const ordersRoutes = require('./routes/api/orders');
 const profileRoutes = require('./routes/api/profile');
 const usersRoutes = require('./routes/api/users');
 const dbSetupRoutes = require('./routes/api/db-setup');
+const dashboardRoutes = require('./routes/api/dashboard');
 const healthCheckRoutes = require('./routes/health-check');
+const homepageRoutes = require('./routes/api/homepage');
+const customizationRoutes = require('./routes/api/customizations');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -102,6 +112,10 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/db-setup', dbSetupRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin/homepage', homepageRoutes);
+app.use('/api/homepage', homepageRoutes);
+app.use('/api/customizations', customizationRoutes);
 app.use('/health', healthCheckRoutes);
 
 // Simple test route

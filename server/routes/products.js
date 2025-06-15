@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
 // Create middleware to check if user is admin
@@ -17,7 +17,6 @@ const adminCheck = (req, res, next) => {
 
 // Public routes - accessible without authentication
 router.get('/', productController.getActiveProducts);
-router.get('/:id', productController.getProduct);
 router.get('/categories', productController.getProductCategories);
 
 // Admin-only routes - require authentication and admin role
@@ -30,44 +29,7 @@ router.post('/:id/images', [auth, adminCheck, upload.single('image')], productCo
 router.put('/:id/stock', [auth, adminCheck], productController.updateProductStock);
 router.get('/:id/audit-log', [auth, adminCheck], productController.getProductAuditLog);
 
-module.exports = router;
-
-        const newProduct = {
-            id: nextId++,
-            name,
-            description,
-            price: parseFloat(price),
-            sizes: Array.isArray(sizes) ? sizes : sizes.split(',').map(s => s.trim()),
-            stock: parseInt(stock)
-        };
-
-        products.push(newProduct);
-        
-        res.status(201).json({
-            success: true,
-            product: newProduct
-        });
-    } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Failed to add product'
-        });
-    }
-});
+// Public route for individual product (must be after specific routes to avoid conflicts)
+router.get('/:id', productController.getProduct);
 
 module.exports = router;
-
-/*
-In your MySQL database
-CREATE TABLE IF NOT EXISTS products (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2) NOT NULL,
-    sizes JSON,
-    stock INT NOT NULL,
-    image_url VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-*/

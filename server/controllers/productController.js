@@ -401,7 +401,32 @@ exports.getProductAuditLog = async (req, res) => {
 // Get all product categories
 exports.getProductCategories = async (req, res) => {
   try {
-    const categories = await Product.getAllCategories();
+    let categories = [];
+    
+    try {
+      categories = await Product.getAllCategories();
+    } catch (dbError) {
+      console.log('Database categories not available, using default categories');
+      // Fallback categories if database isn't set up yet
+      categories = [
+        { category_id: 1, category_name: 'T-Shirts' },
+        { category_id: 2, category_name: 'Hoodies' },
+        { category_id: 3, category_name: 'Shorts' },
+        { category_id: 4, category_name: 'Jackets' },
+        { category_id: 5, category_name: 'Accessories' }
+      ];
+    }
+    
+    // If no categories found in database, use defaults
+    if (!categories || categories.length === 0) {
+      categories = [
+        { category_id: 1, category_name: 'T-Shirts' },
+        { category_id: 2, category_name: 'Hoodies' },
+        { category_id: 3, category_name: 'Shorts' },
+        { category_id: 4, category_name: 'Jackets' },
+        { category_id: 5, category_name: 'Accessories' }
+      ];
+    }
 
     return res.status(200).json({
       success: true,

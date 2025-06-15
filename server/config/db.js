@@ -1,6 +1,16 @@
 // server/config/db.js
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const path = require('path');
+
+// Ensure dotenv is loaded with correct path
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
+// Debug: Check if password is loaded
+console.log('DB Config Debug:');
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '[PASSWORD_SET]' : '[PASSWORD_NOT_SET]');
+console.log('DB_NAME:', process.env.DB_NAME);
 
 // Database connection configuration
 const dbConfig = {
@@ -11,9 +21,7 @@ const dbConfig = {
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000
+  queueLimit: 0
 };
 
 // Create connection pool
@@ -33,6 +41,14 @@ const query = async (sql, params = []) => {
 // Test database connection
 const testConnection = async () => {
   try {
+    console.log('Testing connection with config:', {
+      host: dbConfig.host,
+      user: dbConfig.user,
+      database: dbConfig.database,
+      port: dbConfig.port,
+      hasPassword: !!dbConfig.password
+    });
+    
     const connection = await pool.getConnection();
     console.log('✅ Database connection successful!');
     console.log(`📊 Connected to: ${dbConfig.database} on ${dbConfig.host}:${dbConfig.port}`);
@@ -40,6 +56,11 @@ const testConnection = async () => {
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
+    console.error('Error details:', {
+      code: error.code,
+      errno: error.errno,
+      sqlMessage: error.sqlMessage
+    });
     return false;
   }
 };

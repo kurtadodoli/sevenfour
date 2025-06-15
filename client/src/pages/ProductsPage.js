@@ -2,13 +2,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import api from '../utils/api';
+import { useProducts } from '../hooks/useProducts';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { useToast } from '../components/Toast';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faShoppingCart, faHeart as faHeartSolid } from '@fortawesome/free-solid-svg-icons';
+import { faHeart as faHeartOutline } from '@fortawesome/free-regular-svg-icons';
 
 // Styled components
 const PageContainer = styled.div`
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  min-height: calc(100vh - 200px);
 `;
 
 const Header = styled.header`
@@ -16,7 +23,9 @@ const Header = styled.header`
 `;
 
 const Title = styled.h1`
-  font-size: 2.5rem;
+  color: #333;
+  font-size: 2rem;
+  font-weight: 600;
   margin-bottom: 1rem;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -40,10 +49,16 @@ const SearchBar = styled.div`
   
   input {
     flex: 1;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 0.875rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
     font-size: 1rem;
+    transition: all 0.2s ease;
+    
+    &:focus {
+      outline: none;
+      border-color: #1a1a1a;
+    }
   }
 `;
 
@@ -54,17 +69,18 @@ const FilterContainer = styled.div`
 `;
 
 const FilterButton = styled.button`
-  background: ${props => props.active ? '#1a1a1a' : 'transparent'};
-  color: ${props => props.active ? 'white' : '#1a1a1a'};
-  border: 1px solid #1a1a1a;
-  border-radius: 4px;
-  padding: 0.6rem 1rem;
-  font-size: 0.9rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid ${props => props.active ? '#1a1a1a' : '#e0e0e0'};
+  border-radius: 6px;
+  background: ${props => props.active ? '#1a1a1a' : 'white'};
+  color: ${props => props.active ? 'white' : '#666'};
   cursor: pointer;
+  font-weight: 500;
   transition: all 0.3s ease;
   
   &:hover {
-    background: ${props => props.active ? '#1a1a1a' : '#f1f1f1'};
+    border-color: #1a1a1a;
+    background: ${props => props.active ? '#1a1a1a' : '#f8f9fa'};
   }
 `;
 
@@ -158,48 +174,94 @@ const StockTag = styled.span`
   }};
 `;
 
+const AddToCartButton = styled.button`
+  background: white;
+  color: #1a1a1a;
+  border: 2px solid #1a1a1a;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+  
+  &:hover {
+    background: #1a1a1a;
+    color: white;
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      background: white;
+      color: #1a1a1a;
+    }
+  }
+`;
+
+const ProductCardContent = styled.div`
+  position: relative;
+  
+  &:hover .quick-actions {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const QuickActions = styled.div`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  
+  button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: white;
+      transform: scale(1.1);
+    }
+  }
+`;
+
 // Main Component
 const ProductsPage = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const categoryFromUrl = queryParams.get('category') || 'all';
+  // Use the custom hook for product data
+  const { products, categories, loading, error, refreshProducts } = useProducts(30000); // Refresh every 30 seconds
+  const { addToCart } = useCart(); // Add cart functionality
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist(); // Add wishlist functionality
+  const { addToast } = useToast(); // Add toast functionality
   
-  const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(categoryFromUrl);
-  
-  // Fetch products and categories on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Fetch products
-        const productsResponse = await api.get('/api/products');
-        
-        // Fetch categories
-        const categoriesResponse = await api.get('/api/products/categories');
-        
-        setProducts(productsResponse.data.products || []);
-        setCategories(categoriesResponse.data.data || []);
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load products. Please try again later.');
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
-  
-  // Filter products based on search term and category
+  const [addingToCart, setAddingToCart] = useState(new Set());
+    // Filter products based on search term and category
   useEffect(() => {
     if (!products.length) {
       setFilteredProducts([]);
@@ -260,7 +322,59 @@ const ProductsPage = () => {
     searchParams.set('category', category);
     window.history.pushState({}, '', `${location.pathname}?${searchParams.toString()}`);
   };
-  
+    // Handle add to cart
+  const handleAddToCart = async (productId) => {
+    setAddingToCart(prev => new Set(prev).add(productId));
+    
+    try {
+      // For now, use default color and size - this should be improved with a proper product detail modal
+      const result = await addToCart(productId, 1, 1, 1); // product_id, color_id, size_id, quantity
+      
+      if (result.success) {
+        // Find the product name for the toast
+        const product = products.find(p => p.product_id === productId);
+        const productName = product ? product.name : 'Product';
+        addToast(`${productName} added to cart!`, 'success');
+      } else {
+        addToast(result.message || 'Failed to add product to cart', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      addToast('Failed to add product to cart', 'error');
+    }
+      setAddingToCart(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(productId);
+      return newSet;
+    });
+  };
+
+  // Handle wishlist toggle
+  const handleWishlistToggle = async (productId, productName) => {
+    const inWishlist = isInWishlist(productId);
+    
+    try {
+      if (inWishlist) {
+        const result = await removeFromWishlist(productId);
+        if (result.success) {
+          addToast(`${productName} removed from wishlist`, 'info');
+        } else {
+          addToast(result.message, 'error');
+        }
+      } else {
+        const result = await addToWishlist(productId);
+        if (result.success) {
+          addToast(`${productName} added to wishlist`, 'success');
+        } else {
+          addToast(result.message, 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      addToast('Failed to update wishlist', 'error');
+    }
+  };
+
   return (
     <PageContainer>
       <Header>
@@ -297,30 +411,51 @@ const ProductsPage = () => {
           <Loading>Loading products...</Loading>
         ) : filteredProducts.length === 0 ? (
           <NoProducts>No products found. Try a different search or category.</NoProducts>
-        ) : (
-          filteredProducts.map(product => (
-            <ProductCard to={`/products/${product.product_id}`} key={product.product_id}>
-              <ProductImage>
-                <img 
-                  src={product.images && product.images.length > 0 
-                    ? product.images[0] 
-                    : 'https://via.placeholder.com/300x300?text=No+Image'
-                  } 
-                  alt={product.name}
-                />
-              </ProductImage>
-              <ProductInfo>
-                <ProductName>
-                  {product.name}
-                  {product.stock_status && product.stock_status !== 'in_stock' && (
-                    <StockTag status={product.stock_status}>
-                      {product.stock_status === 'out_of_stock' ? 'Out of Stock' : 'Low Stock'}
-                    </StockTag>
-                  )}
-                </ProductName>
-                <ProductPrice>${parseFloat(product.price).toFixed(2)}</ProductPrice>
-              </ProductInfo>
-            </ProductCard>
+        ) : (          filteredProducts.map(product => (
+            <div key={product.product_id}>
+              <ProductCardContent>
+                <ProductImage>
+                  <img 
+                    src={product.images && product.images.length > 0 
+                      ? product.images[0] 
+                      : 'https://via.placeholder.com/300x300?text=No+Image'
+                    } 
+                    alt={product.name}
+                  />
+                  <QuickActions className="quick-actions">
+                    <button 
+                      onClick={() => handleAddToCart(product.product_id)}
+                      disabled={addingToCart.has(product.product_id)}
+                      title="Add to Cart"
+                    >
+                      <FontAwesomeIcon icon={faShoppingCart} />
+                    </button>                    <button title="Add to Wishlist" onClick={() => handleWishlistToggle(product.product_id, product.name)}>
+                      <FontAwesomeIcon icon={isInWishlist(product.product_id) ? faHeartSolid : faHeartOutline} />
+                    </button>
+                  </QuickActions>
+                </ProductImage>
+                <ProductInfo>
+                  <ProductName>
+                    <Link to={`/products/${product.product_id}`} style={{color: 'inherit', textDecoration: 'none'}}>
+                      {product.name}
+                    </Link>
+                    {product.stock_status && product.stock_status !== 'in_stock' && (
+                      <StockTag status={product.stock_status}>
+                        {product.stock_status === 'out_of_stock' ? 'Out of Stock' : 'Low Stock'}
+                      </StockTag>
+                    )}
+                  </ProductName>
+                  <ProductPrice>₱{parseFloat(product.price).toFixed(2)}</ProductPrice>
+                  <AddToCartButton 
+                    onClick={() => handleAddToCart(product.product_id)}
+                    disabled={addingToCart.has(product.product_id) || product.stock_status === 'out_of_stock'}
+                  >
+                    <FontAwesomeIcon icon={faShoppingCart} />
+                    {addingToCart.has(product.product_id) ? 'Adding...' : 'Add to Cart'}
+                  </AddToCartButton>
+                </ProductInfo>
+              </ProductCardContent>
+            </div>
           ))
         )}
       </ProductGrid>

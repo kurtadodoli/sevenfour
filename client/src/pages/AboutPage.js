@@ -66,10 +66,6 @@ const AboutPage = () => {
               <h3>SevenFour Clothing</h3>
               <p>E-Commerce Platform</p>
               <p>Version 1.0.0</p>
-              <div className="copyright">
-                <p>© 2025 SevenFour Clothing</p>
-                <p>All Rights Reserved</p>
-              </div>
             </div>
           </div>
         </section>

@@ -10,7 +10,7 @@ import { jacketProducts } from '../data/jacketProducts'; // Import jacket produc
 
 // Import your images with their proper file extensions
 import heroImage from '../assets/images/seven-four-hero.jpg';
-import sfcLogo from '../assets/images/sfc-logo.png';
+import sfcLogo from '../assets/images/sfc-logo-white.png';
 import tshirtImage from '../assets/images/seven-four-tshirt.jpg';
 import shortsImage from '../assets/images/seven-four-shorts.jpg';
 import hatImage from '../assets/images/seven-four-hat.jpg';

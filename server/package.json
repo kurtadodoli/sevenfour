@@ -1,7 +1,8 @@
 {
   "name": "seven-four-clothing-server",
   "version": "1.0.0",
-  "description": "Backend server for Seven Four Clothing",  "main": "app.js",
+  "description": "Backend server for Seven Four Clothing",
+  "main": "app.js",
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
@@ -21,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "mysql": "^2.18.1",
     "mysql2": "^3.14.1",
     "nodemailer": "^7.0.3",
     "sharp": "^0.34.2",
