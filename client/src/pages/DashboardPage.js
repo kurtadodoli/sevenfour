@@ -236,7 +236,7 @@ const DashboardPage = () => {
                                                 <TableRow key={product.id}>
                                                     <td>{product.product_id}</td>
                                                     <td>{product.productname}</td>
-                                                    <td>${product.productprice}</td>
+                                                    <td>₱{product.productprice}</td>
                                                     <td>{product.total_stock || 0}</td>
                                                     <td>
                                                         <StatusBadge $status={product.productstatus}>

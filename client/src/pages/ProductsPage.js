@@ -177,7 +177,7 @@ const ProductsPage = () => {
                                                 color: '#e74c3c', 
                                                 marginBottom: '10px' 
                                             }}>
-                                                ${parseFloat(product.productprice || 0).toFixed(2)}
+                                                ₱{parseFloat(product.productprice || 0).toFixed(2)}
                                             </div>
                                             
                                             {/* Available Sizes */}

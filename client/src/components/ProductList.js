@@ -28,7 +28,7 @@ function ProductList() {
           <div key={product.id} className="product-card">
             <h3>{product.name}</h3>
             <p>{product.description}</p>
-            <p>${product.price}</p>
+            <p>₱{product.price}</p>
           </div>
         ))}
       </div>

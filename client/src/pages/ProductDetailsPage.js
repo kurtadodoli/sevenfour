@@ -197,7 +197,7 @@ const ProductDetailsPage = () => {
                         <h1 style={styles.productName}>{product.productname}</h1>
                         
                         <div style={styles.price}>
-                            ${parseFloat(product.productprice || 0).toFixed(2)}
+                            ₱{parseFloat(product.productprice || 0).toFixed(2)}
                         </div>
                         
                         <div style={styles.description}>

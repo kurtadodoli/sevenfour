@@ -789,10 +789,9 @@ if (typeof document !== 'undefined') {
                                                             alt={product.productname}
                                                             style={styles.productImage}
                                                         />
-                                                    )}
-                                                    <div style={styles.productInfo}>
+                                                    )}                                                    <div style={styles.productInfo}>
                                                         <h3 style={styles.productName}>{product.productname}</h3>
-                                                        <p style={styles.productPrice}>${product.productprice}</p>
+                                                        <p style={styles.productPrice}>₱{product.productprice}</p>
                                                         <p style={styles.productStock}>
                                                             Stock: {product.total_stock || product.productquantity || 0}
                                                         </p>
@@ -853,10 +852,9 @@ if (typeof document !== 'undefined') {
                                                                 alt={product.productname}
                                                                 style={styles.productImage}
                                                             />
-                                                        )}
-                                                        <div style={styles.productInfo}>
+                                                        )}                                                        <div style={styles.productInfo}>
                                                             <h3 style={styles.productName}>{product.productname}</h3>
-                                                            <p style={styles.productPrice}>${product.productprice}</p>
+                                                            <p style={styles.productPrice}>₱{product.productprice}</p>
                                                             <p style={styles.archivedLabel}>ARCHIVED</p>
                                                             
                                                             <div style={styles.productActions}>                                                                <button 
