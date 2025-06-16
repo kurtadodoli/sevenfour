@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./config/database');
 const authRoutes = require('./routes/auth');
+const maintenanceRoutes = require('./routes/maintenance');
 require('dotenv').config();
 
 const app = express();
@@ -37,6 +38,10 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
 
 // Test database connection
 app.get('/health', async (req, res) => {

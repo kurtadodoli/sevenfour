@@ -6,9 +6,12 @@ const ProductDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [product, setProduct] = useState(null);
+    const [productImages, setProductImages] = useState([]);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [selectedSize, setSelectedSize] = useState('');
 
     const fetchProduct = async () => {
         try {
@@ -21,6 +24,13 @@ const ProductDetailsPage = () => {
                 
                 if (foundProduct) {
                     setProduct(foundProduct);
+                    
+                    // Fetch product images
+                    const imagesResponse = await fetch(`http://localhost:3001/api/maintenance/products/${foundProduct.product_id}/images`);
+                    if (imagesResponse.ok) {
+                        const images = await imagesResponse.json();
+                        setProductImages(images);
+                    }
                 } else {
                     setError('Product not found');
                 }
@@ -38,6 +48,40 @@ const ProductDetailsPage = () => {
     useEffect(() => {
         fetchProduct();
     }, [id]);
+
+    // Parse sizes data
+    const parseSizes = (sizesData) => {
+        try {
+            if (typeof sizesData === 'string') {
+                return JSON.parse(sizesData);
+            }
+            return sizesData || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
+    // Get total stock
+    const getTotalStock = (product) => {
+        if (product.total_stock !== undefined) {
+            return product.total_stock;
+        }
+        const sizes = parseSizes(product.sizes);
+        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+    };
+
+    // Get available sizes
+    const getAvailableSizes = (sizesData) => {
+        const sizes = parseSizes(sizesData);
+        return sizes.filter(size => size.stock > 0);
+    };
+
+    // Get stock for selected size
+    const getStockForSize = (size) => {
+        const sizes = parseSizes(product.sizes);
+        const sizeData = sizes.find(s => s.size === size);
+        return sizeData ? sizeData.stock : 0;
+    };
 
     const addToCart = () => {
         const cart = JSON.parse(localStorage.getItem('cart') || '[]');
@@ -82,11 +126,62 @@ const ProductDetailsPage = () => {
             <div style={styles.content}>
                 <button onClick={() => navigate('/products')} style={styles.backButton}>
                     ← Back to Products
-                </button>
-                
+                </button>                
                 <div style={styles.productContainer}>
+                    {/* Image Section with Carousel */}
                     <div style={styles.imageSection}>
-                        {product.productimage ? (
+                        {productImages.length > 0 ? (
+                            <div style={styles.imageCarousel}>
+                                {/* Main Image */}
+                                <div style={styles.mainImageContainer}>
+                                    <img 
+                                        src={`http://localhost:3001/uploads/${productImages[currentImageIndex]?.image_filename}`}
+                                        alt={product.productname}
+                                        style={styles.productImage}
+                                    />
+                                    
+                                    {/* Navigation arrows for multiple images */}
+                                    {productImages.length > 1 && (
+                                        <>
+                                            <button 
+                                                style={{...styles.navButton, left: '10px'}}
+                                                onClick={() => setCurrentImageIndex(prev => 
+                                                    prev > 0 ? prev - 1 : productImages.length - 1
+                                                )}
+                                            >
+                                                ‹
+                                            </button>
+                                            <button 
+                                                style={{...styles.navButton, right: '10px'}}
+                                                onClick={() => setCurrentImageIndex(prev => 
+                                                    prev < productImages.length - 1 ? prev + 1 : 0
+                                                )}
+                                            >
+                                                ›
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                
+                                {/* Thumbnail navigation */}
+                                {productImages.length > 1 && (
+                                    <div style={styles.thumbnailContainer}>
+                                        {productImages.map((image, index) => (
+                                            <img
+                                                key={image.image_id}
+                                                src={`http://localhost:3001/uploads/${image.image_filename}`}
+                                                alt={`${product.productname} ${index + 1}`}
+                                                style={{
+                                                    ...styles.thumbnail,
+                                                    border: index === currentImageIndex ? '3px solid #007bff' : '1px solid #ddd'
+                                                }}
+                                                onClick={() => setCurrentImageIndex(index)}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : product.productimage ? (
                             <img 
                                 src={`http://localhost:3001/uploads/${product.productimage}`}
                                 alt={product.productname}
@@ -98,8 +193,7 @@ const ProductDetailsPage = () => {
                             </div>
                         )}
                     </div>
-                    
-                    <div style={styles.detailsSection}>
+                      <div style={styles.detailsSection}>
                         <h1 style={styles.productName}>{product.productname}</h1>
                         
                         <div style={styles.price}>
@@ -113,45 +207,87 @@ const ProductDetailsPage = () => {
                         
                         <div style={styles.specifications}>
                             <h3>Product Details</h3>
+                            
+                            {product.productcolor && (
+                                <div style={styles.specItem}>
+                                    <span style={styles.specLabel}>Color:</span>
+                                    <span>{product.productcolor}</span>
+                                </div>
+                            )}
+                            
+                            {/* Size Selection */}
+                            {getAvailableSizes(product.sizes).length > 0 && (
+                                <div style={styles.specItem}>
+                                    <span style={styles.specLabel}>Available Sizes:</span>
+                                    <div style={styles.sizeOptions}>
+                                        {getAvailableSizes(product.sizes).map((sizeData) => (
+                                            <button
+                                                key={sizeData.size}
+                                                style={{
+                                                    ...styles.sizeButton,
+                                                    backgroundColor: selectedSize === sizeData.size ? '#007bff' : '#f8f9fa',
+                                                    color: selectedSize === sizeData.size ? 'white' : '#333',
+                                                    border: selectedSize === sizeData.size ? '2px solid #007bff' : '1px solid #ddd'
+                                                }}
+                                                onClick={() => setSelectedSize(sizeData.size)}
+                                            >
+                                                {sizeData.size}
+                                                <br />
+                                                <small>({sizeData.stock} in stock)</small>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
                             <div style={styles.specItem}>
-                                <span style={styles.specLabel}>Size:</span>
-                                <span>{product.productsize || 'N/A'}</span>
-                            </div>
-                            <div style={styles.specItem}>
-                                <span style={styles.specLabel}>Color:</span>
-                                <span>{product.productcolor || 'N/A'}</span>
-                            </div>
-                            <div style={styles.specItem}>
-                                <span style={styles.specLabel}>Availability:</span>
+                                <span style={styles.specLabel}>Total Availability:</span>
                                 <span style={{
-                                    color: product.productquantity > 0 ? '#28a745' : '#dc3545',
+                                    color: getTotalStock(product) > 0 ? '#28a745' : '#dc3545',
                                     fontWeight: 'bold'
                                 }}>
-                                    {product.productquantity > 0 ? 
-                                        `${product.productquantity} in stock` : 
+                                    {getTotalStock(product) > 0 ? 
+                                        `${getTotalStock(product)} items in stock` : 
                                         'Out of stock'
                                     }
                                 </span>
                             </div>
                         </div>
                         
-                        {product.productquantity > 0 && (
+                        {getTotalStock(product) > 0 && (
                             <div style={styles.purchaseSection}>
                                 <div style={styles.quantitySection}>
                                     <label style={styles.quantityLabel}>Quantity:</label>
-                                    <select 
-                                        value={quantity} 
-                                        onChange={(e) => setQuantity(parseInt(e.target.value))}
-                                        style={styles.quantitySelect}
-                                    >
-                                        {[...Array(Math.min(10, product.productquantity))].map((_, i) => (
-                                            <option key={i + 1} value={i + 1}>{i + 1}</option>
-                                        ))}
-                                    </select>
+                                    <div style={styles.quantityControls}>
+                                        <button 
+                                            style={styles.quantityButton}
+                                            onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                                        >
+                                            -
+                                        </button>
+                                        <span style={styles.quantityDisplay}>{quantity}</span>
+                                        <button 
+                                            style={styles.quantityButton}
+                                            onClick={() => {
+                                                const maxQuantity = selectedSize ? 
+                                                    getStockForSize(selectedSize) : 
+                                                    getTotalStock(product);
+                                                setQuantity(prev => Math.min(maxQuantity, prev + 1));
+                                            }}
+                                        >
+                                            +
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <button 
-                                    onClick={addToCart}
+                                    onClick={() => {
+                                        if (getAvailableSizes(product.sizes).length > 0 && !selectedSize) {
+                                            alert('Please select a size first');
+                                            return;
+                                        }
+                                        addToCart();
+                                    }}
                                     style={styles.addToCartButton}
                                 >
                                     Add to Cart
@@ -259,10 +395,81 @@ const styles = {
         justifyContent: 'space-between',
         marginBottom: '10px',
         padding: '5px 0'
-    },
-    specLabel: {
+    },    specLabel: {
         fontWeight: 'bold',
         color: '#555'
+    },
+    sizeOptions: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '10px',
+        marginTop: '10px'
+    },
+    sizeButton: {
+        padding: '8px 12px',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        textAlign: 'center',
+        minWidth: '60px',
+        fontSize: '14px'
+    },
+    imageCarousel: {
+        width: '100%'
+    },
+    mainImageContainer: {
+        position: 'relative',
+        marginBottom: '15px'
+    },
+    navButton: {
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        color: 'white',
+        border: 'none',
+        borderRadius: '50%',
+        width: '40px',
+        height: '40px',
+        cursor: 'pointer',
+        fontSize: '20px',
+        zIndex: 10
+    },
+    thumbnailContainer: {
+        display: 'flex',
+        gap: '10px',
+        overflowX: 'auto',
+        paddingBottom: '10px'
+    },
+    thumbnail: {
+        width: '80px',
+        height: '80px',
+        objectFit: 'cover',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        flexShrink: 0
+    },
+    quantityControls: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+    },
+    quantityButton: {
+        width: '30px',
+        height: '30px',
+        backgroundColor: '#f8f9fa',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    quantityDisplay: {
+        padding: '5px 15px',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        backgroundColor: 'white'
     },
     purchaseSection: {
         borderTop: '1px solid #eee',

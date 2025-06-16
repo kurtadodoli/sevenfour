@@ -4,23 +4,25 @@ import TopBar from '../components/TopBar';
 const MaintenancePage = () => {
     const [activeTab, setActiveTab] = useState('add');
     const [products, setProducts] = useState([]);
+    const [archivedProducts, setArchivedProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
     
     // Form state
     const [formData, setFormData] = useState({
         productname: '',
         productdescription: '',
         productprice: '',
-        productsize: '',
         productcolor: '',
-        productquantity: ''
+        sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
     });
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState('');
-
-    // Generate random product ID
+    
+    // Multiple image handling
+    const [selectedImages, setSelectedImages] = useState([]);
+    const [imagePreviews, setImagePreviews] = useState([]);
+    const [existingImages, setExistingImages] = useState([]);    // Generate random product ID
     const generateProductId = () => {
         return Math.floor(100000000000 + Math.random() * 899999999999);
     };
@@ -42,7 +44,12 @@ const MaintenancePage = () => {
                 console.log('📊 Data length:', data.length);
                 console.log('📋 Setting products in state...');
                 
-                setProducts(data);
+                // Separate active and archived products
+                const activeProducts = data.filter(product => product.productstatus !== 'archived');
+                const archived = data.filter(product => product.productstatus === 'archived');
+                
+                setProducts(activeProducts);
+                setArchivedProducts(archived);
                 console.log('✅ Products set in state');
                 
             } else {
@@ -58,6 +65,20 @@ const MaintenancePage = () => {
         }
     };
 
+    // Fetch product images
+    const fetchProductImages = async (productId) => {
+        try {
+            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/images`);
+            if (response.ok) {
+                const images = await response.json();
+                return images;
+            }
+        } catch (error) {
+            console.error('Error fetching product images:', error);
+        }
+        return [];
+    };
+
     useEffect(() => {
         fetchProducts();
     }, []);
@@ -68,9 +89,7 @@ const MaintenancePage = () => {
             console.log('🔄 Manage tab activated, fetching products...');
             fetchProducts();
         }
-    }, [activeTab]);
-
-    // Handle form input changes
+    }, [activeTab]);    // Handle form input changes
     const handleInputChange = (e) => {
         setFormData({
             ...formData,
@@ -78,35 +97,101 @@ const MaintenancePage = () => {
         });
     };
 
-    // Handle single image upload
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setImageFile(file);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setImagePreview(e.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
+    // Handle size and stock changes
+    const handleSizeChange = (index, field, value) => {
+        const newSizes = [...formData.sizes];
+        newSizes[index][field] = field === 'stock' ? parseInt(value) || 0 : value;
+        setFormData({
+            ...formData,
+            sizes: newSizes
+        });
     };
 
-    // Reset form
+    // Add new size
+    const addSize = () => {
+        setFormData({
+            ...formData,
+            sizes: [...formData.sizes, { size: '', stock: 0 }]
+        });
+    };
+
+    // Remove size
+    const removeSize = (index) => {
+        const newSizes = formData.sizes.filter((_, i) => i !== index);
+        setFormData({
+            ...formData,
+            sizes: newSizes
+        });
+    };
+
+    // Handle multiple image upload
+    const handleImageChange = (e) => {
+        const files = Array.from(e.target.files);
+        const totalImages = selectedImages.length + existingImages.length;
+        
+        if (totalImages + files.length > 10) {
+            setMessage('Maximum 10 images allowed per product');
+            return;
+        }
+
+        setSelectedImages(prev => [...prev, ...files]);
+        
+        // Create previews
+        const newPreviews = [];
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                newPreviews.push(e.target.result);
+                if (newPreviews.length === files.length) {
+                    setImagePreviews(prev => [...prev, ...newPreviews]);
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    // Remove selected image
+    const removeSelectedImage = (index) => {
+        const newImages = selectedImages.filter((_, i) => i !== index);
+        const newPreviews = imagePreviews.filter((_, i) => i !== index);
+        setSelectedImages(newImages);
+        setImagePreviews(newPreviews);
+    };
+
+    // Remove existing image
+    const removeExistingImage = async (imageId, filename) => {
+        if (!window.confirm('Are you sure you want to delete this image?')) return;
+        
+        try {
+            const response = await fetch(`http://localhost:3001/api/maintenance/images/${imageId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                setExistingImages(prev => prev.filter(img => img.image_id !== imageId));
+                setMessage('Image deleted successfully!');
+            } else {
+                setMessage('Error deleting image');
+            }
+        } catch (error) {
+            console.error('Error deleting image:', error);
+            setMessage('Error deleting image');
+        }
+    };    // Reset form
     const resetForm = () => {
         setFormData({
             productname: '',
             productdescription: '',
             productprice: '',
-            productsize: '',
             productcolor: '',
-            productquantity: ''
+            sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
         });
-        setImageFile(null);
-        setImagePreview('');
+        setSelectedImages([]);
+        setImagePreviews([]);
+        setExistingImages([]);
         setEditingProduct(null);
-    };
-
-    // Handle form submission
+        setShowEditModal(false);
+    };    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -115,27 +200,48 @@ const MaintenancePage = () => {
         try {
             const formDataToSend = new FormData();
             
-            Object.keys(formData).forEach(key => {
-                if (formData[key]) {
-                    formDataToSend.append(key, formData[key]);
-                }
-            });
+            // Add product data
+            formDataToSend.append('productname', formData.productname);
+            formDataToSend.append('productdescription', formData.productdescription);
+            formDataToSend.append('productprice', formData.productprice);
+            formDataToSend.append('productcolor', formData.productcolor);
+            formDataToSend.append('sizes', JSON.stringify(formData.sizes));
+              // Calculate total stock
+            const totalStock = formData.sizes.reduce((sum, size) => sum + size.stock, 0);
+            formDataToSend.append('total_stock', totalStock);
 
-            if (imageFile) {
-                formDataToSend.append('productimage', imageFile);
+            // Add images only if there are any selected
+            if (selectedImages && selectedImages.length > 0) {
+                selectedImages.forEach((image, index) => {
+                    formDataToSend.append('images', image);
+                });
             }
 
-            const response = await fetch('http://localhost:3001/api/maintenance/products', {
-                method: 'POST',
+            // Debug: Log what we're sending
+            console.log('=== FRONTEND FORM DATA ===');
+            console.log('Product name:', formData.productname);
+            console.log('Selected images count:', selectedImages.length);
+            for (let pair of formDataToSend.entries()) {
+                console.log(pair[0] + ':', pair[1]);
+            }
+
+            const url = editingProduct 
+                ? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
+                : 'http://localhost:3001/api/maintenance/products';
+            
+            const method = editingProduct ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 body: formDataToSend
             });
 
             if (response.ok) {
-                setMessage('Product added successfully!');
+                setMessage(`Product ${editingProduct ? 'updated' : 'added'} successfully!`);
                 resetForm();
                 fetchProducts();
             } else {
-                throw new Error('Failed to add product');
+                throw new Error(`Failed to ${editingProduct ? 'update' : 'add'} product`);
             }
         } catch (error) {
             console.error('Error saving product:', error);
@@ -143,26 +249,38 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    // Edit product
-    const editProduct = (product) => {
+    };    // Edit product
+    const editProduct = async (product) => {
         setEditingProduct(product);
+        
+        // Parse sizes from JSON or create default
+        let sizes;
+        try {
+            sizes = product.sizes ? JSON.parse(product.sizes) : 
+                   [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
+        } catch (error) {
+            sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
+        }
+        
         setFormData({
             productname: product.productname || '',
             productdescription: product.productdescription || '',
             productprice: product.productprice || '',
-            productsize: product.productsize || '',
             productcolor: product.productcolor || '',
-            productquantity: product.productquantity || ''
+            sizes: sizes
         });
-        setImagePreview(product.productimage ? `http://localhost:3001/uploads/${product.productimage}` : '');
+        
+        // Fetch existing images
+        const images = await fetchProductImages(product.product_id);
+        setExistingImages(images);
+        
+        setSelectedImages([]);
+        setImagePreviews([]);
+        setShowEditModal(true);
         setActiveTab('add');
-    };
-
-    // Archive product
+    };    // Archive product
     const archiveProduct = async (id) => {
-        if (window.confirm('Are you sure you want to archive this product?')) {
+        if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
                 const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/archive`, {
                     method: 'POST'
@@ -172,6 +290,25 @@ const MaintenancePage = () => {
                     fetchProducts();
                 } else {
                     setMessage('Error archiving product');
+                }
+            } catch (error) {
+                setMessage('Error: ' + error.message);
+            }
+        }
+    };
+
+    // Restore archived product
+    const restoreProduct = async (id) => {
+        if (window.confirm('Are you sure you want to restore this product?')) {
+            try {
+                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/restore`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    setMessage('Product restored successfully!');
+                    fetchProducts();
+                } else {
+                    setMessage('Error restoring product');
                 }
             } catch (error) {
                 setMessage('Error: ' + error.message);
@@ -291,24 +428,70 @@ const MaintenancePage = () => {
                                         style={styles.input}
                                         required
                                     />
-                                </div>
-
-                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>PRODUCT IMAGE</label>
-                                    <input
+                                </div>                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>PRODUCT IMAGES (Max: 10)</label>                                    <input
                                         type="file"
+                                        name="images"
                                         accept="image/*"
+                                        multiple
                                         onChange={handleImageChange}
                                         style={styles.fileInput}
+                                        disabled={selectedImages.length + existingImages.length >= 10}
                                     />
-                                    {imagePreview && (
-                                        <div style={styles.imagePreviewContainer}>
-                                            <img 
-                                                src={imagePreview} 
-                                                alt="Preview" 
-                                                style={styles.imagePreview}
-                                            />
-                                            <p style={styles.imageCaption}>Image preview</p>
+                                    <p style={styles.imageLimit}>
+                                        {selectedImages.length + existingImages.length}/10 images uploaded
+                                    </p>
+                                    
+                                    {/* Existing Images */}
+                                    {existingImages.length > 0 && (
+                                        <div style={styles.imageSection}>
+                                            <h4>Existing Images:</h4>
+                                            <div style={styles.imageGrid}>
+                                                {existingImages.map((img, index) => (
+                                                    <div key={img.image_id} style={styles.imageContainer}>
+                                                        <img 
+                                                            src={`http://localhost:3001/uploads/${img.image_filename}`} 
+                                                            alt={`Product ${index + 1}`}
+                                                            style={styles.imagePreview}
+                                                        />
+                                                        {img.is_thumbnail && (
+                                                            <div style={styles.thumbnailBadge}>Thumbnail</div>
+                                                        )}
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => removeExistingImage(img.image_id, img.image_filename)}
+                                                            style={styles.removeImageButton}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {/* New Image Previews */}
+                                    {imagePreviews.length > 0 && (
+                                        <div style={styles.imageSection}>
+                                            <h4>New Images:</h4>
+                                            <div style={styles.imageGrid}>
+                                                {imagePreviews.map((preview, index) => (
+                                                    <div key={index} style={styles.imageContainer}>
+                                                        <img 
+                                                            src={preview} 
+                                                            alt={`New ${index + 1}`}
+                                                            style={styles.imagePreview}
+                                                        />
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => removeSelectedImage(index)}
+                                                            style={styles.removeImageButton}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -322,9 +505,7 @@ const MaintenancePage = () => {
                                         style={styles.textarea}
                                         rows={4}
                                     />
-                                </div>
-
-                                <div style={styles.formRow}>
+                                </div>                                <div style={styles.formRow}>
                                     <div style={styles.formGroupHalf}>
                                         <label style={styles.label}>PRICE *</label>
                                         <input
@@ -338,19 +519,6 @@ const MaintenancePage = () => {
                                         />
                                     </div>
                                     <div style={styles.formGroupHalf}>
-                                        <label style={styles.label}>SIZE</label>
-                                        <input
-                                            type="text"
-                                            name="productsize"
-                                            value={formData.productsize}
-                                            onChange={handleInputChange}
-                                            style={styles.input}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div style={styles.formRow}>
-                                    <div style={styles.formGroupHalf}>
                                         <label style={styles.label}>COLOR</label>
                                         <input
                                             type="text"
@@ -360,16 +528,47 @@ const MaintenancePage = () => {
                                             style={styles.input}
                                         />
                                     </div>
-                                    <div style={styles.formGroupHalf}>
-                                        <label style={styles.label}>QUANTITY *</label>
-                                        <input
-                                            type="number"
-                                            name="productquantity"
-                                            value={formData.productquantity}
-                                            onChange={handleInputChange}
-                                            style={styles.input}
-                                            required
-                                        />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>SIZES & STOCK</label>
+                                    {formData.sizes.map((sizeData, index) => (
+                                        <div key={index} style={styles.sizeRow}>
+                                            <input
+                                                type="text"
+                                                placeholder="Size (e.g., S, M, L, XL)"
+                                                value={sizeData.size}
+                                                onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
+                                                style={styles.sizeInput}
+                                            />
+                                            <input
+                                                type="number"
+                                                placeholder="Stock quantity"
+                                                value={sizeData.stock}
+                                                onChange={(e) => handleSizeChange(index, 'stock', e.target.value)}
+                                                style={styles.stockInput}
+                                                min="0"
+                                            />
+                                            {formData.sizes.length > 1 && (
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => removeSize(index)}
+                                                    style={styles.removeSizeButton}
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <button 
+                                        type="button"
+                                        onClick={addSize}
+                                        style={styles.addSizeButton}
+                                    >
+                                        Add Size
+                                    </button>
+                                    <div style={styles.totalStock}>
+                                        Total Stock: {formData.sizes.reduce((sum, size) => sum + size.stock, 0)}
                                     </div>
                                 </div>
 
@@ -393,18 +592,31 @@ const MaintenancePage = () => {
                                 </div>
                             </form>
                         </div>
-                    )}
-
-                    {/* Manage Products Tab */}
+                    )}                    {/* Manage Products Tab */}
                     {activeTab === 'manage' && (
                         <div style={styles.tabContent}>
                             <h2 style={styles.sectionTitle}>Manage Products</h2>
+                            
+                            {/* Sub-tabs for Active and Archived */}
+                            <div style={styles.subTabs}>
+                                <button 
+                                    style={{...styles.subTab, backgroundColor: products.length > 0 ? '#28a745' : '#6c757d'}}
+                                    onClick={() => {/* Show active products */}}
+                                >
+                                    Active Products ({products.length})
+                                </button>
+                                <button 
+                                    style={{...styles.subTab, backgroundColor: archivedProducts.length > 0 ? '#ffc107' : '#6c757d'}}
+                                    onClick={() => {/* Show archived products */}}
+                                >
+                                    Archived Products ({archivedProducts.length})
+                                </button>
+                            </div>
                             
                             {loading ? (
                                 <div style={styles.loading}>Loading products...</div>
                             ) : (
                                 <div>
-                                    <p>Total products: {products.length}</p>
                                     {products.length === 0 ? (
                                         <div style={styles.noProducts}>
                                             <p>No products found in database</p>
@@ -424,19 +636,74 @@ const MaintenancePage = () => {
                                                     <div style={styles.productInfo}>
                                                         <h3 style={styles.productName}>{product.productname}</h3>
                                                         <p style={styles.productPrice}>${product.productprice}</p>
-                                                        <p style={styles.productStock}>Stock: {product.productquantity}</p>
+                                                        <p style={styles.productStock}>
+                                                            Stock: {product.total_stock || product.productquantity || 0}
+                                                        </p>
+                                                        <p style={styles.productColor}>Color: {product.productcolor}</p>
                                                         
                                                         <div style={styles.productActions}>
+                                                            <button 
+                                                                style={styles.editButton}
+                                                                onClick={() => editProduct(product)}
+                                                            >
+                                                                ✏️ Edit
+                                                            </button>
+                                                            <button 
+                                                                style={styles.archiveButton}
+                                                                onClick={() => archiveProduct(product.id)}
+                                                            >
+                                                                📦 Archive
+                                                            </button>
                                                             <button 
                                                                 style={styles.deleteButton}
                                                                 onClick={() => deleteProduct(product.id)}
                                                             >
-                                                                DELETE
+                                                                🗑️ Remove
                                                             </button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Archived Products Section */}
+                                    {archivedProducts.length > 0 && (
+                                        <div style={styles.archivedSection}>
+                                            <h3 style={styles.sectionTitle}>Archived Products</h3>
+                                            <div style={styles.productsGrid}>
+                                                {archivedProducts.map(product => (
+                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>
+                                                        {product.productimage && (
+                                                            <img 
+                                                                src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                alt={product.productname}
+                                                                style={styles.productImage}
+                                                            />
+                                                        )}
+                                                        <div style={styles.productInfo}>
+                                                            <h3 style={styles.productName}>{product.productname}</h3>
+                                                            <p style={styles.productPrice}>${product.productprice}</p>
+                                                            <p style={styles.archivedLabel}>ARCHIVED</p>
+                                                            
+                                                            <div style={styles.productActions}>
+                                                                <button 
+                                                                    style={styles.restoreButton}
+                                                                    onClick={() => restoreProduct(product.id)}
+                                                                >
+                                                                    🔄 Restore
+                                                                </button>
+                                                                <button 
+                                                                    style={styles.deleteButton}
+                                                                    onClick={() => deleteProduct(product.id)}
+                                                                >
+                                                                    🗑️ Remove
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -576,12 +843,162 @@ const styles = {
     imagePreviewContainer: {
         marginTop: '12px',
         textAlign: 'center'
-    },
-    imagePreview: {
-        maxWidth: '200px',
-        maxHeight: '200px',
+    },    imagePreview: {
+        width: '100px',
+        height: '100px',
         objectFit: 'cover',
-        borderRadius: '6px'
+        borderRadius: '6px',
+        border: '1px solid #ddd'
+    },
+    imageGrid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+        gap: '10px',
+        marginTop: '10px'
+    },
+    imageContainer: {
+        position: 'relative',
+        display: 'inline-block'
+    },
+    removeImageButton: {
+        position: 'absolute',
+        top: '-5px',
+        right: '-5px',
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    thumbnailBadge: {
+        position: 'absolute',
+        bottom: '2px',
+        left: '2px',
+        backgroundColor: '#28a745',
+        color: 'white',
+        fontSize: '8px',
+        padding: '2px 4px',
+        borderRadius: '3px'
+    },
+    imageSection: {
+        marginTop: '15px'
+    },
+    imageLimit: {
+        fontSize: '12px',
+        color: '#666',
+        margin: '5px 0'
+    },
+    sizeRow: {
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '10px',
+        alignItems: 'center'
+    },
+    sizeInput: {
+        flex: 1,
+        padding: '8px',
+        border: '1px solid #ddd',
+        borderRadius: '4px'
+    },
+    stockInput: {
+        width: '100px',
+        padding: '8px',
+        border: '1px solid #ddd',
+        borderRadius: '4px'
+    },
+    removeSizeButton: {
+        padding: '8px 12px',
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px'
+    },
+    addSizeButton: {
+        padding: '8px 16px',
+        backgroundColor: '#28a745',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        marginTop: '10px'
+    },
+    totalStock: {
+        fontWeight: 'bold',
+        marginTop: '10px',
+        padding: '8px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '4px'
+    },
+    subTabs: {
+        display: 'flex',
+        gap: '10px',
+        marginBottom: '20px'
+    },
+    subTab: {
+        padding: '8px 16px',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '14px'
+    },
+    editButton: {
+        padding: '6px 12px',
+        backgroundColor: '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        marginRight: '5px'
+    },
+    archiveButton: {
+        padding: '6px 12px',
+        backgroundColor: '#ffc107',
+        color: '#212529',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        marginRight: '5px'
+    },
+    restoreButton: {
+        padding: '6px 12px',
+        backgroundColor: '#28a745',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        marginRight: '5px'
+    },
+    archivedSection: {
+        marginTop: '40px',
+        padding: '20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px'
+    },
+    archivedCard: {
+        opacity: 0.7,
+        border: '2px dashed #ffc107'
+    },
+    archivedLabel: {
+        color: '#ffc107',
+        fontWeight: 'bold',
+        fontSize: '12px'
+    },
+    productColor: {
+        fontSize: '12px',
+        color: '#666',
+        marginBottom: '10px'
     },
     imageCaption: {
         fontSize: '12px',

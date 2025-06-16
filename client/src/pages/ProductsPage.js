@@ -41,6 +41,33 @@ const ProductsPage = () => {
         fetchProducts();
     }, []);
 
+    // Parse sizes data for display
+    const parseSizes = (sizesData) => {
+        try {
+            if (typeof sizesData === 'string') {
+                return JSON.parse(sizesData);
+            }
+            return sizesData || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
+    // Get available sizes for display
+    const getAvailableSizes = (sizesData) => {
+        const sizes = parseSizes(sizesData);
+        return sizes.filter(size => size.stock > 0).map(size => size.size);
+    };
+
+    // Get total stock
+    const getTotalStock = (product) => {
+        if (product.total_stock !== undefined) {
+            return product.total_stock;
+        }
+        const sizes = parseSizes(product.sizes);
+        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+    };
+
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px', minHeight: '60vh' }}>
             <TopBar />
@@ -94,18 +121,34 @@ const ProductsPage = () => {
                                     boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                     transition: 'transform 0.3s ease',
                                     cursor: 'pointer'
-                                }}
-                                onClick={() => navigate(`/product/${product.id}`)}
+                                }}                                onClick={() => navigate(`/product/${product.id}`)}
                                 >
+                                    {/* Product Image with multiple image support */}
                                     {product.productimage && (
-                                        <img 
-                                            src={`http://localhost:3001/uploads/${product.productimage}`} 
-                                            alt={product.productname}
-                                            style={{ width: '100%', height: '250px', objectFit: 'cover' }}
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                            }}
-                                        />
+                                        <div style={{ position: 'relative' }}>
+                                            <img 
+                                                src={`http://localhost:3001/uploads/${product.productimage}`} 
+                                                alt={product.productname}
+                                                style={{ width: '100%', height: '250px', objectFit: 'cover' }}
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                }}
+                                            />                                            {/* Show image count if multiple images */}
+                                            {product.images && product.images.length > 1 && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: '10px',
+                                                    right: '10px',
+                                                    backgroundColor: 'rgba(0,0,0,0.7)',
+                                                    color: 'white',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '12px',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    +{product.images.length - 1} more
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     
                                     <div style={{ padding: '20px' }}>
@@ -117,7 +160,12 @@ const ProductsPage = () => {
                                             color: '#666', 
                                             fontSize: '14px', 
                                             lineHeight: '1.4', 
-                                            marginBottom: '15px'
+                                            marginBottom: '15px',
+                                            height: '60px',
+                                            overflow: 'hidden',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 3,
+                                            WebkitBoxOrient: 'vertical'
                                         }}>
                                             {product.productdescription || 'No description available'}
                                         </p>
@@ -132,9 +180,10 @@ const ProductsPage = () => {
                                                 ${parseFloat(product.productprice || 0).toFixed(2)}
                                             </div>
                                             
-                                            {product.productsize && (
+                                            {/* Available Sizes */}
+                                            {getAvailableSizes(product.sizes).length > 0 && (
                                                 <div style={{ fontSize: '14px', color: '#555', margin: '5px 0' }}>
-                                                    Size: {product.productsize}
+                                                    Sizes: {getAvailableSizes(product.sizes).join(', ')}
                                                 </div>
                                             )}
                                             
@@ -146,11 +195,11 @@ const ProductsPage = () => {
                                             
                                             <div style={{ 
                                                 fontSize: '14px', 
-                                                color: (product.productquantity || 0) > 0 ? '#28a745' : '#dc3545', 
+                                                color: getTotalStock(product) > 0 ? '#28a745' : '#dc3545', 
                                                 fontWeight: '500'
                                             }}>
-                                                {(product.productquantity || 0) > 0 ? 
-                                                    `${product.productquantity} in stock` : 
+                                                {getTotalStock(product) > 0 ? 
+                                                    `${getTotalStock(product)} in stock` : 
                                                     'Out of stock'
                                                 }
                                             </div>
@@ -170,21 +219,19 @@ const ProductsPage = () => {
                                                 
                                                 localStorage.setItem('cart', JSON.stringify(cart));
                                                 alert(`${product.productname} added to cart!`);
-                                            }}
-                                            style={{
+                                            }}                                            style={{
                                                 width: '100%',
                                                 padding: '12px',
-                                                backgroundColor: (product.productquantity || 0) > 0 ? '#333' : '#ccc',
+                                                backgroundColor: getTotalStock(product) > 0 ? '#333' : '#ccc',
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: '4px',
                                                 fontSize: '16px',
                                                 fontWeight: '600',
-                                                cursor: (product.productquantity || 0) > 0 ? 'pointer' : 'not-allowed'
+                                                cursor: getTotalStock(product) > 0 ? 'pointer' : 'not-allowed'
                                             }}
-                                            disabled={(product.productquantity || 0) === 0}
-                                        >
-                                            {(product.productquantity || 0) > 0 ? 'Add to Cart' : 'Out of Stock'}
+                                            disabled={getTotalStock(product) === 0}                                        >
+                                            {getTotalStock(product) > 0 ? 'Add to Cart' : 'Out of Stock'}
                                         </button>
                                     </div>
                                 </div>
