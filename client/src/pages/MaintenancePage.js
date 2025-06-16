@@ -4,8 +4,7 @@ import TopBar from '../components/TopBar';
 const MaintenancePage = () => {
     const [activeTab, setActiveTab] = useState('add');
     const [products, setProducts] = useState([]);
-    const [archivedProducts, setArchivedProducts] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [archivedProducts, setArchivedProducts] = useState([]);    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -25,6 +24,14 @@ const MaintenancePage = () => {
     const [existingImages, setExistingImages] = useState([]);    // Generate random product ID
     const generateProductId = () => {
         return Math.floor(100000000000 + Math.random() * 899999999999);
+    };    // Clear browser cache/cookies if needed
+    const clearBrowserData = () => {
+        // Clear localStorage
+        localStorage.clear();
+        // Clear sessionStorage  
+        sessionStorage.clear();
+        // Reload page to clear any stuck headers
+        window.location.reload();
     };
 
     // Add detailed logging to trace the issue
@@ -35,7 +42,13 @@ const MaintenancePage = () => {
             setMessage('');
             
             console.log('📡 Making fetch request to /api/maintenance/products');
-            const response = await fetch('http://localhost:3001/api/maintenance/products');
+            const response = await fetch('http://localhost:5000/api/maintenance/products', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
             console.log('📡 Response received:', response.status, response.statusText);
             
             if (response.ok) {
@@ -52,6 +65,9 @@ const MaintenancePage = () => {
                 setArchivedProducts(archived);
                 console.log('✅ Products set in state');
                 
+            } else if (response.status === 431) {
+                console.error('❌ Request Header Fields Too Large');
+                setMessage('Error: Request headers too large. Please try refreshing the page.');
             } else {
                 const errorText = await response.text();
                 console.error('❌ Response not OK:', response.status, errorText);
@@ -63,12 +79,10 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    // Fetch product images
+    };    // Fetch product images
     const fetchProductImages = async (productId) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/images`);
+            const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/images`);
             if (response.ok) {
                 const images = await response.json();
                 return images;
@@ -122,10 +136,35 @@ const MaintenancePage = () => {
             ...formData,
             sizes: newSizes
         });
+    };    // Compress image before upload
+    const compressImage = (file, maxWidth = 800, quality = 0.8) => {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = () => {
+                // Calculate new dimensions
+                let { width, height } = img;
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw and compress
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob(resolve, 'image/jpeg', quality);
+            };
+            
+            img.src = URL.createObjectURL(file);
+        });
     };
 
-    // Handle multiple image upload
-    const handleImageChange = (e) => {
+    // Handle multiple image upload with compression
+    const handleImageChange = async (e) => {
         const files = Array.from(e.target.files);
         const totalImages = selectedImages.length + existingImages.length;
         
@@ -134,20 +173,42 @@ const MaintenancePage = () => {
             return;
         }
 
-        setSelectedImages(prev => [...prev, ...files]);
+        setLoading(true);
+        setMessage('Compressing images...');
         
-        // Create previews
-        const newPreviews = [];
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                newPreviews.push(e.target.result);
-                if (newPreviews.length === files.length) {
-                    setImagePreviews(prev => [...prev, ...newPreviews]);
-                }
-            };
-            reader.readAsDataURL(file);
-        });
+        try {
+            // Compress images
+            const compressedFiles = await Promise.all(
+                files.map(async (file) => {
+                    if (file.size > 1024 * 1024) { // If larger than 1MB, compress
+                        const compressed = await compressImage(file);
+                        return new File([compressed], file.name, { type: 'image/jpeg' });
+                    }
+                    return file;
+                })
+            );
+
+            setSelectedImages(prev => [...prev, ...compressedFiles]);
+            
+            // Create previews
+            const newPreviews = [];
+            compressedFiles.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    newPreviews.push(e.target.result);
+                    if (newPreviews.length === compressedFiles.length) {
+                        setImagePreviews(prev => [...prev, ...newPreviews]);
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+              setMessage('');
+        } catch (error) {
+            console.error('Error compressing images:', error);
+            setMessage('Error processing images');
+        } finally {
+            setLoading(false);
+        }
     };
 
     // Remove selected image
@@ -163,7 +224,7 @@ const MaintenancePage = () => {
         if (!window.confirm('Are you sure you want to delete this image?')) return;
         
         try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/images/${imageId}`, {
+            const response = await fetch(`http://localhost:5000/api/maintenance/images/${imageId}`, {
                 method: 'DELETE'
             });
             
@@ -223,11 +284,9 @@ const MaintenancePage = () => {
             console.log('Selected images count:', selectedImages.length);
             for (let pair of formDataToSend.entries()) {
                 console.log(pair[0] + ':', pair[1]);
-            }
-
-            const url = editingProduct 
-                ? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
-                : 'http://localhost:3001/api/maintenance/products';
+            }            const url = editingProduct 
+                ? `http://localhost:5000/api/maintenance/products/${editingProduct.id}`
+                : 'http://localhost:5000/api/maintenance/products';
             
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -240,8 +299,11 @@ const MaintenancePage = () => {
                 setMessage(`Product ${editingProduct ? 'updated' : 'added'} successfully!`);
                 resetForm();
                 fetchProducts();
+            } else if (response.status === 431) {
+                throw new Error('Request headers too large - please try with smaller images or refresh the page');
             } else {
-                throw new Error(`Failed to ${editingProduct ? 'update' : 'add'} product`);
+                const errorData = await response.text();
+                throw new Error(`Failed to ${editingProduct ? 'update' : 'add'} product: ${errorData}`);
             }
         } catch (error) {
             console.error('Error saving product:', error);
@@ -282,7 +344,7 @@ const MaintenancePage = () => {
     const archiveProduct = async (id) => {
         if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/archive`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/archive`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -301,7 +363,7 @@ const MaintenancePage = () => {
     const restoreProduct = async (id) => {
         if (window.confirm('Are you sure you want to restore this product?')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/restore`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/restore`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -320,7 +382,7 @@ const MaintenancePage = () => {
     const deleteProduct = async (id) => {
         if (window.confirm('Are you sure you want to permanently delete this product?')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}`, {
                     method: 'DELETE'
                 });
                 if (response.ok) {
@@ -339,7 +401,7 @@ const MaintenancePage = () => {
     const backupData = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:3001/api/maintenance/backup', {
+            const response = await fetch('http://localhost:5000/api/maintenance/backup', {
                 method: 'POST'
             });
             if (response.ok) {
@@ -360,7 +422,7 @@ const MaintenancePage = () => {
         if (!window.confirm('Are you sure you want to delete this image?')) return;
         
         try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/image/${filename}`, {
+            const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/image/${filename}`, {
                 method: 'DELETE'
             });
             
@@ -376,37 +438,86 @@ const MaintenancePage = () => {
         }
     };
 
+    // Add hover effect styles for better interactivity
+const hoverStyles = `
+.maintenance-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.maintenance-input:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.maintenance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.maintenance-tab:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+`;
+
+// Inject styles into document head
+if (typeof document !== 'undefined') {
+    const styleSheet = document.createElement('style');
+    styleSheet.type = 'text/css';
+    styleSheet.innerText = hoverStyles;
+    document.head.appendChild(styleSheet);
+}
+
     return (
         <div style={styles.container}>
             <TopBar />
             <div style={styles.mainContent}>
                 <div style={styles.content}>
                     {/* Tab Navigation */}
-                    <div style={styles.tabContainer}>
-                        <button 
+                    <div style={styles.tabContainer}>                        <button 
                             style={{...styles.tab, ...(activeTab === 'add' ? styles.activeTab : {})}}
+                            className="maintenance-tab"
                             onClick={() => setActiveTab('add')}
                         >
                             ADD PRODUCT
                         </button>
                         <button 
                             style={{...styles.tab, ...(activeTab === 'manage' ? styles.activeTab : {})}}
+                            className="maintenance-tab"
                             onClick={() => setActiveTab('manage')}
                         >
                             MANAGE PRODUCTS
                         </button>
                         <button 
                             style={{...styles.tab, ...(activeTab === 'backup' ? styles.activeTab : {})}}
+                            className="maintenance-tab"
                             onClick={() => setActiveTab('backup')}
                         >
                             BACKUP DATA
                         </button>
-                    </div>
-
-                    {/* Message Display */}
+                    </div>                    {/* Message Display */}
                     {message && (
                         <div style={styles.message}>
                             {message}
+                            {message.includes('Request headers too large') && (
+                                <div style={{ marginTop: '10px' }}>
+                                    <button 
+                                        onClick={clearBrowserData}
+                                        style={{
+                                            padding: '8px 16px',
+                                            backgroundColor: '#3a7bd5',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '12px'
+                                        }}
+                                    >
+                                        Clear Browser Data & Reload
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -419,13 +530,13 @@ const MaintenancePage = () => {
                             
                             <form onSubmit={handleSubmit} style={styles.form}>
                                 <div style={styles.formGroup}>
-                                    <label style={styles.label}>PRODUCT NAME *</label>
-                                    <input
+                                    <label style={styles.label}>PRODUCT NAME *</label>                                    <input
                                         type="text"
                                         name="productname"
                                         value={formData.productname}
                                         onChange={handleInputChange}
                                         style={styles.input}
+                                        className="maintenance-input"
                                         required
                                     />
                                 </div>                                <div style={styles.formGroup}>
@@ -450,7 +561,7 @@ const MaintenancePage = () => {
                                                 {existingImages.map((img, index) => (
                                                     <div key={img.image_id} style={styles.imageContainer}>
                                                         <img 
-                                                            src={`http://localhost:3001/uploads/${img.image_filename}`} 
+                                                            src={`http://localhost:5000/uploads/${img.image_filename}`} 
                                                             alt={`Product ${index + 1}`}
                                                             style={styles.imagePreview}
                                                         />
@@ -572,10 +683,10 @@ const MaintenancePage = () => {
                                     </div>
                                 </div>
 
-                                <div style={styles.buttonGroup}>
-                                    <button 
+                                <div style={styles.buttonGroup}>                                    <button 
                                         type="submit" 
                                         style={styles.submitButton}
+                                        className="maintenance-button"
                                         disabled={loading}
                                     >
                                         {loading ? 'SAVING...' : (editingProduct ? 'UPDATE PRODUCT' : 'ADD PRODUCT')}
@@ -622,13 +733,11 @@ const MaintenancePage = () => {
                                             <p>No products found in database</p>
                                             <button onClick={fetchProducts}>Refresh</button>
                                         </div>
-                                    ) : (
-                                        <div style={styles.productsGrid}>
-                                            {products.map(product => (
-                                                <div key={product.id} style={styles.productCard}>
+                                    ) : (                                        <div style={styles.productsGrid}>                                            {products.map(product => (
+                                                <div key={product.id} style={styles.productCard} className="maintenance-card">
                                                     {product.productimage && (
                                                         <img 
-                                                            src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                            src={`http://localhost:5000/uploads/${product.productimage}`}
                                                             alt={product.productname}
                                                             style={styles.productImage}
                                                         />
@@ -673,10 +782,9 @@ const MaintenancePage = () => {
                                             <h3 style={styles.sectionTitle}>Archived Products</h3>
                                             <div style={styles.productsGrid}>
                                                 {archivedProducts.map(product => (
-                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>
-                                                        {product.productimage && (
+                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>                                                        {product.productimage && (
                                                             <img 
-                                                                src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                src={`http://localhost:5000/uploads/${product.productimage}`}
                                                                 alt={product.productname}
                                                                 style={styles.productImage}
                                                             />
@@ -738,123 +846,139 @@ const MaintenancePage = () => {
 const styles = {
     container: {
         minHeight: '100vh',
-        backgroundColor: '#f8f9fa'
+        backgroundColor: '#ffffff'
     },
     mainContent: {
-        padding: '20px',
-        backgroundColor: '#f8f9fa'
+        padding: '40px 20px',
+        backgroundColor: '#ffffff'
     },
     content: {
-        maxWidth: '1200px',
+        maxWidth: '1400px',
         margin: '0 auto',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        padding: '24px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+        backgroundColor: '#ffffff'
     },
     tabContainer: {
         display: 'flex',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        padding: '4px',
-        marginBottom: '24px'
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        padding: '8px',
+        marginBottom: '40px',
+        border: '1px solid #e9ecef'
     },
     tab: {
         flex: 1,
-        padding: '12px 20px',
+        padding: '16px 24px',
         border: 'none',
         backgroundColor: 'transparent',
         cursor: 'pointer',
-        fontSize: '14px',
+        fontSize: '13px',
         fontWeight: '600',
         color: '#6c757d',
-        borderRadius: '6px'
+        borderRadius: '8px',
+        transition: 'all 0.2s ease',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     activeTab: {
-        backgroundColor: '#000',
-        color: 'white'
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        transform: 'translateY(-1px)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
     },
     message: {
-        padding: '12px 16px',
-        marginBottom: '20px',
-        backgroundColor: '#d4edda',
-        color: '#155724',
-        border: '1px solid #c3e6cb',
-        borderRadius: '6px'
+        padding: '16px 20px',
+        marginBottom: '32px',
+        backgroundColor: '#f8f9fa',
+        color: '#000000',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '14px',
+        fontWeight: '500'
     },
     tabContent: {
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        padding: '24px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        padding: '40px',
+        border: '1px solid #e9ecef'
     },
     sectionTitle: {
-        fontSize: '24px',
-        fontWeight: 'bold',
-        marginBottom: '24px',
-        color: '#333'
+        fontSize: '32px',
+        fontWeight: '300',
+        marginBottom: '40px',
+        color: '#000000',
+        letterSpacing: '-0.5px'
     },
     form: {
         maxWidth: '800px'
     },
     formGroup: {
-        marginBottom: '20px'
+        marginBottom: '32px'
     },
     formGroupHalf: {
         flex: 1,
-        marginRight: '12px'
+        marginRight: '20px'
     },
     formRow: {
         display: 'flex',
-        gap: '12px',
-        marginBottom: '20px'
+        gap: '20px',
+        marginBottom: '32px'
     },
     label: {
         display: 'block',
-        marginBottom: '6px',
-        fontSize: '12px',
+        marginBottom: '8px',
+        fontSize: '11px',
         fontWeight: '600',
-        color: '#333'
-    },
-    input: {
+        color: '#000000',
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px'
+    },    input: {
         width: '100%',
-        padding: '12px',
-        border: '1px solid #ddd',
-        borderRadius: '6px',
-        fontSize: '14px',
-        boxSizing: 'border-box'
-    },
-    textarea: {
+        padding: '16px 20px',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '15px',
+        boxSizing: 'border-box',
+        transition: 'all 0.2s ease',
+        backgroundColor: '#ffffff',
+        color: '#000000',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    },    textarea: {
         width: '100%',
-        padding: '12px',
-        border: '1px solid #ddd',
-        borderRadius: '6px',
-        fontSize: '14px',
+        padding: '16px 20px',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '15px',
         resize: 'vertical',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        minHeight: '120px',
+        transition: 'all 0.2s ease',
+        backgroundColor: '#ffffff',
+        color: '#000000',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     },
     fileInput: {
         width: '100%',
-        padding: '12px',
-        border: '1px solid #ddd',
-        borderRadius: '6px',
-        fontSize: '14px'
+        padding: '16px 20px',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '14px',
+        backgroundColor: '#ffffff'
     },
     imagePreviewContainer: {
-        marginTop: '12px',
+        marginTop: '20px',
         textAlign: 'center'
     },    imagePreview: {
-        width: '100px',
-        height: '100px',
+        width: '120px',
+        height: '120px',
         objectFit: 'cover',
-        borderRadius: '6px',
-        border: '1px solid #ddd'
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
     },
     imageGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-        gap: '10px',
-        marginTop: '10px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: '16px',
+        marginTop: '16px'
     },
     imageContainer: {
         position: 'relative',
@@ -862,405 +986,435 @@ const styles = {
     },
     removeImageButton: {
         position: 'absolute',
-        top: '-5px',
-        right: '-5px',
-        width: '20px',
-        height: '20px',
+        top: '-8px',
+        right: '-8px',
+        width: '24px',
+        height: '24px',
         borderRadius: '50%',
-        backgroundColor: '#dc3545',
-        color: 'white',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
         cursor: 'pointer',
-        fontSize: '12px',
+        fontSize: '14px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        fontWeight: 'bold'
     },
     thumbnailBadge: {
         position: 'absolute',
-        bottom: '2px',
-        left: '2px',
-        backgroundColor: '#28a745',
-        color: 'white',
-        fontSize: '8px',
-        padding: '2px 4px',
-        borderRadius: '3px'
+        bottom: '4px',
+        left: '4px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        fontSize: '10px',
+        padding: '4px 6px',
+        borderRadius: '4px',
+        fontWeight: '600'
     },
     imageSection: {
-        marginTop: '15px'
+        marginTop: '24px'
     },
     imageLimit: {
-        fontSize: '12px',
-        color: '#666',
-        margin: '5px 0'
+        fontSize: '13px',
+        color: '#6c757d',
+        margin: '8px 0',
+        fontWeight: '500'
     },
     sizeRow: {
         display: 'flex',
-        gap: '10px',
-        marginBottom: '10px',
+        gap: '16px',
+        marginBottom: '16px',
         alignItems: 'center'
     },
     sizeInput: {
         flex: 1,
-        padding: '8px',
-        border: '1px solid #ddd',
-        borderRadius: '4px'
+        padding: '12px 16px',
+        border: '1px solid #e9ecef',
+        borderRadius: '6px',
+        fontSize: '14px'
     },
     stockInput: {
-        width: '100px',
-        padding: '8px',
-        border: '1px solid #ddd',
-        borderRadius: '4px'
+        width: '120px',
+        padding: '12px 16px',
+        border: '1px solid #e9ecef',
+        borderRadius: '6px',
+        fontSize: '14px'
     },
     removeSizeButton: {
-        padding: '8px 12px',
-        backgroundColor: '#dc3545',
-        color: 'white',
+        padding: '12px 16px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
         cursor: 'pointer',
-        fontSize: '12px'
+        fontSize: '12px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     addSizeButton: {
-        padding: '8px 16px',
-        backgroundColor: '#28a745',
-        color: 'white',
+        padding: '12px 20px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
         cursor: 'pointer',
-        marginTop: '10px'
+        marginTop: '16px',
+        fontSize: '13px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     totalStock: {
-        fontWeight: 'bold',
-        marginTop: '10px',
-        padding: '8px',
+        fontWeight: '600',
+        marginTop: '16px',
+        padding: '16px',
         backgroundColor: '#f8f9fa',
-        borderRadius: '4px'
+        borderRadius: '8px',
+        border: '1px solid #e9ecef',
+        fontSize: '14px'
     },
     subTabs: {
         display: 'flex',
-        gap: '10px',
-        marginBottom: '20px'
+        gap: '16px',
+        marginBottom: '32px'
     },
     subTab: {
-        padding: '8px 16px',
-        color: 'white',
+        padding: '12px 20px',
+        color: '#ffffff',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
         cursor: 'pointer',
-        fontSize: '14px'
-    },
-    editButton: {
-        padding: '6px 12px',
-        backgroundColor: '#007bff',
-        color: 'white',
+        fontSize: '13px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },    editButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '10px 16px',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
+        fontSize: '11px',
         cursor: 'pointer',
-        fontSize: '12px',
-        marginRight: '5px'
+        flex: 1,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     archiveButton: {
-        padding: '6px 12px',
-        backgroundColor: '#ffc107',
-        color: '#212529',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '10px 16px',
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
+        fontSize: '11px',
         cursor: 'pointer',
-        fontSize: '12px',
-        marginRight: '5px'
+        flex: 1,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    deleteButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '10px 16px',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '11px',
+        cursor: 'pointer',
+        flex: 1,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     restoreButton: {
-        padding: '6px 12px',
-        backgroundColor: '#28a745',
-        color: 'white',
+        padding: '8px 16px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
         borderRadius: '4px',
         cursor: 'pointer',
-        fontSize: '12px',
-        marginRight: '5px'
+        fontSize: '11px',
+        marginRight: '8px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     archivedSection: {
-        marginTop: '40px',
-        padding: '20px',
+        marginTop: '48px',
+        padding: '32px',
         backgroundColor: '#f8f9fa',
-        borderRadius: '8px'
+        borderRadius: '12px',
+        border: '1px solid #e9ecef'
     },
     archivedCard: {
         opacity: 0.7,
-        border: '2px dashed #ffc107'
+        border: '2px dashed #6c757d'
     },
     archivedLabel: {
-        color: '#ffc107',
-        fontWeight: 'bold',
-        fontSize: '12px'
+        color: '#6c757d',
+        fontWeight: '600',
+        fontSize: '11px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px'
     },
     productColor: {
-        fontSize: '12px',
-        color: '#666',
-        marginBottom: '10px'
+        fontSize: '13px',
+        color: '#6c757d',
+        marginBottom: '12px'
     },
     imageCaption: {
-        fontSize: '12px',
-        color: '#666',
+        fontSize: '13px',
+        color: '#6c757d',
         marginTop: '8px'
     },
     buttonGroup: {
         display: 'flex',
-        gap: '12px',
-        marginTop: '16px'
+        gap: '16px',
+        marginTop: '40px'
     },
     submitButton: {
-        backgroundColor: '#000',
-        color: 'white',
-        padding: '12px 24px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '16px 32px',
         border: 'none',
-        borderRadius: '6px',
-        fontSize: '14px',
+        borderRadius: '8px',
+        fontSize: '13px',
         fontWeight: '600',
         cursor: 'pointer',
-        flex: 1
+        flex: 1,
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px',
+        transition: 'transform 0.2s ease'
     },
     cancelButton: {
-        backgroundColor: '#f0f0f0',
-        color: '#333',
-        padding: '12px 24px',
-        border: 'none',
-        borderRadius: '6px',
-        fontSize: '14px',
+        backgroundColor: '#f8f9fa',
+        color: '#000000',
+        padding: '16px 32px',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '13px',
         fontWeight: '600',
         cursor: 'pointer',
-        flex: 1
+        flex: 1,
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px',
+        transition: 'transform 0.2s ease'
     },
     loading: {
         textAlign: 'center',
-        padding: '40px',
-        color: '#6c757d'
+        padding: '60px',
+        color: '#6c757d',
+        fontSize: '16px',
+        fontWeight: '300'
     },
     productsGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '20px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: '32px'
     },
     productCard: {
         border: '1px solid #e9ecef',
-        borderRadius: '8px',
+        borderRadius: '12px',
         overflow: 'hidden',
-        backgroundColor: 'white',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+        backgroundColor: '#ffffff',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
     },
     productImage: {
         width: '100%',
-        height: '200px',
+        height: '240px',
         objectFit: 'cover'
     },
     noImagePlaceholder: {
         width: '100%',
-        height: '200px',
-        backgroundColor: '#f0f0f0',
+        height: '240px',
+        backgroundColor: '#f8f9fa',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#999',
-        fontSize: '14px'
+        color: '#6c757d',
+        fontSize: '14px',
+        fontWeight: '500'
     },
     productInfo: {
-        padding: '16px'
+        padding: '24px'
     },
     productName: {
-        fontSize: '16px',
-        fontWeight: 'bold',
-        marginBottom: '8px'
+        fontSize: '18px',
+        fontWeight: '600',
+        marginBottom: '12px',
+        color: '#000000'
     },
     productPrice: {
-        fontSize: '18px',
-        fontWeight: 'bold',
-        color: '#e74c3c',
-        marginBottom: '6px'
+        fontSize: '20px',
+        fontWeight: '600',
+        color: '#000000',
+        marginBottom: '8px'
     },
     productDetails: {
         fontSize: '13px',
         color: '#6c757d',
-        marginBottom: '6px'
+        marginBottom: '8px'
     },
     productStock: {
         fontSize: '14px',
-        color: '#28a745',
-        marginBottom: '6px'
-    },
+        color: '#000000',
+        marginBottom: '8px',
+        fontWeight: '500'    },
     databaseInfo: {
         fontSize: '11px',
-        color: '#999',
-        marginBottom: '12px'
+        color: '#adb5bd',
+        marginBottom: '16px'
     },
     productActions: {
         display: 'flex',
         gap: '8px',
-        marginTop: '12px'
-    },
-    editButton: {
-        backgroundColor: '#007bff',
-        color: 'white',
-        padding: '8px 12px',
-        border: 'none',
-        borderRadius: '4px',
-        fontSize: '12px',
-        cursor: 'pointer',
-        flex: 1
-    },
-    archiveButton: {
-        backgroundColor: '#ffc107',
-        color: 'white',
-        padding: '8px 12px',
-        border: 'none',
-        borderRadius: '4px',
-        fontSize: '12px',
-        cursor: 'pointer',
-        flex: 1
-    },
-    deleteButton: {
-        backgroundColor: '#dc3545',
-        color: 'white',
-        padding: '8px 12px',
-        border: 'none',
-        borderRadius: '4px',
-        fontSize: '12px',
-        cursor: 'pointer',
-        flex: 1
+        marginTop: '16px'
     },
     backupSection: {
         textAlign: 'center',
-        padding: '40px',
-        border: '1px solid #ddd',
-        borderRadius: '8px',
-        backgroundColor: '#f9f9f9'
+        padding: '60px 40px',
+        border: '1px solid #e9ecef',
+        borderRadius: '12px',
+        backgroundColor: '#f8f9fa'
     },
     backupDescription: {
-        fontSize: '14px',
-        color: '#333',
-        marginBottom: '24px'
+        fontSize: '16px',
+        color: '#6c757d',
+        marginBottom: '32px',
+        fontWeight: '300',
+        lineHeight: '1.6'
     },
     backupButton: {
-        backgroundColor: '#28a745',
-        color: 'white',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '16px 32px',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: '13px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px',
+        transition: 'transform 0.2s ease'
+    },
+    debugInfo: {
+        backgroundColor: '#f8f9fa',
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '32px',
+        fontSize: '14px',
+        border: '1px solid #e9ecef'
+    },
+    refreshButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
         padding: '12px 24px',
         border: 'none',
         borderRadius: '6px',
-        fontSize: '14px',
-        fontWeight: '600',
-        cursor: 'pointer'
-    },
-    debugInfo: {
-        backgroundColor: '#e3f2fd',
-        padding: '10px',
-        borderRadius: '4px',
-        marginBottom: '20px',
-        fontSize: '14px'
-    },
-    refreshButton: {
-        backgroundColor: '#007bff',
-        color: 'white',
-        padding: '10px 20px',
-        border: 'none',
-        borderRadius: '4px',
         cursor: 'pointer',
-        marginTop: '10px'
+        marginTop: '16px',
+        fontSize: '13px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },
     noProducts: {
         textAlign: 'center',
-        padding: '40px',
-        backgroundColor: '#f9f9f9',
-        borderRadius: '8px',
-        margin: '20px 0'
+        padding: '60px 40px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        margin: '32px 0',
+        border: '1px solid #e9ecef'
     },
     productId: {
         fontSize: '11px',
-        color: '#666',
-        marginBottom: '10px'
+        color: '#adb5bd',
+        marginBottom: '12px',
+        fontWeight: '500'
     },
     simpleList: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px'
+        gap: '16px'
     },
     simpleCard: {
-        border: '1px solid #ddd',
-        padding: '15px',
-        borderRadius: '5px',
-        backgroundColor: '#f9f9f9'
+        border: '1px solid #e9ecef',
+        padding: '24px',
+        borderRadius: '8px',
+        backgroundColor: '#ffffff'
     },
     imagePreviewGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-        gap: '10px',
-        marginTop: '15px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: '16px',
+        marginTop: '24px'
     },
     imagePreviewItem: {
         position: 'relative'
     },
     removePreviewButton: {
         position: 'absolute',
-        top: '5px',
-        right: '5px',
-        backgroundColor: 'rgba(255, 0, 0, 0.8)',
-        color: 'white',
+        top: '8px',
+        right: '8px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
         borderRadius: '50%',
-        width: '20px',
-        height: '20px',
+        width: '24px',
+        height: '24px',
         cursor: 'pointer',
-        fontSize: '12px'
+        fontSize: '12px',
+        fontWeight: 'bold'
     },
     productImagesContainer: {
-        marginBottom: '15px'
+        marginBottom: '24px'
     },
     mainImageContainer: {
         position: 'relative',
-        marginBottom: '10px'
+        marginBottom: '16px'
     },
     imageCount: {
         position: 'absolute',
-        bottom: '10px',
-        right: '10px',
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '4px 8px',
+        bottom: '12px',
+        right: '12px',
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        color: '#ffffff',
+        padding: '6px 10px',
         borderRadius: '12px',
-        fontSize: '12px'
-    },
-    imageManagement: {
-        borderTop: '1px solid #eee',
-        paddingTop: '10px'
-    },
-    imageGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
-        gap: '5px'
+        fontSize: '12px',
+        fontWeight: '600'
+    },    imageManagement: {
+        borderTop: '1px solid #e9ecef',
+        paddingTop: '16px'
     },
     imageItem: {
         position: 'relative'
     },
     thumbnailImage: {
         width: '100%',
-        height: '60px',
+        height: '80px',
         objectFit: 'cover',
-        borderRadius: '4px'
+        borderRadius: '6px'
     },
     deleteImageButton: {
         position: 'absolute',
-        top: '2px',
-        right: '2px',
-        backgroundColor: 'rgba(255, 0, 0, 0.8)',
-        color: 'white',
+        top: '4px',
+        right: '4px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
         border: 'none',
         borderRadius: '50%',
-        width: '16px',
-        height: '16px',
+        width: '20px',
+        height: '20px',
         cursor: 'pointer',
         fontSize: '10px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        fontWeight: 'bold'
     }
 };
 

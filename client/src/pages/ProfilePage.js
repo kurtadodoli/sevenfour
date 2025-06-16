@@ -1,104 +1,46 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styled from 'styled-components';
 
-const ProfilePage = () => {    const [profile, setProfile] = useState({
+const ProfilePage = () => {
+    const [profile, setProfile] = useState({
         first_name: '',
         last_name: '',
         email: '',
         gender: '',
-        birthday: '',
-        user_id: '',
-        role: '',
-        profile_picture_url: ''
-    });    const [editMode, setEditMode] = useState(false);
+        birthday: ''
+    });
+    const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
-    const [uploadingPicture, setUploadingPicture] = useState(false);    const { currentUser, getProfile, updateProfile, uploadProfilePicture, logout, isAdmin } = useAuth();
-    const navigate = useNavigate();    const loadProfile = useCallback(async () => {
-        if (!currentUser) {
-            // If no user is logged in, redirect to login
-            navigate('/login', { state: { from: { pathname: '/profile' } } });
-            throw new Error('No user logged in');
-        }
-        
-        try {
-            // Use getProfile from AuthContext to fetch the latest user data
-            const profileData = await getProfile();
-            
-            // Add safety check for profileData
-            if (!profileData) {
-                console.error('No profile data received');
-                setError('No profile data received');
-                throw new Error('No profile data received');
-            }
-            
-            // Update local state with profile data
-            setProfile({
-                first_name: profileData.first_name || '',
-                last_name: profileData.last_name || '',
-                email: profileData.email || '',
-                gender: profileData.gender || '',
-                birthday: profileData.birthday ? profileData.birthday.split('T')[0] : '',
-                user_id: profileData.id || '',
-                role: profileData.role || '',
-                profile_picture_url: profileData.profile_picture_url || ''
-            });
-            
-            return profileData;
-        } catch (error) {
-            console.error('Failed to load profile:', error);
-            setError('Failed to load profile data: ' + (error.message || 'Unknown error'));
-            throw error;
-        }
-    }, [currentUser, getProfile, navigate]);// Load profile data on component mount
+
+    const { currentUser, getProfile, updateProfile, logout, isAdmin } = useAuth();
+    const navigate = useNavigate();
+
+    // Load profile data on component mount
     useEffect(() => {
-        // Set loading state
-        setLoading(true);
-        
-        // Add console logs for debugging
-        console.log('ProfilePage: Loading profile data...');
-        
-        // Add a timeout to ensure loading state is eventually turned off
-        const timeoutId = setTimeout(() => {
-            if (loading) {
-                console.log('ProfilePage: Loading timeout reached, forcing loading state off');
-                setLoading(false);
-                setError('Loading took too long. Please try refreshing the page.');
-            }
-        }, 10000); // 10 second timeout
-        
-        loadProfile()
-            .then((profileData) => {
-                console.log('ProfilePage: Profile loaded successfully', profileData);
-                // Clear any errors on successful load
-                setError('');
-            })
-            .catch((err) => {
-                // Handle errors without crashing the component
-                console.error('Error in initial profile load:', err);
-                setError('Could not load profile. Please try refreshing the page.');
-                
-                // Provide reasonable fallback data if profile load fails
-                if (currentUser) {
-                    setProfile(prev => ({
-                        ...prev,
-                        email: currentUser.email || '',
-                        role: currentUser.role || '',
-                        user_id: currentUser.id || ''
-                    }));
+        const loadProfile = async () => {
+            if (currentUser) {
+                try {
+                    const profileData = await getProfile();
+                    setProfile({
+                        first_name: profileData.first_name || '',
+                        last_name: profileData.last_name || '',
+                        email: profileData.email || '',
+                        gender: profileData.gender || '',
+                        birthday: profileData.birthday ? profileData.birthday.split('T')[0] : ''
+                    });
+                } catch (error) {
+                    console.error('Failed to load profile:', error);
+                    setError('Failed to load profile data');
                 }
-            })
-            .finally(() => {
-                // Always turn off loading state
-                setLoading(false);
-                clearTimeout(timeoutId);
-            });
-            
-        return () => clearTimeout(timeoutId); // Clean up timeout on unmount
-    }, [loadProfile, currentUser, loading]);
+            }
+        };
+
+        loadProfile();
+    }, [currentUser, getProfile]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -108,68 +50,29 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
         }));
         // Clear error when user starts typing
         if (error) setError('');
-    };    const handleSubmit = async (e) => {
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-        setMessage('');        try {
-            // Remove email, user_id, and role from update data (they shouldn't be editable)
-            const { email, user_id, role, ...updateData } = profile;
+        setMessage('');
+
+        try {
+            // Remove email from update data (it shouldn't be editable)
+            const { email, ...updateData } = profile;
             await updateProfile(updateData);
-            
-            // Reload profile data from database to ensure consistency
-            await loadProfile();
-            
             setMessage('Profile updated successfully!');
             setEditMode(false);
         } catch (error) {
             console.error('Profile update error:', error);
-            setError(error.message || 'Failed to update profile');        } finally {
+            setError(error.message || 'Failed to update profile');
+        } finally {
             setLoading(false);
         }
     };
 
-    const handleProfilePictureUpload = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        // Validate file type
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            setError('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
-            return;
-        }
-
-        // Validate file size (5MB max)
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Image file size should be less than 5MB');
-            return;
-        }
-
-        setUploadingPicture(true);
-        setError('');
-        setMessage('');        try {
-            const updatedProfile = await uploadProfilePicture(file);
-            
-            // Check if updatedProfile exists and has the expected structure
-            if (updatedProfile && updatedProfile.profile_picture_url !== undefined) {
-                setProfile(prev => ({
-                    ...prev,
-                    profile_picture_url: updatedProfile.profile_picture_url
-                }));
-                setMessage('Profile picture updated successfully!');
-            } else {
-                // Fallback: reload the entire profile
-                await loadProfile();
-                setMessage('Profile picture updated successfully!');
-            }
-        } catch (error) {
-            console.error('Profile picture upload error:', error);
-            setError(error.message || 'Failed to upload profile picture');
-        } finally {
-            setUploadingPicture(false);
-        }
-    };const handleLogout = () => {
+    const handleLogout = () => {
         logout();
         navigate('/login');
     };
@@ -177,19 +80,13 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
     const formatDate = (dateString) => {
         if (!dateString) return 'Not provided';
         return new Date(dateString).toLocaleDateString();
-    };    const formatRole = (role) => {
+    };
+
+    const formatRole = (role) => {
         return role === 'admin' ? 'Administrator' : 'Customer';
     };
 
-    const formatGender = (gender) => {
-        if (!gender) return 'Not provided';
-        switch(gender.toUpperCase()) {
-            case 'MALE': return 'Male';
-            case 'FEMALE': return 'Female';
-            case 'OTHER': return 'Other';
-            default: return gender;
-        }
-    };    if (!currentUser) {
+    if (!currentUser) {
         return (
             <Container>
                 <ErrorMessage>Please log in to view your profile.</ErrorMessage>
@@ -197,78 +94,16 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
         );
     }
 
-    // Add safety check for profile data
-    if (!profile || !profile.first_name) {
-        return (
-            <Container>
-                <ProfileCard>
-                    <div>Loading profile...</div>
-                </ProfileCard>
-            </Container>
-        );
-    }    // Handle initial loading state
-    if (loading && !profile.user_id) {
-        return (
-            <Container>
-                <LoadingOverlay>
-                    <LoadingSpinner />
-                    <p>Loading profile...</p>
-                </LoadingOverlay>
-            </Container>
-        );
-    }
-    
-    // Handle case when user is not authenticated
-    if (!currentUser && !loading) {
-        // This will redirect, but we need a fallback UI
-        return (
-            <Container>
-                <ErrorContainer>
-                    <h2>Authentication Required</h2>
-                    <p>Please log in to view your profile.</p>
-                    <ActionButton 
-                        as="a" 
-                        href="/login" 
-                        $variant="primary"
-                    >
-                        Go to Login
-                    </ActionButton>
-                </ErrorContainer>
-            </Container>
-        );
-    }
-
     return (
         <Container>
-            <ProfileCard>                <ProfileHeader>
-                    <ProfilePictureContainer>                        <Avatar $hasImage={!!(profile?.profile_picture_url)}>
-                            {profile?.profile_picture_url ? (
-                                <img 
-                                    src={`http://localhost:5000${profile.profile_picture_url}`} 
-                                    alt="Profile" 
-                                    onError={(e) => {
-                                        e.target.onerror = null; 
-                                        e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100%" height="100%" fill="%23888"/><text x="50%" y="50%" font-size="24" text-anchor="middle" dy=".3em" fill="%23fff">' + (profile?.first_name?.charAt(0) || '') + (profile?.last_name?.charAt(0) || '') + '</text></svg>';
-                                    }}
-                                />
-                            ) : (
-                                `${profile?.first_name?.charAt(0) || ''}${profile?.last_name?.charAt(0) || ''}`
-                            )}
-                        </Avatar><UploadOverlay className="upload-overlay">
-                            <FileInput
-                                type="file"
-                                accept="image/*"
-                                onChange={handleProfilePictureUpload}
-                                disabled={uploadingPicture}
-                                id="profile-picture-upload"
-                            />
-                            <FileInputLabel htmlFor="profile-picture-upload">
-                                {uploadingPicture ? 'Uploading...' : 'Change Picture'}
-                            </FileInputLabel>
-                        </UploadOverlay>
-                    </ProfilePictureContainer>                    <UserInfo>
-                        <UserName>{profile?.first_name || ''} {profile?.last_name || ''}</UserName>
-                        <UserEmail>{profile?.email || ''}</UserEmail>
+            <ProfileCard>
+                <ProfileHeader>
+                    <Avatar>
+                        {profile.first_name?.charAt(0) || ''}{profile.last_name?.charAt(0) || ''}
+                    </Avatar>
+                    <UserInfo>
+                        <UserName>{profile.first_name} {profile.last_name}</UserName>
+                        <UserEmail>{profile.email}</UserEmail>
                         <UserRole $isAdmin={isAdmin}>{formatRole(currentUser?.role)}</UserRole>
                     </UserInfo>
                 </ProfileHeader>
@@ -314,44 +149,23 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
                                         disabled={loading}
                                     />
                                 </FormGroup>
-                            </FormRow>                            <FormGroup>
+                            </FormRow>
+
+                            <FormGroup>
                                 <Label>Email Address</Label>
                                 <Input
                                     type="email"
                                     value={profile.email}
                                     disabled
-                                    style={{ backgroundColor: '#f5f5f5' }}
+                                    style={{ backgroundColor: '#f8f9fa', color: '#6c757d' }}
                                 />
                                 <HelpText>Email address cannot be changed</HelpText>
                             </FormGroup>
 
                             <FormRow>
                                 <FormGroup>
-                                    <Label>User ID</Label>
-                                    <Input
-                                        type="text"
-                                        value={profile.user_id}
-                                        disabled
-                                        style={{ backgroundColor: '#f5f5f5' }}
-                                    />
-                                    <HelpText>User ID cannot be changed</HelpText>
-                                </FormGroup>
-
-                                <FormGroup>
-                                    <Label>Account Type</Label>
-                                    <Input
-                                        type="text"
-                                        value={formatRole(profile.role)}
-                                        disabled
-                                        style={{ backgroundColor: '#f5f5f5' }}
-                                    />
-                                    <HelpText>Role cannot be changed</HelpText>
-                                </FormGroup>
-                            </FormRow>
-
-                            <FormRow>
-                                <FormGroup>
-                                    <Label>Gender</Label>                                    <Select
+                                    <Label>Gender</Label>
+                                    <Select
                                         name="gender"
                                         value={profile.gender}
                                         onChange={handleInputChange}
@@ -401,17 +215,14 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
                             <InfoRow>
                                 <InfoLabel>Last Name:</InfoLabel>
                                 <InfoValue>{profile.last_name || 'Not provided'}</InfoValue>
-                            </InfoRow>                            <InfoRow>
+                            </InfoRow>
+                            <InfoRow>
                                 <InfoLabel>Email:</InfoLabel>
                                 <InfoValue>{profile.email || 'Not provided'}</InfoValue>
                             </InfoRow>
                             <InfoRow>
-                                <InfoLabel>User ID:</InfoLabel>
-                                <InfoValue>{profile.user_id || 'Not provided'}</InfoValue>
-                            </InfoRow>
-                            <InfoRow>
                                 <InfoLabel>Gender:</InfoLabel>
-                                <InfoValue>{formatGender(profile.gender)}</InfoValue>
+                                <InfoValue>{profile.gender || 'Not provided'}</InfoValue>
                             </InfoRow>
                             <InfoRow>
                                 <InfoLabel>Birthday:</InfoLabel>
@@ -419,28 +230,18 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
                             </InfoRow>
                             <InfoRow>
                                 <InfoLabel>Account Type:</InfoLabel>
-                                <InfoValue>{formatRole(profile.role)}</InfoValue>
+                                <InfoValue>{formatRole(currentUser?.role)}</InfoValue>
                             </InfoRow>
                         </ProfileView>
                     )}
                 </ProfileContent>
 
-                <ProfileActions>
-                    <ActionButton
+                <ProfileActions>                    <ActionButton
                         onClick={() => navigate('/change-password')}
                         $variant="secondary"
                     >
                         Change Password
                     </ActionButton>
-                    
-                    {isAdmin && (
-                        <ActionButton
-                            onClick={() => navigate('/admin')}
-                            $variant="admin"
-                        >
-                            Admin Panel
-                        </ActionButton>
-                    )}
                     
                     <ActionButton
                         onClick={handleLogout}
@@ -454,99 +255,93 @@ const ProfilePage = () => {    const [profile, setProfile] = useState({
     );
 };
 
-// Styled Components
+// Modern Black & White Styled Components with Enhanced Design
 const Container = styled.div`
     min-height: 100vh;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    padding: 20px;
+    background: #ffffff;
+    padding: 40px 20px;
     display: flex;
     justify-content: center;
     align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 `;
 
 const ProfileCard = styled.div`
-    background: white;
+    background: #ffffff;
     border-radius: 20px;
-    padding: 40px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    padding: 56px;
+    border: 1px solid #e9ecef;
     width: 100%;
-    max-width: 700px;
+    max-width: 900px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+    position: relative;
+    
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #000000 0%, #333333 50%, #000000 100%);
+        border-radius: 20px 20px 0 0;
+    }
+    
+    @media (max-width: 768px) {
+        padding: 32px 24px;
+        margin: 20px;
+    }
 `;
 
 const ProfileHeader = styled.div`
     display: flex;
     align-items: center;
-    margin-bottom: 40px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid #f0f0f0;
+    margin-bottom: 56px;
+    padding-bottom: 40px;
+    border-bottom: 2px solid #f8f9fa;
+    position: relative;
+    
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: #000000;
+    }
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+        text-align: center;
+        gap: 24px;
+    }
 `;
 
 const Avatar = styled.div`
-    width: 80px;
-    height: 80px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    background: ${props => props.$hasImage ? 'transparent' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
-    color: white;
+    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
-    margin-right: 20px;
-    overflow: hidden;
-    position: relative;
-
-    img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-`;
-
-const ProfilePictureContainer = styled.div`
-    position: relative;
-    display: inline-block;
-
+    font-size: 36px;
+    font-weight: 300;
+    margin-right: 40px;
+    border: 4px solid #f8f9fa;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    
     &:hover {
-        .upload-overlay {
-            opacity: 1;
-        }
+        transform: scale(1.05);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
     }
-`;
-
-const UploadOverlay = styled.div`
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 20px;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    cursor: pointer;
-`;
-
-const FileInput = styled.input`
-    display: none;
-`;
-
-const FileInputLabel = styled.label`
-    color: white;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-    padding: 8px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.2);
-    transition: background 0.3s ease;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.3);
+    
+    @media (max-width: 768px) {
+        margin-right: 0;
+        margin-bottom: 16px;
     }
 `;
 
@@ -555,56 +350,102 @@ const UserInfo = styled.div`
 `;
 
 const UserName = styled.h1`
-    margin: 0 0 5px 0;
-    color: #333;
-    font-size: 28px;
-    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #000000;
+    font-size: 38px;
+    font-weight: 200;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    
+    @media (max-width: 768px) {
+        font-size: 32px;
+    }
 `;
 
 const UserEmail = styled.p`
-    margin: 0 0 5px 0;
-    color: #666;
-    font-size: 16px;
+    margin: 0 0 16px 0;
+    color: #6c757d;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.3px;
 `;
 
 const UserRole = styled.span`
-    display: inline-block;
-    padding: 4px 12px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 20px;
     border-radius: 20px;
     font-size: 12px;
-    font-weight: 600;
-    background: ${props => props.$isAdmin ? '#e3f2fd' : '#f3e5f5'};
-    color: ${props => props.$isAdmin ? '#1976d2' : '#7b1fa2'};
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    background: ${props => props.$isAdmin ? 
+        'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
+        'linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)'
+    };
+    color: ${props => props.$isAdmin ? '#ffffff' : '#000000'};
+    border: 2px solid ${props => props.$isAdmin ? '#000000' : '#e9ecef'};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    &::before {
+        content: '${props => props.$isAdmin ? '★' : '◆'}';
+        margin-right: 8px;
+        font-size: 10px;
+    }
 `;
 
 const ProfileContent = styled.div`
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 `;
 
 const SectionHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 40px;
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
 `;
 
 const SectionTitle = styled.h2`
-    color: #333;
-    font-size: 22px;
-    font-weight: 600;
+    color: #000000;
+    font-size: 32px;
+    font-weight: 200;
     margin: 0;
+    letter-spacing: -0.8px;
+    position: relative;
+    
+    &::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 40px;
+        height: 2px;
+        background: #000000;
+    }
 `;
 
 const Form = styled.form`
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
 `;
 
 const FormRow = styled.div`
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    gap: 24px;
 
     @media (max-width: 768px) {
         grid-template-columns: 1fr;
@@ -618,241 +459,319 @@ const FormGroup = styled.div`
 
 const Label = styled.label`
     margin-bottom: 8px;
-    color: #333;
-    font-weight: 500;
-    font-size: 14px;
+    color: #000000;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
 `;
 
 const Input = styled.input`
-    padding: 12px 16px;
-    border: 2px solid #e1e5e9;
-    border-radius: 10px;
+    padding: 18px 24px;
+    border: 2px solid #f8f9fa;
+    border-radius: 12px;
     font-size: 16px;
     transition: all 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #ffffff;
+    color: #000000;
+    font-weight: 400;
 
     &:focus {
         outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #000000;
+        box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+    
+    &:hover:not(:disabled) {
+        border-color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     &:disabled {
-        background-color: #f5f5f5;
+        background-color: #f8f9fa;
         cursor: not-allowed;
+        color: #6c757d;
+        border-color: #e9ecef;
     }
 `;
 
 const Select = styled.select`
-    padding: 12px 16px;
-    border: 2px solid #e1e5e9;
-    border-radius: 10px;
+    padding: 18px 24px;
+    border: 2px solid #f8f9fa;
+    border-radius: 12px;
     font-size: 16px;
     transition: all 0.3s ease;
-    background-color: white;
+    background-color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #000000;
+    font-weight: 400;
+    cursor: pointer;
 
     &:focus {
         outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        border-color: #000000;
+        box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+    }
+    
+    &:hover:not(:disabled) {
+        border-color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     &:disabled {
-        background-color: #f5f5f5;
+        background-color: #f8f9fa;
         cursor: not-allowed;
+        color: #6c757d;
+        border-color: #e9ecef;
     }
 `;
 
 const HelpText = styled.small`
-    color: #666;
+    color: #6c757d;
     font-size: 12px;
-    margin-top: 4px;
+    margin-top: 6px;
 `;
 
 const ButtonGroup = styled.div`
     display: flex;
-    gap: 10px;
+    gap: 16px;
     justify-content: flex-end;
-    margin-top: 20px;
+    margin-top: 24px;
 `;
 
 const ActionButton = styled.button`
-    padding: 12px 24px;
+    padding: 16px 32px;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    &:hover::before {
+        left: 100%;
+    }
 
     ${props => {
         switch (props.$variant) {
             case 'secondary':
                 return `
-                    background: #f8f9fa;
-                    color: #333;
-                    border: 2px solid #e1e5e9;
+                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                    color: #000000;
+                    border: 2px solid #e9ecef;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
                     
                     &:hover:not(:disabled) {
-                        background: #e9ecef;
-                        border-color: #d1d5db;
+                        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                        border-color: #000000;
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
                     }
                 `;
             case 'danger':
                 return `
-                    background: #dc3545;
-                    color: white;
+                    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+                    color: #ffffff;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
                     
                     &:hover:not(:disabled) {
-                        background: #c82333;
+                        background: linear-gradient(135deg, #333333 0%, #555555 100%);
                         transform: translateY(-2px);
-                        box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
                     }
                 `;
             case 'admin':
                 return `
-                    background: #28a745;
-                    color: white;
+                    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+                    color: #ffffff;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+                    position: relative;
+                    
+                    &::after {
+                        content: '★';
+                        position: absolute;
+                        top: 50%;
+                        right: 12px;
+                        transform: translateY(-50%);
+                        font-size: 12px;
+                    }
                     
                     &:hover:not(:disabled) {
-                        background: #218838;
+                        background: linear-gradient(135deg, #333333 0%, #555555 100%);
                         transform: translateY(-2px);
-                        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
                     }
                 `;
             default:
                 return `
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
+                    background: linear-gradient(135deg, #000000 0%, #333333 100%);
+                    color: #ffffff;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
                     
                     &:hover:not(:disabled) {
+                        background: linear-gradient(135deg, #333333 0%, #555555 100%);
                         transform: translateY(-2px);
-                        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
                     }
                 `;
         }
     }}
 
     &:disabled {
-        opacity: 0.7;
+        opacity: 0.5;
         cursor: not-allowed;
         transform: none;
+        box-shadow: none;
+    }
+    
+    &:active:not(:disabled) {
+        transform: translateY(0);
     }
 `;
 
 const ProfileView = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 16px;
 `;
 
 const InfoRow = styled.div`
     display: flex;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 10px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
     align-items: center;
+    border: 1px solid #e9ecef;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    
+    &:hover {
+        transform: translateX(4px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        border-color: #000000;
+    }
+    
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, #000000 0%, #333333 100%);
+        border-radius: 12px 0 0 12px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    &:hover::before {
+        opacity: 1;
+    }
 `;
 
 const InfoLabel = styled.span`
-    font-weight: 600;
-    color: #333;
-    width: 150px;
+    font-weight: 700;
+    color: #000000;
+    width: 160px;
     flex-shrink: 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+    
+    &::after {
+        content: ':';
+        margin-left: 4px;
+        color: #6c757d;
+    }
 `;
 
 const InfoValue = styled.span`
-    color: #666;
+    color: #6c757d;
     flex: 1;
+    font-size: 16px;
+    font-weight: 400;
+    padding-left: 16px;
 `;
 
 const ProfileActions = styled.div`
     display: flex;
-    gap: 10px;
+    gap: 12px;
     justify-content: center;
     flex-wrap: wrap;
-    border-top: 2px solid #f0f0f0;
-    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+    padding-top: 32px;
+    margin-top: 32px;
 `;
 
 const SuccessMessage = styled.div`
-    background: #d4edda;
-    color: #155724;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border: 1px solid #c3e6cb;
-    font-size: 14px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    color: #000000;
+    padding: 20px 24px;
+    border-radius: 12px;
+    margin-bottom: 32px;
+    border: 2px solid #000000;
+    font-size: 15px;
+    font-weight: 500;
+    position: relative;
+    
+    &::before {
+        content: '✓';
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-weight: bold;
+        font-size: 18px;
+        color: #000000;
+    }
+    
+    padding-left: 56px;
 `;
 
 const ErrorMessage = styled.div`
-    background: #f8d7da;
-    color: #721c24;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border: 1px solid #f5c6cb;
-    font-size: 14px;
-`;
-
-const LoadingOverlay = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 300px;
-    background: white;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    color: #000000;
+    padding: 20px 24px;
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    padding: 30px;
-    text-align: center;
+    margin-bottom: 32px;
+    border: 2px solid #000000;
+    font-size: 15px;
+    font-weight: 500;
+    position: relative;
     
-    p {
-        margin-top: 20px;
-        font-size: 16px;
-        color: #666;
-    }
-`;
-
-const LoadingSpinner = styled.div`
-    width: 40px;
-    height: 40px;
-    border: 3px solid rgba(0, 0, 0, 0.1);
-    border-radius: 50%;
-    border-top-color: #000;
-    animation: spin 1s ease-in-out infinite;
-    margin: 0 auto;
-    
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-`;
-
-const ErrorContainer = styled.div`
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    
-    h2 {
-        color: #333;
-        margin-bottom: 16px;
+    &::before {
+        content: '⚠';
+        position: absolute;
+        left: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-weight: bold;
+        font-size: 18px;
+        color: #000000;
     }
     
-    p {
-        color: #666;
-        margin-bottom: 24px;
-    }
-    
-    a {
-        text-decoration: none;
-    }
+    padding-left: 56px;
 `;
 
 export default ProfilePage;

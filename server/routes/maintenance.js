@@ -24,7 +24,9 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+        fieldSize: 25 * 1024 * 1024, // 25MB field size limit
+        fields: 20 // Maximum number of non-file fields
     },
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
@@ -33,6 +35,11 @@ const upload = multer({
             cb(new Error('Only image files are allowed!'), false);
         }
     }
+});
+
+// Test route
+router.get('/test', (req, res) => {
+    res.json({ message: 'Maintenance API is working', timestamp: new Date().toISOString() });
 });
 
 // Update the archive product route
@@ -121,7 +128,21 @@ router.post('/backup', async (req, res) => {
 });
 
 // Add new product with multiple images
-router.post('/products', upload.any(), async (req, res) => {
+router.post('/products', (req, res, next) => {
+    console.log('📝 POST /products - Before multer');
+    console.log('Content-Type:', req.get('Content-Type'));
+    console.log('Content-Length:', req.get('Content-Length'));
+    
+    upload.any()(req, res, (err) => {
+        if (err) {
+            console.error('❌ Multer error:', err);
+            return res.status(400).json({ error: 'File upload error: ' + err.message });
+        }
+        console.log('✅ Multer processed successfully');
+        console.log('📁 Files received:', req.files ? req.files.length : 0);
+        next();
+    });
+}, async (req, res) => {
     try {
         console.log('=== ADD PRODUCT REQUEST ===');
         console.log('Request body:', req.body);

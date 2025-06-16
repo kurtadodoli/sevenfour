@@ -7,6 +7,10 @@ require('dotenv').config();
 
 const app = express();
 
+// Configure server to handle larger requests
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 // Enhanced error logging
 const logError = (err) => {
     console.error('Error details:', {
@@ -23,15 +27,13 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Add request logging middleware
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path}`, {
-        body: req.body,
-        query: req.query,
-        headers: req.headers
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, {
+        contentType: req.get('Content-Type'),
+        contentLength: req.get('Content-Length'),
+        origin: req.get('Origin')
     });
     next();
 });
@@ -42,6 +44,17 @@ app.use('/api/maintenance', maintenanceRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));
+
+// Add a catch-all route for debugging
+app.use('/api/*', (req, res) => {
+    console.log('❌ Unmatched API route:', req.method, req.originalUrl);
+    res.status(404).json({ 
+        error: 'API route not found', 
+        method: req.method, 
+        path: req.originalUrl,
+        availableRoutes: ['/api/auth/*', '/api/maintenance/*']
+    });
+});
 
 // Test database connection
 app.get('/health', async (req, res) => {
