@@ -5,8 +5,10 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { ToastProvider } from './components/Toast';
+import { ToastContainer } from 'react-toastify';
 import logoImg from './assets/images/sfc-logo-white.png'; // Import your logo
 import 'bootstrap/dist/css/bootstrap.min.css'; // Import Bootstrap CSS
+import 'react-toastify/dist/ReactToastify.css'; // Import React Toastify CSS
 
 // Route components
 import AdminRoute from './components/AdminRoute';
@@ -37,10 +39,9 @@ import OrdersPage from './pages/OrdersPage'; // Import OrdersPage
 import TrackingPage from './pages/TrackingPage'; // Import TrackingPage
 import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
-import WishlistPage from './pages/WishlistPage'; // Import WishlistPage
-import AdminPageManager from './pages/AdminPageManager'; // Import AdminPageManager
-import CustomizationManagement from './pages/CustomizationManagement'; // Import CustomizationManagement
-import CustomDesignPage from './pages/CustomDesignPage'; // Import CustomDesignPage
+import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
+import SearchPage from './pages/SearchPage'; // Import SearchPage
+import CustomPage from './pages/CustomPage'; // Import CustomPage
 
 // Components
 import Header from './components/Header';
@@ -103,13 +104,12 @@ function App() {
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/status" element={<StatusPage />} /> {/* New diagnostic page */}
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
-                    <Route path="/unauthorized" element={<UnauthorizedPage />} />                    {/* Protected Routes - Customer */}
-                  <Route element={<PrivateRoute />}>
-                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/unauthorized" element={<UnauthorizedPage />} />                    {/* Protected Routes - Customer */}                  <Route element={<PrivateRoute />}>                    <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/cart" element={<CartPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
-                    <Route path="/wishlist" element={<WishlistPage />} />
-                    <Route path="/custom-design" element={<CustomDesignPage />} />
+                    <Route path="/custom" element={<CustomPage />} />
+                    <Route path="/delivery" element={<DeliveryPage />} />
+                    <Route path="/orders" element={<OrdersPage />} />
                   </Route>
                     
                     {/* Protected Routes - Staff & Admin */}
@@ -117,32 +117,38 @@ function App() {
                       <Route path="/staff" element={<DashboardPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/inventory" element={<InventoryPage />} />
-                    </Route>
-                      {/* Protected Routes - Admin Only */}
+                    </Route>                      {/* Protected Routes - Admin Only */}
                     <Route element={<AdminRoute />}>
                       <Route path="/admin" element={<DashboardPage />} />
                       <Route path="/admin/users" element={<UsersPage />} />
                       <Route path="/admin/reports" element={<ReportsPage />} />
-                      <Route path="/admin/settings" element={<SettingsPage />} />
-                      <Route path="/admin/products" element={<MaintenancePage />} />                <Route path="/admin/pages" element={<AdminPageManager />} />
-                      <Route path="/admin/customizations" element={<CustomizationManagement />} />
+                      <Route path="/admin/settings" element={<SettingsPage />} />                      <Route path="/admin/products" element={<MaintenancePage />} />
                       <Route path="/maintenance" element={<MaintenancePage />} />
+                      <Route path="/search" element={<SearchPage />} />
                     </Route>
-                    
-                    {/* Additional Routes */}
+                      {/* Additional Routes */}
                     <Route path="/help" element={<HelpPage />} />
                     <Route path="/about" element={<AboutPage />} />
-                    <Route path="/orders" element={<OrdersPage />} />
                     <Route path="/tracking" element={<TrackingPage />} />
                     <Route path="/shipping" element={<ShippingPage />} />
-                  </Routes>
-                </MainContent>
+                  </Routes>                </MainContent>
                 <Footer />
               </AppWrapper>
             </ToastProvider>
           </WishlistProvider>
         </CartProvider>
       </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </Router>
   );
 }

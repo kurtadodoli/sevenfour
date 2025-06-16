@@ -66,6 +66,7 @@ const testConnection = async () => {
 };
 
 module.exports = {
+  dbConfig,
   pool,
   query,
   testConnection

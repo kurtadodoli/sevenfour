@@ -40,9 +40,8 @@ const MaintenancePage = () => {
         try {
             setLoading(true);
             setMessage('');
-            
-            console.log('📡 Making fetch request to /api/maintenance/products');
-            const response = await fetch('http://localhost:5000/api/maintenance/products', {
+              console.log('📡 Making fetch request to /api/maintenance/products');
+            const response = await fetch('http://localhost:3001/api/maintenance/products', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -82,7 +81,7 @@ const MaintenancePage = () => {
     };    // Fetch product images
     const fetchProductImages = async (productId) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/images`);
+            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/images`);
             if (response.ok) {
                 const images = await response.json();
                 return images;
@@ -224,7 +223,7 @@ const MaintenancePage = () => {
         if (!window.confirm('Are you sure you want to delete this image?')) return;
         
         try {
-            const response = await fetch(`http://localhost:5000/api/maintenance/images/${imageId}`, {
+            const response = await fetch(`http://localhost:3001/api/maintenance/images/${imageId}`, {
                 method: 'DELETE'
             });
             
@@ -284,9 +283,8 @@ const MaintenancePage = () => {
             console.log('Selected images count:', selectedImages.length);
             for (let pair of formDataToSend.entries()) {
                 console.log(pair[0] + ':', pair[1]);
-            }            const url = editingProduct 
-                ? `http://localhost:5000/api/maintenance/products/${editingProduct.id}`
-                : 'http://localhost:5000/api/maintenance/products';
+            }            const url = editingProduct                ? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
+                : 'http://localhost:3001/api/maintenance/products';
             
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -344,7 +342,7 @@ const MaintenancePage = () => {
     const archiveProduct = async (id) => {
         if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
-                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/archive`, {
+                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/archive`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -363,7 +361,7 @@ const MaintenancePage = () => {
     const restoreProduct = async (id) => {
         if (window.confirm('Are you sure you want to restore this product?')) {
             try {
-                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/restore`, {
+                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/restore`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -382,7 +380,7 @@ const MaintenancePage = () => {
     const deleteProduct = async (id) => {
         if (window.confirm('Are you sure you want to permanently delete this product?')) {
             try {
-                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}`, {
+                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}`, {
                     method: 'DELETE'
                 });
                 if (response.ok) {
@@ -401,7 +399,7 @@ const MaintenancePage = () => {
     const backupData = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:5000/api/maintenance/backup', {
+            const response = await fetch('http://localhost:3001/api/maintenance/backup', {
                 method: 'POST'
             });
             if (response.ok) {
@@ -422,7 +420,7 @@ const MaintenancePage = () => {
         if (!window.confirm('Are you sure you want to delete this image?')) return;
         
         try {
-            const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/image/${filename}`, {
+            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/image/${filename}`, {
                 method: 'DELETE'
             });
             
@@ -561,7 +559,7 @@ if (typeof document !== 'undefined') {
                                                 {existingImages.map((img, index) => (
                                                     <div key={img.image_id} style={styles.imageContainer}>
                                                         <img 
-                                                            src={`http://localhost:5000/uploads/${img.image_filename}`} 
+                                                            src={`http://localhost:3001/uploads/${img.image_filename}`} 
                                                             alt={`Product ${index + 1}`}
                                                             style={styles.imagePreview}
                                                         />
@@ -733,11 +731,10 @@ if (typeof document !== 'undefined') {
                                             <p>No products found in database</p>
                                             <button onClick={fetchProducts}>Refresh</button>
                                         </div>
-                                    ) : (                                        <div style={styles.productsGrid}>                                            {products.map(product => (
-                                                <div key={product.id} style={styles.productCard} className="maintenance-card">
+                                    ) : (                                        <div style={styles.productsGrid}>                                            {products.map(product => (                                                <div key={product.id} style={styles.productCard} className="maintenance-card">
                                                     {product.productimage && (
                                                         <img 
-                                                            src={`http://localhost:5000/uploads/${product.productimage}`}
+                                                            src={`http://localhost:3001/uploads/${product.productimage}`}
                                                             alt={product.productname}
                                                             style={styles.productImage}
                                                         />
@@ -779,12 +776,11 @@ if (typeof document !== 'undefined') {
                                     {/* Archived Products Section */}
                                     {archivedProducts.length > 0 && (
                                         <div style={styles.archivedSection}>
-                                            <h3 style={styles.sectionTitle}>Archived Products</h3>
-                                            <div style={styles.productsGrid}>
+                                            <h3 style={styles.sectionTitle}>Archived Products</h3>                                            <div style={styles.productsGrid}>
                                                 {archivedProducts.map(product => (
                                                     <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>                                                        {product.productimage && (
                                                             <img 
-                                                                src={`http://localhost:5000/uploads/${product.productimage}`}
+                                                                src={`http://localhost:3001/uploads/${product.productimage}`}
                                                                 alt={product.productname}
                                                                 style={styles.productImage}
                                                             />

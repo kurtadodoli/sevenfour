@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API configuration
-const API_URL = 'http://localhost:5000';
+const API_URL = 'http://localhost:3001';
 const API_TIMEOUT = 15000;
 
 // Create axios instance with improved configuration

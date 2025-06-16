@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const router = express.Router();
-const dbConfig = require('../../config/database');
+const { dbConfig } = require('../config/db');
 
 // Configure multer for multiple file uploads
 const storage = multer.diskStorage({
@@ -439,6 +439,56 @@ router.post('/products/:id/restore', async (req, res) => {
     } catch (error) {
         console.error('Error restoring product:', error);
         res.status(500).json({ error: 'Failed to restore product' });
+    }
+});
+
+// Delete product permanently
+router.delete('/products/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get product details first
+        const [productResult] = await connection.execute(
+            'SELECT * FROM products WHERE id = ?',
+            [id]
+        );
+        
+        if (productResult.length === 0) {
+            await connection.end();
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        const product = productResult[0];
+        
+        // Get all images for this product
+        const [images] = await connection.execute(
+            'SELECT * FROM product_images WHERE product_id = ?',
+            [product.product_id]
+        );
+        
+        // Delete image files from filesystem
+        images.forEach(image => {
+            const imagePath = path.join(__dirname, '../../uploads', image.image_filename);
+            if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+            }
+        });
+        
+        // Delete product images from database
+        await connection.execute(
+            'DELETE FROM product_images WHERE product_id = ?',
+            [product.product_id]
+        );
+        
+        // Delete product from database
+        await connection.execute('DELETE FROM products WHERE id = ?', [id]);
+        
+        await connection.end();
+        res.json({ message: 'Product deleted permanently' });
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        res.status(500).json({ error: 'Failed to delete product' });
     }
 });
 

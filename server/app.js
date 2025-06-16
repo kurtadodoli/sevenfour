@@ -139,6 +139,7 @@ const dashboardRoutes = require('./routes/api/dashboard');
 const healthCheckRoutes = require('./routes/health-check');
 const homepageRoutes = require('./routes/api/homepage');
 const customizationRoutes = require('./routes/api/customizations');
+const maintenanceRoutes = require('./routes/maintenance');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -151,6 +152,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin/homepage', homepageRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/customizations', customizationRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 app.use('/health', healthCheckRoutes);
 
 // Simple test route

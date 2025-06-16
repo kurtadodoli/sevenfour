@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
     const [error, setError] = useState(null);
     
     // API base URL (using the imported api instance now)
-    const API_BASE_URL = 'http://localhost:5000';
+    const API_BASE_URL = 'http://localhost:3001';
 
     const logout = useCallback(() => {
         localStorage.removeItem('token');
