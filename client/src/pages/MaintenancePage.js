@@ -7,13 +7,13 @@ const MaintenancePage = () => {
     const [archivedProducts, setArchivedProducts] = useState([]);    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
-    const [showEditModal, setShowEditModal] = useState(false);
-      // Form state
+    const [showEditModal, setShowEditModal] = useState(false);    // Form state
     const [formData, setFormData] = useState({
         productname: '',
         productdescription: '',
         productprice: '',
-        productcolor: '',
+        productcolor: '', // Keep for backward compatibility
+        colors: [], // New array for multiple colors
         product_type: '',
         sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
     });
@@ -126,16 +126,41 @@ const MaintenancePage = () => {
             ...formData,
             sizes: [...formData.sizes, { size: '', stock: 0 }]
         });
-    };
-
-    // Remove size
+    };    // Remove size
     const removeSize = (index) => {
         const newSizes = formData.sizes.filter((_, i) => i !== index);
         setFormData({
             ...formData,
             sizes: newSizes
         });
-    };    // Compress image before upload
+    };
+
+    // Handle color changes
+    const handleColorChange = (index, value) => {
+        const newColors = [...formData.colors];
+        newColors[index] = value;
+        setFormData({
+            ...formData,
+            colors: newColors
+        });
+    };
+
+    // Add new color
+    const addColor = () => {
+        setFormData({
+            ...formData,
+            colors: [...formData.colors, '']
+        });
+    };
+
+    // Remove color
+    const removeColor = (index) => {
+        const newColors = formData.colors.filter((_, i) => i !== index);
+        setFormData({
+            ...formData,
+            colors: newColors
+        });
+    };// Compress image before upload
     const compressImage = (file, maxWidth = 800, quality = 0.8) => {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
@@ -244,6 +269,7 @@ const MaintenancePage = () => {
             productdescription: '',
             productprice: '',
             productcolor: '',
+            colors: [],
             product_type: '',
             sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
         });
@@ -259,12 +285,12 @@ const MaintenancePage = () => {
         setMessage('');
 
         try {
-            const formDataToSend = new FormData();
-              // Add product data
+            const formDataToSend = new FormData();              // Add product data
             formDataToSend.append('productname', formData.productname);
             formDataToSend.append('productdescription', formData.productdescription);
             formDataToSend.append('productprice', formData.productprice);
-            formDataToSend.append('productcolor', formData.productcolor);
+            formDataToSend.append('productcolor', formData.colors.length > 0 ? formData.colors[0] : formData.productcolor);
+            formDataToSend.append('colors', JSON.stringify(formData.colors));
             formDataToSend.append('product_type', formData.product_type);
             formDataToSend.append('sizes', JSON.stringify(formData.sizes));
               // Calculate total stock
@@ -310,8 +336,7 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };    // Edit product
-    const editProduct = async (product) => {
+    };    // Edit product    const editProduct = async (product) => {
         setEditingProduct(product);
         
         // Parse sizes from JSON or create default
@@ -322,11 +347,24 @@ const MaintenancePage = () => {
         } catch (error) {
             sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
         }
+
+        // Parse colors from JSON or use productcolor as fallback
+        let colors = [];
+        try {
+            if (product.colors) {
+                colors = JSON.parse(product.colors);
+            } else if (product.productcolor) {
+                colors = [product.productcolor];
+            }
+        } catch (error) {
+            colors = product.productcolor ? [product.productcolor] : [];
+        }
           setFormData({
             productname: product.productname || '',
             productdescription: product.productdescription || '',
             productprice: product.productprice || '',
             productcolor: product.productcolor || '',
+            colors: colors,
             product_type: product.product_type || '',
             sizes: sizes
         });
@@ -645,8 +683,9 @@ if (typeof document !== 'undefined') {
                                         onChange={handleInputChange}
                                         style={styles.textarea}
                                         rows={4}
-                                    />
-                                </div>                                <div style={styles.formRow}>
+                                    />                                </div>
+
+                                <div style={styles.formRow}>
                                     <div style={styles.formGroupHalf}>
                                         <label style={styles.label}>PRICE *</label>
                                         <input
@@ -659,15 +698,50 @@ if (typeof document !== 'undefined') {
                                             required
                                         />
                                     </div>
-                                    <div style={styles.formGroupHalf}>
-                                        <label style={styles.label}>COLOR</label>
-                                        <input
-                                            type="text"
-                                            name="productcolor"
-                                            value={formData.productcolor}
-                                            onChange={handleInputChange}
-                                            style={styles.input}                                        />
-                                    </div>
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>COLORS</label>
+                                    {formData.colors.length === 0 ? (
+                                        <div style={styles.emptyState}>
+                                            <p style={styles.emptyStateText}>No colors added yet</p>
+                                            <button 
+                                                type="button"
+                                                onClick={addColor}
+                                                style={styles.addColorButton}
+                                            >
+                                                Add Color
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {formData.colors.map((color, index) => (
+                                                <div key={index} style={styles.colorRow}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Color (e.g., Red, Blue, Black)"
+                                                        value={color}
+                                                        onChange={(e) => handleColorChange(index, e.target.value)}
+                                                        style={styles.colorInput}
+                                                    />
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => removeColor(index)}
+                                                        style={styles.removeColorButton}
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button 
+                                                type="button"
+                                                onClick={addColor}
+                                                style={styles.addColorButton}
+                                            >
+                                                Add Another Color
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div style={styles.formGroup}>
@@ -1140,8 +1214,7 @@ const styles = {
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
-    },
-    addSizeButton: {
+    },    addSizeButton: {
         padding: '12px 20px',
         backgroundColor: '#000000',
         color: '#ffffff',
@@ -1153,6 +1226,56 @@ const styles = {
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
+    },
+    colorRow: {
+        display: 'flex',
+        gap: '16px',
+        marginBottom: '16px',
+        alignItems: 'center'
+    },
+    colorInput: {
+        flex: 1,
+        padding: '12px 16px',
+        border: '1px solid #e9ecef',
+        borderRadius: '6px',
+        fontSize: '14px'
+    },
+    removeColorButton: {
+        padding: '12px 16px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    addColorButton: {
+        padding: '12px 20px',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        marginTop: '16px',
+        fontSize: '13px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    emptyState: {
+        textAlign: 'center',
+        padding: '40px 20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        border: '1px solid #e9ecef'
+    },
+    emptyStateText: {
+        color: '#6c757d',
+        fontSize: '14px',
+        margin: '0 0 16px 0'
     },
     totalStock: {
         fontWeight: '600',
