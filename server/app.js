@@ -80,7 +80,7 @@ app.use('/uploads', (req, res, next) => {
     res.setHeader('Content-Security-Policy', "default-src 'self'");
     res.setHeader('X-Content-Type-Options', 'nosniff');
     next();
-}, express.static(path.join(__dirname, 'public/uploads')));
+}, express.static(path.join(__dirname, '../uploads')));
 
 // Database configuration - ensure this matches your setup
 const dbConfig = {

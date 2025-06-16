@@ -457,6 +457,37 @@ const hoverStyles = `
 .maintenance-tab:hover {
     background-color: rgba(0, 0, 0, 0.05);
 }
+
+.action-button {
+    transition: all 0.2s ease;
+}
+
+.action-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    background-color: #333333 !important;
+}
+
+.action-button:hover svg {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+
+.edit-button:hover {
+    background-color: #1a73e8 !important;
+}
+
+.archive-button:hover {
+    background-color: #ea8600 !important;
+}
+
+.delete-button:hover {
+    background-color: #d93025 !important;
+}
+
+.restore-button:hover {
+    background-color: #137333 !important;
+}
 `;
 
 // Inject styles into document head
@@ -747,24 +778,41 @@ if (typeof document !== 'undefined') {
                                                         </p>
                                                         <p style={styles.productColor}>Color: {product.productcolor}</p>
                                                         
-                                                        <div style={styles.productActions}>
-                                                            <button 
+                                                        <div style={styles.productActions}>                                                            <button 
+                                                                className="action-button edit-button"
                                                                 style={styles.editButton}
                                                                 onClick={() => editProduct(product)}
                                                             >
-                                                                ✏️ Edit
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                                    <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                                </svg>
+                                                                Edit
                                                             </button>
                                                             <button 
+                                                                className="action-button archive-button"
                                                                 style={styles.archiveButton}
                                                                 onClick={() => archiveProduct(product.id)}
                                                             >
-                                                                📦 Archive
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <polyline points="21,8 21,21 3,21 3,8"/>
+                                                                    <rect x="1" y="3" width="22" height="5"/>
+                                                                    <line x1="10" y1="12" x2="14" y2="12"/>
+                                                                </svg>
+                                                                Archive
                                                             </button>
                                                             <button 
+                                                                className="action-button delete-button"
                                                                 style={styles.deleteButton}
                                                                 onClick={() => deleteProduct(product.id)}
                                                             >
-                                                                🗑️ Remove
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                    <polyline points="3,6 5,6 21,6"/>
+                                                                    <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                                                    <line x1="10" y1="11" x2="10" y2="17"/>
+                                                                    <line x1="14" y1="11" x2="14" y2="17"/>
+                                                                </svg>
+                                                                Remove
                                                             </button>
                                                         </div>
                                                     </div>
@@ -790,18 +838,29 @@ if (typeof document !== 'undefined') {
                                                             <p style={styles.productPrice}>${product.productprice}</p>
                                                             <p style={styles.archivedLabel}>ARCHIVED</p>
                                                             
-                                                            <div style={styles.productActions}>
-                                                                <button 
+                                                            <div style={styles.productActions}>                                                                <button 
+                                                                    className="action-button restore-button"
                                                                     style={styles.restoreButton}
                                                                     onClick={() => restoreProduct(product.id)}
                                                                 >
-                                                                    🔄 Restore
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                        <polyline points="23,4 23,10 17,10"/>
+                                                                        <path d="M20.49,15a9,9 0 1,1 -2.12,-9.36L23,10"/>
+                                                                    </svg>
+                                                                    Restore
                                                                 </button>
                                                                 <button 
+                                                                    className="action-button delete-button"
                                                                     style={styles.deleteButton}
                                                                     onClick={() => deleteProduct(product.id)}
                                                                 >
-                                                                    🗑️ Remove
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                        <polyline points="3,6 5,6 21,6"/>
+                                                                        <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                                                        <line x1="10" y1="11" x2="10" y2="17"/>
+                                                                        <line x1="14" y1="11" x2="14" y2="17"/>
+                                                                    </svg>
+                                                                    Remove
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -1097,7 +1156,11 @@ const styles = {
         flex: 1,
         fontWeight: '600',
         textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px'
     },
     archiveButton: {
         backgroundColor: '#000000',
@@ -1110,7 +1173,11 @@ const styles = {
         flex: 1,
         fontWeight: '600',
         textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px'
     },
     deleteButton: {
         backgroundColor: '#000000',
@@ -1123,7 +1190,11 @@ const styles = {
         flex: 1,
         fontWeight: '600',
         textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px'
     },
     restoreButton: {
         padding: '8px 16px',
@@ -1136,7 +1207,11 @@ const styles = {
         marginRight: '8px',
         fontWeight: '600',
         textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px'
     },
     archivedSection: {
         marginTop: '48px',

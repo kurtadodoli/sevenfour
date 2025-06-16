@@ -197,12 +197,17 @@ router.post('/products', (req, res, next) => {
         
         const [result] = await connection.execute(insertQuery, insertParams);
         const productDbId = result.insertId;
-        
-        // Insert images if any
+          // Insert images if any
         if (req.files && req.files.length > 0) {
+            let thumbnailFilename = null;
+            
             for (let i = 0; i < req.files.length; i++) {
                 const file = req.files[i];
                 const isFirstImage = i === 0; // First image is thumbnail
+                
+                if (isFirstImage) {
+                    thumbnailFilename = file.filename;
+                }
                 
                 const imageInsertQuery = `
                     INSERT INTO product_images 
@@ -216,6 +221,14 @@ router.post('/products', (req, res, next) => {
                     i,
                     isFirstImage
                 ]);
+            }
+            
+            // Update the products table with the thumbnail image
+            if (thumbnailFilename) {
+                await connection.execute(
+                    'UPDATE products SET productimage = ? WHERE product_id = ?',
+                    [thumbnailFilename, generatedProductId]
+                );
             }
         }
         
