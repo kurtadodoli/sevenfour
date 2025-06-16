@@ -140,6 +140,7 @@ const healthCheckRoutes = require('./routes/health-check');
 const homepageRoutes = require('./routes/api/homepage');
 const customizationRoutes = require('./routes/api/customizations');
 const maintenanceRoutes = require('./routes/maintenance');
+const adminRoutes = require('./routes/admin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -149,6 +150,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/db-setup', dbSetupRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/admin/homepage', homepageRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/customizations', customizationRoutes);

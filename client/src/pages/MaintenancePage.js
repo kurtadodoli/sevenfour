@@ -8,13 +8,13 @@ const MaintenancePage = () => {
     const [message, setMessage] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
-    
-    // Form state
+      // Form state
     const [formData, setFormData] = useState({
         productname: '',
         productdescription: '',
         productprice: '',
         productcolor: '',
+        product_type: '',
         sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
     });
     
@@ -244,6 +244,7 @@ const MaintenancePage = () => {
             productdescription: '',
             productprice: '',
             productcolor: '',
+            product_type: '',
             sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
         });
         setSelectedImages([]);
@@ -251,7 +252,7 @@ const MaintenancePage = () => {
         setExistingImages([]);
         setEditingProduct(null);
         setShowEditModal(false);
-    };    // Handle form submission
+    };// Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -259,12 +260,12 @@ const MaintenancePage = () => {
 
         try {
             const formDataToSend = new FormData();
-            
-            // Add product data
+              // Add product data
             formDataToSend.append('productname', formData.productname);
             formDataToSend.append('productdescription', formData.productdescription);
             formDataToSend.append('productprice', formData.productprice);
             formDataToSend.append('productcolor', formData.productcolor);
+            formDataToSend.append('product_type', formData.product_type);
             formDataToSend.append('sizes', JSON.stringify(formData.sizes));
               // Calculate total stock
             const totalStock = formData.sizes.reduce((sum, size) => sum + size.stock, 0);
@@ -321,12 +322,12 @@ const MaintenancePage = () => {
         } catch (error) {
             sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
         }
-        
-        setFormData({
+          setFormData({
             productname: product.productname || '',
             productdescription: product.productdescription || '',
             productprice: product.productprice || '',
             productcolor: product.productcolor || '',
+            product_type: product.product_type || '',
             sizes: sizes
         });
         
@@ -665,9 +666,28 @@ if (typeof document !== 'undefined') {
                                             name="productcolor"
                                             value={formData.productcolor}
                                             onChange={handleInputChange}
-                                            style={styles.input}
-                                        />
+                                            style={styles.input}                                        />
                                     </div>
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>PRODUCT TYPE</label>
+                                    <select
+                                        name="product_type"
+                                        value={formData.product_type}
+                                        onChange={handleInputChange}
+                                        style={styles.select}
+                                    >
+                                        <option value="">Select Product Type</option>
+                                        <option value="bags">Bags</option>
+                                        <option value="hats">Hats</option>
+                                        <option value="hoodies">Hoodies</option>
+                                        <option value="jackets">Jackets</option>
+                                        <option value="jerseys">Jerseys</option>
+                                        <option value="shorts">Shorts</option>
+                                        <option value="sweaters">Sweaters</option>
+                                        <option value="t-shirts">T-Shirts</option>
+                                    </select>
                                 </div>
 
                                 <div style={styles.formGroup}>
@@ -777,6 +797,7 @@ if (typeof document !== 'undefined') {
                                                             Stock: {product.total_stock || product.productquantity || 0}
                                                         </p>
                                                         <p style={styles.productColor}>Color: {product.productcolor}</p>
+                                                        <p style={styles.productType}>Type: {product.product_type ? product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1) : 'Not specified'}</p>
                                                         
                                                         <div style={styles.productActions}>                                                            <button 
                                                                 className="action-button edit-button"
@@ -997,7 +1018,21 @@ const styles = {
         backgroundColor: '#ffffff',
         color: '#000000',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-    },    textarea: {
+    },
+    select: {
+        width: '100%',
+        padding: '16px 20px',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        fontSize: '15px',
+        boxSizing: 'border-box',
+        transition: 'all 0.2s ease',
+        backgroundColor: '#ffffff',
+        color: '#000000',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        cursor: 'pointer'
+    },
+    textarea: {
         width: '100%',
         padding: '16px 20px',
         border: '1px solid #e9ecef',
@@ -1230,11 +1265,16 @@ const styles = {
         fontSize: '11px',
         textTransform: 'uppercase',
         letterSpacing: '0.8px'
-    },
-    productColor: {
+    },    productColor: {
         fontSize: '13px',
         color: '#6c757d',
-        marginBottom: '12px'
+        marginBottom: '6px'
+    },
+    productType: {
+        fontSize: '13px',
+        color: '#6c757d',
+        marginBottom: '12px',
+        fontWeight: '500'
     },
     imageCaption: {
         fontSize: '13px',

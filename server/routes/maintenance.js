@@ -146,14 +146,14 @@ router.post('/products', (req, res, next) => {
     try {
         console.log('=== ADD PRODUCT REQUEST ===');
         console.log('Request body:', req.body);
-        console.log('Request files:', req.files);
-        console.log('Files field names:', req.files ? req.files.map(f => f.fieldname) : 'No files');
+        console.log('Request files:', req.files);        console.log('Files field names:', req.files ? req.files.map(f => f.fieldname) : 'No files');
         
         const {
             productname,
             productdescription,
             productprice,
             productcolor,
+            product_type,
             sizes,
             total_stock
         } = req.body;
@@ -173,12 +173,11 @@ router.post('/products', (req, res, next) => {
         } catch (error) {
             parsedSizes = [];
         }
-        
-        // Insert product
+          // Insert product
         const insertQuery = `
             INSERT INTO products 
-            (product_id, productname, productdescription, productprice, productcolor, sizes, total_stock, productstatus) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (product_id, productname, productdescription, productprice, productcolor, product_type, sizes, total_stock, productstatus) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const insertParams = [
@@ -187,6 +186,7 @@ router.post('/products', (req, res, next) => {
             productdescription || '',
             parseFloat(productprice) || 0,
             productcolor || '',
+            product_type || null,
             JSON.stringify(parsedSizes),
             parseInt(total_stock) || 0,
             'active'

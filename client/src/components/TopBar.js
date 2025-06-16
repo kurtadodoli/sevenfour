@@ -21,7 +21,7 @@ import {
   faClipboardList,
   faTruck,
   faShippingFast,
-  faEdit,
+  faSearch,
   faPalette
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -450,13 +450,13 @@ const TopBar = () => {
             <FontAwesomeIcon icon={faShoppingBag} style={{ color: 'white' }} />
           </div>
           <span className="nav-text">Products</span>
-        </NavLink>        {/* Only show Custom Design for authenticated non-admin users */}
-        {isAuthenticated && currentUser?.role !== 'admin' && (
+        </NavLink>        {/* Show Custom Design for all authenticated users */}
+        {isAuthenticated && (
           <NavLink to="/custom-design" className={location.pathname === '/custom-design' ? 'active' : ''}>
             <div className="icon-container">
               <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
             </div>
-            <span className="nav-text">Custom Design</span>
+            <span className="nav-text">Custom</span>
           </NavLink>
         )}
         
@@ -509,27 +509,35 @@ const TopBar = () => {
               <span className="nav-text">Shipping</span>
             </NavLink>
           </>
-        )}
-          {isAuthenticated && currentUser?.role === 'admin' && (
+        )}        {isAuthenticated && currentUser?.role === 'admin' && (
           <>
-            <NavSectionTitle>Management</NavSectionTitle>            <NavLink to="/admin/pages" className={location.pathname === '/admin/pages' ? 'active' : ''}>
+            <NavSectionTitle>Management</NavSectionTitle>
+            
+            <NavLink to="/inventory" className={location.pathname === '/inventory' ? 'active' : ''}>
               <div className="icon-container">
-                <FontAwesomeIcon icon={faEdit} style={{ color: 'white' }} />
+                <FontAwesomeIcon icon={faClipboardList} style={{ color: 'white' }} />
               </div>
-              <span className="nav-text">Page Manager</span>
+              <span className="nav-text">Inventory</span>
             </NavLink>
             
-            <NavLink to="/admin/customizations" className={location.pathname === '/admin/customizations' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Custom Designs</span>
-            </NavLink>
-              <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
+            <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faCog} style={{ color: 'white' }} />
               </div>
               <span className="nav-text">Maintenance</span>
+            </NavLink>
+              <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faSearch} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Search</span>
+            </NavLink>
+            
+            <NavLink to="/delivery" className={location.pathname === '/delivery' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Delivery</span>
             </NavLink>
           </>
         )}

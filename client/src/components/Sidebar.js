@@ -466,40 +466,7 @@ const DashboardIcon = () => (
 const ProductIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-    </svg>
-);
-
-const CartIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="8" cy="21" r="1"/>
-        <circle cx="19" cy="21" r="1"/>
-        <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
-    </svg>
-);
-
-const OrderIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-        <line x1="12" y1="22.08" x2="12" y2="12"/>
-    </svg>
-);
-
-const TruckIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="1" y="3" width="15" height="13"/>
-        <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-        <circle cx="5.5" cy="18.5" r="2.5"/>
-        <circle cx="18.5" cy="18.5" r="2.5"/>
-    </svg>
-);
-
-const ShippingIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-        <circle cx="12" cy="10" r="3"/>
-    </svg>
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />    </svg>
 );
 
 const SettingsIcon = () => (
@@ -663,9 +630,7 @@ const Sidebar = () => {
                         <Logo src={logo} alt="Seven Four Clothing" />
                     </LogoWrapper>
                     {!isMinimized && <CompanyName $minimized={isMinimized}>Seven Four</CompanyName>}
-                </LogoSection>
-
-                <NavLinks>
+                </LogoSection>                <NavLinks>
                     {/* Main section - visible to all */}
                     {!isMinimized && <SectionTitle $minimized={isMinimized} $color="#3a7bd5">Main</SectionTitle>}
                     <NavItem $minimized={isMinimized}>
@@ -687,7 +652,9 @@ const Sidebar = () => {
                                 {!isMinimized && <span>Dashboard</span>}
                             </StyledLink>
                         </NavItem>
-                    )}                    {/* Shop section - visible to all */}
+                    )}
+
+                    {/* Shop section - visible to all */}
                     {!isMinimized && <SectionTitle $minimized={isMinimized} $color="#f953c6">Shop</SectionTitle>}
                     <NavItem $minimized={isMinimized}>
                         <StyledLink to="/products" $minimized={isMinimized} $active={location.pathname === '/products'}>
@@ -705,52 +672,8 @@ const Sidebar = () => {
                             {!isMinimized && <span>Custom</span>}
                         </StyledLink>
                     </NavItem>
-                    <NavItem $minimized={isMinimized}>
-                        <StyledLink to="/cart" $minimized={isMinimized} $active={location.pathname === '/cart'}>
-                            <IconWrapper $minimized={isMinimized} $section="shop" data-tooltip="Cart">
-                                <CartIcon />
-                            </IconWrapper>
-                            {!isMinimized && <span>Cart</span>}
-                        </StyledLink>
-                    </NavItem>
-                      {/* Delivery section - conditional rendering */}
-                    {!isMinimized && <SectionTitle $minimized={isMinimized} $color="#f2994a">Delivery</SectionTitle>}
-                    <NavItem $minimized={isMinimized}>
-                        <StyledLink to="/orders" $minimized={isMinimized} $active={location.pathname === '/orders'}>
-                            <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Orders">
-                                <OrderIcon />
-                            </IconWrapper>
-                            {!isMinimized && <span>Orders</span>}
-                        </StyledLink>
-                    </NavItem>
-                    <NavItem $minimized={isMinimized}>
-                        <StyledLink to="/delivery" $minimized={isMinimized} $active={location.pathname === '/delivery'}>
-                            <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Delivery">
-                                <DeliveryIcon />
-                            </IconWrapper>
-                            {!isMinimized && <span>Delivery</span>}
-                        </StyledLink>
-                    </NavItem>
-                    {isAdmin && (
-                        <>
-                            <NavItem $minimized={isMinimized}>
-                                <StyledLink to="/tracking" $minimized={isMinimized} $active={location.pathname === '/tracking'}>
-                                    <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Tracking">
-                                        <TruckIcon />
-                                    </IconWrapper>
-                                    {!isMinimized && <span>Tracking</span>}
-                                </StyledLink>
-                            </NavItem>
-                            <NavItem $minimized={isMinimized}>
-                                <StyledLink to="/shipping" $minimized={isMinimized} $active={location.pathname === '/shipping'}>
-                                    <IconWrapper $minimized={isMinimized} $section="delivery" data-tooltip="Shipping">
-                                        <ShippingIcon />
-                                    </IconWrapper>
-                                    {!isMinimized && <span>Shipping</span>}
-                                </StyledLink>
-                            </NavItem>
-                        </>
-                    )}                    {/* Management section - admin only */}
+
+                    {/* Management section - admin only */}
                     {isAdmin && (
                         <>
                             {!isMinimized && <SectionTitle $minimized={isMinimized} $color="#4776E6">Management</SectionTitle>}
@@ -763,11 +686,11 @@ const Sidebar = () => {
                                 </StyledLink>
                             </NavItem>
                             <NavItem $minimized={isMinimized}>
-                                <StyledLink to="/delivery" $minimized={isMinimized} $active={location.pathname === '/delivery'}>
-                                    <IconWrapper $minimized={isMinimized} $section="management" data-tooltip="Delivery">
-                                        <DeliveryIcon />
+                                <StyledLink to="/maintenance" $minimized={isMinimized} $active={location.pathname === '/maintenance'}>
+                                    <IconWrapper $minimized={isMinimized} $section="management" data-tooltip="Maintenance">
+                                        <SettingsIcon />
                                     </IconWrapper>
-                                    {!isMinimized && <span>Delivery</span>}
+                                    {!isMinimized && <span>Maintenance</span>}
                                 </StyledLink>
                             </NavItem>
                             <NavItem $minimized={isMinimized}>
@@ -776,6 +699,14 @@ const Sidebar = () => {
                                         <SearchIcon />
                                     </IconWrapper>
                                     {!isMinimized && <span>Search</span>}
+                                </StyledLink>
+                            </NavItem>
+                            <NavItem $minimized={isMinimized}>
+                                <StyledLink to="/delivery" $minimized={isMinimized} $active={location.pathname === '/delivery'}>
+                                    <IconWrapper $minimized={isMinimized} $section="management" data-tooltip="Delivery">
+                                        <DeliveryIcon />
+                                    </IconWrapper>
+                                    {!isMinimized && <span>Delivery</span>}
                                 </StyledLink>
                             </NavItem>
                         </>
