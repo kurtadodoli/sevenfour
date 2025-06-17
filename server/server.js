@@ -3,6 +3,9 @@ const cors = require('cors');
 const { testConnection } = require('./config/database');
 const authRoutes = require('./routes/auth');
 const maintenanceRoutes = require('./routes/maintenance');
+const cartRoutes = require('./routes/api/cart');
+const orderRoutes = require('./routes/api/orders');
+const customDesignRoutes = require('./routes/customDesigns');
 require('dotenv').config();
 
 const app = express();
@@ -41,9 +44,12 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/custom-designs', customDesignRoutes);
 
 // Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('../uploads'));
 
 // Add a catch-all route for debugging
 app.use('/api/*', (req, res) => {

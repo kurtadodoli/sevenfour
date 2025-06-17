@@ -1,24 +1,297 @@
 import React, { useEffect, useState } from 'react';
+import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faShoppingCart, faEye } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
+
+// Styled Components
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background-color: #ffffff;
+`;
+
+const ContentWrapper = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 80px 24px 40px;
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: 60px;
+`;
+
+const Title = styled.h1`
+  font-size: 3rem;
+  font-weight: 300;
+  color: #000000;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
+`;
+
+const Subtitle = styled.p`
+  font-size: 1.1rem;
+  color: #666666;
+  margin: 16px 0 0 0;
+  font-weight: 300;
+`;
+
+const LoadingWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+`;
+
+const LoadingText = styled.div`
+  font-size: 1.2rem;
+  color: #666666;
+  font-weight: 300;
+`;
+
+const ErrorWrapper = styled.div`
+  text-align: center;
+  padding: 80px 20px;
+`;
+
+const ErrorText = styled.h2`
+  color: #000000;
+  font-weight: 400;
+  margin-bottom: 24px;
+  font-size: 1.5rem;
+`;
+
+const RetryButton = styled.button`
+  padding: 12px 32px;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  font-size: 16px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+  
+  &:hover {
+    background-color: #333333;
+  }
+`;
+
+const ProductGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 32px;
+  margin-bottom: 60px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+  }
+`;
+
+const ProductCard = styled.div`
+  background-color: #ffffff;
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  
+  &:hover {
+    border-color: #000000;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ImageContainer = styled.div`
+  position: relative;
+  height: 300px;
+  overflow: hidden;
+  background-color: #fafafa;
+`;
+
+const ProductImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  
+  ${ProductCard}:hover & {
+    transform: scale(1.02);
+  }
+`;
+
+const ImageOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  
+  ${ProductCard}:hover & {
+    opacity: 1;
+  }
+`;
+
+const ViewButton = styled.button`
+  background-color: #ffffff;
+  color: #000000;
+  border: none;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: #000000;
+    color: #ffffff;
+  }
+`;
+
+const ImageBadge = styled.div`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+`;
+
+const ProductInfo = styled.div`
+  padding: 24px;
+`;
+
+const ProductName = styled.h3`
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: #000000;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+`;
+
+const ProductDescription = styled.p`
+  color: #666666;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+  height: 42px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+`;
+
+const PriceSection = styled.div`
+  margin-bottom: 16px;
+`;
+
+const Price = styled.div`
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 8px;
+`;
+
+const ProductDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+`;
+
+const DetailItem = styled.div`
+  font-size: 13px;
+  color: #666666;
+  
+  strong {
+    color: #000000;
+    font-weight: 500;
+  }
+`;
+
+const StockStatus = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${props => props.inStock ? '#000000' : '#999999'};
+  margin-bottom: 20px;
+`;
+
+const AddToCartButton = styled.button`
+  width: 100%;
+  padding: 14px;
+  background-color: ${props => props.disabled ? '#f5f5f5' : '#000000'};
+  color: ${props => props.disabled ? '#999999' : '#ffffff'};
+  border: ${props => props.disabled ? '1px solid #e0e0e0' : 'none'};
+  font-size: 14px;
+  font-weight: 500;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  transition: all 0.3s ease;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  &:hover {
+    background-color: ${props => props.disabled ? '#f5f5f5' : '#333333'};
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 80px 20px;
+`;
+
+const EmptyTitle = styled.h2`
+  color: #000000;
+  font-weight: 300;
+  font-size: 1.8rem;
+  margin-bottom: 16px;
+`;
+
+const EmptyText = styled.p`
+  color: #666666;
+  font-size: 1.1rem;
+  font-weight: 300;
+`;
 
 const ProductsPage = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { addToCart, loading: cartLoading } = useCart();
+    const { currentUser } = useAuth();
 
-    // Update fetchProducts to use the same endpoint as MaintenancePage
     const fetchProducts = async () => {
         try {
             setLoading(true);
-            console.log('Fetching products for customers...');
             
             const response = await fetch('http://localhost:3001/api/maintenance/products');
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('Products received:', data);
                 
                 // Filter only active products for customers
                 const activeProducts = data.filter(product => 
@@ -68,187 +341,147 @@ const ProductsPage = () => {
         return sizes.reduce((total, size) => total + (size.stock || 0), 0);
     };
 
+    const handleAddToCart = async (e, product) => {
+        e.stopPropagation();
+        
+        if (!currentUser) {
+            toast.info('Please login to add items to cart');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const result = await addToCart(
+                product.product_id,
+                product.productcolor || 'Default',
+                'One Size',
+                1
+            );
+            
+            if (result.success) {
+                toast.success(result.message || 'Item added to cart!');
+                navigate('/orders');
+            } else {
+                toast.error(result.message || 'Failed to add item to cart');
+            }
+        } catch (error) {
+            console.error('Add to cart error:', error);
+            toast.error('Failed to add item to cart');
+        }
+    };
+
     return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px', minHeight: '60vh' }}>
+        <PageContainer>
             <TopBar />
-            {/* Remove the sidebar and flex container */}
-            <div>
-                <h1 style={{ textAlign: 'center', marginBottom: '50px', fontSize: '2.5rem', color: '#333' }}>
-                    Our Products
-                </h1>
+            <ContentWrapper>
+                <Header>
+                    <Title>Our Collection</Title>
+                    <Subtitle>Discover our carefully curated selection of premium products</Subtitle>
+                </Header>
                 
                 {loading && (
-                    <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-                        <h2>Loading products...</h2>
-                    </div>
+                    <LoadingWrapper>
+                        <LoadingText>Loading products...</LoadingText>
+                    </LoadingWrapper>
                 )}
 
                 {error && (
-                    <div style={{ textAlign: 'center', padding: '100px 20px' }}>
-                        <h2 style={{ color: '#e74c3c', marginBottom: '20px' }}>
-                            {error}
-                        </h2>
-                        <button 
-                            onClick={fetchProducts}
-                            style={{
-                                padding: '12px 24px',
-                                backgroundColor: '#333',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '16px'
-                            }}
-                        >
+                    <ErrorWrapper>
+                        <ErrorText>{error}</ErrorText>
+                        <RetryButton onClick={fetchProducts}>
                             Try Again
-                        </button>
-                        </div>
-                    )}
+                        </RetryButton>
+                    </ErrorWrapper>
+                )}
 
-                    {!loading && !error && products.length > 0 && (
-                        <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-                            gap: '30px',
-                            marginBottom: '40px'
-                        }}>
-                            {products.map(product => (
-                                <div key={product.id} style={{
-                                    backgroundColor: '#fff',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '8px',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                                    transition: 'transform 0.3s ease',
-                                    cursor: 'pointer'
-                                }}                                onClick={() => navigate(`/product/${product.id}`)}
-                                >
-                                    {/* Product Image with multiple image support */}
-                                    {product.productimage && (
-                                        <div style={{ position: 'relative' }}>
-                                            <img 
-                                                src={`http://localhost:3001/uploads/${product.productimage}`} 
-                                                alt={product.productname}
-                                                style={{ width: '100%', height: '250px', objectFit: 'cover' }}
-                                                onError={(e) => {
-                                                    e.target.style.display = 'none';
-                                                }}
-                                            />                                            {/* Show image count if multiple images */}
-                                            {product.images && product.images.length > 1 && (
-                                                <div style={{
-                                                    position: 'absolute',
-                                                    bottom: '10px',
-                                                    right: '10px',
-                                                    backgroundColor: 'rgba(0,0,0,0.7)',
-                                                    color: 'white',
-                                                    padding: '4px 8px',
-                                                    borderRadius: '12px',
-                                                    fontSize: '12px'
-                                                }}>
-                                                    +{product.images.length - 1} more
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
+                {!loading && !error && products.length > 0 && (
+                    <ProductGrid>
+                        {products.map(product => {
+                            const totalStock = getTotalStock(product);
+                            const availableSizes = getAvailableSizes(product.sizes);
+                            
+                            return (
+                                <ProductCard key={product.id}>
+                                    <ImageContainer>
+                                        {product.productimage && (
+                                            <>
+                                                <ProductImage 
+                                                    src={`http://localhost:3001/uploads/${product.productimage}`} 
+                                                    alt={product.productname}
+                                                    onError={(e) => {
+                                                        e.target.style.display = 'none';
+                                                    }}
+                                                />
+                                                <ImageOverlay>
+                                                    <ViewButton onClick={() => navigate(`/product/${product.id}`)}>
+                                                        <FontAwesomeIcon icon={faEye} /> View Details
+                                                    </ViewButton>
+                                                </ImageOverlay>
+                                                {product.images && product.images.length > 1 && (
+                                                    <ImageBadge>
+                                                        +{product.images.length - 1} more
+                                                    </ImageBadge>
+                                                )}
+                                            </>
+                                        )}
+                                    </ImageContainer>
                                     
-                                    <div style={{ padding: '20px' }}>
-                                        <h3 style={{ margin: '0 0 10px 0', fontSize: '1.3rem', color: '#333' }}>
-                                            {product.productname}
-                                        </h3>
+                                    <ProductInfo onClick={() => navigate(`/product/${product.id}`)}>
+                                        <ProductName>{product.productname}</ProductName>
                                         
-                                        <p style={{ 
-                                            color: '#666', 
-                                            fontSize: '14px', 
-                                            lineHeight: '1.4', 
-                                            marginBottom: '15px',
-                                            height: '60px',
-                                            overflow: 'hidden',
-                                            display: '-webkit-box',
-                                            WebkitLineClamp: 3,
-                                            WebkitBoxOrient: 'vertical'
-                                        }}>
-                                            {product.productdescription || 'No description available'}
-                                        </p>
+                                        <ProductDescription>
+                                            {product.productdescription || 'Premium quality product with exceptional craftsmanship'}
+                                        </ProductDescription>
                                         
-                                        <div style={{ marginBottom: '20px' }}>
-                                            <div style={{ 
-                                                fontSize: '1.5rem', 
-                                                fontWeight: 'bold', 
-                                                color: '#e74c3c', 
-                                                marginBottom: '10px' 
-                                            }}>
-                                                ₱{parseFloat(product.productprice || 0).toFixed(2)}
-                                            </div>
-                                            
-                                            {/* Available Sizes */}
-                                            {getAvailableSizes(product.sizes).length > 0 && (
-                                                <div style={{ fontSize: '14px', color: '#555', margin: '5px 0' }}>
-                                                    Sizes: {getAvailableSizes(product.sizes).join(', ')}
-                                                </div>
+                                        <PriceSection>
+                                            <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>
+                                        </PriceSection>
+                                        
+                                        <ProductDetails>
+                                            {availableSizes.length > 0 && (
+                                                <DetailItem>
+                                                    <strong>Sizes:</strong> {availableSizes.join(', ')}
+                                                </DetailItem>
                                             )}
                                             
                                             {product.productcolor && (
-                                                <div style={{ fontSize: '14px', color: '#555', margin: '5px 0' }}>
-                                                    Color: {product.productcolor}
-                                                </div>
+                                                <DetailItem>
+                                                    <strong>Color:</strong> {product.productcolor}
+                                                </DetailItem>
                                             )}
-                                            
-                                            <div style={{ 
-                                                fontSize: '14px', 
-                                                color: getTotalStock(product) > 0 ? '#28a745' : '#dc3545', 
-                                                fontWeight: '500'
-                                            }}>
-                                                {getTotalStock(product) > 0 ? 
-                                                    `${getTotalStock(product)} in stock` : 
-                                                    'Out of stock'
-                                                }
-                                            </div>
-                                        </div>
+                                        </ProductDetails>
                                         
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-                                                const existingItem = cart.find(item => item.id === product.id);
-                                                
-                                                if (existingItem) {
-                                                    existingItem.quantity += 1;
-                                                } else {
-                                                    cart.push({ ...product, quantity: 1 });
-                                                }
-                                                
-                                                localStorage.setItem('cart', JSON.stringify(cart));
-                                                alert(`${product.productname} added to cart!`);
-                                            }}                                            style={{
-                                                width: '100%',
-                                                padding: '12px',
-                                                backgroundColor: getTotalStock(product) > 0 ? '#333' : '#ccc',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                fontSize: '16px',
-                                                fontWeight: '600',
-                                                cursor: getTotalStock(product) > 0 ? 'pointer' : 'not-allowed'
-                                            }}
-                                            disabled={getTotalStock(product) === 0}                                        >
-                                            {getTotalStock(product) > 0 ? 'Add to Cart' : 'Out of Stock'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                        <StockStatus inStock={totalStock > 0}>
+                                            {totalStock > 0 ? 
+                                                `${totalStock} in stock` : 
+                                                'Out of stock'
+                                            }
+                                        </StockStatus>
 
-                    {!loading && !error && products.length === 0 && (
-                        <div style={{ textAlign: 'center', padding: '50px' }}>
-                            <h2 style={{ color: '#666' }}>No products available</h2>
-                            <p style={{ color: '#999' }}>
-                                Check back later for new products!
-                            </p>
-                        </div>
-                    )}
-                </div>
-        </div>
+                                        <AddToCartButton
+                                            onClick={(e) => handleAddToCart(e, product)}
+                                            disabled={totalStock === 0 || cartLoading}
+                                        >
+                                            <FontAwesomeIcon icon={faShoppingCart} />
+                                            {cartLoading ? 'Adding...' : 
+                                             totalStock > 0 ? 'Add to Cart' : 'Out of Stock'}
+                                        </AddToCartButton>
+                                    </ProductInfo>
+                                </ProductCard>
+                            );
+                        })}
+                    </ProductGrid>
+                )}
+
+                {!loading && !error && products.length === 0 && (
+                    <EmptyState>
+                        <EmptyTitle>No products available</EmptyTitle>
+                        <EmptyText>
+                            Check back later for new products in our collection
+                        </EmptyText>
+                    </EmptyState>
+                )}
+            </ContentWrapper>        </PageContainer>
     );
 };
 

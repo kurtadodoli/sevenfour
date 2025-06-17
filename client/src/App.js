@@ -35,13 +35,14 @@ import SettingsPage from './pages/SettingsPage';
 import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
 import AboutPage from './pages/AboutPage'; // Import AboutPage
 import InventoryPage from './pages/InventoryPage'; // Import InventoryPage
-import OrdersPage from './pages/OrdersPage'; // Import OrdersPage
+import OrderPage from './pages/OrderPage'; // Import OrderPage
 import TrackingPage from './pages/TrackingPage'; // Import TrackingPage
 import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
 import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
 import SearchPage from './pages/SearchPage'; // Import SearchPage
 import CustomPage from './pages/CustomPage'; // Import CustomPage
+import DesignApprovalPage from './pages/DesignApprovalPage'; // Import DesignApprovalPage
 
 // Components
 import Header from './components/Header';
@@ -109,7 +110,7 @@ function App() {
                     <Route path="/checkout" element={<CheckoutPage />} />
                     <Route path="/custom" element={<CustomPage />} />
                     <Route path="/delivery" element={<DeliveryPage />} />
-                    <Route path="/orders" element={<OrdersPage />} />
+                    <Route path="/orders" element={<OrderPage />} />
                   </Route>
                     
                     {/* Protected Routes - Staff & Admin */}
@@ -117,7 +118,7 @@ function App() {
                       <Route path="/staff" element={<DashboardPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/inventory" element={<InventoryPage />} />
-                    </Route>                      {/* Protected Routes - Admin Only */}
+                    </Route>                    {/* Protected Routes - Admin Only */}
                     <Route element={<AdminRoute />}>
                       <Route path="/admin" element={<DashboardPage />} />
                       <Route path="/admin/users" element={<UsersPage />} />
@@ -125,6 +126,7 @@ function App() {
                       <Route path="/admin/settings" element={<SettingsPage />} />                      <Route path="/admin/products" element={<MaintenancePage />} />
                       <Route path="/maintenance" element={<MaintenancePage />} />
                       <Route path="/search" element={<SearchPage />} />
+                      <Route path="/design-approval" element={<DesignApprovalPage />} />
                     </Route>
                       {/* Additional Routes */}
                     <Route path="/help" element={<HelpPage />} />

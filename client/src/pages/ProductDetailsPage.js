@@ -1,6 +1,449 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faArrowLeft, 
+  faShoppingCart, 
+  faMinus, 
+  faPlus,
+  faChevronLeft,
+  faChevronRight,
+  faHeart,
+  faTruck,
+  faShield,
+  faExchangeAlt
+} from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
+
+// Styled Components
+const PageContainer = styled.div`
+  min-height: 100vh;
+  background-color: #ffffff;
+`;
+
+const ContentWrapper = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 80px 24px 40px;
+`;
+
+const BackButton = styled.button`
+  background: none;
+  border: 1px solid #f0f0f0;
+  color: #666666;
+  padding: 12px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 40px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:hover {
+    border-color: #000000;
+    color: #000000;
+  }
+`;
+
+const ProductContainer = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+`;
+
+const ImageSection = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const MainImageContainer = styled.div`
+  position: relative;
+  margin-bottom: 20px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const ProductImage = styled.img`
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  display: block;
+`;
+
+const NavButton = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+  z-index: 10;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.9);
+  }
+  
+  ${props => props.direction === 'left' ? 'left: 16px;' : 'right: 16px;'}
+`;
+
+const ThumbnailContainer = styled.div`
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f0f0f0;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+  }
+`;
+
+const Thumbnail = styled.img`
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 2px solid ${props => props.active ? '#000000' : '#f0f0f0'};
+  transition: border-color 0.3s ease;
+  flex-shrink: 0;
+  
+  &:hover {
+    border-color: #000000;
+  }
+`;
+
+const NoImagePlaceholder = styled.div`
+  width: 100%;
+  height: 500px;
+  background: #f8f8f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999999;
+  font-size: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+`;
+
+const DetailsSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+`;
+
+const ProductName = styled.h1`
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: #000000;
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+`;
+
+const Price = styled.div`
+  font-size: 2rem;
+  font-weight: 600;
+  color: #000000;
+  margin: 0;
+`;
+
+const Description = styled.div`
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #000000;
+    margin: 0 0 12px 0;
+  }
+  
+  p {
+    color: #666666;
+    line-height: 1.6;
+    margin: 0;
+    font-size: 16px;
+  }
+`;
+
+const Specifications = styled.div`
+  border-top: 1px solid #f0f0f0;
+  padding-top: 32px;
+  
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: #000000;
+    margin: 0 0 20px 0;
+  }
+`;
+
+const SpecItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 12px 0;
+`;
+
+const SpecLabel = styled.span`
+  font-weight: 500;
+  color: #000000;
+  min-width: 120px;
+`;
+
+const SpecValue = styled.span`
+  color: #666666;
+  text-align: right;
+  
+  &.stock-available {
+    color: #27ae60;
+    font-weight: 500;
+  }
+  
+  &.stock-unavailable {
+    color: #e74c3c;
+    font-weight: 500;
+  }
+`;
+
+const SizeOptions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+const SizeButton = styled.button`
+  padding: 12px 16px;
+  border: 1px solid ${props => props.selected ? '#000000' : '#e0e0e0'};
+  background: ${props => props.selected ? '#000000' : '#ffffff'};
+  color: ${props => props.selected ? '#ffffff' : '#000000'};
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-align: center;
+  min-width: 60px;
+  
+  &:hover {
+    border-color: #000000;
+    background: ${props => props.selected ? '#000000' : '#fafafa'};
+  }
+  
+  small {
+    display: block;
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+`;
+
+const PurchaseSection = styled.div`
+  border-top: 1px solid #f0f0f0;
+  padding-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+const QuantitySection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const QuantityLabel = styled.span`
+  font-weight: 500;
+  color: #000000;
+  min-width: 80px;
+`;
+
+const QuantityControls = styled.div`
+  display: flex;
+  align-items: center;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+`;
+
+const QuantityButton = styled.button`
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666666;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: #f0f0f0;
+    color: #000000;
+  }
+  
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+`;
+
+const QuantityDisplay = styled.span`
+  padding: 0 16px;
+  font-weight: 500;
+  color: #000000;
+  min-width: 40px;
+  text-align: center;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 16px;
+`;
+
+const AddToCartButton = styled.button`
+  flex: 1;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  
+  &:hover {
+    background-color: #333333;
+  }
+  
+  &:disabled {
+    background-color: #e0e0e0;
+    color: #999999;
+    cursor: not-allowed;
+  }
+`;
+
+const WishlistButton = styled.button`
+  background: none;
+  border: 1px solid #e0e0e0;
+  color: #666666;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    border-color: #000000;
+    color: #000000;
+  }
+`;
+
+const OutOfStock = styled.div`
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #c53030;
+  padding: 16px;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 500;
+`;
+
+const InfoCards = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid #f0f0f0;
+`;
+
+const InfoCard = styled.div`
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  text-align: center;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #e0e0e0;
+    background: #fafafa;
+  }
+  
+  .icon {
+    color: #666666;
+    margin-bottom: 8px;
+  }
+  
+  .title {
+    font-weight: 500;
+    color: #000000;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  
+  .description {
+    color: #666666;
+    font-size: 12px;
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  font-size: 18px;
+  color: #666666;
+`;
+
+const ErrorContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  text-align: center;
+  
+  h2 {
+    color: #000000;
+    margin-bottom: 16px;
+  }
+`;
 
 const ProductDetailsPage = () => {
     const { id } = useParams();
@@ -99,415 +542,229 @@ const ProductDetailsPage = () => {
 
     if (loading) {
         return (
-            <div style={styles.container}>
+            <PageContainer>
                 <TopBar />
-                <div style={styles.loading}>Loading product details...</div>
-            </div>
+                <ContentWrapper>
+                    <LoadingContainer>Loading product details...</LoadingContainer>
+                </ContentWrapper>
+            </PageContainer>
         );
     }
 
     if (error || !product) {
         return (
-            <div style={styles.container}>
+            <PageContainer>
                 <TopBar />
-                <div style={styles.error}>
-                    <h2>{error}</h2>
-                    <button onClick={() => navigate('/products')} style={styles.backButton}>
-                        Back to Products
-                    </button>
-                </div>
-            </div>
+                <ContentWrapper>
+                    <ErrorContainer>
+                        <h2>{error}</h2>
+                        <BackButton onClick={() => navigate('/products')}>
+                            <FontAwesomeIcon icon={faArrowLeft} />
+                            Back to Products
+                        </BackButton>
+                    </ErrorContainer>
+                </ContentWrapper>
+            </PageContainer>
         );
     }
 
+    const totalStock = getTotalStock(product);
+    const availableSizes = getAvailableSizes(product.sizes);
+    const maxQuantity = selectedSize ? getStockForSize(selectedSize) : totalStock;
+
     return (
-        <div style={styles.container}>
+        <PageContainer>
             <TopBar />
-            <div style={styles.content}>
-                <button onClick={() => navigate('/products')} style={styles.backButton}>
-                    ← Back to Products
-                </button>                
-                <div style={styles.productContainer}>
-                    {/* Image Section with Carousel */}
-                    <div style={styles.imageSection}>
+            <ContentWrapper>
+                <BackButton onClick={() => navigate('/products')}>
+                    <FontAwesomeIcon icon={faArrowLeft} />
+                    Back to Products
+                </BackButton>
+                
+                <ProductContainer>
+                    {/* Image Section */}
+                    <ImageSection>
                         {productImages.length > 0 ? (
-                            <div style={styles.imageCarousel}>
-                                {/* Main Image */}
-                                <div style={styles.mainImageContainer}>
-                                    <img 
+                            <>
+                                <MainImageContainer>
+                                    <ProductImage
                                         src={`http://localhost:3001/uploads/${productImages[currentImageIndex]?.image_filename}`}
                                         alt={product.productname}
-                                        style={styles.productImage}
                                     />
                                     
-                                    {/* Navigation arrows for multiple images */}
                                     {productImages.length > 1 && (
                                         <>
-                                            <button 
-                                                style={{...styles.navButton, left: '10px'}}
+                                            <NavButton 
+                                                direction="left"
                                                 onClick={() => setCurrentImageIndex(prev => 
                                                     prev > 0 ? prev - 1 : productImages.length - 1
                                                 )}
                                             >
-                                                ‹
-                                            </button>
-                                            <button 
-                                                style={{...styles.navButton, right: '10px'}}
+                                                <FontAwesomeIcon icon={faChevronLeft} />
+                                            </NavButton>
+                                            <NavButton 
+                                                direction="right"
                                                 onClick={() => setCurrentImageIndex(prev => 
                                                     prev < productImages.length - 1 ? prev + 1 : 0
                                                 )}
                                             >
-                                                ›
-                                            </button>
+                                                <FontAwesomeIcon icon={faChevronRight} />
+                                            </NavButton>
                                         </>
                                     )}
-                                </div>
+                                </MainImageContainer>
                                 
-                                {/* Thumbnail navigation */}
                                 {productImages.length > 1 && (
-                                    <div style={styles.thumbnailContainer}>
+                                    <ThumbnailContainer>
                                         {productImages.map((image, index) => (
-                                            <img
+                                            <Thumbnail
                                                 key={image.image_id}
                                                 src={`http://localhost:3001/uploads/${image.image_filename}`}
                                                 alt={`${product.productname} ${index + 1}`}
-                                                style={{
-                                                    ...styles.thumbnail,
-                                                    border: index === currentImageIndex ? '3px solid #007bff' : '1px solid #ddd'
-                                                }}
+                                                active={index === currentImageIndex}
                                                 onClick={() => setCurrentImageIndex(index)}
                                             />
                                         ))}
-                                    </div>
+                                    </ThumbnailContainer>
                                 )}
-                            </div>
+                            </>
                         ) : product.productimage ? (
-                            <img 
-                                src={`http://localhost:3001/uploads/${product.productimage}`}
-                                alt={product.productname}
-                                style={styles.productImage}
-                            />
+                            <MainImageContainer>
+                                <ProductImage
+                                    src={`http://localhost:3001/uploads/${product.productimage}`}
+                                    alt={product.productname}
+                                />
+                            </MainImageContainer>
                         ) : (
-                            <div style={styles.noImagePlaceholder}>
+                            <NoImagePlaceholder>
                                 No Image Available
-                            </div>
+                            </NoImagePlaceholder>
                         )}
-                    </div>
-                      <div style={styles.detailsSection}>
-                        <h1 style={styles.productName}>{product.productname}</h1>
+                    </ImageSection>
+
+                    {/* Details Section */}
+                    <DetailsSection>
+                        <ProductName>{product.productname}</ProductName>
                         
-                        <div style={styles.price}>
-                            ₱{parseFloat(product.productprice || 0).toFixed(2)}
-                        </div>
+                        <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>
                         
-                        <div style={styles.description}>
+                        <Description>
                             <h3>Description</h3>
                             <p>{product.productdescription || 'No description available'}</p>
-                        </div>
+                        </Description>
                         
-                        <div style={styles.specifications}>
+                        <Specifications>
                             <h3>Product Details</h3>
                             
                             {product.productcolor && (
-                                <div style={styles.specItem}>
-                                    <span style={styles.specLabel}>Color:</span>
-                                    <span>{product.productcolor}</span>
-                                </div>
+                                <SpecItem>
+                                    <SpecLabel>Color:</SpecLabel>
+                                    <SpecValue>{product.productcolor}</SpecValue>
+                                </SpecItem>
                             )}
                             
-                            {/* Size Selection */}
-                            {getAvailableSizes(product.sizes).length > 0 && (
-                                <div style={styles.specItem}>
-                                    <span style={styles.specLabel}>Available Sizes:</span>
-                                    <div style={styles.sizeOptions}>
-                                        {getAvailableSizes(product.sizes).map((sizeData) => (
-                                            <button
+                            {availableSizes.length > 0 && (
+                                <SpecItem>
+                                    <SpecLabel>Size:</SpecLabel>
+                                    <SizeOptions>
+                                        {availableSizes.map((sizeData) => (
+                                            <SizeButton
                                                 key={sizeData.size}
-                                                style={{
-                                                    ...styles.sizeButton,
-                                                    backgroundColor: selectedSize === sizeData.size ? '#007bff' : '#f8f9fa',
-                                                    color: selectedSize === sizeData.size ? 'white' : '#333',
-                                                    border: selectedSize === sizeData.size ? '2px solid #007bff' : '1px solid #ddd'
-                                                }}
+                                                selected={selectedSize === sizeData.size}
                                                 onClick={() => setSelectedSize(sizeData.size)}
                                             >
                                                 {sizeData.size}
-                                                <br />
-                                                <small>({sizeData.stock} in stock)</small>
-                                            </button>
+                                                <small>({sizeData.stock} available)</small>
+                                            </SizeButton>
                                         ))}
-                                    </div>
-                                </div>
+                                    </SizeOptions>
+                                </SpecItem>
                             )}
                             
-                            <div style={styles.specItem}>
-                                <span style={styles.specLabel}>Total Availability:</span>
-                                <span style={{
-                                    color: getTotalStock(product) > 0 ? '#28a745' : '#dc3545',
-                                    fontWeight: 'bold'
-                                }}>
-                                    {getTotalStock(product) > 0 ? 
-                                        `${getTotalStock(product)} items in stock` : 
+                            <SpecItem>
+                                <SpecLabel>Availability:</SpecLabel>
+                                <SpecValue className={totalStock > 0 ? 'stock-available' : 'stock-unavailable'}>
+                                    {totalStock > 0 ? 
+                                        `${totalStock} items in stock` : 
                                         'Out of stock'
                                     }
-                                </span>
-                            </div>
-                        </div>
+                                </SpecValue>
+                            </SpecItem>
+                        </Specifications>
                         
-                        {getTotalStock(product) > 0 && (
-                            <div style={styles.purchaseSection}>
-                                <div style={styles.quantitySection}>
-                                    <label style={styles.quantityLabel}>Quantity:</label>
-                                    <div style={styles.quantityControls}>
-                                        <button 
-                                            style={styles.quantityButton}
+                        {totalStock > 0 ? (
+                            <PurchaseSection>
+                                <QuantitySection>
+                                    <QuantityLabel>Quantity:</QuantityLabel>
+                                    <QuantityControls>
+                                        <QuantityButton 
                                             onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                                            disabled={quantity <= 1}
                                         >
-                                            -
-                                        </button>
-                                        <span style={styles.quantityDisplay}>{quantity}</span>
-                                        <button 
-                                            style={styles.quantityButton}
-                                            onClick={() => {
-                                                const maxQuantity = selectedSize ? 
-                                                    getStockForSize(selectedSize) : 
-                                                    getTotalStock(product);
-                                                setQuantity(prev => Math.min(maxQuantity, prev + 1));
-                                            }}
+                                            <FontAwesomeIcon icon={faMinus} />
+                                        </QuantityButton>
+                                        <QuantityDisplay>{quantity}</QuantityDisplay>
+                                        <QuantityButton 
+                                            onClick={() => setQuantity(prev => Math.min(maxQuantity, prev + 1))}
+                                            disabled={quantity >= maxQuantity}
                                         >
-                                            +
-                                        </button>
-                                    </div>
-                                </div>
+                                            <FontAwesomeIcon icon={faPlus} />
+                                        </QuantityButton>
+                                    </QuantityControls>
+                                </QuantitySection>
                                 
-                                <button 
-                                    onClick={() => {
-                                        if (getAvailableSizes(product.sizes).length > 0 && !selectedSize) {
-                                            alert('Please select a size first');
-                                            return;
-                                        }
-                                        addToCart();
-                                    }}
-                                    style={styles.addToCartButton}
-                                >
-                                    Add to Cart
-                                </button>
-                            </div>
-                        )}
-                        
-                        {product.productquantity === 0 && (
-                            <div style={styles.outOfStock}>
+                                <ActionButtons>
+                                    <AddToCartButton 
+                                        onClick={() => {
+                                            if (availableSizes.length > 0 && !selectedSize) {
+                                                alert('Please select a size first');
+                                                return;
+                                            }
+                                            addToCart();
+                                        }}
+                                    >
+                                        <FontAwesomeIcon icon={faShoppingCart} />
+                                        Add to Cart
+                                    </AddToCartButton>
+                                    <WishlistButton>
+                                        <FontAwesomeIcon icon={faHeart} />
+                                    </WishlistButton>
+                                </ActionButtons>
+                            </PurchaseSection>
+                        ) : (
+                            <OutOfStock>
                                 This product is currently out of stock
-                            </div>
+                            </OutOfStock>
                         )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
-const styles = {
-    container: {
-        minHeight: '100vh',
-        backgroundColor: '#f8f9fa'
-    },
-    content: {
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '20px'
-    },
-    loading: {
-        textAlign: 'center',
-        padding: '100px',
-        fontSize: '18px'
-    },
-    error: {
-        textAlign: 'center',
-        padding: '100px'
-    },
-    backButton: {
-        backgroundColor: '#6c757d',
-        color: 'white',
-        border: 'none',
-        padding: '10px 20px',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        marginBottom: '20px',
-        fontSize: '14px'
-    },
-    productContainer: {
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '40px',
-        backgroundColor: 'white',
-        padding: '40px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-    },
-    imageSection: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    productImage: {
-        width: '100%',
-        maxWidth: '500px',
-        height: 'auto',
-        borderRadius: '8px'
-    },
-    noImagePlaceholder: {
-        width: '100%',
-        height: '400px',
-        backgroundColor: '#f0f0f0',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: '8px',
-        color: '#999',
-        fontSize: '18px'
-    },
-    detailsSection: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px'
-    },
-    productName: {
-        fontSize: '2rem',
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: '10px'
-    },
-    price: {
-        fontSize: '1.8rem',
-        fontWeight: 'bold',
-        color: '#e74c3c'
-    },
-    description: {
-        lineHeight: '1.6'
-    },
-    specifications: {
-        borderTop: '1px solid #eee',
-        paddingTop: '20px'
-    },
-    specItem: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        marginBottom: '10px',
-        padding: '5px 0'
-    },    specLabel: {
-        fontWeight: 'bold',
-        color: '#555'
-    },
-    sizeOptions: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '10px',
-        marginTop: '10px'
-    },
-    sizeButton: {
-        padding: '8px 12px',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        textAlign: 'center',
-        minWidth: '60px',
-        fontSize: '14px'
-    },
-    imageCarousel: {
-        width: '100%'
-    },
-    mainImageContainer: {
-        position: 'relative',
-        marginBottom: '15px'
-    },
-    navButton: {
-        position: 'absolute',
-        top: '50%',
-        transform: 'translateY(-50%)',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        color: 'white',
-        border: 'none',
-        borderRadius: '50%',
-        width: '40px',
-        height: '40px',
-        cursor: 'pointer',
-        fontSize: '20px',
-        zIndex: 10
-    },
-    thumbnailContainer: {
-        display: 'flex',
-        gap: '10px',
-        overflowX: 'auto',
-        paddingBottom: '10px'
-    },
-    thumbnail: {
-        width: '80px',
-        height: '80px',
-        objectFit: 'cover',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        flexShrink: 0
-    },
-    quantityControls: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px'
-    },
-    quantityButton: {
-        width: '30px',
-        height: '30px',
-        backgroundColor: '#f8f9fa',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    quantityDisplay: {
-        padding: '5px 15px',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        backgroundColor: 'white'
-    },
-    purchaseSection: {
-        borderTop: '1px solid #eee',
-        paddingTop: '20px'
-    },
-    quantitySection: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        marginBottom: '20px'
-    },
-    quantityLabel: {
-        fontWeight: 'bold'
-    },
-    quantitySelect: {
-        padding: '8px',
-        border: '1px solid #ddd',
-        borderRadius: '4px'
-    },
-    addToCartButton: {
-        backgroundColor: '#333',
-        color: 'white',
-        border: 'none',
-        padding: '15px 30px',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '16px',
-        fontWeight: 'bold',
-        width: '100%'
-    },
-    outOfStock: {
-        backgroundColor: '#f8d7da',
-        color: '#721c24',
-        padding: '15px',
-        borderRadius: '4px',
-        textAlign: 'center',
-        fontWeight: 'bold'
-    }
+                        <InfoCards>
+                            <InfoCard>
+                                <div className="icon">
+                                    <FontAwesomeIcon icon={faTruck} size="lg" />
+                                </div>
+                                <div className="title">Free Shipping</div>
+                                <div className="description">On orders over ₱1,500</div>
+                            </InfoCard>
+                            <InfoCard>
+                                <div className="icon">
+                                    <FontAwesomeIcon icon={faShield} size="lg" />
+                                </div>
+                                <div className="title">Secure Payment</div>
+                                <div className="description">100% secure payment</div>
+                            </InfoCard>
+                            <InfoCard>
+                                <div className="icon">
+                                    <FontAwesomeIcon icon={faExchangeAlt} size="lg" />
+                                </div>
+                                <div className="title">Easy Returns</div>
+                                <div className="description">30-day return policy</div>
+                            </InfoCard>
+                        </InfoCards>
+                    </DetailsSection>
+                </ProductContainer>
+            </ContentWrapper>
+        </PageContainer>
+    );
 };
 
 export default ProductDetailsPage;

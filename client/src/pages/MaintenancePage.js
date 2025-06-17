@@ -49,22 +49,34 @@ const MaintenancePage = () => {
                 }
             });
             console.log('📡 Response received:', response.status, response.statusText);
-            
-            if (response.ok) {
+              if (response.ok) {
                 const data = await response.json();
                 console.log('📦 Data received:', data);
                 console.log('📊 Data length:', data.length);
                 console.log('📋 Setting products in state...');
                 
+                // Process the products to ensure images are properly formatted as arrays
+                const processedData = data.map(product => ({
+                    ...product,
+                    images: product.images 
+                        ? (Array.isArray(product.images) ? product.images : product.images.split(',').filter(img => img.trim())) 
+                        : []
+                }));
+                
                 // Separate active and archived products
-                const activeProducts = data.filter(product => product.productstatus !== 'archived');
-                const archived = data.filter(product => product.productstatus === 'archived');
+                const activeProducts = processedData.filter(product => product.productstatus !== 'archived');
+                const archived = processedData.filter(product => product.productstatus === 'archived');
                 
                 setProducts(activeProducts);
-                setArchivedProducts(archived);
-                console.log('✅ Products set in state');
-                
-            } else if (response.status === 431) {
+                setArchivedProducts(archived);                console.log('✅ Products set in state');
+                console.log('Sample product with images:', activeProducts[0]?.images);
+                console.log('All active products:', activeProducts.map(p => ({
+                    id: p.id,
+                    name: p.productname,
+                    images: p.images,
+                    productimage: p.productimage
+                })));
+                } else if (response.status === 431) {
                 console.error('❌ Request Header Fields Too Large');
                 setMessage('Error: Request headers too large. Please try refreshing the page.');
             } else {
@@ -336,7 +348,9 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };    // Edit product    const editProduct = async (product) => {
+    };    
+    // Edit product
+    const editProduct = async (product) => {
         setEditingProduct(product);
         
         // Parse sizes from JSON or create default
@@ -359,7 +373,7 @@ const MaintenancePage = () => {
         } catch (error) {
             colors = product.productcolor ? [product.productcolor] : [];
         }
-          setFormData({
+        setFormData({
             productname: product.productname || '',
             productdescription: product.productdescription || '',
             productprice: product.productprice || '',
@@ -377,7 +391,8 @@ const MaintenancePage = () => {
         setImagePreviews([]);
         setShowEditModal(true);
         setActiveTab('add');
-    };    // Archive product
+    };    
+    // Archive product
     const archiveProduct = async (id) => {
         if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
@@ -857,13 +872,37 @@ if (typeof document !== 'undefined') {
                                             <button onClick={fetchProducts}>Refresh</button>
                                         </div>
                                     ) : (                                        <div style={styles.productsGrid}>                                            {products.map(product => (                                                <div key={product.id} style={styles.productCard} className="maintenance-card">
-                                                    {product.productimage && (
+                                                    {/* Display all product images */}
+                                                    {product.images && product.images.length > 0 ? (
+                                                        <div style={styles.productImageContainer}>
+                                                            {product.images.map((image, index) => (
+                                                                <img 
+                                                                    key={index}
+                                                                    src={`http://localhost:3001/uploads/${image}`}
+                                                                    alt={`${product.productname} ${index + 1}`}
+                                                                    style={{
+                                                                        ...styles.productImage,
+                                                                        ...(index > 0 ? styles.additionalImage : {})
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                            {product.images.length > 1 && (
+                                                                <div style={styles.imageCount}>
+                                                                    {product.images.length} images
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : product.productimage ? (
                                                         <img 
                                                             src={`http://localhost:3001/uploads/${product.productimage}`}
                                                             alt={product.productname}
                                                             style={styles.productImage}
                                                         />
-                                                    )}                                                    <div style={styles.productInfo}>
+                                                    ) : (
+                                                        <div style={styles.noImagePlaceholder}>
+                                                            No Image
+                                                        </div>
+                                                    )}<div style={styles.productInfo}>
                                                         <h3 style={styles.productName}>{product.productname}</h3>
                                                         <p style={styles.productPrice}>₱{product.productprice}</p>
                                                         <p style={styles.productStock}>
@@ -919,14 +958,37 @@ if (typeof document !== 'undefined') {
                                     {archivedProducts.length > 0 && (
                                         <div style={styles.archivedSection}>
                                             <h3 style={styles.sectionTitle}>Archived Products</h3>                                            <div style={styles.productsGrid}>
-                                                {archivedProducts.map(product => (
-                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>                                                        {product.productimage && (
+                                                {archivedProducts.map(product => (                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>                                                        {/* Display all product images */}
+                                                        {product.images && product.images.length > 0 ? (
+                                                            <div style={styles.productImageContainer}>
+                                                                {product.images.map((image, index) => (
+                                                                    <img 
+                                                                        key={index}
+                                                                        src={`http://localhost:3001/uploads/${image}`}
+                                                                        alt={`${product.productname} ${index + 1}`}
+                                                                        style={{
+                                                                            ...styles.productImage,
+                                                                            ...(index > 0 ? styles.additionalImage : {})
+                                                                        }}
+                                                                    />
+                                                                ))}
+                                                                {product.images.length > 1 && (
+                                                                    <div style={styles.imageCount}>
+                                                                        {product.images.length} images
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : product.productimage ? (
                                                             <img 
                                                                 src={`http://localhost:3001/uploads/${product.productimage}`}
                                                                 alt={product.productname}
                                                                 style={styles.productImage}
                                                             />
-                                                        )}                                                        <div style={styles.productInfo}>
+                                                        ) : (
+                                                            <div style={styles.noImagePlaceholder}>
+                                                                No Image
+                                                            </div>
+                                                        )}<div style={styles.productInfo}>
                                                             <h3 style={styles.productName}>{product.productname}</h3>
                                                             <p style={styles.productPrice}>₱{product.productprice}</p>
                                                             <p style={styles.archivedLabel}>ARCHIVED</p>
@@ -1610,14 +1672,16 @@ const styles = {
     },
     imageCount: {
         position: 'absolute',
-        bottom: '12px',
-        right: '12px',
-        backgroundColor: 'rgba(0,0,0,0.8)',
+        bottom: '8px',
+        right: '8px',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         color: '#ffffff',
-        padding: '6px 10px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: '600'
+        padding: '4px 8px',
+        borderRadius: '4px',
+        fontSize: '11px',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
     },    imageManagement: {
         borderTop: '1px solid #e9ecef',
         paddingTop: '16px'
@@ -1647,6 +1711,18 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 'bold'
+    },
+    productImageContainer: {
+        position: 'relative',
+        width: '100%',
+        height: '240px',
+        overflow: 'hidden',
+        display: 'flex'
+    },
+    additionalImage: {
+        width: '50%',
+        opacity: 0.8,
+        borderLeft: '2px solid #ffffff'
     }
 };
 

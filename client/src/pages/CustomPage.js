@@ -1,59 +1,93 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faUpload, 
+  faTimes, 
+  faImage, 
+  faPalette,
+  faShirt,
+  faPaperPlane
+} from '@fortawesome/free-solid-svg-icons';
+import TopBar from '../components/TopBar';
 
+// Styled Components
 const PageContainer = styled.div`
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px;
+  background-color: #ffffff;
 `;
 
-const Container = styled.div`
+const ContentWrapper = styled.div`
   max-width: 1200px;
   margin: 0 auto;
+  padding: 80px 24px 40px;
+`;
+
+const Header = styled.div`
+  text-align: center;
+  margin-bottom: 60px;
 `;
 
 const Title = styled.h1`
-  color: white;
-  text-align: center;
-  margin-bottom: 40px;
   font-size: 3rem;
-  font-weight: 700;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  font-weight: 300;
+  color: #000000;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const Subtitle = styled.p`
-  color: rgba(255, 255, 255, 0.9);
-  text-align: center;
-  margin-bottom: 50px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
+  color: #666666;
+  margin: 16px 0 0 0;
+  font-weight: 300;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
 `;
 
-const FormSection = styled.div`
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+const FormContainer = styled.div`
+  background-color: #ffffff;
+  border: 1px solid #f0f0f0;
   padding: 40px;
-  margin-bottom: 30px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
+  margin-bottom: 40px;
+  
+  @media (max-width: 768px) {
+    padding: 24px;
+  }
+`;
+
+const Section = styled.div`
+  margin-bottom: 40px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
 `;
 
 const SectionTitle = styled.h2`
-  color: #333;
-  margin-bottom: 25px;
-  font-size: 1.8rem;
-  font-weight: 600;
+  font-size: 1.4rem;
+  font-weight: 400;
+  color: #000000;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 
 const FormGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-  margin-bottom: 30px;
+  gap: 24px;
+  margin-bottom: 32px;
 `;
 
 const FormGroup = styled.div`
@@ -62,114 +96,116 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  color: #555;
-  margin-bottom: 8px;
+  font-size: 14px;
   font-weight: 500;
-  font-size: 1rem;
+  color: #000000;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
 `;
 
 const Input = styled.input`
   padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: white;
-
+  border: 1px solid #e0e0e0;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+  background-color: #ffffff;
+  
   &:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #000000;
+  }
+  
+  &::placeholder {
+    color: #999999;
   }
 `;
 
 const Select = styled.select`
   padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 10px;
-  font-size: 1rem;
-  background: white;
+  border: 1px solid #e0e0e0;
+  font-size: 16px;
+  background-color: #ffffff;
   cursor: pointer;
-  transition: all 0.3s ease;
-
+  transition: border-color 0.3s ease;
+  
   &:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #000000;
   }
 `;
 
 const TextArea = styled.textarea`
-  padding: 12px 16px;
-  border: 2px solid #e1e5e9;
-  border-radius: 10px;
-  font-size: 1rem;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+  font-size: 16px;
   min-height: 120px;
   resize: vertical;
-  transition: all 0.3s ease;
-  background: white;
-
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.3s ease;
+  
   &:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #000000;
+  }
+  
+  &::placeholder {
+    color: #999999;
   }
 `;
 
-const FileUploadArea = styled.div`
-  border: 3px dashed #667eea;
-  border-radius: 15px;
+const ImageUploadSection = styled.div`
+  border: 2px dashed #e0e0e0;
   padding: 40px 20px;
   text-align: center;
-  cursor: pointer;
   transition: all 0.3s ease;
-  background: ${props => props.$hasFile ? 'rgba(102, 126, 234, 0.05)' : 'transparent'};
-
+  cursor: pointer;
+  background-color: #fafafa;
+  
   &:hover {
-    border-color: #5a67d8;
-    background: rgba(102, 126, 234, 0.05);
+    border-color: #000000;
+    background-color: #f5f5f5;
   }
-
-  &:active {
-    transform: scale(0.98);
+  
+  &.dragover {
+    border-color: #000000;
+    background-color: #f0f0f0;
   }
 `;
 
-const UploadIcon = styled.div`
-  font-size: 3rem;
-  color: #667eea;
-  margin-bottom: 15px;
-`;
-
-const UploadText = styled.p`
-  color: #667eea;
+const UploadText = styled.div`
   font-size: 1.1rem;
-  margin-bottom: 10px;
-  font-weight: 500;
+  color: #666666;
+  margin: 16px 0;
+  font-weight: 300;
 `;
 
-const UploadSubtext = styled.p`
-  color: #999;
-  font-size: 0.9rem;
+const UploadSubtext = styled.div`
+  font-size: 14px;
+  color: #999999;
+  margin-top: 8px;
 `;
 
-const PreviewContainer = styled.div`
+const HiddenInput = styled.input`
+  display: none;
+`;
+
+const ImagePreviewGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
 `;
 
-const PreviewImage = styled.div`
+const ImagePreview = styled.div`
   position: relative;
   aspect-ratio: 1;
-  border-radius: 10px;
+  border: 1px solid #e0e0e0;
   overflow: hidden;
-  background: #f5f5f5;
-  border: 2px solid #e1e5e9;
+  background-color: #f9f9f9;
 `;
 
-const PreviewImg = styled.img`
+const PreviewImage = styled.img`
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -177,88 +213,106 @@ const PreviewImg = styled.img`
 
 const RemoveButton = styled.button`
   position: absolute;
-  top: 5px;
-  right: 5px;
-  background: rgba(255, 0, 0, 0.8);
+  top: 8px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.7);
   color: white;
   border: none;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  width: 25px;
-  height: 25px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  transition: all 0.2s ease;
-
+  
   &:hover {
-    background: rgba(255, 0, 0, 1);
-    transform: scale(1.1);
+    background-color: rgba(0, 0, 0, 0.9);
   }
 `;
 
 const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background-color: #000000;
+  color: #ffffff;
   border: none;
-  padding: 15px 40px;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  padding: 16px 40px;
+  font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: block;
-  margin: 30px auto 0;
-  min-width: 200px;
-
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+    background-color: #333333;
   }
-
-  &:active {
-    transform: translateY(0);
-  }
-
+  
   &:disabled {
-    opacity: 0.6;
+    background-color: #e0e0e0;
+    color: #999999;
     cursor: not-allowed;
-    transform: none;
+  }
+`;
+
+const InfoBox = styled.div`
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  padding: 20px;
+  margin-bottom: 32px;
+  
+  h3 {
+    margin: 0 0 12px 0;
+    color: #000000;
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+  
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #666666;
+    line-height: 1.6;
+  }
+  
+  li {
+    margin-bottom: 6px;
   }
 `;
 
 const CustomPage = () => {
-  const { user } = useAuth();
-  const fileInputRef = useRef();
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [images, setImages] = useState([]);
   const [formData, setFormData] = useState({
-    productType: '',
+    designName: '',
+    category: '',
+    preferredColor: '',
     size: '',
-    color: '',
-    quantity: 1,
-    designDescription: '',
-    specialRequests: ''
+    description: '',
+    specialRequests: '',
+    budget: '',
+    urgency: 'normal'
   });
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const productTypes = [
-    'T-Shirt',
-    'Hoodie',
-    'Tank Top',
-    'Long Sleeve',
-    'Polo Shirt',
-    'Sweatshirt',
-    'Jacket',
-    'Hat/Cap',
-    'Other'
-  ];
-
-  const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-  const colors = [
-    'Black', 'White', 'Gray', 'Navy', 'Red', 'Blue', 
-    'Green', 'Yellow', 'Purple', 'Pink', 'Orange', 'Brown'
-  ];
+  // Check if user is authenticated and is a customer
+  React.useEffect(() => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+    
+    if (currentUser.role !== 'customer') {
+      toast.error('This page is only accessible to customers');
+      navigate('/');
+      return;
+    }
+  }, [currentUser, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -268,241 +322,327 @@ const CustomPage = () => {
     }));
   };
 
-  const handleFileUpload = (e) => {
+  const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    
+    handleFiles(files);
+  };
+
+  const handleFiles = (files) => {
+    if (images.length + files.length > 10) {
+      toast.error('Maximum 10 images allowed');
+      return;
+    }
+
     files.forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setUploadedFiles(prev => [...prev, {
-            file,
-            preview: event.target.result,
-            id: Date.now() + Math.random()
-          }]);
-        };
-        reader.readAsDataURL(file);
-      } else {
+      if (!file.type.startsWith('image/')) {
         toast.error('Please upload only image files');
+        return;
       }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImages(prev => [...prev, {
+          file,
+          preview: e.target.result,
+          id: Date.now() + Math.random()
+        }]);
+      };
+      reader.readAsDataURL(file);
     });
-    
-    // Reset file input
-    e.target.value = '';
   };
 
-  const removeFile = (id) => {
-    setUploadedFiles(prev => prev.filter(file => file.id !== id));
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    handleFileUpload({ target: { files } });
+  const removeImage = (id) => {
+    setImages(prev => prev.filter(img => img.id !== id));
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+    const files = Array.from(e.dataTransfer.files);
+    handleFiles(files);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!user) {
-      toast.error('Please log in to submit a custom design request');
+    if (!formData.designName || !formData.category || !formData.description) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    if (!formData.productType || !formData.size || uploadedFiles.length === 0) {
-      toast.error('Please fill in all required fields and upload at least one design image');
+    if (images.length === 0) {
+      toast.error('Please upload at least one design image');
       return;
     }
 
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
-      // Create FormData for file upload
       const submitData = new FormData();
-      submitData.append('userId', user.id);
-      submitData.append('productType', formData.productType);
-      submitData.append('size', formData.size);
-      submitData.append('color', formData.color);
-      submitData.append('quantity', formData.quantity);
-      submitData.append('designDescription', formData.designDescription);
-      submitData.append('specialRequests', formData.specialRequests);
       
-      uploadedFiles.forEach((fileData, index) => {
-        submitData.append(`designImage${index}`, fileData.file);
+      // Add form data
+      Object.keys(formData).forEach(key => {
+        submitData.append(key, formData[key]);
+      });
+      
+      // Add images
+      images.forEach((img, index) => {
+        submitData.append('designImages', img.file);
       });
 
-      // Here you would typically send to your backend API
-      // const response = await fetch('/api/custom-orders', {
-      //   method: 'POST',
-      //   body: submitData,
-      // });
-
-      // For now, just show success message
-      toast.success('Custom design request submitted successfully! We will contact you soon with a quote.');
-      
-      // Reset form
-      setFormData({
-        productType: '',
-        size: '',
-        color: '',
-        quantity: 1,
-        designDescription: '',
-        specialRequests: ''
+      const response = await fetch('http://localhost:3001/api/custom-designs', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: submitData
       });
-      setUploadedFiles([]);
-      
+
+      if (response.ok) {
+        toast.success('Custom design request submitted successfully! We will review it and get back to you soon.');
+        // Reset form
+        setFormData({
+          designName: '',
+          category: '',
+          preferredColor: '',
+          size: '',
+          description: '',
+          specialRequests: '',
+          budget: '',
+          urgency: 'normal'
+        });
+        setImages([]);
+        navigate('/orders'); // Redirect to orders page to see submission
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to submit design request');
+      }
     } catch (error) {
-      console.error('Error submitting custom order:', error);
-      toast.error('Failed to submit custom design request. Please try again.');
+      console.error('Error submitting design:', error);
+      toast.error('Failed to submit design request. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
+  if (!currentUser || currentUser.role !== 'customer') {
+    return null;
+  }
+
   return (
     <PageContainer>
-      <Container>
-        <Title>Custom Design Studio</Title>
-        <Subtitle>
-          Upload your designs and let us create custom clothing that represents your unique style. 
-          Our team will work with you to bring your vision to life.
-        </Subtitle>
+      <TopBar />
+      <ContentWrapper>
+        <Header>
+          <Title>Custom Design Request</Title>
+          <Subtitle>
+            Bring your unique clothing ideas to life. Upload your designs and let our team create something special just for you.
+          </Subtitle>
+        </Header>
 
-        <form onSubmit={handleSubmit}>
-          <FormSection>
-            <SectionTitle>Product Details</SectionTitle>
-            <FormGrid>
+        <InfoBox>
+          <h3>How It Works</h3>
+          <ul>
+            <li>Upload up to 10 design images (sketches, inspirations, or reference photos)</li>
+            <li>Provide detailed descriptions of your vision</li>
+            <li>Our design team will review your request within 2-3 business days</li>
+            <li>Once approved, we'll provide a detailed quote and timeline</li>
+            <li>Upon confirmation, we'll begin crafting your custom piece</li>
+          </ul>
+        </InfoBox>
+
+        <FormContainer>
+          <form onSubmit={handleSubmit}>
+            <Section>
+              <SectionTitle>
+                <FontAwesomeIcon icon={faPalette} />
+                Design Information
+              </SectionTitle>
+              
+              <FormGrid>
+                <FormGroup>
+                  <Label>Design Name *</Label>
+                  <Input
+                    type="text"
+                    name="designName"
+                    value={formData.designName}
+                    onChange={handleInputChange}
+                    placeholder="Give your design a name"
+                    required
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Category *</Label>
+                  <Select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select category</option>
+                    <option value="t-shirts">T-Shirts</option>
+                    <option value="hoodies">Hoodies</option>
+                    <option value="jackets">Jackets</option>
+                    <option value="pants">Pants</option>
+                    <option value="dresses">Dresses</option>
+                    <option value="accessories">Accessories</option>
+                    <option value="other">Other</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Preferred Color</Label>
+                  <Input
+                    type="text"
+                    name="preferredColor"
+                    value={formData.preferredColor}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Black, Navy Blue, Custom"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Size</Label>
+                  <Select
+                    name="size"
+                    value={formData.size}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select size</option>
+                    <option value="XS">XS</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                    <option value="custom">Custom Size</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Budget Range</Label>
+                  <Select
+                    name="budget"
+                    value={formData.budget}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select budget range</option>
+                    <option value="500-1000">₱500 - ₱1,000</option>
+                    <option value="1000-2500">₱1,000 - ₱2,500</option>
+                    <option value="2500-5000">₱2,500 - ₱5,000</option>
+                    <option value="5000+">₱5,000+</option>
+                    <option value="discuss">Let's Discuss</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Urgency</Label>
+                  <Select
+                    name="urgency"
+                    value={formData.urgency}
+                    onChange={handleInputChange}
+                  >
+                    <option value="normal">Normal (2-3 weeks)</option>
+                    <option value="rush">Rush (1-2 weeks)</option>
+                    <option value="express">Express (3-5 days)</option>
+                  </Select>
+                </FormGroup>
+              </FormGrid>
+            </Section>
+
+            <Section>
+              <SectionTitle>
+                <FontAwesomeIcon icon={faImage} />
+                Design Images
+              </SectionTitle>
+              
+              <ImageUploadSection
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('imageInput').click()}
+              >
+                <FontAwesomeIcon icon={faUpload} size="2x" color="#999999" />
+                <UploadText>
+                  Click to upload or drag and drop your design images
+                </UploadText>
+                <UploadSubtext>
+                  Maximum 10 images, 5MB each (JPG, PNG, GIF)
+                </UploadSubtext>
+                <HiddenInput
+                  id="imageInput"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+              </ImageUploadSection>
+
+              {images.length > 0 && (
+                <ImagePreviewGrid>
+                  {images.map((img) => (
+                    <ImagePreview key={img.id}>
+                      <PreviewImage src={img.preview} alt="Design preview" />
+                      <RemoveButton onClick={() => removeImage(img.id)}>
+                        <FontAwesomeIcon icon={faTimes} />
+                      </RemoveButton>
+                    </ImagePreview>
+                  ))}
+                </ImagePreviewGrid>
+              )}
+            </Section>
+
+            <Section>
+              <SectionTitle>
+                <FontAwesomeIcon icon={faShirt} />
+                Design Description
+              </SectionTitle>
+              
               <FormGroup>
-                <Label>Product Type *</Label>
-                <Select
-                  name="productType"
-                  value={formData.productType}
+                <Label>Detailed Description *</Label>
+                <TextArea
+                  name="description"
+                  value={formData.description}
                   onChange={handleInputChange}
+                  placeholder="Describe your design in detail. Include materials, style, fit, colors, patterns, or any specific requirements..."
                   required
-                >
-                  <option value="">Select a product type</option>
-                  {productTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Size *</Label>
-                <Select
-                  name="size"
-                  value={formData.size}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select size</option>
-                  {sizes.map(size => (
-                    <option key={size} value={size}>{size}</option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Base Color</Label>
-                <Select
-                  name="color"
-                  value={formData.color}
-                  onChange={handleInputChange}
-                >
-                  <option value="">Select base color</option>
-                  {colors.map(color => (
-                    <option key={color} value={color}>{color}</option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup>
-                <Label>Quantity</Label>
-                <Input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  min="1"
-                  max="100"
                 />
               </FormGroup>
-            </FormGrid>
-          </FormSection>
 
-          <FormSection>
-            <SectionTitle>Design Upload *</SectionTitle>
-            <FileUploadArea
-              onClick={() => fileInputRef.current?.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              $hasFile={uploadedFiles.length > 0}
-            >
-              <UploadIcon>📁</UploadIcon>
-              <UploadText>
-                {uploadedFiles.length > 0 
-                  ? `${uploadedFiles.length} file(s) uploaded. Click to add more.`
-                  : 'Click to upload or drag and drop your design images'
-                }
-              </UploadText>
-              <UploadSubtext>PNG, JPG, GIF up to 10MB each</UploadSubtext>
-            </FileUploadArea>
-            
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-            />
+              <FormGroup>
+                <Label>Special Requests</Label>
+                <TextArea
+                  name="specialRequests"
+                  value={formData.specialRequests}
+                  onChange={handleInputChange}
+                  placeholder="Any special requests, modifications, or additional notes for our design team..."
+                />
+              </FormGroup>
+            </Section>
 
-            {uploadedFiles.length > 0 && (
-              <PreviewContainer>
-                {uploadedFiles.map((fileData) => (
-                  <PreviewImage key={fileData.id}>
-                    <PreviewImg src={fileData.preview} alt="Design preview" />
-                    <RemoveButton onClick={() => removeFile(fileData.id)}>
-                      ×
-                    </RemoveButton>
-                  </PreviewImage>
-                ))}
-              </PreviewContainer>
-            )}
-          </FormSection>
-
-          <FormSection>
-            <SectionTitle>Additional Information</SectionTitle>
-            <FormGroup>
-              <Label>Design Description</Label>
-              <TextArea
-                name="designDescription"
-                value={formData.designDescription}
-                onChange={handleInputChange}
-                placeholder="Describe your design idea, placement preferences, colors, etc..."
-              />
-            </FormGroup>
-
-            <FormGroup>
-              <Label>Special Requests</Label>
-              <TextArea
-                name="specialRequests"
-                value={formData.specialRequests}
-                onChange={handleInputChange}
-                placeholder="Any special requests or notes for our design team..."
-              />
-            </FormGroup>
-          </FormSection>
-
-          <SubmitButton type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : 'Submit Custom Design Request'}
-          </SubmitButton>
-        </form>
-      </Container>
+            <SubmitButton type="submit" disabled={loading}>
+              <FontAwesomeIcon icon={faPaperPlane} />
+              {loading ? 'Submitting...' : 'Submit Design Request'}
+            </SubmitButton>
+          </form>
+        </FormContainer>
+      </ContentWrapper>
     </PageContainer>
   );
 };

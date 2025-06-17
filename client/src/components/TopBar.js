@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
 import UserAvatar from './UserAvatar';
 import logo from '../assets/images/sfc-logo-white.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -11,8 +9,6 @@ import {
   faUser, 
   faHome, 
   faShoppingBag, 
-  faShoppingCart, 
-  faHeart,
   faQuestionCircle, 
   faInfoCircle, 
   faSignOutAlt,
@@ -20,9 +16,9 @@ import {
   faChartLine,
   faClipboardList,
   faTruck,
-  faShippingFast,
   faSearch,
-  faPalette
+  faPalette,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
 
 const TopBarContainer = styled.div`
@@ -345,46 +341,14 @@ const DropdownItem = styled.button`
 `;
 
 const DropdownDivider = styled.div`
-  height: 1px;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+  height: 1px;  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
   margin: 0.5rem 1rem;
-`;
-
-const CartBadge = styled.span`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ff4757;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 1;
-  animation: pulse 2s infinite;
-  
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-  }
-`;
-
-const CartIconWrapper = styled.div`
-  position: relative;
-  display: inline-block;
 `;
 
 const TopBar = () => {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const { currentUser, loading, logout } = useAuth();
-  const { cartCount } = useCart();
-  const { wishlistCount } = useWishlist();
   const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -452,41 +416,17 @@ const TopBar = () => {
           <span className="nav-text">Products</span>
         </NavLink>        {/* Show Custom Design for all authenticated users */}
         {isAuthenticated && (
-          <NavLink to="/custom-design" className={location.pathname === '/custom-design' ? 'active' : ''}>
+          <NavLink to="/custom" className={location.pathname === '/custom' ? 'active' : ''}>
             <div className="icon-container">
               <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
             </div>
             <span className="nav-text">Custom</span>
-          </NavLink>
-        )}
+          </NavLink>        )}
         
-        {/* Only show Cart and Wishlist for non-admin users */}
-        {isAuthenticated && currentUser?.role !== 'admin' && (
-          <>
-            <NavLink to="/wishlist" className={location.pathname === '/wishlist' ? 'active' : ''}>
-              <div className="icon-container">
-                <CartIconWrapper>
-                  <FontAwesomeIcon icon={faHeart} style={{ color: 'white' }} />
-                  {wishlistCount > 0 && <CartBadge>{wishlistCount}</CartBadge>}
-                </CartIconWrapper>
-              </div>
-              <span className="nav-text">Wishlist</span>
-            </NavLink>
-            
-            <NavLink to="/cart" className={location.pathname === '/cart' ? 'active' : ''}>
-              <div className="icon-container">
-                <CartIconWrapper>
-                  <FontAwesomeIcon icon={faShoppingCart} style={{ color: 'white' }} />
-                  {cartCount > 0 && <CartBadge>{cartCount}</CartBadge>}
-                </CartIconWrapper>
-              </div>
-              <span className="nav-text">Cart</span>
-            </NavLink>
-          </>
-        )}
+        {/* Cart and Wishlist removed from sidebar - functionality moved to Orders page */}
+        
           {/* Only show Orders & Delivery section for authenticated non-admin users */}
-        {isAuthenticated && currentUser?.role !== 'admin' && (
-          <>
+        {isAuthenticated && currentUser?.role !== 'admin' && (          <>
             <NavSectionTitle>Orders & Delivery</NavSectionTitle>
             <NavLink to="/orders" className={location.pathname === '/orders' ? 'active' : ''}>
               <div className="icon-container">
@@ -494,22 +434,8 @@ const TopBar = () => {
               </div>
               <span className="nav-text">Orders</span>
             </NavLink>
-            
-            <NavLink to="/tracking" className={location.pathname === '/tracking' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Tracking</span>
-            </NavLink>
-            
-            <NavLink to="/shipping" className={location.pathname === '/shipping' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faShippingFast} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Shipping</span>
-            </NavLink>
           </>
-        )}        {isAuthenticated && currentUser?.role === 'admin' && (
+        )}{isAuthenticated && currentUser?.role === 'admin' && (
           <>
             <NavSectionTitle>Management</NavSectionTitle>
             
@@ -519,14 +445,21 @@ const TopBar = () => {
               </div>
               <span className="nav-text">Inventory</span>
             </NavLink>
-            
-            <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
+              <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faCog} style={{ color: 'white' }} />
               </div>
               <span className="nav-text">Maintenance</span>
             </NavLink>
-              <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
+            
+            <NavLink to="/design-approval" className={location.pathname === '/design-approval' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faCheck} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Design Approval</span>
+            </NavLink>
+              
+            <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faSearch} style={{ color: 'white' }} />
               </div>

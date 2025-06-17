@@ -49,17 +49,16 @@ export const CartProvider = ({ children }) => {
       setLoading(false);
     }
   };
-
   // Add item to cart
-  const addToCart = async (productId, colorId, sizeId, quantity = 1) => {
+  const addToCart = async (productId, color, size, quantity = 1) => {
     try {
       setLoading(true);
       setError(null);
 
       const response = await api.post('/cart', {
         product_id: productId,
-        color_id: colorId,
-        size_id: sizeId,
+        color: color,
+        size: size,
         quantity: quantity
       });
 
