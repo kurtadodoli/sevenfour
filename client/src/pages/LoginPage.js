@@ -11,12 +11,12 @@ const LoginPage = () => {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    
-    const { login, currentUser, error, clearError } = useAuth();
+      const { login, currentUser, error, clearError } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     
-    const from = location.state?.from?.pathname || '/';    // Redirect if already logged in
+    const from = location.state?.from?.pathname || '/';
+    const successMessage = location.state?.message;// Redirect if already logged in
     useEffect(() => {
         if (currentUser) {
             console.log('User detected in context, preparing to redirect to:', from);
@@ -98,10 +98,14 @@ const LoginPage = () => {
                 <LogoContainer>
                     <Logo src={logo} alt="Seven Four Clothing" />
                     <CompanyName>Seven Four Clothing</CompanyName>
-                </LogoContainer>
-
-                <Title>Welcome Back</Title>
+                </LogoContainer>                <Title>Welcome Back</Title>
                 <Subtitle>Sign in to your account</Subtitle>
+
+                {successMessage && (
+                    <SuccessMessage>
+                        {successMessage}
+                    </SuccessMessage>
+                )}
 
                 {error && (
                     <ErrorMessage>
@@ -159,18 +163,10 @@ const LoginPage = () => {
 
                 <LinksContainer>
                     <StyledLink to="/forgot-password">Forgot Password?</StyledLink>
-                </LinksContainer>
-
-                <RegisterPrompt>
+                </LinksContainer>                <RegisterPrompt>
                     Don't have an account?{' '}
                     <StyledLink to="/register">Sign up here</StyledLink>
                 </RegisterPrompt>
-
-                <TestAccountInfo>
-                    <h4>Test Admin Account:</h4>
-                    <p>Email: kurtadodoli@gmail.com</p>
-                    <p>Password: Admin123!@#</p>
-                </TestAccountInfo>
             </LoginCard>
         </Container>
     );
@@ -368,6 +364,16 @@ const ErrorMessage = styled.div`
     border-left: 3px solid #000000;
 `;
 
+const SuccessMessage = styled.div`
+    background: #f0f8f0;
+    color: #2e7d2e;
+    padding: 16px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    font-weight: 300;
+    border-left: 3px solid #28a745;
+`;
+
 const LinksContainer = styled.div`
     margin: 30px 0 20px 0;
 `;
@@ -391,30 +397,6 @@ const RegisterPrompt = styled.p`
     color: #666666;
     font-size: 14px;
     font-weight: 300;
-`;
-
-const TestAccountInfo = styled.div`
-    margin-top: 40px;
-    padding: 24px;
-    background: #f8f8f8;
-    text-align: left;
-    
-    h4 {
-        margin: 0 0 16px 0;
-        color: #000000;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 400;
-    }
-    
-    p {
-        margin: 8px 0;
-        font-size: 12px;
-        color: #666666;
-        font-family: 'Courier New', monospace;
-        font-weight: 300;
-    }
 `;
 
 export default LoginPage;

@@ -10,6 +10,10 @@ const corsOptions = require('./config/cors');
 const { testConnection } = require('./config/db');
 const mysql = require('mysql2/promise');
 
+// Initialize services
+const emailService = require('./services/emailService');
+const otpService = require('./services/otpService');
+
 // Load environment variables - handle both direct server run and root run
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -178,4 +182,32 @@ app.listen(PORT, async () => {
     
     // Test database connection
     await testDbConnection();
+    
+    // Initialize services
+    console.log('🔧 Initializing services...');
+      // Test email service
+    try {
+        const emailReady = await emailService.testConnection();
+        if (emailReady) {
+            console.log('📧 Email service is ready');
+        } else {
+            console.log('📧 Email service in development mode');
+        }
+    } catch (error) {
+        console.log('📧 Email service initialization error:', error.message);
+    }
+    
+    // Clean up expired OTPs on startup
+    const cleanedCount = await otpService.cleanupExpiredOTPs();
+    console.log(`🧹 Cleaned up ${cleanedCount} expired OTP records`);
+    
+    // Schedule periodic cleanup every hour
+    setInterval(async () => {
+        const count = await otpService.cleanupExpiredOTPs();
+        if (count > 0) {
+            console.log(`🧹 Periodic cleanup: removed ${count} expired OTP records`);
+        }
+    }, 60 * 60 * 1000); // 1 hour
+    
+    console.log('✅ Server initialization complete');
 });

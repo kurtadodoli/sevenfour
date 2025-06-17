@@ -46,27 +46,12 @@ const Button = styled.button`
   color: #fff;
   border: none;
   padding: 0.8rem;
-  font-size: 1rem;
-  border-radius: 4px;
+  font-size: 1rem;  border-radius: 4px;
   cursor: pointer;
   margin-top: 1rem;
   &:hover {
     background-color: #333;
   }
-`;
-
-const Message = styled.p`
-  margin-top: 1rem;
-  padding: 0.8rem;
-  border-radius: 4px;
-  text-align: center;
-  background-color: ${props => props.type === 'success' ? '#d4edda' : '#f8d7da'};
-  color: ${props => props.type === 'success' ? '#155724' : '#721c24'};
-`;
-
-const LoginLink = styled.p`
-  text-align: center;
-  margin-top: 1.5rem;
 `;
 
 const LogoContainer = styled.div`
@@ -115,26 +100,31 @@ const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [message, setMessage] = useState('');
-
-    const handleSubmit = async (e) => {
+    const [message, setMessage] = useState('');    const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
         setMessage('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+            const response = await axios.post('http://localhost:3001/api/auth/forgot-password', {
                 email
-            });
-
-            if (response.data.success) {
-                setMessage('Reset code has been sent to your email');
+            });            if (response.data.success) {
+                if (response.data.isDevelopmentMode) {
+                    setMessage('Verification code generated! Check the server console for the 6-digit code, then proceed to reset your password.');
+                } else {
+                    setMessage('Verification code has been sent to your email. Please check your inbox and spam folder.');
+                }
                 // Navigate to reset password page after 3 seconds
                 setTimeout(() => {
-                    navigate('/reset-password', { state: { email } });
+                    navigate('/reset-password', { 
+                        state: { 
+                            email,
+                            isDevelopmentMode: response.data.isDevelopmentMode
+                        } 
+                    });
                 }, 3000);
-            }        } catch (err) {
+            }} catch (err) {
             console.error('Password reset error:', err);
             if (err.response?.data?.message) {
                 setError(err.response.data.message);

@@ -47,6 +47,22 @@ router.put('/profile', auth, userController.updateProfile);
 // @desc    Change user password
 router.put('/change-password', auth, userController.changePassword);
 
+// @route   POST /api/auth/forgot-password
+// @desc    Send OTP for password reset
+router.post('/forgot-password', userController.forgotPassword);
+
+// @route   POST /api/auth/resend-otp
+// @desc    Resend OTP for password reset
+router.post('/resend-otp', userController.resendOTP);
+
+// @route   POST /api/auth/reset-password
+// @desc    Reset password with OTP verification
+router.post('/reset-password', userController.resetPassword);
+
+// @route   POST /api/auth/verify-otp
+// @desc    Verify OTP without marking as used
+router.post('/verify-otp', userController.verifyOTP);
+
 // @route   POST /api/auth/upload-profile-picture
 // @desc    Upload profile picture
 router.post('/upload-profile-picture', auth, profileUpload.single('profilePicture'), profileController.uploadProfilePicture);

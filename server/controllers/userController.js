@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/db');
+const emailService = require('../services/emailService');
+const otpService = require('../services/otpService');
 
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-this-in-production';
@@ -518,6 +520,299 @@ exports.toggleUserStatus = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Internal server error updating user status'
+        });
+    }
+};
+
+// Forgot Password - Send OTP
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const clientIP = req.ip || req.connection.remoteAddress;
+        const userAgent = req.get('User-Agent');
+
+        console.log('Forgot password request for:', email);
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }        // Check if user exists
+        const user = await query('SELECT user_id, email, first_name, last_name FROM users WHERE email = ?', [email]);
+        
+        if (user.length === 0) {
+            // For security, don't reveal if email exists or not
+            return res.json({
+                success: true,
+                message: 'If this email is registered, you will receive a verification code shortly'
+            });
+        }        // Rate limiting - max 5 OTP requests per hour (increased for testing)
+        const recentAttempts = await otpService.getOTPAttemptsCount(email, 60);
+        if (recentAttempts >= 5) {
+            return res.status(429).json({
+                success: false,
+                message: 'Too many verification code requests. Please try again in an hour.'
+            });
+        }
+
+        // Generate and store OTP
+        const otp = emailService.generateOTP();
+        const storeResult = await otpService.storeOTP(email, otp, 10, clientIP, userAgent);
+
+        if (!storeResult.success) {
+            return res.status(500).json({
+                success: false,
+                message: 'Error generating verification code. Please try again.'
+            });
+        }
+
+        // Send OTP email
+        const emailResult = await emailService.sendOTPEmail(email, otp, 'password reset');
+
+        if (!emailResult.success) {
+            console.error('Failed to send OTP email:', emailResult.error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error sending verification code. Please try again.'
+            });
+        }
+
+        console.log(`OTP sent successfully to ${email}`);
+
+        res.json({
+            success: true,
+            message: 'Verification code sent to your email. It will expire in 10 minutes.',
+            expiresAt: storeResult.expiresAt
+        });
+
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error. Please try again later.'
+        });
+    }
+};
+
+// Reset Password with OTP
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+
+        console.log('Reset password request for:', email);
+
+        // Validate input
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email, verification code, and new password are required'
+            });
+        }
+
+        // Validate OTP format (6 digits)
+        if (!/^\d{6}$/.test(otp)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid verification code format'
+            });
+        }
+
+        // Validate password strength
+        const passwordErrors = validatePassword(newPassword);
+        if (passwordErrors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password does not meet requirements',
+                errors: passwordErrors
+            });
+        }
+
+        // Verify OTP
+        const otpResult = await otpService.verifyOTP(email, otp);
+        if (!otpResult.success) {
+            return res.status(400).json({
+                success: false,
+                message: otpResult.error
+            });
+        }
+
+        // Check if user exists
+        const user = await query('SELECT user_id, email FROM users WHERE email = ?', [email]);
+        
+        if (user.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'User account not found'
+            });
+        }
+
+        // Hash new password
+        const saltRounds = 12;
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);        // Update password in database
+        const updateResult = await query(
+            'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?',
+            [hashedPassword, email]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to update password. Please try again.'
+            });
+        }        console.log(`Password reset successfully for user: ${email}`);
+
+        // Log the password reset activity (without activity_type for now)
+        await query(
+            'INSERT INTO login_attempts (email, ip_address, user_agent, success) VALUES (?, ?, ?, ?)',
+            [email, req.ip || 'unknown', req.get('User-Agent') || 'unknown', true]
+        );
+
+        res.json({
+            success: true,
+            message: 'Password reset successfully. You can now login with your new password.'
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error. Please try again later.'
+        });
+    }
+};
+
+// Verify OTP (for testing or UI validation)
+exports.verifyOTP = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and verification code are required'
+            });
+        }
+
+        // Check if OTP is valid (but don't mark as used)
+        const hasValidOTP = await otpService.hasValidOTP(email);
+        
+        if (!hasValidOTP) {
+            return res.status(400).json({
+                success: false,
+                message: 'No valid verification code found for this email'
+            });
+        }
+
+        // For this endpoint, we just verify without marking as used
+        const result = await query(
+            'SELECT * FROM password_reset_otps WHERE email = ? AND otp = ? AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+            [email, otp]
+        );
+
+        if (result.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired verification code'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Verification code is valid',
+            expiresAt: result[0].expires_at
+        });
+
+    } catch (error) {
+        console.error('Verify OTP error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+// Resend OTP for forgot password
+exports.resendOTP = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const clientIP = req.ip || req.connection.remoteAddress;
+        const userAgent = req.get('User-Agent');
+
+        console.log('Resend OTP request for:', email);
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        // Check if user exists
+        const user = await query('SELECT user_id, email, first_name, last_name FROM users WHERE email = ?', [email]);
+        
+        if (user.length === 0) {
+            // For security, don't reveal if email exists or not
+            return res.json({
+                success: true,
+                message: 'If this email is registered, you will receive a new verification code shortly'
+            });
+        }
+
+        // Check if there's a valid existing OTP
+        const hasValidOTP = await otpService.hasValidOTP(email);
+        if (!hasValidOTP) {
+            return res.status(400).json({
+                success: false,
+                message: 'No active verification code found. Please request a new password reset.'
+            });
+        }
+
+        // Rate limiting for resend - max 2 resends per 10 minutes
+        const recentResends = await otpService.getOTPAttemptsCount(email, 10);
+        if (recentResends >= 3) { // Total including original + 2 resends
+            return res.status(429).json({
+                success: false,
+                message: 'Too many verification code requests. Please wait 10 minutes before requesting again.'
+            });
+        }
+
+        // Generate and store new OTP
+        const otp = emailService.generateOTP();
+        const storeResult = await otpService.storeOTP(email, otp, 10, clientIP, userAgent);
+
+        if (!storeResult.success) {
+            return res.status(500).json({
+                success: false,
+                message: 'Error generating verification code. Please try again.'
+            });
+        }
+
+        // Send OTP email
+        const emailResult = await emailService.sendOTPEmail(email, otp, 'password reset');
+
+        if (!emailResult.success) {
+            console.error('Failed to send resend OTP email:', emailResult.error);
+            return res.status(500).json({
+                success: false,
+                message: 'Error sending verification code. Please try again.'
+            });
+        }
+
+        console.log(`Resend OTP sent successfully to ${email}`);
+
+        res.json({
+            success: true,
+            message: 'New verification code sent to your email. It will expire in 10 minutes.',
+            expiresAt: storeResult.expiresAt,
+            isDevelopmentMode: emailResult.isDevelopmentMode || false
+        });
+
+    } catch (error) {
+        console.error('Resend OTP error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error. Please try again later.'
         });
     }
 };
