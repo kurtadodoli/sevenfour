@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -12,9 +12,12 @@ import {
   faHeart,
   faTruck,
   faShield,
-  faExchangeAlt
+  faExchangeAlt,
+  faCheck,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
+import { useCart } from '../context/CartContext';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -354,6 +357,21 @@ const AddToCartButton = styled.button`
     color: #999999;
     cursor: not-allowed;
   }
+  
+  svg {
+    &.loading {
+      animation: spin 1s linear infinite;
+    }
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const WishlistButton = styled.button`
@@ -445,18 +463,47 @@ const ErrorContainer = styled.div`
   }
 `;
 
+const NotificationContainer = styled.div`
+  position: fixed;
+  top: 100px;
+  right: 24px;
+  background: ${props => props.type === 'success' ? '#d4edda' : '#f8d7da'};
+  border: 1px solid ${props => props.type === 'success' ? '#c3e6cb' : '#f5c6cb'};
+  color: ${props => props.type === 'success' ? '#155724' : '#721c24'};
+  padding: 16px 20px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 400px;
+  animation: slideIn 0.3s ease-out;
+  
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+`;
+
 const ProductDetailsPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const [product, setProduct] = useState(null);
+    const { addToCart: addToCartContext } = useCart();    const [product, setProduct] = useState(null);
     const [productImages, setProductImages] = useState([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [quantity, setQuantity] = useState(1);
     const [selectedSize, setSelectedSize] = useState('');
-
-    const fetchProduct = async () => {
+    const [notification, setNotification] = useState(null);
+    const [addingToCart, setAddingToCart] = useState(false);    const fetchProduct = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch(`http://localhost:3001/api/maintenance/products`);
@@ -486,11 +533,9 @@ const ProductDetailsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
+    }, [id]);    useEffect(() => {
         fetchProduct();
-    }, [id]);
+    }, [fetchProduct]);
 
     // Parse sizes data
     const parseSizes = (sizesData) => {
@@ -524,20 +569,56 @@ const ProductDetailsPage = () => {
         const sizes = parseSizes(product.sizes);
         const sizeData = sizes.find(s => s.size === size);
         return sizeData ? sizeData.stock : 0;
+    };    const addToCart = async () => {
+        // Validate required fields
+        if (availableSizes.length > 0 && !selectedSize) {
+            showNotification('Please select a size first', 'error');
+            return;
+        }
+
+        try {
+            setAddingToCart(true);
+            console.log('Adding to cart:', {
+                productId: product.product_id || product.id,
+                color: product.productcolor || '',
+                size: selectedSize || '',
+                quantity: quantity
+            });
+            
+            // Use the CartContext addToCart function
+            const result = await addToCartContext(
+                product.product_id || product.id, 
+                product.productcolor || '', 
+                selectedSize || '', 
+                quantity
+            );
+
+            console.log('Add to cart result:', result);
+
+            if (result.success) {
+                showNotification(`${product.productname} added to cart!`, 'success');
+                // Reset quantity and size selection after successful add
+                setQuantity(1);
+                if (availableSizes.length > 0) {
+                    setSelectedSize('');
+                }
+            } else {
+                showNotification(result.message || 'Failed to add item to cart', 'error');
+            }
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            showNotification('Failed to add item to cart', 'error');
+        } finally {
+            setAddingToCart(false);
+        }
     };
 
-    const addToCart = () => {
-        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-        const existingItem = cart.find(item => item.id === product.id);
-        
-        if (existingItem) {
-            existingItem.quantity += quantity;
-        } else {
-            cart.push({ ...product, quantity: quantity });
-        }
-        
-        localStorage.setItem('cart', JSON.stringify(cart));
-        alert(`${product.productname} added to cart!`);
+    // Helper function to show notifications
+    const showNotification = (message, type = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => {
+            setNotification(null);
+        }, 4000); // Hide after 4 seconds
     };
 
     if (loading) {
@@ -566,15 +647,21 @@ const ProductDetailsPage = () => {
                 </ContentWrapper>
             </PageContainer>
         );
-    }
-
-    const totalStock = getTotalStock(product);
+    }    const totalStock = getTotalStock(product);
     const availableSizes = getAvailableSizes(product.sizes);
     const maxQuantity = selectedSize ? getStockForSize(selectedSize) : totalStock;
 
     return (
         <PageContainer>
             <TopBar />
+            {notification && (
+                <NotificationContainer type={notification.type}>
+                    <FontAwesomeIcon 
+                        icon={notification.type === 'success' ? faCheck : faExclamationTriangle} 
+                    />
+                    {notification.message}
+                </NotificationContainer>
+            )}
             <ContentWrapper>
                 <BackButton onClick={() => navigate('/products')}>
                     <FontAwesomeIcon icon={faArrowLeft} />
@@ -712,19 +799,15 @@ const ProductDetailsPage = () => {
                                         </QuantityButton>
                                     </QuantityControls>
                                 </QuantitySection>
-                                
-                                <ActionButtons>
-                                    <AddToCartButton 
-                                        onClick={() => {
-                                            if (availableSizes.length > 0 && !selectedSize) {
-                                                alert('Please select a size first');
-                                                return;
-                                            }
-                                            addToCart();
-                                        }}
+                                  <ActionButtons>                                    <AddToCartButton 
+                                        onClick={addToCart}
+                                        disabled={addingToCart || totalStock === 0}
                                     >
-                                        <FontAwesomeIcon icon={faShoppingCart} />
-                                        Add to Cart
+                                        <FontAwesomeIcon 
+                                            icon={faShoppingCart}
+                                            className={addingToCart ? 'loading' : ''}
+                                        />
+                                        {addingToCart ? 'Adding...' : 'Add to Cart'}
                                     </AddToCartButton>
                                     <WishlistButton>
                                         <FontAwesomeIcon icon={faHeart} />
