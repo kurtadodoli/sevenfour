@@ -1,26 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('../../controllers/inventoryController');
-const { auth, adminAuth } = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 
-// @route   GET api/inventory
-// @desc    Get all inventory with product info (staff or admin)
-// @access  Private/Staff/Admin
-router.get('/', auth, inventoryController.getInventory);
+// @route   GET api/inventory/overview
+// @desc    Get inventory overview with stock levels
+// @access  Private (Staff/Admin)
+router.get('/overview', auth, inventoryController.getInventoryOverview);
+
+// @route   GET api/inventory/critical
+// @desc    Get critical stock items
+// @access  Private (Staff/Admin)
+router.get('/critical', auth, inventoryController.getCriticalStock);
 
 // @route   GET api/inventory/low-stock
-// @desc    Get low stock items (staff or admin)
-// @access  Private/Staff/Admin
+// @desc    Get low stock items
+// @access  Private (Staff/Admin)
 router.get('/low-stock', auth, inventoryController.getLowStock);
 
-// @route   PUT api/inventory/quantity
-// @desc    Update inventory quantity (staff or admin)
-// @access  Private/Staff/Admin
-router.put('/quantity', auth, inventoryController.updateInventory);
+// @route   GET api/inventory/stats
+// @desc    Get inventory statistics
+// @access  Private (Staff/Admin)
+router.get('/stats', auth, inventoryController.getInventoryStats);
 
-// @route   PUT api/inventory/critical-level
-// @desc    Update critical level threshold (admin only)
-// @access  Private/Admin
-router.put('/critical-level', adminAuth, inventoryController.updateCriticalLevel);
+// @route   PUT api/inventory/settings
+// @desc    Update inventory settings for a product
+// @access  Private (Admin only)
+router.put('/settings', auth, inventoryController.updateInventorySettings);
 
 module.exports = router;
