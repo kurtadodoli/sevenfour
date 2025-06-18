@@ -1,0 +1,5 @@
+price: 749
+
+color: beige, brown
+
+size: XL, XXL, XXXL

@@ -315,107 +315,112 @@ const DashboardPage = () => {
 // Styled Components
 const Container = styled.div`
     min-height: 100vh;
-    background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
-    color: #ffffff;
-    padding: 20px;
+    background: #ffffff;
+    color: #000000;
+    padding: 1.5rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 `;
 
 const Header = styled.div`
     text-align: center;
-    margin-bottom: 40px;
-    padding: 40px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 3rem;
+    padding: 2.5rem 0;
 `;
 
 const Title = styled.h1`
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 0;
-    background: linear-gradient(135deg, #ffffff 0%, #cccccc 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 2.8rem;
+    font-weight: 200;
+    margin: 0 0 0.5rem 0;
+    color: #000000;
+    letter-spacing: -1px;
 `;
 
 const Subtitle = styled.p`
-    font-size: 1.2rem;
-    color: #888888;
-    margin: 10px 0 0 0;
+    font-size: 1.1rem;
+    color: #666666;
+    margin: 0;
+    font-weight: 300;
 `;
 
 const ReportsContainer = styled.div`
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 30px;
-    max-width: 1400px;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    max-width: 1200px;
     margin: 0 auto;
 
     @media (max-width: 768px) {
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 1.5rem;
     }
 `;
 
 const SidePanel = styled.div`
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 30px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding: 2rem;
     height: fit-content;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 `;
 
 const SectionTitle = styled.h2`
-    font-size: 1.5rem;
-    margin-bottom: 20px;
-    color: #ffffff;
-    font-weight: 600;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: #000000;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 `;
 
 const ReportNavigation = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 0.5rem;
 `;
 
 const ReportButton = styled.button`
-    background: ${props => props.$active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
-    border: 1px solid ${props => props.$active ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
-    color: #ffffff;
-    padding: 15px 20px;
-    border-radius: 8px;
+    background: ${props => props.$active ? '#000000' : '#ffffff'};
+    border: 1px solid ${props => props.$active ? '#000000' : '#e0e0e0'};
+    color: ${props => props.$active ? '#ffffff' : '#666666'};
+    padding: 1rem 1.2rem;
     cursor: pointer;
     text-align: left;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75rem;
     position: relative;
+    font-weight: 400;
     
     &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: ${props => props.$active ? '#000000' : '#000000'};
+        border-color: #000000;
+        color: #ffffff;
     }
 `;
 
 const ReportIcon = styled.span`
-    font-size: 1.2rem;
+    font-size: 1rem;
+    width: 1.2rem;
+    text-align: center;
 `;
 
 const ComingSoon = styled.span`
-    background: #333333;
-    color: #888888;
-    padding: 2px 8px;
-    border-radius: 12px;
+    background: #f5f5f5;
+    color: #999999;
+    padding: 0.2rem 0.5rem;
     font-size: 0.7rem;
     margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
 `;
 
 const MainContent = styled.div`
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    padding: 40px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    padding: 2.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 `;
 
 const ReportSection = styled.div`
@@ -426,87 +431,93 @@ const ReportHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 2rem;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f0f0f0;
 `;
 
 const ReportTitle = styled.h2`
-    font-size: 2rem;
-    color: #ffffff;
+    font-size: 1.8rem;
+    color: #000000;
     margin: 0;
+    font-weight: 400;
+    letter-spacing: -0.3px;
 `;
 
 const GenerateButton = styled.button`
-    background: linear-gradient(135deg, #ffffff 0%, #cccccc 100%);
-    color: #000000;
+    background: #000000;
+    color: #ffffff;
     border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
+    padding: 0.8rem 1.5rem;
     cursor: pointer;
-    font-weight: 600;
-    transition: all 0.3s ease;
+    font-weight: 400;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
     
     &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+        background: #333333;
     }
     
     &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
-        transform: none;
     }
 `;
 
 const DateRangeContainer = styled.div`
     display: flex;
-    gap: 15px;
+    gap: 1rem;
     align-items: center;
     flex-wrap: wrap;
 `;
 
 const DateInput = styled.input`
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-    padding: 10px 15px;
-    border-radius: 6px;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    color: #333333;
+    padding: 0.8rem 1rem;
+    font-weight: 300;
     
     &:focus {
         outline: none;
-        border-color: rgba(255, 255, 255, 0.4);
-        background: rgba(255, 255, 255, 0.15);
+        border-color: #000000;
     }
 `;
 
 const ReportDescription = styled.p`
-    color: #888888;
-    margin-bottom: 30px;
-    font-size: 1.1rem;
+    color: #666666;
+    margin-bottom: 2rem;
+    font-size: 1rem;
+    font-weight: 300;
+    line-height: 1.6;
 `;
 
 const TableContainer = styled.div`
     overflow-x: auto;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid #e0e0e0;
+    background: #ffffff;
 `;
 
 const Table = styled.table`
     width: 100%;
     border-collapse: collapse;
-    background: rgba(255, 255, 255, 0.02);
+    background: #ffffff;
 `;
 
 const TableHeader = styled.thead`
-    background: rgba(255, 255, 255, 0.1);
+    background: #f8f8f8;
     
     th {
-        padding: 15px 20px;
+        padding: 1rem 1.25rem;
         text-align: left;
-        font-weight: 600;
-        color: #ffffff;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        font-weight: 500;
+        color: #333333;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 `;
 
@@ -516,63 +527,72 @@ const TableRow = styled.tr`
     transition: background-color 0.2s ease;
     
     &:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: #fafafa;
     }
     
     td {
-        padding: 15px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        color: #cccccc;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #f0f0f0;
+        color: #333333;
+        font-weight: 300;
+    }
+    
+    &:last-child td {
+        border-bottom: none;
     }
 `;
 
 const RoleBadge = styled.span`
-    background: ${props => props.$role === 'admin' ? '#4CAF50' : '#2196F3'};
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    background: ${props => props.$role === 'admin' ? '#000000' : '#666666'};
+    color: #ffffff;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 `;
 
 const StatusBadge = styled.span`
     background: ${props => {
         switch(props.$status) {
-            case 'active': return '#4CAF50';
-            case 'inactive': return '#FF9800';
-            case 'archived': return '#757575';
-            default: return '#2196F3';
+            case 'active': return '#000000';
+            case 'inactive': return '#999999';
+            case 'archived': return '#666666';
+            default: return '#333333';
         }
     }};
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
+    color: #ffffff;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
 `;
 
 const ComingSoonSection = styled.div`
     text-align: center;
-    padding: 60px 20px;
+    padding: 4rem 1.5rem;
 `;
 
 const ComingSoonIcon = styled.div`
-    font-size: 4rem;
-    margin-bottom: 20px;
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.6;
 `;
 
 const ComingSoonTitle = styled.h3`
-    font-size: 2rem;
-    color: #ffffff;
-    margin-bottom: 15px;
+    font-size: 1.5rem;
+    color: #333333;
+    margin-bottom: 1rem;
+    font-weight: 400;
 `;
 
 const ComingSoonText = styled.p`
-    color: #888888;
-    font-size: 1.1rem;
-    margin-bottom: 30px;
+    color: #666666;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    font-weight: 300;
+    line-height: 1.6;
 `;
 
 const FeatureList = styled.ul`
@@ -582,30 +602,39 @@ const FeatureList = styled.ul`
     margin: 0 auto;
     
     li {
-        color: #cccccc;
-        padding: 8px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #666666;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-weight: 300;
         
         &:before {
             content: '•';
-            color: #ffffff;
-            margin-right: 10px;
+            color: #000000;
+            margin-right: 0.75rem;
+            font-weight: 500;
+        }
+        
+        &:last-child {
+            border-bottom: none;
         }
     }
 `;
 
 const UnauthorizedMessage = styled.div`
     text-align: center;
-    padding: 100px 20px;
+    padding: 5rem 1.5rem;
     
     h2 {
-        color: #ffffff;
-        margin-bottom: 15px;
+        color: #000000;
+        margin-bottom: 1rem;
+        font-weight: 400;
+        font-size: 1.5rem;
     }
     
     p {
-        color: #888888;
-        font-size: 1.1rem;
+        color: #666666;
+        font-size: 1rem;
+        font-weight: 300;
     }
 `;
 

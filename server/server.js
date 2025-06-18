@@ -3,6 +3,7 @@ const cors = require('cors');
 const { testConnection } = require('./config/database');
 const authRoutes = require('./routes/auth');
 const maintenanceRoutes = require('./routes/maintenance');
+const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const cartRoutes = require('./routes/api/cart');
 const orderRoutes = require('./routes/api/orders');
 const customDesignRoutes = require('./routes/customDesigns');
@@ -44,6 +45,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/custom-designs', customDesignRoutes);

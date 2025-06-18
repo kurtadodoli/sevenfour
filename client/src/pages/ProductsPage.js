@@ -5,7 +5,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faShoppingCart, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faShoppingCart, faEye, faSearch, faTimes } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 
 // Styled Components
@@ -49,7 +49,99 @@ const LoadingWrapper = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: 200px;
+  color: #666666;
+`;
+
+// Search Components
+const SearchSection = styled.div`
+  margin-bottom: 40px;
+`;
+
+const SearchContainer = styled.div`
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 16px 20px 16px 50px;
+  font-size: 1rem;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  background-color: #ffffff;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999999;
+    font-weight: 300;
+  }
+`;
+
+const SearchIcon = styled(FontAwesomeIcon)`
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666666;
+  font-size: 1.1rem;
+`;
+
+const ClearButton = styled.button`
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #999999;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    color: #000000;
+    background-color: #f5f5f5;
+  }
+`;
+
+const FilterContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+`;
+
+const FilterButton = styled.button`
+  padding: 8px 16px;
+  background-color: ${props => props.active ? '#000000' : '#ffffff'};
+  color: ${props => props.active ? '#ffffff' : '#666666'};
+  border: 1px solid ${props => props.active ? '#000000' : '#e0e0e0'};
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: ${props => props.active ? '#333333' : '#f5f5f5'};
+    border-color: ${props => props.active ? '#333333' : '#000000'};
+  }
+`;
+
+const SearchResults = styled.div`
+  text-align: center;
+  margin-bottom: 20px;
+  color: #666666;  font-size: 0.95rem;
 `;
 
 const LoadingText = styled.div`
@@ -278,27 +370,40 @@ const EmptyText = styled.p`
 
 const ProductsPage = () => {
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('all');
     const navigate = useNavigate();
     const { addToCart, loading: cartLoading } = useCart();
     const { currentUser } = useAuth();
 
-    const fetchProducts = async () => {
+    // Categories for filtering
+    const categories = [
+        { value: 'all', label: 'All Products' },
+        { value: 't-shirts', label: 'T-Shirts' },
+        { value: 'hoodies', label: 'Hoodies' },
+        { value: 'shorts', label: 'Shorts' },
+        { value: 'jackets', label: 'Jackets' },
+        { value: 'bags', label: 'Bags' },
+        { value: 'hats', label: 'Hats' },
+        { value: 'sweaters', label: 'Sweaters' }
+    ];const fetchProducts = async () => {
         try {
             setLoading(true);
             
-            const response = await fetch('http://localhost:3001/api/maintenance/products');
+            const response = await fetch('http://localhost:3001/api/enhanced-maintenance/products');
             
             if (response.ok) {
                 const data = await response.json();
                 
                 // Filter only active products for customers
                 const activeProducts = data.filter(product => 
-                    product.productstatus === 'active'
+                    product.status === 'active' && !product.is_archived
                 );
-                
-                setProducts(activeProducts);
+                  setProducts(activeProducts);
+                setFilteredProducts(activeProducts);
             } else {
                 setError('Failed to load products');
             }
@@ -308,6 +413,56 @@ const ProductsPage = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    // Filter products based on search term and category
+    useEffect(() => {
+        let filtered = products;
+
+        // Filter by search term
+        if (searchTerm) {
+            filtered = filtered.filter(product => {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                    product.productname?.toLowerCase().includes(searchLower) ||
+                    product.productdescription?.toLowerCase().includes(searchLower) ||
+                    product.product_type?.toLowerCase().includes(searchLower) ||
+                    // Search in size-color variants
+                    (product.sizeColorVariants && 
+                        product.sizeColorVariants.some(variant => 
+                            variant.size?.toLowerCase().includes(searchLower) ||
+                            variant.colorStocks?.some(cs => 
+                                cs.color?.toLowerCase().includes(searchLower)
+                            )
+                        )
+                    )
+                );
+            });
+        }
+
+        // Filter by category
+        if (selectedCategory !== 'all') {
+            filtered = filtered.filter(product => 
+                product.product_type === selectedCategory
+            );
+        }
+
+        setFilteredProducts(filtered);
+    }, [products, searchTerm, selectedCategory]);
+
+    // Handle search input change
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+    };
+
+    // Clear search
+    const clearSearch = () => {
+        setSearchTerm('');
+    };
+
+    // Handle category filter
+    const handleCategoryChange = (category) => {
+        setSelectedCategory(category);
     };
 
     useEffect(() => {
@@ -373,11 +528,48 @@ const ProductsPage = () => {
     return (
         <PageContainer>
             <TopBar />
-            <ContentWrapper>
-                <Header>
+            <ContentWrapper>                <Header>
                     <Title>Our Collection</Title>
                     <Subtitle>Discover our carefully curated selection of premium products</Subtitle>
                 </Header>
+                
+                {/* Search Section */}
+                <SearchSection>
+                    <SearchContainer>
+                        <SearchIcon icon={faSearch} />
+                        <SearchInput
+                            type="text"
+                            placeholder="Search products by name, description, color, or size..."
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                        />
+                        {searchTerm && (
+                            <ClearButton onClick={clearSearch}>
+                                <FontAwesomeIcon icon={faTimes} />
+                            </ClearButton>
+                        )}
+                    </SearchContainer>
+                    
+                    <FilterContainer>
+                        {categories.map(category => (
+                            <FilterButton
+                                key={category.value}
+                                active={selectedCategory === category.value}
+                                onClick={() => handleCategoryChange(category.value)}
+                            >
+                                {category.label}
+                            </FilterButton>
+                        ))}
+                    </FilterContainer>
+                    
+                    {(searchTerm || selectedCategory !== 'all') && (
+                        <SearchResults>
+                            {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                            {searchTerm && ` for "${searchTerm}"`}
+                            {selectedCategory !== 'all' && ` in ${categories.find(c => c.value === selectedCategory)?.label}`}
+                        </SearchResults>
+                    )}
+                </SearchSection>
                 
                 {loading && (
                     <LoadingWrapper>
@@ -392,11 +584,9 @@ const ProductsPage = () => {
                             Try Again
                         </RetryButton>
                     </ErrorWrapper>
-                )}
-
-                {!loading && !error && products.length > 0 && (
+                )}                {!loading && !error && filteredProducts.length > 0 && (
                     <ProductGrid>
-                        {products.map(product => {
+                        {filteredProducts.map(product => {
                             const totalStock = getTotalStock(product);
                             const availableSizes = getAvailableSizes(product.sizes);
                             
@@ -471,14 +661,27 @@ const ProductsPage = () => {
                             );
                         })}
                     </ProductGrid>
-                )}
-
-                {!loading && !error && products.length === 0 && (
+                )}                {!loading && !error && products.length === 0 && (
                     <EmptyState>
                         <EmptyTitle>No products available</EmptyTitle>
                         <EmptyText>
                             Check back later for new products in our collection
                         </EmptyText>
+                    </EmptyState>
+                )}
+
+                {!loading && !error && products.length > 0 && filteredProducts.length === 0 && (
+                    <EmptyState>
+                        <EmptyTitle>No products found</EmptyTitle>
+                        <EmptyText>
+                            {searchTerm ? 
+                                `No products match "${searchTerm}". Try adjusting your search terms.` :
+                                `No products found in ${categories.find(c => c.value === selectedCategory)?.label || 'this category'}.`
+                            }
+                        </EmptyText>
+                        <RetryButton onClick={() => { setSearchTerm(''); setSelectedCategory('all'); }}>
+                            Clear Filters
+                        </RetryButton>
                     </EmptyState>
                 )}
             </ContentWrapper>        </PageContainer>

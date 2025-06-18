@@ -144,6 +144,7 @@ const healthCheckRoutes = require('./routes/health-check');
 const homepageRoutes = require('./routes/api/homepage');
 const customizationRoutes = require('./routes/api/customizations');
 const maintenanceRoutes = require('./routes/maintenance');
+const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const adminRoutes = require('./routes/admin');
 const inventoryRoutes = require('./routes/api/inventory');
 // const customDesignRoutes = require('./routes/customDesigns'); // Temporarily disabled
@@ -161,6 +162,7 @@ app.use('/api/admin/homepage', homepageRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/customizations', customizationRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
+app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
 // app.use('/api/custom-designs', customDesignRoutes); // Temporarily disabled
 app.use('/health', healthCheckRoutes);

@@ -13,9 +13,26 @@ const MaintenancePage = () => {
         productdescription: '',
         productprice: '',
         productcolor: '', // Keep for backward compatibility
-        colors: [], // New array for multiple colors
-        product_type: '',
-        sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
+        colors: [], // This will be deprecated        product_type: '',
+        sizeColorVariants: [
+            { 
+                size: 'S', 
+                colorStocks: [{ color: 'Black', stock: 0 }] 
+            },
+            { 
+                size: 'M', 
+                colorStocks: [{ color: 'Black', stock: 0 }] 
+            },
+            { 
+                size: 'L', 
+                colorStocks: [{ color: 'Black', stock: 0 }] 
+            },
+            { 
+                size: 'XL', 
+                colorStocks: [{ color: 'Black', stock: 0 }] 
+            }
+        ],
+        sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }] // Keep for backward compatibility
     });
     
     // Multiple image handling
@@ -29,19 +46,18 @@ const MaintenancePage = () => {
         // Clear localStorage
         localStorage.clear();
         // Clear sessionStorage  
-        sessionStorage.clear();
-        // Reload page to clear any stuck headers
+        sessionStorage.clear();        // Reload page to clear any stuck headers
         window.location.reload();
     };
 
-    // Add detailed logging to trace the issue
+    // Fetch products with enhanced size-color variants
     const fetchProducts = async () => {
         console.log('🔄 fetchProducts called');
         try {
             setLoading(true);
             setMessage('');
-              console.log('📡 Making fetch request to /api/maintenance/products');
-            const response = await fetch('http://localhost:3001/api/maintenance/products', {
+              console.log('📡 Making fetch request to /api/enhanced-maintenance/products');
+            const response = await fetch('http://localhost:3001/api/enhanced-maintenance/products', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -55,28 +71,16 @@ const MaintenancePage = () => {
                 console.log('📊 Data length:', data.length);
                 console.log('📋 Setting products in state...');
                 
-                // Process the products to ensure images are properly formatted as arrays
-                const processedData = data.map(product => ({
-                    ...product,
-                    images: product.images 
-                        ? (Array.isArray(product.images) ? product.images : product.images.split(',').filter(img => img.trim())) 
-                        : []
-                }));
-                
+                // Data is already processed by the enhanced API with sizeColorVariants
                 // Separate active and archived products
-                const activeProducts = processedData.filter(product => product.productstatus !== 'archived');
-                const archived = processedData.filter(product => product.productstatus === 'archived');
+                const activeProducts = data.filter(product => product.status !== 'archived' && !product.is_archived);
+                const archived = data.filter(product => product.status === 'archived' || product.is_archived);
                 
                 setProducts(activeProducts);
-                setArchivedProducts(archived);                console.log('✅ Products set in state');
-                console.log('Sample product with images:', activeProducts[0]?.images);
-                console.log('All active products:', activeProducts.map(p => ({
-                    id: p.id,
-                    name: p.productname,
-                    images: p.images,
-                    productimage: p.productimage
-                })));
-                } else if (response.status === 431) {
+                setArchivedProducts(archived);
+                console.log('✅ Products set in state');
+                console.log('Sample product with sizeColorVariants:', activeProducts[0]?.sizeColorVariants);
+            } else if (response.status === 431) {
                 console.error('❌ Request Header Fields Too Large');
                 setMessage('Error: Request headers too large. Please try refreshing the page.');
             } else {
@@ -90,7 +94,7 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };    // Fetch product images
+    };// Fetch product images
     const fetchProductImages = async (productId) => {
         try {
             const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/images`);
@@ -120,9 +124,137 @@ const MaintenancePage = () => {
             ...formData,
             [e.target.name]: e.target.value
         });
+    };    // Handle size and color variant changes
+    const handleSizeColorVariantChange = (sizeIndex, colorIndex, field, value) => {
+        const newVariants = [...formData.sizeColorVariants];
+        if (field === 'size') {
+            newVariants[sizeIndex].size = value;
+        } else if (field === 'color') {
+            newVariants[sizeIndex].colorStocks[colorIndex].color = value;
+        } else if (field === 'stock') {
+            newVariants[sizeIndex].colorStocks[colorIndex].stock = parseInt(value) || 0;
+        }
+        setFormData({
+            ...formData,
+            sizeColorVariants: newVariants
+        });
     };
 
-    // Handle size and stock changes
+    // Add new color to a specific size
+    const addColorToSize = (sizeIndex) => {
+        const newVariants = [...formData.sizeColorVariants];
+        newVariants[sizeIndex].colorStocks.push({ color: '', stock: 0 });
+        setFormData({
+            ...formData,
+            sizeColorVariants: newVariants
+        });
+    };
+
+    // Remove color from a specific size
+    const removeColorFromSize = (sizeIndex, colorIndex) => {
+        const newVariants = [...formData.sizeColorVariants];
+        newVariants[sizeIndex].colorStocks = newVariants[sizeIndex].colorStocks.filter((_, i) => i !== colorIndex);
+        setFormData({
+            ...formData,
+            sizeColorVariants: newVariants
+        });
+    };
+
+    // Add new size variant
+    const addSizeVariant = () => {
+        setFormData({
+            ...formData,
+            sizeColorVariants: [...formData.sizeColorVariants, { size: '', colorStocks: [{ color: '', stock: 0 }] }]
+        });
+    };
+
+    // Remove size variant
+    const removeSizeVariant = (index) => {
+        const newVariants = formData.sizeColorVariants.filter((_, i) => i !== index);
+        setFormData({
+            ...formData,
+            sizeColorVariants: newVariants
+        });
+    };    // Calculate total stock across all variants
+    const getTotalStock = () => {
+        return formData.sizeColorVariants.reduce((total, sizeVariant) => {
+            return total + sizeVariant.colorStocks.reduce((sizeTotal, colorStock) => {
+                return sizeTotal + colorStock.stock;
+            }, 0);
+        }, 0);
+    };    // Extract all unique colors from sizeColorVariants for display
+    const getProductColors = (product) => {
+        try {
+            // First, try to get colors from new sizeColorVariants structure
+            if (product.sizeColorVariants) {
+                const sizeColorVariants = typeof product.sizeColorVariants === 'string' 
+                    ? JSON.parse(product.sizeColorVariants) 
+                    : product.sizeColorVariants;
+                
+                if (Array.isArray(sizeColorVariants)) {
+                    const allColors = [];
+                    sizeColorVariants.forEach(sizeVariant => {
+                        if (sizeVariant.colorStocks && Array.isArray(sizeVariant.colorStocks)) {
+                            sizeVariant.colorStocks.forEach(colorStock => {
+                                if (colorStock.color && colorStock.color.trim() !== '' && !allColors.includes(colorStock.color.trim())) {
+                                    allColors.push(colorStock.color.trim());
+                                }
+                            });
+                        }
+                    });
+                    
+                    if (allColors.length > 0) {
+                        return allColors;
+                    }
+                }
+            }
+            
+            // Fallback to legacy colors field
+            if (product.colors) {
+                const colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : product.colors;
+                if (Array.isArray(colors) && colors.length > 0) {
+                    const validColors = colors.filter(color => color && color.trim() !== '');
+                    if (validColors.length > 0) {
+                        return validColors;
+                    }
+                }
+            }
+            
+            // Fallback to single productcolor
+            if (product.productcolor && product.productcolor.trim() !== '') {
+                return [product.productcolor.trim()];
+            }
+            
+            return ['Not specified'];
+        } catch (error) {
+            console.error('Error parsing product colors:', error);
+            // Fallback handling
+            if (product.productcolor && product.productcolor.trim() !== '') {
+                return [product.productcolor.trim()];
+            }
+            return ['Not specified'];
+        }
+    };
+
+    // Get detailed size-color breakdown for display
+    const getSizeColorBreakdown = (product) => {
+        try {
+            if (product.sizeColorVariants) {
+                const sizeColorVariants = typeof product.sizeColorVariants === 'string' 
+                    ? JSON.parse(product.sizeColorVariants) 
+                    : product.sizeColorVariants;
+                
+                return sizeColorVariants.filter(sizeVariant => 
+                    sizeVariant.colorStocks.some(colorStock => colorStock.stock > 0)
+                );
+            }
+        } catch (error) {
+            console.error('Error parsing size-color variants:', error);
+        }
+        return [];
+    };
+
+    // Handle size and stock changes (keep for backward compatibility)
     const handleSizeChange = (index, field, value) => {
         const newSizes = [...formData.sizes];
         newSizes[index][field] = field === 'stock' ? parseInt(value) || 0 : value;
@@ -282,31 +414,72 @@ const MaintenancePage = () => {
             productprice: '',
             productcolor: '',
             colors: [],
-            product_type: '',
+            product_type: '',            sizeColorVariants: [
+                { 
+                    size: 'S', 
+                    colorStocks: [{ color: 'Black', stock: 0 }] 
+                },
+                { 
+                    size: 'M', 
+                    colorStocks: [{ color: 'Black', stock: 0 }] 
+                },
+                { 
+                    size: 'L', 
+                    colorStocks: [{ color: 'Black', stock: 0 }] 
+                },
+                { 
+                    size: 'XL', 
+                    colorStocks: [{ color: 'Black', stock: 0 }] 
+                }
+            ],
             sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
         });
         setSelectedImages([]);
         setImagePreviews([]);
         setExistingImages([]);
-        setEditingProduct(null);
-        setShowEditModal(false);
-    };// Handle form submission
+        setEditingProduct(null);        setShowEditModal(false);
+    };
+
+    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage('');
+        setMessage('');        // Validate that at least one size-color variant has a color specified
+        const hasValidVariants = formData.sizeColorVariants.some(sizeVariant => 
+            sizeVariant.colorStocks.some(colorStock => 
+                colorStock.color.trim() !== ''
+            )
+        );
+
+        if (!hasValidVariants) {
+            setMessage('Please add at least one color for any size.');
+            setLoading(false);
+            return;
+        }
 
         try {
             const formDataToSend = new FormData();              // Add product data
             formDataToSend.append('productname', formData.productname);
             formDataToSend.append('productdescription', formData.productdescription);
             formDataToSend.append('productprice', formData.productprice);
-            formDataToSend.append('productcolor', formData.colors.length > 0 ? formData.colors[0] : formData.productcolor);
+            
+            // Handle backward compatibility for productcolor
+            const firstColor = formData.sizeColorVariants[0]?.colorStocks[0]?.color || formData.productcolor || '';
+            formDataToSend.append('productcolor', firstColor);
+            
+            // Send the new sizeColorVariants structure
+            formDataToSend.append('sizeColorVariants', JSON.stringify(formData.sizeColorVariants));
+            
+            // Also send legacy formats for backward compatibility
             formDataToSend.append('colors', JSON.stringify(formData.colors));
-            formDataToSend.append('product_type', formData.product_type);
             formDataToSend.append('sizes', JSON.stringify(formData.sizes));
-              // Calculate total stock
-            const totalStock = formData.sizes.reduce((sum, size) => sum + size.stock, 0);
+            formDataToSend.append('product_type', formData.product_type);
+              // Calculate total stock from new structure
+            const totalStock = formData.sizeColorVariants.reduce((total, sizeVariant) => {
+                return total + sizeVariant.colorStocks.reduce((sizeTotal, colorStock) => {
+                    return sizeTotal + colorStock.stock;
+                }, 0);
+            }, 0);
             formDataToSend.append('total_stock', totalStock);
 
             // Add images only if there are any selected
@@ -319,11 +492,14 @@ const MaintenancePage = () => {
             // Debug: Log what we're sending
             console.log('=== FRONTEND FORM DATA ===');
             console.log('Product name:', formData.productname);
-            console.log('Selected images count:', selectedImages.length);
-            for (let pair of formDataToSend.entries()) {
-                console.log(pair[0] + ':', pair[1]);
-            }            const url = editingProduct                ? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
-                : 'http://localhost:3001/api/maintenance/products';
+            console.log('Size Color Variants:', formData.sizeColorVariants);
+            console.log('Total Stock:', totalStock);
+            console.log('Selected images count:', selectedImages.length);            for (let pair of formDataToSend.entries()) {
+                if (pair[0] !== 'images') { // Don't log file objects
+                    console.log(pair[0] + ':', pair[1]);
+                }
+            }            const url = editingProduct? `http://localhost:3001/api/enhanced-maintenance/products/${editingProduct.id}`
+                : 'http://localhost:3001/api/enhanced-maintenance/products';
             
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -338,8 +514,7 @@ const MaintenancePage = () => {
                 fetchProducts();
             } else if (response.status === 431) {
                 throw new Error('Request headers too large - please try with smaller images or refresh the page');
-            } else {
-                const errorData = await response.text();
+            } else {                const errorData = await response.text();
                 throw new Error(`Failed to ${editingProduct ? 'update' : 'add'} product: ${errorData}`);
             }
         } catch (error) {
@@ -348,7 +523,7 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };    
+    };
     // Edit product
     const editProduct = async (product) => {
         setEditingProduct(product);
@@ -360,9 +535,7 @@ const MaintenancePage = () => {
                    [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
         } catch (error) {
             sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
-        }
-
-        // Parse colors from JSON or use productcolor as fallback
+        }        // Parse colors from JSON or use productcolor as fallback
         let colors = [];
         try {
             if (product.colors) {
@@ -373,6 +546,31 @@ const MaintenancePage = () => {
         } catch (error) {
             colors = product.productcolor ? [product.productcolor] : [];
         }
+
+        // Convert existing data to new sizeColorVariants structure if needed
+        let sizeColorVariants = [];
+        try {
+            if (product.sizeColorVariants) {
+                sizeColorVariants = JSON.parse(product.sizeColorVariants);
+            } else {
+                // Convert from old format to new format
+                sizeColorVariants = sizes.map(sizeData => ({
+                    size: sizeData.size,
+                    colorStocks: colors.length > 0 
+                        ? colors.map(color => ({ color, stock: Math.floor(sizeData.stock / colors.length) }))
+                        : [{ color: product.productcolor || '', stock: sizeData.stock }]
+                }));
+            }
+        } catch (error) {
+            // Fallback to default structure
+            sizeColorVariants = [
+                { size: 'S', colorStocks: [{ color: '', stock: 0 }] },
+                { size: 'M', colorStocks: [{ color: '', stock: 0 }] },
+                { size: 'L', colorStocks: [{ color: '', stock: 0 }] },
+                { size: 'XL', colorStocks: [{ color: '', stock: 0 }] }
+            ];
+        }
+
         setFormData({
             productname: product.productname || '',
             productdescription: product.productdescription || '',
@@ -380,7 +578,8 @@ const MaintenancePage = () => {
             productcolor: product.productcolor || '',
             colors: colors,
             product_type: product.product_type || '',
-            sizes: sizes
+            sizes: sizes,
+            sizeColorVariants: sizeColorVariants
         });
         
         // Fetch existing images
@@ -623,71 +822,129 @@ if (typeof document !== 'undefined') {
                                         required
                                     />
                                 </div>                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>PRODUCT IMAGES (Max: 10)</label>                                    <input
-                                        type="file"
-                                        name="images"
-                                        accept="image/*"
-                                        multiple
-                                        onChange={handleImageChange}
-                                        style={styles.fileInput}
-                                        disabled={selectedImages.length + existingImages.length >= 10}
-                                    />
-                                    <p style={styles.imageLimit}>
-                                        {selectedImages.length + existingImages.length}/10 images uploaded
-                                    </p>
-                                    
-                                    {/* Existing Images */}
-                                    {existingImages.length > 0 && (
-                                        <div style={styles.imageSection}>
-                                            <h4>Existing Images:</h4>
-                                            <div style={styles.imageGrid}>
+                                    <label style={styles.label}>PRODUCT IMAGES</label>
+                                    <div style={styles.imageUploadContainer}>                                        {/* Upload Area */}
+                                        <div 
+                                            style={styles.uploadArea}
+                                            onMouseEnter={(e) => {
+                                                e.target.style.borderColor = '#000000';
+                                                e.target.style.backgroundColor = '#f5f5f5';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.target.style.borderColor = '#e0e0e0';
+                                                e.target.style.backgroundColor = '#fafafa';
+                                            }}
+                                        >
+                                            <div style={styles.uploadContent}>
+                                                <div style={styles.uploadIcon}>
+                                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                                        <polyline points="21,15 16,10 5,21"/>
+                                                    </svg>
+                                                </div>
+                                                <div style={styles.uploadText}>
+                                                    <p style={styles.uploadTitle}>Click to upload images</p>
+                                                    <p style={styles.uploadSubtitle}>or drag and drop</p>
+                                                </div>
+                                                <div style={styles.uploadInfo}>
+                                                    <span style={styles.uploadLimit}>
+                                                        {selectedImages.length + existingImages.length}/10 images
+                                                    </span>
+                                                    <span style={styles.uploadFormats}>JPG, PNG up to 10MB each</span>
+                                                </div>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                name="images"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={handleImageChange}
+                                                style={styles.hiddenFileInput}
+                                                disabled={selectedImages.length + existingImages.length >= 10}
+                                            />
+                                        </div>
+
+                                        {/* Image Grid */}
+                                        {(existingImages.length > 0 || imagePreviews.length > 0) && (
+                                            <div style={styles.imageGrid}>                                                {/* Existing Images */}
                                                 {existingImages.map((img, index) => (
-                                                    <div key={img.image_id} style={styles.imageContainer}>
-                                                        <img 
-                                                            src={`http://localhost:3001/uploads/${img.image_filename}`} 
-                                                            alt={`Product ${index + 1}`}
-                                                            style={styles.imagePreview}
-                                                        />
-                                                        {img.is_thumbnail && (
-                                                            <div style={styles.thumbnailBadge}>Thumbnail</div>
-                                                        )}
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => removeExistingImage(img.image_id, img.image_filename)}
-                                                            style={styles.removeImageButton}
+                                                    <div key={`existing-${img.image_id}`} style={styles.imageCard}>
+                                                        <div 
+                                                            style={styles.imageWrapper}
+                                                            onMouseEnter={(e) => {
+                                                                const removeBtn = e.currentTarget.querySelector('.remove-btn');
+                                                                if (removeBtn) removeBtn.style.opacity = '1';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                const removeBtn = e.currentTarget.querySelector('.remove-btn');
+                                                                if (removeBtn) removeBtn.style.opacity = '0';
+                                                            }}
                                                         >
-                                                            ×
-                                                        </button>
+                                                            <img 
+                                                                src={`http://localhost:3001/uploads/${img.image_filename}`} 
+                                                                alt={`Product ${index + 1}`}
+                                                                style={styles.imagePreview}
+                                                            />
+                                                            {img.is_thumbnail && (
+                                                                <div style={styles.thumbnailBadge}>
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                                                                    </svg>
+                                                                    Main
+                                                                </div>
+                                                            )}                                                            <button 
+                                                                type="button"
+                                                                onClick={() => removeExistingImage(img.image_id, img.image_filename)}
+                                                                style={styles.removeButton}
+                                                                className="remove-btn"
+                                                                title="Remove image"
+                                                            >
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                        <div style={styles.imageLabel}>Uploaded</div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    
-                                    {/* New Image Previews */}
-                                    {imagePreviews.length > 0 && (
-                                        <div style={styles.imageSection}>
-                                            <h4>New Images:</h4>
-                                            <div style={styles.imageGrid}>
+                                                ))}                                                {/* New Image Previews */}
                                                 {imagePreviews.map((preview, index) => (
-                                                    <div key={index} style={styles.imageContainer}>
-                                                        <img 
-                                                            src={preview} 
-                                                            alt={`New ${index + 1}`}
-                                                            style={styles.imagePreview}
-                                                        />
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => removeSelectedImage(index)}
-                                                            style={styles.removeImageButton}
+                                                    <div key={`new-${index}`} style={styles.imageCard}>
+                                                        <div 
+                                                            style={styles.imageWrapper}
+                                                            onMouseEnter={(e) => {
+                                                                const removeBtn = e.currentTarget.querySelector('.remove-btn');
+                                                                if (removeBtn) removeBtn.style.opacity = '1';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                const removeBtn = e.currentTarget.querySelector('.remove-btn');
+                                                                if (removeBtn) removeBtn.style.opacity = '0';
+                                                            }}
                                                         >
-                                                            ×
-                                                        </button>
+                                                            <img 
+                                                                src={preview} 
+                                                                alt={`New ${index + 1}`}
+                                                                style={styles.imagePreview}
+                                                            />                                                            <button 
+                                                                type="button"
+                                                                onClick={() => removeSelectedImage(index)}
+                                                                style={styles.removeButton}
+                                                                className="remove-btn"
+                                                                title="Remove image"
+                                                            >
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                        <div style={styles.imageLabel}>New</div>
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div style={styles.formGroup}>
@@ -713,51 +970,83 @@ if (typeof document !== 'undefined') {
                                             required
                                         />
                                     </div>
-                                </div>
-
-                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>COLORS</label>
-                                    {formData.colors.length === 0 ? (
-                                        <div style={styles.emptyState}>
-                                            <p style={styles.emptyStateText}>No colors added yet</p>
-                                            <button 
-                                                type="button"
-                                                onClick={addColor}
-                                                style={styles.addColorButton}
-                                            >
-                                                Add Color
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {formData.colors.map((color, index) => (
-                                                <div key={index} style={styles.colorRow}>
+                                </div>                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>SIZE & COLOR VARIANTS</label>
+                                    <div style={styles.variantContainer}>
+                                        {formData.sizeColorVariants.map((sizeVariant, sizeIndex) => (
+                                            <div key={sizeIndex} style={styles.sizeVariantGroup}>
+                                                <div style={styles.sizeHeader}>
                                                     <input
                                                         type="text"
-                                                        placeholder="Color (e.g., Red, Blue, Black)"
-                                                        value={color}
-                                                        onChange={(e) => handleColorChange(index, e.target.value)}
-                                                        style={styles.colorInput}
+                                                        placeholder="Size (e.g., S, M, L, XL)"
+                                                        value={sizeVariant.size}
+                                                        onChange={(e) => handleSizeColorVariantChange(sizeIndex, 0, 'size', e.target.value)}
+                                                        style={styles.sizeVariantInput}
                                                     />
+                                                    {formData.sizeColorVariants.length > 1 && (
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => removeSizeVariant(sizeIndex)}
+                                                            style={styles.removeSizeVariantButton}
+                                                        >
+                                                            Remove Size
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                
+                                                <div style={styles.colorStocksContainer}>
+                                                    {sizeVariant.colorStocks.map((colorStock, colorIndex) => (
+                                                        <div key={colorIndex} style={styles.colorStockRow}>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Color (e.g., Red, Blue, Black)"
+                                                                value={colorStock.color}
+                                                                onChange={(e) => handleSizeColorVariantChange(sizeIndex, colorIndex, 'color', e.target.value)}
+                                                                style={styles.colorVariantInput}
+                                                            />
+                                                            <input
+                                                                type="number"
+                                                                placeholder="Stock"
+                                                                value={colorStock.stock}
+                                                                onChange={(e) => handleSizeColorVariantChange(sizeIndex, colorIndex, 'stock', e.target.value)}
+                                                                style={styles.stockVariantInput}
+                                                                min="0"
+                                                            />
+                                                            {sizeVariant.colorStocks.length > 1 && (
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => removeColorFromSize(sizeIndex, colorIndex)}
+                                                                    style={styles.removeColorStockButton}
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
                                                     <button 
                                                         type="button"
-                                                        onClick={() => removeColor(index)}
-                                                        style={styles.removeColorButton}
+                                                        onClick={() => addColorToSize(sizeIndex)}
+                                                        style={styles.addColorToSizeButton}
                                                     >
-                                                        Remove
+                                                        Add Color for {sizeVariant.size}
                                                     </button>
                                                 </div>
-                                            ))}
+                                            </div>
+                                        ))}
+                                        
+                                        <div style={styles.variantActions}>
                                             <button 
                                                 type="button"
-                                                onClick={addColor}
-                                                style={styles.addColorButton}
+                                                onClick={addSizeVariant}
+                                                style={styles.addSizeVariantButton}
                                             >
-                                                Add Another Color
+                                                Add New Size
                                             </button>
-                                        </>
-                                    )}
-                                </div>
+                                            <div style={styles.totalStockDisplay}>
+                                                Total Stock: {getTotalStock()}
+                                            </div>
+                                        </div>
+                                    </div>                                </div>
 
                                 <div style={styles.formGroup}>
                                     <label style={styles.label}>PRODUCT TYPE</label>
@@ -779,49 +1068,7 @@ if (typeof document !== 'undefined') {
                                     </select>
                                 </div>
 
-                                <div style={styles.formGroup}>
-                                    <label style={styles.label}>SIZES & STOCK</label>
-                                    {formData.sizes.map((sizeData, index) => (
-                                        <div key={index} style={styles.sizeRow}>
-                                            <input
-                                                type="text"
-                                                placeholder="Size (e.g., S, M, L, XL)"
-                                                value={sizeData.size}
-                                                onChange={(e) => handleSizeChange(index, 'size', e.target.value)}
-                                                style={styles.sizeInput}
-                                            />
-                                            <input
-                                                type="number"
-                                                placeholder="Stock quantity"
-                                                value={sizeData.stock}
-                                                onChange={(e) => handleSizeChange(index, 'stock', e.target.value)}
-                                                style={styles.stockInput}
-                                                min="0"
-                                            />
-                                            {formData.sizes.length > 1 && (
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => removeSize(index)}
-                                                    style={styles.removeSizeButton}
-                                                >
-                                                    Remove
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <button 
-                                        type="button"
-                                        onClick={addSize}
-                                        style={styles.addSizeButton}
-                                    >
-                                        Add Size
-                                    </button>
-                                    <div style={styles.totalStock}>
-                                        Total Stock: {formData.sizes.reduce((sum, size) => sum + size.stock, 0)}
-                                    </div>
-                                </div>
-
-                                <div style={styles.buttonGroup}>                                    <button 
+                                <div style={styles.buttonGroup}><button 
                                         type="submit" 
                                         style={styles.submitButton}
                                         className="maintenance-button"
@@ -904,11 +1151,42 @@ if (typeof document !== 'undefined') {
                                                         </div>
                                                     )}<div style={styles.productInfo}>
                                                         <h3 style={styles.productName}>{product.productname}</h3>
-                                                        <p style={styles.productPrice}>₱{product.productprice}</p>
-                                                        <p style={styles.productStock}>
+                                                        <p style={styles.productPrice}>₱{product.productprice}</p>                                                        <p style={styles.productStock}>
                                                             Stock: {product.total_stock || product.productquantity || 0}
                                                         </p>
-                                                        <p style={styles.productColor}>Color: {product.productcolor}</p>
+                                                        <div style={styles.productColors}>
+                                                            <span style={styles.productLabel}>Colors: </span>
+                                                            <div style={styles.colorsList}>
+                                                                {getProductColors(product).map((color, index) => (
+                                                                    <span key={index} style={styles.colorTag}>
+                                                                        {color}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        {/* Show detailed size-color breakdown if available */}
+                                                        {getSizeColorBreakdown(product).length > 0 && (
+                                                            <div style={styles.sizeColorBreakdown}>
+                                                                <span style={styles.productLabel}>Available: </span>
+                                                                <div style={styles.breakdownList}>
+                                                                    {getSizeColorBreakdown(product).map((sizeVariant, index) => (
+                                                                        <div key={index} style={styles.sizeGroup}>
+                                                                            <span style={styles.sizeLabel}>{sizeVariant.size}:</span>
+                                                                            {sizeVariant.colorStocks
+                                                                                .filter(colorStock => colorStock.stock > 0)
+                                                                                .map((colorStock, colorIndex) => (
+                                                                                    <span key={colorIndex} style={styles.colorStockTag}>
+                                                                                        {colorStock.color} ({colorStock.stock})
+                                                                                    </span>
+                                                                                ))
+                                                                            }
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        
                                                         <p style={styles.productType}>Type: {product.product_type ? product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1) : 'Not specified'}</p>
                                                         
                                                         <div style={styles.productActions}>                                                            <button 
@@ -988,12 +1266,23 @@ if (typeof document !== 'undefined') {
                                                             <div style={styles.noImagePlaceholder}>
                                                                 No Image
                                                             </div>
-                                                        )}<div style={styles.productInfo}>
+                                                        )}                                                        <div style={styles.productInfo}>
                                                             <h3 style={styles.productName}>{product.productname}</h3>
                                                             <p style={styles.productPrice}>₱{product.productprice}</p>
                                                             <p style={styles.archivedLabel}>ARCHIVED</p>
                                                             
-                                                            <div style={styles.productActions}>                                                                <button 
+                                                            <div style={styles.productColors}>
+                                                                <span style={styles.productLabel}>Colors: </span>
+                                                                <div style={styles.colorsList}>
+                                                                    {getProductColors(product).map((color, index) => (
+                                                                        <span key={index} style={styles.colorTag}>
+                                                                            {color}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div style={styles.productActions}><button 
                                                                     className="action-button restore-button"
                                                                     style={styles.restoreButton}
                                                                     onClick={() => restoreProduct(product.id)}
@@ -1056,399 +1345,573 @@ if (typeof document !== 'undefined') {
 const styles = {
     container: {
         minHeight: '100vh',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#fafafa'
     },
     mainContent: {
-        padding: '40px 20px',
-        backgroundColor: '#ffffff'
+        padding: '2rem 1rem',
+        backgroundColor: '#fafafa'
     },
     content: {
-        maxWidth: '1400px',
+        maxWidth: '1200px',
         margin: '0 auto',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#fafafa'
     },
     tabContainer: {
         display: 'flex',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        padding: '8px',
-        marginBottom: '40px',
-        border: '1px solid #e9ecef'
+        backgroundColor: '#ffffff',
+        border: '1px solid #e0e0e0',
+        padding: '0.5rem',
+        marginBottom: '2rem',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     },
     tab: {
         flex: 1,
-        padding: '16px 24px',
+        padding: '1rem 1.5rem',
         border: 'none',
         backgroundColor: 'transparent',
         cursor: 'pointer',
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#6c757d',
-        borderRadius: '8px',
+        fontSize: '0.9rem',
+        fontWeight: '400',
+        color: '#666666',
         transition: 'all 0.2s ease',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
     },
     activeTab: {
         backgroundColor: '#000000',
-        color: '#ffffff',
-        transform: 'translateY(-1px)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+        color: '#ffffff'
     },
     message: {
-        padding: '16px 20px',
-        marginBottom: '32px',
-        backgroundColor: '#f8f9fa',
-        color: '#000000',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontWeight: '500'
+        padding: '1rem 1.5rem',
+        marginBottom: '2rem',
+        backgroundColor: '#ffffff',
+        color: '#333333',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.95rem',
+        fontWeight: '400'
     },
     tabContent: {
         backgroundColor: '#ffffff',
-        borderRadius: '16px',
-        padding: '40px',
-        border: '1px solid #e9ecef'
+        padding: '2.5rem',
+        border: '1px solid #e0e0e0',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
     },
     sectionTitle: {
-        fontSize: '32px',
-        fontWeight: '300',
-        marginBottom: '40px',
+        fontSize: '2rem',
+        fontWeight: '200',
+        marginBottom: '2rem',
         color: '#000000',
         letterSpacing: '-0.5px'
-    },
-    form: {
-        maxWidth: '800px'
+    },    form: {
+        maxWidth: '700px'
     },
     formGroup: {
-        marginBottom: '32px'
+        marginBottom: '2rem'
     },
     formGroupHalf: {
         flex: 1,
-        marginRight: '20px'
+        marginRight: '1.5rem'
     },
     formRow: {
         display: 'flex',
-        gap: '20px',
-        marginBottom: '32px'
+        gap: '1.5rem',
+        marginBottom: '2rem'
     },
     label: {
         display: 'block',
-        marginBottom: '8px',
-        fontSize: '11px',
-        fontWeight: '600',
-        color: '#000000',
+        marginBottom: '0.5rem',
+        fontSize: '0.8rem',
+        fontWeight: '500',
+        color: '#333333',
         textTransform: 'uppercase',
         letterSpacing: '0.8px'
-    },    input: {
+    },
+    input: {
         width: '100%',
-        padding: '16px 20px',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '15px',
+        padding: '1rem 1.2rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '1rem',
         boxSizing: 'border-box',
-        transition: 'all 0.2s ease',
+        transition: 'border-color 0.2s ease',
         backgroundColor: '#ffffff',
-        color: '#000000',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        color: '#333333',
+        fontWeight: '300',
+        '&:focus': {
+            outline: 'none',
+            borderColor: '#000000'
+        }
     },
     select: {
         width: '100%',
-        padding: '16px 20px',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '15px',
+        padding: '1rem 1.2rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '1rem',
         boxSizing: 'border-box',
-        transition: 'all 0.2s ease',
+        transition: 'border-color 0.2s ease',
         backgroundColor: '#ffffff',
-        color: '#000000',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        cursor: 'pointer'
+        color: '#333333',
+        fontWeight: '300',
+        cursor: 'pointer',
+        '&:focus': {
+            outline: 'none',
+            borderColor: '#000000'
+        }
     },
     textarea: {
         width: '100%',
-        padding: '16px 20px',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '15px',
+        padding: '1rem 1.2rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '1rem',
         resize: 'vertical',
         boxSizing: 'border-box',
         minHeight: '120px',
-        transition: 'all 0.2s ease',
+        transition: 'border-color 0.2s ease',
         backgroundColor: '#ffffff',
-        color: '#000000',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        color: '#333333',
+        fontWeight: '300',
+        '&:focus': {
+            outline: 'none',
+            borderColor: '#000000'
+        }    },
+    // Modern Image Upload Styles
+    imageUploadContainer: {
+        marginTop: '1rem'
     },
-    fileInput: {
-        width: '100%',
-        padding: '16px 20px',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '14px',
-        backgroundColor: '#ffffff'
+    uploadArea: {
+        position: 'relative',
+        border: '2px dashed #e0e0e0',
+        padding: '3rem 2rem',
+        textAlign: 'center',
+        backgroundColor: '#fafafa',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+            borderColor: '#000000',
+            backgroundColor: '#f5f5f5'
+        }
     },
-    imagePreviewContainer: {
-        marginTop: '20px',
+    uploadContent: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '1rem'
+    },
+    uploadIcon: {
+        color: '#666666',
+        marginBottom: '0.5rem'
+    },
+    uploadText: {
         textAlign: 'center'
-    },    imagePreview: {
-        width: '120px',
-        height: '120px',
-        objectFit: 'cover',
-        borderRadius: '8px',
-        border: '1px solid #e9ecef'
+    },
+    uploadTitle: {
+        fontSize: '1rem',
+        fontWeight: '500',
+        color: '#333333',
+        margin: '0 0 0.25rem 0'
+    },
+    uploadSubtitle: {
+        fontSize: '0.9rem',
+        color: '#666666',
+        margin: '0',
+        fontWeight: '300'
+    },
+    uploadInfo: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.25rem',
+        marginTop: '0.5rem'
+    },
+    uploadLimit: {
+        fontSize: '0.85rem',
+        fontWeight: '500',
+        color: '#333333'
+    },
+    uploadFormats: {
+        fontSize: '0.8rem',
+        color: '#999999',
+        fontWeight: '300'
+    },
+    hiddenFileInput: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        opacity: 0,
+        cursor: 'pointer'
     },
     imageGrid: {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-        gap: '16px',
-        marginTop: '16px'
+        gap: '1rem',
+        marginTop: '2rem'
     },
-    imageContainer: {
+    imageCard: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e0e0e0',
+        overflow: 'hidden',
+        transition: 'box-shadow 0.2s ease'
+    },
+    imageWrapper: {
         position: 'relative',
-        display: 'inline-block'
+        width: '100%',
+        paddingBottom: '100%', // 1:1 aspect ratio
+        overflow: 'hidden'
     },
-    removeImageButton: {
+    imagePreview: {
         position: 'absolute',
-        top: '-8px',
-        right: '-8px',
-        width: '24px',
-        height: '24px',
-        borderRadius: '50%',
-        backgroundColor: '#000000',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover'
+    },
+    removeButton: {
+        position: 'absolute',
+        top: '0.5rem',
+        right: '0.5rem',
+        width: '2rem',
+        height: '2rem',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         color: '#ffffff',
         border: 'none',
         cursor: 'pointer',
-        fontSize: '14px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontWeight: 'bold'
+        opacity: 0,
+        transition: 'opacity 0.2s ease',
+        '&:hover': {
+            backgroundColor: '#000000'
+        }
     },
     thumbnailBadge: {
         position: 'absolute',
-        bottom: '4px',
-        left: '4px',
+        top: '0.5rem',
+        left: '0.5rem',
         backgroundColor: '#000000',
         color: '#ffffff',
-        fontSize: '10px',
-        padding: '4px 6px',
-        borderRadius: '4px',
-        fontWeight: '600'
+        fontSize: '0.7rem',
+        padding: '0.25rem 0.5rem',
+        fontWeight: '500',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
     },
-    imageSection: {
-        marginTop: '24px'
+    imageLabel: {
+        padding: '0.5rem',
+        fontSize: '0.8rem',
+        color: '#666666',
+        fontWeight: '400',
+        textAlign: 'center',
+        backgroundColor: '#fafafa'
     },
     imageLimit: {
-        fontSize: '13px',
-        color: '#6c757d',
-        margin: '8px 0',
-        fontWeight: '500'
-    },
+        fontSize: '0.85rem',
+        color: '#666666',
+        margin: '0.5rem 0',
+        fontWeight: '400'
+    },    // Legacy size/color styles (updated for minimalist design)
     sizeRow: {
         display: 'flex',
-        gap: '16px',
-        marginBottom: '16px',
+        gap: '1rem',
+        marginBottom: '1rem',
         alignItems: 'center'
     },
     sizeInput: {
         flex: 1,
-        padding: '12px 16px',
-        border: '1px solid #e9ecef',
-        borderRadius: '6px',
-        fontSize: '14px'
+        padding: '0.8rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '300'
     },
     stockInput: {
-        width: '120px',
-        padding: '12px 16px',
-        border: '1px solid #e9ecef',
-        borderRadius: '6px',
-        fontSize: '14px'
+        width: '100px',
+        padding: '0.8rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '300'
     },
     removeSizeButton: {
-        padding: '12px 16px',
+        padding: '0.8rem 1rem',
         backgroundColor: '#000000',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '6px',
         cursor: 'pointer',
-        fontSize: '12px',
-        fontWeight: '600',
+        fontSize: '0.8rem',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
-    },    addSizeButton: {
-        padding: '12px 20px',
+    },
+    addSizeButton: {
+        padding: '0.8rem 1.2rem',
         backgroundColor: '#000000',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '6px',
         cursor: 'pointer',
-        marginTop: '16px',
-        fontSize: '13px',
-        fontWeight: '600',
+        marginTop: '1rem',
+        fontSize: '0.85rem',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
     },
     colorRow: {
         display: 'flex',
-        gap: '16px',
-        marginBottom: '16px',
+        gap: '1rem',
+        marginBottom: '1rem',
         alignItems: 'center'
     },
     colorInput: {
         flex: 1,
-        padding: '12px 16px',
-        border: '1px solid #e9ecef',
-        borderRadius: '6px',
-        fontSize: '14px'
+        padding: '0.8rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '300'
     },
     removeColorButton: {
-        padding: '12px 16px',
+        padding: '0.8rem 1rem',
         backgroundColor: '#000000',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '6px',
         cursor: 'pointer',
-        fontSize: '12px',
-        fontWeight: '600',
+        fontSize: '0.8rem',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
     },
     addColorButton: {
-        padding: '12px 20px',
+        padding: '0.8rem 1.2rem',
         backgroundColor: '#000000',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '6px',
         cursor: 'pointer',
-        marginTop: '16px',
-        fontSize: '13px',
-        fontWeight: '600',
+        marginTop: '1rem',
+        fontSize: '0.85rem',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
     },
     emptyState: {
         textAlign: 'center',
-        padding: '40px 20px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        border: '1px solid #e9ecef'
+        padding: '2.5rem 1.5rem',
+        backgroundColor: '#ffffff',
+        border: '1px solid #f0f0f0'
     },
     emptyStateText: {
-        color: '#6c757d',
-        fontSize: '14px',
-        margin: '0 0 16px 0'
+        color: '#666666',
+        fontSize: '0.9rem',
+        margin: '0 0 1rem 0',
+        fontWeight: '300'
     },
     totalStock: {
-        fontWeight: '600',
-        marginTop: '16px',
-        padding: '16px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '8px',
-        border: '1px solid #e9ecef',
-        fontSize: '14px'
+        fontWeight: '500',
+        marginTop: '1rem',
+        padding: '1rem',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        color: '#333333'
+    },    // New styles for merged size-color variants (minimalist design)
+    variantContainer: {
+        border: '1px solid #e0e0e0',
+        padding: '1.5rem',
+        backgroundColor: '#ffffff'
     },
-    subTabs: {
+    sizeVariantGroup: {
+        marginBottom: '1.5rem',
+        padding: '1.2rem',
+        backgroundColor: '#fafafa',
+        border: '1px solid #f0f0f0'
+    },
+    sizeHeader: {
         display: 'flex',
-        gap: '16px',
-        marginBottom: '32px'
+        alignItems: 'center',
+        gap: '1rem',
+        marginBottom: '1rem',
+        paddingBottom: '0.8rem',
+        borderBottom: '1px solid #e0e0e0'
     },
-    subTab: {
-        padding: '12px 20px',
+    sizeVariantInput: {
+        flex: 1,
+        padding: '0.8rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '500',
+        color: '#000000'
+    },
+    removeSizeVariantButton: {
+        padding: '0.6rem 1rem',
+        backgroundColor: '#666666',
         color: '#ffffff',
         border: 'none',
-        borderRadius: '6px',
         cursor: 'pointer',
-        fontSize: '13px',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-    },    editButton: {
+        fontSize: '0.8rem',
+        fontWeight: '400'
+    },
+    colorStocksContainer: {
+        paddingLeft: '1rem'
+    },
+    colorStockRow: {
+        display: 'flex',
+        gap: '0.8rem',
+        marginBottom: '0.8rem',
+        alignItems: 'center'
+    },
+    colorVariantInput: {
+        flex: 2,
+        padding: '0.7rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '300'
+    },
+    stockVariantInput: {
+        flex: 1,
+        padding: '0.7rem 1rem',
+        border: '1px solid #e0e0e0',
+        fontSize: '0.9rem',
+        fontWeight: '300'
+    },
+    removeColorStockButton: {
+        padding: '0.6rem 0.8rem',
+        backgroundColor: '#999999',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.75rem',
+        fontWeight: '400'
+    },
+    addColorToSizeButton: {
+        padding: '0.6rem 1rem',
         backgroundColor: '#000000',
         color: '#ffffff',
-        padding: '10px 16px',
         border: 'none',
-        borderRadius: '6px',
-        fontSize: '11px',
+        cursor: 'pointer',
+        fontSize: '0.8rem',
+        fontWeight: '400',
+        marginTop: '0.5rem'
+    },
+    variantActions: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: '1.5rem',
+        paddingTop: '1rem',
+        borderTop: '1px solid #e0e0e0'
+    },
+    addSizeVariantButton: {
+        padding: '0.8rem 1.5rem',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.85rem',
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    totalStockDisplay: {
+        fontWeight: '500',
+        fontSize: '1rem',
+        color: '#000000',
+        padding: '0.8rem 1.5rem',
+        backgroundColor: '#ffffff',
+        border: '1px solid #000000'
+    },    subTabs: {
+        display: 'flex',
+        gap: '1rem',
+        marginBottom: '2rem'
+    },
+    subTab: {
+        padding: '0.8rem 1.5rem',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.85rem',
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    editButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '0.7rem 1rem',
+        border: 'none',
+        fontSize: '0.75rem',
         cursor: 'pointer',
         flex: 1,
-        fontWeight: '600',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '6px'
+        gap: '0.4rem'
     },
     archiveButton: {
         backgroundColor: '#000000',
         color: '#ffffff',
-        padding: '10px 16px',
+        padding: '0.7rem 1rem',
         border: 'none',
-        borderRadius: '6px',
-        fontSize: '11px',
+        fontSize: '0.75rem',
         cursor: 'pointer',
         flex: 1,
-        fontWeight: '600',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '6px'
+        gap: '0.4rem'
     },
     deleteButton: {
         backgroundColor: '#000000',
         color: '#ffffff',
-        padding: '10px 16px',
+        padding: '0.7rem 1rem',
         border: 'none',
-        borderRadius: '6px',
-        fontSize: '11px',
+        fontSize: '0.75rem',
         cursor: 'pointer',
         flex: 1,
-        fontWeight: '600',
+        fontWeight: '400',
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: '6px'
-    },
-    restoreButton: {
-        padding: '8px 16px',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '11px',
-        marginRight: '8px',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '6px'
+        justifyContent: 'center',        gap: '0.4rem'
     },
     archivedSection: {
-        marginTop: '48px',
-        padding: '32px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        border: '1px solid #e9ecef'
+        marginTop: '3rem',
+        padding: '2rem',
+        backgroundColor: '#fafafa',
+        border: '1px solid #e0e0e0'
     },
     archivedCard: {
         opacity: 0.7,
-        border: '2px dashed #6c757d'
+        border: '1px dashed #999999'
     },
     archivedLabel: {
-        color: '#6c757d',
-        fontWeight: '600',
-        fontSize: '11px',
+        color: '#999999',
+        fontWeight: '500',
+        fontSize: '0.75rem',
         textTransform: 'uppercase',
-        letterSpacing: '0.8px'
-    },    productColor: {
+        letterSpacing: '0.8px',
+        marginBottom: '0.8rem'
+    },
+    restoreButton: {
+        padding: '0.6rem 1rem',
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '0.75rem',
+        marginRight: '0.5rem',
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',        gap: '0.4rem'
+    },
+    productColor: {
         fontSize: '13px',
         color: '#6c757d',
         marginBottom: '6px'
@@ -1503,18 +1966,16 @@ const styles = {
         color: '#6c757d',
         fontSize: '16px',
         fontWeight: '300'
-    },
-    productsGrid: {
+    },    productsGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-        gap: '32px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '2rem'
     },
     productCard: {
-        border: '1px solid #e9ecef',
-        borderRadius: '12px',
+        border: '1px solid #e0e0e0',
         overflow: 'hidden',
         backgroundColor: '#ffffff',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+        transition: 'box-shadow 0.2s ease'
     },
     productImage: {
         width: '100%',
@@ -1551,12 +2012,67 @@ const styles = {
         fontSize: '13px',
         color: '#6c757d',
         marginBottom: '8px'
+    },    productStock: {
+        fontSize: '0.9rem',
+        color: '#333333',
+        marginBottom: '0.5rem',
+        fontWeight: '400'
     },
-    productStock: {
-        fontSize: '14px',
+    // New styles for color display
+    productColors: {
+        marginBottom: '0.8rem'
+    },
+    productLabel: {
+        fontSize: '0.8rem',
+        color: '#666666',
+        fontWeight: '500',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    colorsList: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.4rem',
+        marginTop: '0.3rem'
+    },
+    colorTag: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '0.3rem 0.6rem',
+        fontSize: '0.75rem',
+        fontWeight: '400',
+        textTransform: 'capitalize'
+    },
+    sizeColorBreakdown: {
+        marginBottom: '0.8rem',
+        padding: '0.8rem',
+        backgroundColor: '#f8f8f8',
+        border: '1px solid #f0f0f0'
+    },
+    breakdownList: {
+        marginTop: '0.5rem'
+    },
+    sizeGroup: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        marginBottom: '0.4rem',
+        flexWrap: 'wrap'
+    },
+    sizeLabel: {
+        fontSize: '0.8rem',
+        fontWeight: '500',
+        color: '#333333',
+        minWidth: '2rem'
+    },
+    colorStockTag: {
+        backgroundColor: '#ffffff',
         color: '#000000',
-        marginBottom: '8px',
-        fontWeight: '500'    },
+        border: '1px solid #e0e0e0',
+        padding: '0.2rem 0.5rem',
+        fontSize: '0.7rem',
+        fontWeight: '400'
+    },
     databaseInfo: {
         fontSize: '11px',
         color: '#adb5bd',

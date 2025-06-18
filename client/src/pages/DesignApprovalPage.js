@@ -23,74 +23,91 @@ import api from '../utils/api';
 // Styled Components
 const PageContainer = styled.div`
   min-height: 100vh;
-  background-color: #ffffff;
-  padding: 20px;
+  background-color: #fafafa;
+  padding: 2rem 1rem;
 `;
 
 const Header = styled.div`
-  margin-bottom: 30px;
+  margin-bottom: 2.5rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 `;
 
 const Title = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 300;
+  font-size: 2rem;
+  font-weight: 200;
   color: #000000;
-  margin: 0 0 10px 0;
-  letter-spacing: -0.02em;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.5px;
 `;
 
 const Subtitle = styled.p`
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #666666;
   margin: 0;
   font-weight: 300;
 `;
 
 const FilterSection = styled.div`
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  padding: 20px;
-  margin-bottom: 30px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
   display: flex;
-  gap: 20px;
+  gap: 1.5rem;
   align-items: center;
   flex-wrap: wrap;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 `;
 
 const FilterGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0.5rem;
 `;
 
 const FilterLabel = styled.label`
-  font-size: 14px;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: #000000;
+  color: #333333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const FilterSelect = styled.select`
-  padding: 8px 12px;
-  border: 1px solid #ddd;
+  padding: 0.8rem 1rem;
+  border: 1px solid #e0e0e0;
   background-color: #ffffff;
-  font-size: 14px;
+  font-size: 0.9rem;
   min-width: 150px;
+  cursor: pointer;
+  color: #333333;
+  
+  &:focus {
+    outline: none;
+    border-color: #000000;
+  }
 `;
 
 const DesignGrid = styled.div`
   display: grid;
-  gap: 24px;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 const DesignCard = styled.div`
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
-  padding: 24px;
-  transition: all 0.3s ease;
+  padding: 2rem;
+  transition: box-shadow 0.2s ease;
   
   &:hover {
-    border-color: #000000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -98,7 +115,7 @@ const CardHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
 `;
 
 const DesignInfo = styled.div`
@@ -106,21 +123,22 @@ const DesignInfo = styled.div`
 `;
 
 const DesignName = styled.h3`
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 500;
   color: #000000;
-  margin: 0 0 8px 0;
+  margin: 0 0 0.5rem 0;
 `;
 
 const UserInfo = styled.div`
-  font-size: 14px;
+  font-size: 0.9rem;
   color: #666666;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
+  font-weight: 300;
 `;
 
 const StatusBadge = styled.span`
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -128,17 +146,17 @@ const StatusBadge = styled.span`
   ${props => {
     switch (props.status) {
       case 'pending':
-        return 'background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7;';
+        return 'background-color: #ffffff; color: #b8860b; border: 1px solid #b8860b;';
       case 'approved':
-        return 'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+        return 'background-color: #000000; color: #ffffff; border: 1px solid #000000;';
       case 'rejected':
-        return 'background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
+        return 'background-color: #ffffff; color: #dc3545; border: 1px solid #dc3545;';
       case 'in_progress':
-        return 'background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;';
+        return 'background-color: #ffffff; color: #007bff; border: 1px solid #007bff;';
       case 'completed':
-        return 'background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+        return 'background-color: #000000; color: #ffffff; border: 1px solid #000000;';
       default:
-        return 'background-color: #f8f9fa; color: #6c757d; border: 1px solid #dee2e6;';
+        return 'background-color: #ffffff; color: #666666; border: 1px solid #e0e0e0;';
     }
   }}
 `;
@@ -146,7 +164,7 @@ const StatusBadge = styled.span`
 const CardContent = styled.div`
   display: grid;
   grid-template-columns: 1fr 2fr;
-  gap: 24px;
+  gap: 2rem;
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -156,8 +174,8 @@ const CardContent = styled.div`
 const DetailsSection = styled.div``;
 
 const DetailItem = styled.div`
-  margin-bottom: 12px;
-  font-size: 14px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 `;
 
 const DetailLabel = styled.span`
@@ -169,86 +187,91 @@ const DetailLabel = styled.span`
 
 const DetailValue = styled.span`
   color: #666666;
+  font-weight: 300;
 `;
 
 const Description = styled.p`
-  background-color: #f8f9fa;
-  padding: 16px;
-  margin: 16px 0;
+  background-color: #fafafa;
+  padding: 1.2rem;
+  margin: 1.2rem 0;
   line-height: 1.6;
   color: #333333;
-  font-size: 14px;
+  font-size: 0.9rem;
+  border: 1px solid #f0f0f0;
+  font-weight: 300;
 `;
 
 const ImagesSection = styled.div``;
 
 const ImageGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
 `;
 
 const ImageThumbnail = styled.img`
   width: 100%;
-  height: 80px;
+  height: 100px;
   object-fit: cover;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
   cursor: pointer;
   transition: transform 0.2s ease;
   
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.02);
   }
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 1rem;
+  margin-top: 1.5rem;
   flex-wrap: wrap;
 `;
 
 const ActionButton = styled.button`
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
+  padding: 0.8rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border: 1px solid;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   
   ${props => {
     switch (props.variant) {
       case 'approve':
         return `
-          background-color: #28a745;
-          color: white;
-          border-color: #28a745;
-          &:hover { background-color: #218838; }
+          background-color: #000000;
+          color: #ffffff;
+          border-color: #000000;
+          &:hover { background-color: #333333; }
         `;
       case 'reject':
         return `
-          background-color: #dc3545;
-          color: white;
+          background-color: #ffffff;
+          color: #dc3545;
           border-color: #dc3545;
-          &:hover { background-color: #c82333; }
+          &:hover { background-color: #dc3545; color: #ffffff; }
         `;
       case 'view':
         return `
-          background-color: #007bff;
-          color: white;
-          border-color: #007bff;
-          &:hover { background-color: #0069d9; }
+          background-color: #ffffff;
+          color: #000000;
+          border-color: #000000;
+          &:hover { background-color: #000000; color: #ffffff; }
         `;
       default:
         return `
-          background-color: #6c757d;
-          color: white;
-          border-color: #6c757d;
-          &:hover { background-color: #5a6268; }
+          background-color: #ffffff;
+          color: #666666;
+          border-color: #e0e0e0;
+          &:hover { background-color: #f5f5f5; }
         `;
     }
   }}
@@ -256,42 +279,54 @@ const ActionButton = styled.button`
 
 const LoadingState = styled.div`
   text-align: center;
-  padding: 60px 20px;
+  padding: 4rem 1.5rem;
   color: #666666;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 300;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 60px 20px;
+  padding: 4rem 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 const EmptyTitle = styled.h3`
   color: #000000;
   font-weight: 400;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
 `;
 
 const EmptyText = styled.p`
   color: #666666;
   font-size: 1rem;
+  font-weight: 300;
 `;
 
 const Pagination = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 12px;
-  margin-top: 40px;
+  gap: 1rem;
+  margin-top: 3rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 `;
 
 const PaginationButton = styled.button`
-  padding: 8px 12px;
+  padding: 0.8rem 1rem;
   background-color: ${props => props.active ? '#000000' : '#ffffff'};
   color: ${props => props.active ? '#ffffff' : '#000000'};
   border: 1px solid #000000;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 0.9rem;
+  font-weight: 400;
+  transition: all 0.2s ease;
   
   &:hover {
     background-color: ${props => props.active ? '#000000' : '#f5f5f5'};
@@ -300,6 +335,12 @@ const PaginationButton = styled.button`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    border-color: #e0e0e0;
+    color: #999999;
+    
+    &:hover {
+      background-color: #ffffff;
+    }
   }
 `;
 
@@ -315,27 +356,34 @@ const Modal = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 20px;
+  padding: 1.5rem;
 `;
 
 const ModalContent = styled.div`
-  background-color: white;
+  background-color: #ffffff;
   max-width: 90vw;
   max-height: 90vh;
   overflow: auto;
-  padding: 30px;
+  padding: 2.5rem;
   position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 `;
 
 const CloseButton = styled.button`
   position: absolute;
-  top: 15px;
-  right: 15px;
+  top: 1rem;
+  right: 1rem;
   background: none;
   border: none;
-  font-size: 24px;
+  font-size: 1.5rem;
   cursor: pointer;
   color: #666666;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
   
   &:hover {
     color: #000000;

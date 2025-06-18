@@ -1,0 +1,9 @@
+price: 799
+
+color: Navy Blue
+
+size: 2XL
+
+gender: unisex
+
+sports type: basketball
