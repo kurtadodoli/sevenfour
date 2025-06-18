@@ -15,8 +15,10 @@ import {
   faDownload,
   faCheck,
   faSpinner,
-  faTimes
+  faTimes,
+  faEye
 } from '@fortawesome/free-solid-svg-icons';
+import InvoiceModal from '../components/InvoiceModal';
 
 const PageContainer = styled.div`
   padding: 2rem;
@@ -382,6 +384,11 @@ const OrderPage = () => {
     notes: ''
   });
   
+  // Invoice modal state
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderItems, setSelectedOrderItems] = useState([]);
+  
   const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { user } = useAuth();
 
@@ -492,11 +499,36 @@ const OrderPage = () => {
       link.href = url;
       link.download = `invoice-${invoiceId}.pdf`;
       link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
+      window.URL.revokeObjectURL(url);    } catch (error) {
       console.error('Error downloading invoice:', error);
       toast.error('Failed to download invoice');
     }
+  };
+
+  // View invoice in modal
+  const viewInvoice = async (order) => {
+    try {
+      setLoading(true);
+      // Fetch order items from backend
+      const response = await api.get(`/orders/${order.id}/items`);
+      if (response.data.success) {
+        setSelectedOrder(order);
+        setSelectedOrderItems(response.data.data);
+        setShowInvoiceModal(true);
+      }
+    } catch (error) {
+      console.error('Error fetching order items:', error);
+      toast.error('Failed to load invoice details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Close invoice modal
+  const closeInvoiceModal = () => {
+    setShowInvoiceModal(false);
+    setSelectedOrder(null);
+    setSelectedOrderItems([]);
   };
 
   const renderCartTab = () => (
@@ -657,8 +689,7 @@ const OrderPage = () => {
                   <strong>Status:</strong> {order.transaction_status || 'Pending'}
                 </OrderInfo>
               </OrderDetails>
-              
-              <OrderActions>
+                <OrderActions>
                 {order.status === 'pending' && (
                   <ActionButton 
                     primary 
@@ -670,10 +701,16 @@ const OrderPage = () => {
                   </ActionButton>
                 )}
                 
+                {/* Always show View Invoice button for orders */}
+                <ActionButton onClick={() => viewInvoice(order)}>
+                  <FontAwesomeIcon icon={faEye} />
+                  View Invoice
+                </ActionButton>
+                
                 {order.invoice_id && (
                   <ActionButton onClick={() => downloadInvoice(order.invoice_id)}>
                     <FontAwesomeIcon icon={faDownload} />
-                    Download Invoice
+                    Download PDF
                   </ActionButton>
                 )}
               </OrderActions>
@@ -707,8 +744,16 @@ const OrderPage = () => {
           Order History
         </Tab>
       </TabContainer>
+        {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
       
-      {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
+      {/* Invoice Modal */}
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={closeInvoiceModal}
+        order={selectedOrder}
+        orderItems={selectedOrderItems}
+        onDownloadPDF={downloadInvoice}
+      />
     </PageContainer>
   );
 };

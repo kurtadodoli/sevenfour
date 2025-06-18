@@ -11,6 +11,43 @@ const generateId = (prefix) => {
     return `${prefix}${timestamp}${random}`;
 };
 
+// Test endpoint to list all orders (no auth required)
+exports.testListOrders = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                oi.total_amount as invoice_total,
+                oi.invoice_status,
+                st.transaction_status,
+                st.payment_method
+            FROM orders o
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            ORDER BY o.order_date DESC
+            LIMIT 10
+        `);
+        
+        await connection.end();
+        
+        console.log(`Found ${orders.length} orders in database`);
+        res.json({
+            success: true,
+            data: orders,
+            message: `Found ${orders.length} orders`
+        });
+    } catch (error) {
+        console.error('Error fetching orders (test):', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch orders',
+            error: error.message
+        });
+    }
+};
+
 // Get user's orders
 exports.getUserOrders = async (req, res) => {
     try {
@@ -461,11 +498,72 @@ exports.updateOrderStatus = async (req, res) => {
             success: true,
             message: 'Order status updated successfully'
         });
-    } catch (error) {
-        console.error('Error updating order status:', error);
+    } catch (error) {        console.error('Error updating order status:', error);
         res.status(500).json({ 
             success: false, 
             message: 'Failed to update order status' 
+        });
+    }
+};
+
+// Get order items for invoice
+exports.getOrderItems = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // First verify the order belongs to the user (unless admin)
+        if (req.user.role !== 'admin') {
+            const [orderCheck] = await connection.execute(
+                'SELECT user_id FROM orders WHERE id = ?',
+                [orderId]
+            );
+            
+            if (orderCheck.length === 0) {
+                await connection.end();
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Order not found' 
+                });
+            }
+            
+            if (orderCheck[0].user_id !== req.user.id) {
+                await connection.end();
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Access denied' 
+                });
+            }
+        }
+        
+        // Get order items with product details
+        const [orderItems] = await connection.execute(`
+            SELECT 
+                oi.*,
+                p.productname,
+                p.productdescription,
+                p.productcolor,
+                p.product_type,
+                oi.price as price,
+                oi.quantity,
+                (oi.price * oi.quantity) as total_price
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.id
+        `, [orderId]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: orderItems
+        });
+    } catch (error) {
+        console.error('Error fetching order items:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch order items' 
         });
     }
 };

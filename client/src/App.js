@@ -43,6 +43,7 @@ import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
 import SearchPage from './pages/SearchPage'; // Import SearchPage
 import CustomPage from './pages/CustomPage'; // Import CustomPage
 import DesignApprovalPage from './pages/DesignApprovalPage'; // Import DesignApprovalPage
+import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
 
 // Components
 import Header from './components/Header';
@@ -91,8 +92,7 @@ function App() {
       <AuthProvider>
         <CartProvider>
           <WishlistProvider>
-            <ToastProvider>
-              <AppWrapper>
+            <ToastProvider>              <AppWrapper>
                 <TopBar />
                 <MainContent>
                   <Routes>
@@ -125,6 +125,7 @@ function App() {
                       <Route path="/admin/reports" element={<ReportsPage />} />
                       <Route path="/admin/settings" element={<SettingsPage />} />                      <Route path="/admin/products" element={<MaintenancePage />} />
                       <Route path="/maintenance" element={<MaintenancePage />} />
+                      <Route path="/transactions" element={<TransactionPage />} />
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/design-approval" element={<DesignApprovalPage />} />
                     </Route>

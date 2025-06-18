@@ -4,7 +4,38 @@ const { dbConfig } = require('../config/db');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
-// Apply auth middleware to all admin routes
+// Get User Logs Report (TEST - No Auth Required)
+router.get('/user-logs-test', async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [users] = await connection.execute(`
+            SELECT 
+                user_id as id,
+                CONCAT(first_name, ' ', last_name) as username,
+                email,
+                first_name,
+                last_name,
+                role,
+                is_active as status,
+                last_login,
+                created_at,
+                updated_at
+            FROM users 
+            ORDER BY created_at DESC
+        `);
+        
+        await connection.end();
+        
+        console.log(`Found ${users.length} users in database`);
+        res.json(users);
+    } catch (error) {
+        console.error('Error fetching user logs (test):', error);
+        res.status(500).json({ error: 'Failed to fetch user logs', details: error.message });
+    }
+});
+
+// Apply auth middleware to all other admin routes
 router.use(auth);
 
 // Middleware to check admin role
@@ -41,8 +72,7 @@ router.get('/user-logs', requireAdmin, async (req, res) => {
         res.json(users);
     } catch (error) {
         console.error('Error fetching user logs:', error);
-        res.status(500).json({ error: 'Failed to fetch user logs' });
-    }
+        res.status(500).json({ error: 'Failed to fetch user logs' });    }
 });
 
 // Get Inventory Report
@@ -124,6 +154,122 @@ router.get('/dashboard-stats', requireAdmin, async (req, res) => {
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
         res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+    }
+});
+
+// Get all transactions for admin
+router.get('/transactions', requireAdmin, async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [transactions] = await connection.execute(`
+            SELECT 
+                o.id,
+                o.order_number,
+                o.user_id,
+                o.status,
+                o.order_date,
+                o.total_amount,
+                o.shipping_address,
+                o.contact_phone,
+                o.notes,
+                o.created_at,
+                o.updated_at,
+                u.first_name,
+                u.last_name,
+                u.email,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                u.email as customer_email,
+                st.payment_method,
+                st.transaction_status
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            ORDER BY o.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch transactions' 
+        });
+    }
+});
+
+// Approve transaction
+router.put('/transactions/:id/approve', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to approved
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['approved', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'approved'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction approved successfully'
+        });
+    } catch (error) {
+        console.error('Error approving transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to approve transaction' 
+        });
+    }
+});
+
+// Reject transaction
+router.put('/transactions/:id/reject', requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to rejected
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['rejected', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'rejected'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction rejected successfully'
+        });
+    } catch (error) {
+        console.error('Error rejecting transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to reject transaction' 
+        });
     }
 });
 

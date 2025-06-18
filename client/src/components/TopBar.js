@@ -11,14 +11,14 @@ import {
   faShoppingBag, 
   faQuestionCircle, 
   faInfoCircle, 
-  faSignOutAlt,
-  faCog,
+  faSignOutAlt,  faCog,
   faChartLine,
   faClipboardList,
   faTruck,
   faSearch,
   faPalette,
-  faCheck
+  faCheck,
+  faReceipt
 } from '@fortawesome/free-solid-svg-icons';
 
 const TopBarContainer = styled.div`
@@ -451,12 +451,18 @@ const TopBar = () => {
               </div>
               <span className="nav-text">Maintenance</span>
             </NavLink>
-            
-            <NavLink to="/design-approval" className={location.pathname === '/design-approval' ? 'active' : ''}>
+              <NavLink to="/design-approval" className={location.pathname === '/design-approval' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faCheck} style={{ color: 'white' }} />
               </div>
               <span className="nav-text">Design Approval</span>
+            </NavLink>
+            
+            <NavLink to="/transactions" className={location.pathname === '/transactions' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faReceipt} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Transactions</span>
             </NavLink>
               
             <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>

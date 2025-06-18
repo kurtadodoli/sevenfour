@@ -8,6 +8,11 @@ const { auth } = require('../../middleware/auth');
 // @access  Private (Staff/Admin)
 router.get('/overview', auth, inventoryController.getInventoryOverview);
 
+// @route   GET api/inventory/overview-test
+// @desc    Get inventory overview with stock levels (NO AUTH for testing)
+// @access  Public (for testing only)
+router.get('/overview-test', inventoryController.getInventoryOverview);
+
 // @route   GET api/inventory/critical
 // @desc    Get critical stock items
 // @access  Private (Staff/Admin)
