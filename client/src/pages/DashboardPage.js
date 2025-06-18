@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,20 +11,19 @@ const DashboardPage = () => {
     const [dateRange, setDateRange] = useState({
         startDate: '',
         endDate: ''
-    });
-
-    // Fetch User Logs Data
+    });    // Fetch User Logs Data
     const fetchUserLogs = async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3001/api/admin/user-logs', {
+            const response = await fetch('http://localhost:3001/api/admin/user-logs-test', {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Content-Type': 'application/json'
                 }
             });
             if (response.ok) {
                 const data = await response.json();
                 setUserLogs(data);
+                console.log('User logs loaded:', data.length, 'users');
             }
         } catch (error) {
             console.error('Error fetching user logs:', error);
@@ -63,13 +62,18 @@ const DashboardPage = () => {
         } else if (activeReport === 'inventory') {
             fetchInventoryData();
         }
-    };
-
-    // Format Date
+    };    // Format Date
     const formatDate = (dateString) => {
         if (!dateString) return 'Never';
         return new Date(dateString).toLocaleString();
     };
+
+    // Auto-load user logs when component mounts
+    useEffect(() => {
+        if (activeReport === 'user-logs') {
+            fetchUserLogs();
+        }
+    }, [activeReport]);
 
     // Check if user is admin
     if (!currentUser || currentUser.role !== 'admin') {

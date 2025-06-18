@@ -10,8 +10,15 @@ import {
   faTimes, 
   faFilter,
   faUser,
-  faCalendar
+  faCalendar,
+  faShirt,
+  faPalette,
+  faRulerCombined,
+  faHashtag,
+  faCommentDots
 } from '@fortawesome/free-solid-svg-icons';
+import TopBar from '../components/TopBar';
+import api from '../utils/api';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -363,30 +370,72 @@ const DesignApprovalPage = () => {
       return;
     }
   }, [currentUser, navigate]);
-
   // Fetch designs
   const fetchDesigns = async (page = 1, status = filter) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `http://localhost:3001/api/custom-designs/admin/all?status=${status}&page=${page}&limit=10`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+      const response = await api.get('/api/custom-designs/admin/all', {
+        params: {
+          status: status === 'all' ? undefined : status,
+          page,
+          limit: 10
         }
-      );
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setDesigns(data.designs);
-        setPagination(data.pagination);
-      } else {
-        toast.error('Failed to fetch design requests');
+      if (response.data.success) {
+        setDesigns(response.data.data);
+        setPagination(response.data.pagination);
       }
     } catch (error) {
       console.error('Error fetching designs:', error);
       toast.error('Failed to fetch design requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const approveDesign = async (designId, finalPrice) => {
+    try {
+      setLoading(true);
+      const response = await api.put(`/api/custom-designs/admin/${designId}/approve`, {
+        finalPrice: finalPrice || undefined
+      });
+
+      if (response.data.success) {
+        toast.success('Design approved successfully!');
+        fetchDesigns(pagination.page, filter);
+        setShowModal(false);
+        setSelectedDesign(null);
+      }
+    } catch (error) {
+      console.error('Error approving design:', error);
+      toast.error(error.response?.data?.message || 'Failed to approve design');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rejectDesign = async (designId, remarks) => {
+    if (!remarks || remarks.trim() === '') {
+      toast.error('Please provide rejection remarks');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await api.put(`/api/custom-designs/admin/${designId}/reject`, {
+        remarks: remarks.trim()
+      });
+
+      if (response.data.success) {
+        toast.success('Design rejected successfully!');
+        fetchDesigns(pagination.page, filter);
+        setShowModal(false);
+        setSelectedDesign(null);
+      }
+    } catch (error) {
+      console.error('Error rejecting design:', error);
+      toast.error(error.response?.data?.message || 'Failed to reject design');
     } finally {
       setLoading(false);
     }

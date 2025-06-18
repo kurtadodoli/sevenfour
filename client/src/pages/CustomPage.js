@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,9 +10,15 @@ import {
   faImage, 
   faPalette,
   faShirt,
-  faPaperPlane
+  faPaperPlane,
+  faCheck,
+  faHourglass,
+  faExclamationTriangle,
+  faShoppingCart,
+  faDownload
 } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
+import api from '../utils/api';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -288,37 +294,54 @@ const CustomPage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('submit'); // 'submit' or 'designs'
+  const [userDesigns, setUserDesigns] = useState([]);
   const [images, setImages] = useState([]);
   const [formData, setFormData] = useState({
-    designName: '',
-    category: '',
-    preferredColor: '',
+    productName: '',
+    productDescription: '',
+    productType: '',
     size: '',
-    description: '',
-    specialRequests: '',
-    budget: '',
-    urgency: 'normal'
+    color: '',
+    quantity: 1,
+    price: 0,
+    designConcept: '',
+    specialRequirements: '',
+    notes: ''
   });
 
-  // Check if user is authenticated and is a customer
+  // Check if user is authenticated
   React.useEffect(() => {
     if (!currentUser) {
       navigate('/login');
       return;
     }
-    
-    if (currentUser.role !== 'customer') {
-      toast.error('This page is only accessible to customers');
-      navigate('/');
-      return;
-    }
   }, [currentUser, navigate]);
 
+  // Load user's designs
+  useEffect(() => {
+    if (currentUser && activeTab === 'designs') {
+      loadUserDesigns();
+    }
+  }, [currentUser, activeTab]);
+
+  const loadUserDesigns = async () => {
+    try {
+      const response = await api.get('/api/custom-designs/user');
+      if (response.data.success) {
+        setUserDesigns(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error loading designs:', error);
+      toast.error('Failed to load your designs');
+    }
+  };
+
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'number' ? parseFloat(value) || 0 : value
     }));
   };
 
@@ -328,8 +351,8 @@ const CustomPage = () => {
   };
 
   const handleFiles = (files) => {
-    if (images.length + files.length > 10) {
-      toast.error('Maximum 10 images allowed');
+    if (images.length + files.length > 4) {
+      toast.error('Maximum 4 images allowed (1 concept + 3 reference images)');
       return;
     }
 
@@ -376,17 +399,16 @@ const CustomPage = () => {
     const files = Array.from(e.dataTransfer.files);
     handleFiles(files);
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.designName || !formData.category || !formData.description) {
+    if (!formData.productName || !formData.productType || !formData.designConcept) {
       toast.error('Please fill in all required fields');
       return;
     }
 
     if (images.length === 0) {
-      toast.error('Please upload at least one design image');
+      toast.error('Please upload at least one concept image');
       return;
     }
 
@@ -400,44 +422,123 @@ const CustomPage = () => {
         submitData.append(key, formData[key]);
       });
       
-      // Add images
+      // Add images with specific names
       images.forEach((img, index) => {
-        submitData.append('designImages', img.file);
+        if (index === 0) {
+          submitData.append('conceptImage', img.file);
+        } else {
+          submitData.append(`referenceImage${index}`, img.file);
+        }
       });
 
-      const response = await fetch('http://localhost:3001/api/custom-designs', {
-        method: 'POST',
+      const response = await api.post('/api/custom-designs/submit', submitData, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: submitData
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
-      if (response.ok) {
-        toast.success('Custom design request submitted successfully! We will review it and get back to you soon.');
+      if (response.data.success) {
+        toast.success('Custom design submitted successfully! We will review it and get back to you soon.');
         // Reset form
         setFormData({
-          designName: '',
-          category: '',
-          preferredColor: '',
+          productName: '',
+          productDescription: '',
+          productType: '',
           size: '',
-          description: '',
-          specialRequests: '',
-          budget: '',
-          urgency: 'normal'
+          color: '',
+          quantity: 1,
+          price: 0,
+          designConcept: '',
+          specialRequirements: '',
+          notes: ''
         });
         setImages([]);
-        navigate('/orders'); // Redirect to orders page to see submission
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to submit design request');
+        
+        // Switch to designs tab to show the submitted design
+        setActiveTab('designs');
+        loadUserDesigns();
       }
     } catch (error) {
-      console.error('Error submitting design:', error);
-      toast.error('Failed to submit design request. Please try again.');
+      console.error('Submission error:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit design request');
     } finally {
       setLoading(false);
     }
+  };
+
+  const createOrderFromDesign = async (designId) => {
+    const address = prompt('Please enter your shipping address:');
+    if (!address) return;
+
+    const phone = prompt('Please enter your contact phone number (optional):');
+
+    try {
+      setLoading(true);
+      const response = await api.post(`/api/custom-designs/order/${designId}`, {
+        shippingAddress: address,
+        contactPhone: phone,
+        orderNotes: 'Cash on Delivery order'
+      });
+
+      if (response.data.success) {
+        toast.success('Order created successfully!');
+        // Generate and download invoice
+        downloadInvoice(response.data.data);
+        loadUserDesigns();
+      }
+    } catch (error) {
+      console.error('Order creation error:', error);
+      toast.error(error.response?.data?.message || 'Failed to create order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadInvoice = (orderData) => {
+    // Create invoice HTML
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Seven Four Clothing - Custom Design Invoice</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .invoice-details { margin: 20px 0; }
+          .total { font-weight: bold; font-size: 18px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Seven Four Clothing</h1>
+          <h2>Custom Design Invoice</h2>
+        </div>
+        <div class="invoice-details">
+          <p><strong>Order Number:</strong> ${orderData.orderNumber}</p>
+          <p><strong>Design ID:</strong> ${orderData.designId}</p>
+          <p><strong>Customer:</strong> ${currentUser.first_name} ${currentUser.last_name}</p>
+          <p><strong>Email:</strong> ${currentUser.email}</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+          <p><strong>Payment Method:</strong> Cash on Delivery (COD)</p>
+          <hr>
+          <p class="total"><strong>Total Amount: ₱${orderData.totalAmount}</strong></p>
+          <hr>
+          <p><strong>Note:</strong> Payment will be collected upon delivery. Please have the exact amount ready.</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create and download the invoice
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${orderData.orderNumber}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   if (!currentUser || currentUser.role !== 'customer') {

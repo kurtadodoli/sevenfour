@@ -399,11 +399,9 @@ const InventoryPage = () => {
     try {
       setLoading(true);
       setError('');
-      
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/inventory/overview', {
+        const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:3001/api/inventory/overview-test', {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

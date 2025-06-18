@@ -3,6 +3,11 @@ const router = express.Router();
 const orderController = require('../../controllers/orderController');
 const { auth, adminAuth } = require('../../middleware/auth');
 
+// @route   GET api/orders/test-list
+// @desc    Test endpoint to list all orders (no auth required)
+// @access  Public (for testing only)
+router.get('/test-list', orderController.testListOrders);
+
 // @route   POST api/orders
 // @desc    Create a new order from cart
 // @access  Private (any authenticated user)
@@ -17,6 +22,11 @@ router.get('/me', auth, orderController.getUserOrders);
 // @desc    Get a specific order (customer can only see their own)
 // @access  Private (customer for their own orders, staff/admin for any)
 router.get('/:id', auth, orderController.getOrder);
+
+// @route   GET api/orders/:id/items
+// @desc    Get order items for invoice
+// @access  Private (customer for their own orders, staff/admin for any)
+router.get('/:id/items', auth, orderController.getOrderItems);
 
 // @route   GET api/orders
 // @desc    Get all orders (with filtering)
