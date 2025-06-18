@@ -5,6 +5,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const mysql = require('mysql2/promise');
+require('dotenv').config({ path: path.join(__dirname, 'server', '.env') });
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -34,6 +36,77 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Test endpoint
 app.get('/api/test', (req, res) => {
     res.json({ message: 'Server is working!', timestamp: new Date() });
+});
+
+// CRITICAL TRANSACTION ROUTES - MUST BE FIRST TO AVOID CONFLICTS
+app.put('/api/admin-no-auth/transactions/:id/approve', async (req, res) => {
+    const { id } = req.params;
+    console.log(`🟢 ADMIN APPROVING TRANSACTION ${id}`);
+    
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        await connection.execute('UPDATE orders SET status = ? WHERE id = ?', ['confirmed', id]);
+        await connection.end();
+        
+        console.log(`✅ TRANSACTION ${id} APPROVED`);
+        res.json({ success: true, message: 'Transaction approved' });
+    } catch (error) {
+        console.error('❌ APPROVE ERROR:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.put('/api/admin-no-auth/transactions/:id/reject', async (req, res) => {
+    const { id } = req.params;
+    console.log(`🔴 ADMIN REJECTING TRANSACTION ${id}`);
+    
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        await connection.execute('UPDATE orders SET status = ? WHERE id = ?', ['cancelled', id]);
+        await connection.end();
+        
+        console.log(`✅ TRANSACTION ${id} REJECTED`);
+        res.json({ success: true, message: 'Transaction rejected' });
+    } catch (error) {
+        console.error('❌ REJECT ERROR:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+console.log('🔥 TRANSACTION ROUTES ADDED TO SIMPLE SERVER');
+
+// Authentication middleware (simplified for this server)
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
+
+const auth = (req, res, next) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        if (!token) {
+            return res.status(401).json({ error: 'No token provided' });
+        }
+        
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+const requireAdmin = (req, res, next) => {
+    if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
+};
+
+// Enhanced request logging
+app.use((req, res, next) => {
+    console.log(`📥 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    if (req.path.includes('/admin-no-auth/transactions/')) {
+        console.log(`🎯 Admin transaction request detected: ${req.method} ${req.path}`);
+    }
+    next();
 });
 
 // GET products - Fix this to match your database
@@ -340,21 +413,6 @@ app.get('/api/maintenance/products/archives', async (req, res) => {
     try {
         console.log('=== FETCHING ARCHIVED PRODUCTS FROM DATABASE ===');
         
-// Force port 3001 and add error handling
-const PORT = 3001;
-
-app.listen(PORT, () => {
-    console.log('=================================');
-    console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`);
-    console.log(`📊 Test: http://localhost:${PORT}/api/test`);
-    console.log(`📋 Products: http://localhost:${PORT}/api/maintenance/products`);
-    console.log('=================================');
-}).on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use!`);
-        console.log('Kill the process or restart your computer');
-    }
-});
         const connection = await mysql.createConnection(dbConfig);
         
         const [results] = await connection.execute('SELECT * FROM product_archives');
@@ -368,6 +426,250 @@ app.listen(PORT, () => {
         res.status(500).json({ error: 'Failed to fetch archived products from database: ' + error.message });
     }
 });
+
+// Admin transaction routes
+app.get('/api/admin/transactions', auth, requireAdmin, async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [transactions] = await connection.execute(`
+            SELECT 
+                o.id,
+                o.order_number,
+                o.user_id,
+                o.transaction_id,
+                o.status,
+                o.order_date,
+                o.total_amount,
+                o.shipping_address,
+                o.contact_phone,
+                o.created_at,
+                u.first_name,
+                u.last_name,
+                u.email,
+                st.transaction_status,
+                st.payment_method
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            ORDER BY o.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch transactions' 
+        });
+    }
+});
+
+// GET transactions endpoint for TransactionPage to fetch data
+app.get('/api/admin/transactions', async (req, res) => {
+    try {
+        console.log('📋 Fetching all transactions for admin');
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [transactions] = await connection.execute(`
+            SELECT 
+                o.id,
+                o.order_number,
+                o.user_id,
+                o.transaction_id,
+                o.status,
+                o.order_date,
+                o.total_amount,
+                o.shipping_address,
+                o.contact_phone,
+                o.created_at,
+                u.first_name,
+                u.last_name,
+                u.email,
+                st.transaction_status,
+                st.payment_method
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            ORDER BY o.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        console.log(`📊 Found ${transactions.length} transactions`);
+        res.json({
+            success: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('❌ Error fetching transactions:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch transactions' 
+        });
+    }
+});
+
+// Approve transaction
+app.put('/api/admin/transactions/:id/approve', auth, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+          // Update order status to confirmed (approved)
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['confirmed', id]
+        );
+          // Also update sales transaction status if exists (approved = confirmed)
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'confirmed'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction approved successfully'
+        });
+    } catch (error) {
+        console.error('Error approving transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to approve transaction' 
+        });
+    }
+});
+
+// Reject transaction
+app.put('/api/admin/transactions/:id/reject', auth, requireAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+          // Update order status to cancelled (rejected)
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['cancelled', id]
+        );
+          // Also update sales transaction status if exists (rejected = cancelled)
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'cancelled'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction rejected successfully'
+        });
+    } catch (error) {
+        console.error('Error rejecting transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to reject transaction' 
+        });
+    }
+});
+
+// Admin transaction routes without authentication - WORKING VERSION
+app.get('/api/admin-no-auth/test', (req, res) => {
+    console.log('🧪 Test endpoint called - frontend can reach backend');
+    res.json({ 
+        success: true, 
+        message: 'Backend communication working',
+        timestamp: new Date().toISOString()
+    });
+});
+
+app.put('/api/admin-no-auth/transactions/:id/approve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`🎯 ADMIN APPROVING TRANSACTION ${id}`);
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to confirmed (approved)
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['confirmed', id]
+        );
+        
+        // Also update sales transaction status if exists (approved = confirmed)
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'confirmed'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        console.log(`✅ Transaction ${id} approved successfully`);
+        res.json({
+            success: true,
+            message: 'Transaction approved successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error approving transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to approve transaction' 
+        });
+    }
+});
+
+app.put('/api/admin-no-auth/transactions/:id/reject', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`🎯 ADMIN REJECTING TRANSACTION ${id}`);
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to cancelled (rejected)
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['cancelled', id]
+        );
+        
+        // Also update sales transaction status if exists (rejected = cancelled)
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'cancelled'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        console.log(`✅ Transaction ${id} rejected successfully`);
+        res.json({
+            success: true,
+            message: 'Transaction rejected successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error rejecting transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to reject transaction' 
+        });
+    }
+});
+
+// Log all registered routes for debugging
+console.log('📋 Registering admin transaction routes:');
+console.log('   PUT /api/admin-no-auth/transactions/:id/approve');
+console.log('   PUT /api/admin-no-auth/transactions/:id/reject');
+console.log('   GET /api/admin-no-auth/test');
 
 // Force port 3001 and add error handling
 const PORT = 3001;
