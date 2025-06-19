@@ -396,8 +396,7 @@ const CustomPage = () => {
     specialRequirements: '',
     notes: ''
   });
-
-  // Check if user is authenticated and detect admin view
+  // Check if user is authenticated
   React.useEffect(() => {
     if (!currentUser) {
       navigate('/login');
@@ -408,20 +407,17 @@ const CustomPage = () => {
     const isAdminRoute = location.pathname.includes('/admin');
     setIsAdminView(currentUser.role === 'admin' && isAdminRoute);
     
-    // For admin view, default to showing designs
-    if (isAdminRoute && currentUser.role === 'admin') {
-      setActiveTab('pending');
-    }
+    // We want the admin to see the same tabs as regular users
+    // No need to change the default tab
   }, [currentUser, navigate, location.pathname]);
-
   // Load designs based on user role
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && activeTab === 'designs') {
       if (isAdminView) {
-        if (activeTab === 'pending' || activeTab === 'approved' || activeTab === 'all') {
-          loadAllDesigns();
-        }
-      } else if (activeTab === 'designs') {
+        // Admin sees all designs
+        loadAllDesigns();
+      } else {
+        // Regular users see their own designs
         loadUserDesigns();
       }
     }
@@ -590,48 +586,7 @@ const CustomPage = () => {
       setLoading(false);
     }
   };
-
-  // Admin functions
-  const approveDesign = async (designId) => {
-    try {
-      setLoading(true);
-      const response = await api.put(`/api/custom-designs/${designId}/approve`);
-      
-      if (response.data.success) {
-        toast.success('Design approved successfully');
-        loadAllDesigns();
-      } else {
-        toast.error('Failed to approve design');
-      }
-    } catch (error) {
-      console.error('Error approving design:', error);
-      toast.error('Failed to approve design');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const rejectDesign = async (designId) => {
-    const reason = prompt('Please enter a reason for rejection:');
-    if (reason === null) return; // User canceled
-    
-    try {
-      setLoading(true);
-      const response = await api.put(`/api/custom-designs/${designId}/reject`, { reason });
-      
-      if (response.data.success) {
-        toast.success('Design rejected');
-        loadAllDesigns();
-      } else {
-        toast.error('Failed to reject design');
-      }
-    } catch (error) {
-      console.error('Error rejecting design:', error);
-      toast.error('Failed to reject design');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Note: Design approval functionality is handled in the DesignApprovalPage
 
   // If not logged in, return null
   if (!currentUser) {
@@ -641,105 +596,47 @@ const CustomPage = () => {
   return (
     <PageContainer>
       <TopBar />
-      <ContentWrapper>
-        <Header>
-          {isAdminView ? (
-            <>
-              <Title>Custom Design Management</Title>
-              <Subtitle>
-                Review and manage custom design requests from customers. Approve designs, update statuses, and manage the design workflow.
-              </Subtitle>
-            </>
-          ) : (
-            <>
-              <Title>Custom Design Request</Title>
-              <Subtitle>
-                Bring your unique clothing ideas to life. Upload your designs and let our team create something special just for you.
-              </Subtitle>
-            </>
-          )}
+      <ContentWrapper>        <Header>
+          <Title>Custom Design Request</Title>
+          <Subtitle>
+            Bring your unique clothing ideas to life. Upload your designs and let our team create something special just for you.
+          </Subtitle>
         </Header>
 
-        {!isAdminView && (
-          <InfoBox>
-            <h3>How It Works</h3>
-            <ul>
-              <li>Upload up to 10 design images (sketches, inspirations, or reference photos)</li>
-              <li>Provide detailed descriptions of your vision</li>
-              <li>Our design team will review your request within 2-3 business days</li>
-              <li>Once approved, we'll provide a detailed quote and timeline</li>
-              <li>Upon confirmation, we'll begin crafting your custom piece</li>
-            </ul>
-          </InfoBox>
-        )}
-        
-        {isAdminView && (
-          <InfoBox>
-            <h3>Admin Design Management</h3>
-            <ul>
-              <li>Review all customer design requests</li>
-              <li>Approve or reject designs based on feasibility</li>
-              <li>Update design statuses as they progress through production</li>
-              <li>Communicate with customers about their designs</li>
-              <li>Generate quotes and manage the custom design workflow</li>
-            </ul>
-          </InfoBox>
-        )}
-        
-        {/* Tab navigation */}
+        <InfoBox>
+          <h3>How It Works</h3>
+          <ul>
+            <li>Upload up to 10 design images (sketches, inspirations, or reference photos)</li>
+            <li>Provide detailed descriptions of your vision</li>
+            <li>Our design team will review your request within 2-3 business days</li>
+            <li>Once approved, we'll provide a detailed quote and timeline</li>
+            <li>Upon confirmation, we'll begin crafting your custom piece</li>
+          </ul>
+        </InfoBox>
+          {/* Tab navigation - same for everyone */}
         <TabContainer>
-          {isAdminView ? (
-            <>
-              <Tab 
-                active={activeTab === 'pending'} 
-                onClick={() => setActiveTab('pending')}
-              >
-                Pending Designs
-              </Tab>
-              <Tab 
-                active={activeTab === 'approved'} 
-                onClick={() => setActiveTab('approved')}
-              >
-                Approved Designs
-              </Tab>
-              <Tab 
-                active={activeTab === 'all'} 
-                onClick={() => setActiveTab('all')}
-              >
-                All Designs
-              </Tab>
-            </>
-          ) : (
-            <>
-              <Tab 
-                active={activeTab === 'submit'} 
-                onClick={() => setActiveTab('submit')}
-              >
-                Submit Design
-              </Tab>
-              <Tab 
-                active={activeTab === 'designs'} 
-                onClick={() => setActiveTab('designs')}
-              >
-                My Designs
-              </Tab>
-            </>
-          )}
-        </TabContainer>
-
-        {/* Admin design view */}
-        {isAdminView && (
+          <Tab 
+            active={activeTab === 'submit'} 
+            onClick={() => setActiveTab('submit')}
+          >
+            Submit Design
+          </Tab>
+          <Tab 
+            active={activeTab === 'designs'} 
+            onClick={() => setActiveTab('designs')}
+          >
+            {isAdminView ? 'Customer Designs' : 'My Designs'}
+          </Tab>
+        </TabContainer>        {/* Admin designs view in the designs tab */}
+        {isAdminView && activeTab === 'designs' && (
           <div>
+            <p>To approve or reject designs, please use the <strong>Design Approval</strong> page from the admin sidebar.</p>
             {loading ? (
-              <p>Loading designs...</p>
+              <p>Loading customer designs...</p>
             ) : allDesigns.length === 0 ? (
-              <p>No designs found.</p>
+              <p>No customer designs found.</p>
             ) : (
-              allDesigns.filter(design => 
-                (activeTab === 'all') || 
-                (activeTab === 'pending' && design.status === 'pending') || 
-                (activeTab === 'approved' && design.status === 'approved')
-              ).map(design => (
+              allDesigns.map(design => (
                 <DesignCard key={design.id || design._id}>
                   <DesignHeader>
                     <DesignTitle>{design.designName || design.productName || 'Untitled Design'}</DesignTitle>
@@ -756,22 +653,6 @@ const CustomPage = () => {
                       <button onClick={() => window.open(`/design-details/${design.id || design._id}`, '_blank')}>
                         <FontAwesomeIcon icon={faEye} /> View Details
                       </button>
-                      {(design.status === 'pending' || !design.status) && (
-                        <>
-                          <button 
-                            style={{background: '#4CAF50', color: 'white'}}
-                            onClick={() => approveDesign(design.id || design._id)}
-                          >
-                            Approve
-                          </button>
-                          <button 
-                            style={{background: '#F44336', color: 'white'}}
-                            onClick={() => rejectDesign(design.id || design._id)}
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
                     </div>
                   </DesignContent>
                 </DesignCard>

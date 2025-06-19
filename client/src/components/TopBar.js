@@ -414,14 +414,15 @@ const TopBar = () => {
             <FontAwesomeIcon icon={faShoppingBag} style={{ color: 'white' }} />
           </div>
           <span className="nav-text">Products</span>
-        </NavLink>        {/* Show Custom Design for all authenticated users */}
-        {isAuthenticated && (
-          <NavLink to={currentUser?.role === 'admin' ? '/admin/custom' : '/custom'} className={location.pathname.includes('/custom') ? 'active' : ''}>
+        </NavLink>        {/* Show Custom Design for regular users in the Shop section */}
+        {isAuthenticated && currentUser?.role !== 'admin' && (
+          <NavLink to="/custom" className={location.pathname === '/custom' ? 'active' : ''}>
             <div className="icon-container">
               <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
             </div>
             <span className="nav-text">Custom</span>
-          </NavLink>        )}
+          </NavLink>
+        )}
         
         {/* Cart and Wishlist removed from sidebar - functionality moved to Orders page */}
         
@@ -464,8 +465,7 @@ const TopBar = () => {
               </div>
               <span className="nav-text">Transactions</span>
             </NavLink>
-              
-            <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
+              <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faSearch} style={{ color: 'white' }} />
               </div>
@@ -477,6 +477,13 @@ const TopBar = () => {
                 <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />
               </div>
               <span className="nav-text">Delivery</span>
+            </NavLink>
+            
+            <NavLink to="/admin/custom" className={location.pathname === '/admin/custom' ? 'active' : ''}>
+              <div className="icon-container">
+                <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
+              </div>
+              <span className="nav-text">Custom Design</span>
             </NavLink>
           </>
         )}
