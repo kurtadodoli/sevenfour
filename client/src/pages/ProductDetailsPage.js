@@ -266,6 +266,50 @@ const SizeButton = styled.button`
   }
 `;
 
+const ColorOptions = styled.div`
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+`;
+
+const ColorButton = styled.button`
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: ${props => props.color || '#ffffff'};
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  
+  ${props => props.selected && `
+    &::after {
+      content: '';
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 2px solid #000000;
+      left: -5px;
+      top: -5px;
+    }
+  `}
+  
+  &:hover {
+    transform: scale(1.1);
+  }
+`;
+
+const ColorName = styled.small`
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  white-space: nowrap;
+`;
+
 const PurchaseSection = styled.div`
   border-top: 1px solid #f0f0f0;
   padding-top: 32px;
@@ -500,26 +544,49 @@ const ProductDetailsPage = () => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [quantity, setQuantity] = useState(1);
-    const [selectedSize, setSelectedSize] = useState('');
+    const [quantity, setQuantity] = useState(1);    const [selectedSize, setSelectedSize] = useState('');
+    const [selectedColor, setSelectedColor] = useState('');
     const [notification, setNotification] = useState(null);
-    const [addingToCart, setAddingToCart] = useState(false);    const fetchProduct = useCallback(async () => {
+    const [addingToCart, setAddingToCart] = useState(false);
+    
+    const fetchProduct = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await fetch(`http://localhost:3001/api/maintenance/products`);
+            // Use the enhanced API endpoint that includes size-color variants
+            const response = await fetch(`http://localhost:3001/api/enhanced-maintenance/products`);
             
             if (response.ok) {
                 const products = await response.json();
-                const foundProduct = products.find(p => p.id === parseInt(id));
+                // Look for the product by both ID and product_id for compatibility
+                const foundProduct = products.find(p => 
+                    p.id === parseInt(id) || p.product_id === parseInt(id)
+                );
                 
                 if (foundProduct) {
+                    console.log('Found product:', foundProduct);
                     setProduct(foundProduct);
                     
+                    // If the product has sizeColorVariants, ensure it's parsed
+                    if (foundProduct.sizeColorVariants && typeof foundProduct.sizeColorVariants === 'string') {
+                        foundProduct.sizeColorVariants = JSON.parse(foundProduct.sizeColorVariants);
+                    }
+                    
                     // Fetch product images
-                    const imagesResponse = await fetch(`http://localhost:3001/api/maintenance/products/${foundProduct.product_id}/images`);
+                    const imagesResponse = await fetch(`http://localhost:3001/api/enhanced-maintenance/products/${foundProduct.product_id}/images`);
                     if (imagesResponse.ok) {
                         const images = await imagesResponse.json();
                         setProductImages(images);
+                    }
+                    
+                    // Initialize with first available size and color if any
+                    const availableSizes = getAvailableSizes(foundProduct);
+                    if (availableSizes.length > 0) {
+                        setSelectedSize(availableSizes[0].size);
+                        
+                        const colors = getAvailableColors(foundProduct, availableSizes[0].size);
+                        if (colors.length > 0) {
+                            setSelectedColor(colors[0]);
+                        }
                     }
                 } else {
                     setError('Product not found');
@@ -533,7 +600,12 @@ const ProductDetailsPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [id]);    useEffect(() => {
+    // Note: We're using functions defined after this callback,
+    // but they don't depend on any changing state, so it's safe to omit them
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
+    
+    useEffect(() => {
         fetchProduct();
     }, [fetchProduct]);
 
@@ -549,30 +621,135 @@ const ProductDetailsPage = () => {
         }
     };
 
-    // Get total stock
+    // Parse size-color variants
+    const parseSizeColorVariants = (variantsData) => {
+        try {
+            if (typeof variantsData === 'string') {
+                return JSON.parse(variantsData);
+            }
+            return variantsData || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
+    // Get available sizes from the enhanced structure
+    const getAvailableSizes = (product) => {
+        // Check if the product has the new sizeColorVariants structure
+        if (product?.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            return variants
+                .filter(variant => variant.colorStocks.some(cs => cs.stock > 0))
+                .map(variant => ({ 
+                    size: variant.size, 
+                    stock: variant.colorStocks.reduce((total, cs) => total + (cs.stock || 0), 0)
+                }));
+        }
+        
+        // Fallback to the old structure
+        const sizes = parseSizes(product?.sizes);
+        return sizes.filter(size => size.stock > 0);
+    };
+
+    // Get available colors for a product or for a specific size
+    const getAvailableColors = (product, size = null) => {
+        if (!product) return [];
+        
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            
+            // If a size is specified, get colors just for that size
+            if (size) {
+                const sizeVariant = variants.find(variant => variant.size === size);
+                if (sizeVariant) {
+                    return sizeVariant.colorStocks
+                        .filter(cs => cs.stock > 0)
+                        .map(cs => cs.color);
+                }
+                return [];
+            }
+            
+            // Otherwise get all unique colors across all variants that have stock
+            const colors = new Set();
+            variants.forEach(variant => {
+                variant.colorStocks.forEach(cs => {
+                    if (cs.stock > 0 && cs.color.trim() !== '') {
+                        colors.add(cs.color);
+                    }
+                });
+            });
+            return Array.from(colors);
+        }
+        
+        // Fallback to old structure or single color
+        if (product.colors) {
+            try {
+                const colors = parseSizes(product.colors);
+                return colors.filter(color => color.trim() !== '');
+            } catch {
+                return product.productcolor ? [product.productcolor] : [];
+            }
+        }
+        
+        return product.productcolor ? [product.productcolor] : [];
+    };
+
+    // Get total stock for a product
     const getTotalStock = (product) => {
-        if (product.total_stock !== undefined) {
+        if (!product) return 0;
+        
+        // Use total_stock if it exists
+        if (product.total_stock !== undefined && product.total_stock !== null) {
             return product.total_stock;
         }
+        
+        // Use sizeColorVariants if available
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            return variants.reduce((total, variant) => {
+                return total + variant.colorStocks.reduce((subtotal, cs) => {
+                    return subtotal + (cs.stock || 0);
+                }, 0);
+            }, 0);
+        }
+        
+        // Fallback to old sizes structure
         const sizes = parseSizes(product.sizes);
         return sizes.reduce((total, size) => total + (size.stock || 0), 0);
     };
 
-    // Get available sizes
-    const getAvailableSizes = (sizesData) => {
-        const sizes = parseSizes(sizesData);
-        return sizes.filter(size => size.stock > 0);
-    };
-
-    // Get stock for selected size
-    const getStockForSize = (size) => {
-        const sizes = parseSizes(product.sizes);
-        const sizeData = sizes.find(s => s.size === size);
-        return sizeData ? sizeData.stock : 0;
+    // Get stock for selected size and color
+    const getStockForSizeAndColor = (size, color) => {
+        if (!product) return 0;
+        
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            const sizeVariant = variants.find(v => v.size === size);
+            
+            if (sizeVariant) {
+                if (color) {
+                    // Return stock for specific color
+                    const colorStock = sizeVariant.colorStocks.find(cs => cs.color === color);
+                    return colorStock ? colorStock.stock : 0;
+                } else {
+                    // Return total stock for all colors in this size
+                    return sizeVariant.colorStocks.reduce((total, cs) => total + (cs.stock || 0), 0);
+                }
+            }
+        }
+        
+        // Fallback to old structure
+        return getStockForSize(size);
     };    const addToCart = async () => {
         // Validate required fields
         if (availableSizes.length > 0 && !selectedSize) {
             showNotification('Please select a size first', 'error');
+            return;
+        }
+        
+        // Also validate color if colors are available for the selected size
+        if (selectedSize && availableColors.length > 0 && !selectedColor) {
+            showNotification('Please select a color', 'error');
             return;
         }
 
@@ -580,15 +757,15 @@ const ProductDetailsPage = () => {
             setAddingToCart(true);
             console.log('Adding to cart:', {
                 productId: product.product_id || product.id,
-                color: product.productcolor || '',
+                color: selectedColor || product.productcolor || '',
                 size: selectedSize || '',
                 quantity: quantity
             });
             
-            // Use the CartContext addToCart function
+            // Use the CartContext addToCart function with the selected color
             const result = await addToCartContext(
                 product.product_id || product.id, 
-                product.productcolor || '', 
+                selectedColor || product.productcolor || '', 
                 selectedSize || '', 
                 quantity
             );
@@ -621,6 +798,14 @@ const ProductDetailsPage = () => {
         }, 4000); // Hide after 4 seconds
     };
 
+    // Legacy function to get stock for a specific size
+    const getStockForSize = (size) => {
+        if (!product) return 0;
+        const sizes = parseSizes(product?.sizes);
+        const sizeData = sizes.find(s => s.size === size);
+        return sizeData ? sizeData.stock : 0;
+    };
+    
     if (loading) {
         return (
             <PageContainer>
@@ -648,8 +833,9 @@ const ProductDetailsPage = () => {
             </PageContainer>
         );
     }    const totalStock = getTotalStock(product);
-    const availableSizes = getAvailableSizes(product.sizes);
-    const maxQuantity = selectedSize ? getStockForSize(selectedSize) : totalStock;
+    const availableSizes = getAvailableSizes(product);
+    const availableColors = getAvailableColors(product, selectedSize);
+    const maxQuantity = selectedSize ? getStockForSizeAndColor(selectedSize, selectedColor) : totalStock;
 
     return (
         <PageContainer>
@@ -742,14 +928,7 @@ const ProductDetailsPage = () => {
                         
                         <Specifications>
                             <h3>Product Details</h3>
-                            
-                            {product.productcolor && (
-                                <SpecItem>
-                                    <SpecLabel>Color:</SpecLabel>
-                                    <SpecValue>{product.productcolor}</SpecValue>
-                                </SpecItem>
-                            )}
-                            
+                              {/* Size Selection */}
                             {availableSizes.length > 0 && (
                                 <SpecItem>
                                     <SpecLabel>Size:</SpecLabel>
@@ -758,13 +937,42 @@ const ProductDetailsPage = () => {
                                             <SizeButton
                                                 key={sizeData.size}
                                                 selected={selectedSize === sizeData.size}
-                                                onClick={() => setSelectedSize(sizeData.size)}
+                                                onClick={() => {
+                                                    setSelectedSize(sizeData.size);
+                                                    // Reset color when size changes
+                                                    const colorsForSize = getAvailableColors(product, sizeData.size);
+                                                    if (colorsForSize.length > 0) {
+                                                        setSelectedColor(colorsForSize[0]);
+                                                    } else {
+                                                        setSelectedColor('');
+                                                    }
+                                                }}
                                             >
                                                 {sizeData.size}
                                                 <small>({sizeData.stock} available)</small>
                                             </SizeButton>
                                         ))}
                                     </SizeOptions>
+                                </SpecItem>
+                            )}
+                            
+                            {/* Color Selection - Enhanced for size-color variants */}
+                            {selectedSize && availableColors.length > 0 && (
+                                <SpecItem>
+                                    <SpecLabel>Color:</SpecLabel>
+                                    <ColorOptions>
+                                        {availableColors.map((color) => (
+                                            <ColorButton
+                                                key={color}
+                                                color={color.toLowerCase()}
+                                                selected={selectedColor === color}
+                                                onClick={() => setSelectedColor(color)}
+                                                title={color}
+                                            >
+                                                <ColorName>{color}</ColorName>
+                                            </ColorButton>
+                                        ))}
+                                    </ColorOptions>
                                 </SpecItem>
                             )}
                             

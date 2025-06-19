@@ -393,17 +393,27 @@ const ProductsPage = () => {
         try {
             setLoading(true);
             
+            // Using the enhanced API endpoint that includes size-color variants
             const response = await fetch('http://localhost:3001/api/enhanced-maintenance/products');
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('Product data received:', data.length, 'items');
                 
                 // Filter only active products for customers
                 const activeProducts = data.filter(product => 
                     product.status === 'active' && !product.is_archived
                 );
-                  setProducts(activeProducts);
-                setFilteredProducts(activeProducts);
+
+                // Process products to ensure all have consistent structure
+                const processedProducts = activeProducts.map(product => ({
+                    ...product,
+                    // Ensure product_id is used as id for consistent navigation
+                    id: product.product_id
+                }));
+                
+                setProducts(processedProducts);
+                setFilteredProducts(processedProducts);
             } else {
                 setError('Failed to load products');
             }
@@ -413,40 +423,53 @@ const ProductsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
-
-    // Filter products based on search term and category
+    };    // Filter products based on search term and category
     useEffect(() => {
-        let filtered = products;
-
-        // Filter by search term
-        if (searchTerm) {
-            filtered = filtered.filter(product => {
+        // Create a new array from products
+        const filtered = products.filter(product => {
+            // Apply search filter if there's a search term
+            if (searchTerm) {
                 const searchLower = searchTerm.toLowerCase();
-                return (
+                
+                // Basic product properties search
+                if (
                     product.productname?.toLowerCase().includes(searchLower) ||
                     product.productdescription?.toLowerCase().includes(searchLower) ||
                     product.product_type?.toLowerCase().includes(searchLower) ||
-                    // Search in size-color variants
-                    (product.sizeColorVariants && 
-                        product.sizeColorVariants.some(variant => 
-                            variant.size?.toLowerCase().includes(searchLower) ||
-                            variant.colorStocks?.some(cs => 
-                                cs.color?.toLowerCase().includes(searchLower)
-                            )
+                    product.productcolor?.toLowerCase().includes(searchLower)
+                ) {
+                    // If category filter is also applied, check that too
+                    return selectedCategory === 'all' || product.product_type === selectedCategory;
+                }
+                
+                // Advanced search in size-color variants
+                if (product.sizeColorVariants) {
+                    const variants = parseSizeColorVariants(product.sizeColorVariants);
+                    const matchesVariant = variants.some(variant => 
+                        variant.size?.toLowerCase().includes(searchLower) ||
+                        variant.colorStocks?.some(cs => 
+                            cs.color?.toLowerCase().includes(searchLower)
                         )
-                    )
-                );
-            });
-        }
-
-        // Filter by category
-        if (selectedCategory !== 'all') {
-            filtered = filtered.filter(product => 
-                product.product_type === selectedCategory
-            );
-        }
-
+                    );
+                    
+                    if (matchesVariant) {
+                        return selectedCategory === 'all' || product.product_type === selectedCategory;
+                    }
+                }
+                
+                // Legacy search in sizes and colors
+                const sizes = parseSizes(product.sizes);
+                if (sizes.some(size => size.size?.toLowerCase().includes(searchLower))) {
+                    return selectedCategory === 'all' || product.product_type === selectedCategory;
+                }
+                
+                return false;
+            } 
+            
+            // If no search term but category filter is applied
+            return selectedCategory === 'all' || product.product_type === selectedCategory;
+        });
+        
         setFilteredProducts(filtered);
     }, [products, searchTerm, selectedCategory]);
 
@@ -469,7 +492,7 @@ const ProductsPage = () => {
         fetchProducts();
     }, []);
 
-    // Parse sizes data for display
+    // Parse sizes data for display - enhanced for size-color variants
     const parseSizes = (sizesData) => {
         try {
             if (typeof sizesData === 'string') {
@@ -481,22 +504,83 @@ const ProductsPage = () => {
         }
     };
 
+    // Parse size-color variants
+    const parseSizeColorVariants = (variantsData) => {
+        try {
+            if (typeof variantsData === 'string') {
+                return JSON.parse(variantsData);
+            }
+            return variantsData || [];
+        } catch (error) {
+            return [];
+        }
+    };
+
     // Get available sizes for display
-    const getAvailableSizes = (sizesData) => {
-        const sizes = parseSizes(sizesData);
+    const getAvailableSizes = (product) => {
+        // Check if the product has the new sizeColorVariants structure
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            return variants
+                .filter(variant => variant.colorStocks.some(cs => cs.stock > 0))
+                .map(variant => variant.size);
+        }
+        
+        // Fallback to the old structure
+        const sizes = parseSizes(product.sizes);
         return sizes.filter(size => size.stock > 0).map(size => size.size);
     };
 
-    // Get total stock
-    const getTotalStock = (product) => {
-        if (product.total_stock !== undefined) {
-            return product.total_stock;
+    // Get available colors for a product
+    const getAvailableColors = (product) => {
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            // Get unique colors across all variants that have stock
+            const colors = new Set();
+            variants.forEach(variant => {
+                variant.colorStocks.forEach(cs => {
+                    if (cs.stock > 0) {
+                        colors.add(cs.color);
+                    }
+                });
+            });
+            return Array.from(colors);
         }
-        const sizes = parseSizes(product.sizes);
-        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+        
+        // Fallback to old structure or single color
+        if (product.colors) {
+            try {
+                const colors = parseSizes(product.colors);
+                return colors.filter(color => color.trim() !== '');
+            } catch {
+                return product.productcolor ? [product.productcolor] : [];
+            }
+        }
+        
+        return product.productcolor ? [product.productcolor] : [];
     };
 
-    const handleAddToCart = async (e, product) => {
+    // Get total stock for a product
+    const getTotalStock = (product) => {
+        // Use total_stock if it exists
+        if (product.total_stock !== undefined && product.total_stock !== null) {
+            return product.total_stock;
+        }
+        
+        // Use sizeColorVariants if available
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            return variants.reduce((total, variant) => {
+                return total + variant.colorStocks.reduce((subtotal, cs) => {
+                    return subtotal + (cs.stock || 0);
+                }, 0);
+            }, 0);
+        }
+        
+        // Fallback to old sizes structure
+        const sizes = parseSizes(product.sizes);
+        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+    };    const handleAddToCart = async (e, product) => {
         e.stopPropagation();
         
         if (!currentUser) {
@@ -505,11 +589,30 @@ const ProductsPage = () => {
             return;
         }
 
+        // Use product_id for consistency with MaintenancePage updates
+        const productId = product.product_id || product.id;
+        
+        // Default color and size selection based on availability
+        let defaultColor = 'Default';
+        let defaultSize = 'One Size';
+        
+        // Try to get the first available color from the enhanced structure
+        const availableColors = getAvailableColors(product);
+        if (availableColors.length > 0) {
+            defaultColor = availableColors[0];
+        }
+        
+        // Try to get the first available size from the enhanced structure
+        const availableSizes = getAvailableSizes(product);
+        if (availableSizes.length > 0) {
+            defaultSize = availableSizes[0];
+        }
+
         try {
             const result = await addToCart(
-                product.product_id,
-                product.productcolor || 'Default',
-                'One Size',
+                productId,
+                defaultColor,
+                defaultSize,
                 1
             );
             
@@ -585,10 +688,8 @@ const ProductsPage = () => {
                         </RetryButton>
                     </ErrorWrapper>
                 )}                {!loading && !error && filteredProducts.length > 0 && (
-                    <ProductGrid>
-                        {filteredProducts.map(product => {
+                    <ProductGrid>                        {filteredProducts.map(product => {
                             const totalStock = getTotalStock(product);
-                            const availableSizes = getAvailableSizes(product.sizes);
                             
                             return (
                                 <ProductCard key={product.id}>
@@ -626,17 +727,16 @@ const ProductsPage = () => {
                                         <PriceSection>
                                             <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>
                                         </PriceSection>
-                                        
-                                        <ProductDetails>
-                                            {availableSizes.length > 0 && (
+                                          <ProductDetails>
+                                            {getAvailableSizes(product).length > 0 && (
                                                 <DetailItem>
-                                                    <strong>Sizes:</strong> {availableSizes.join(', ')}
+                                                    <strong>Sizes:</strong> {getAvailableSizes(product).join(', ')}
                                                 </DetailItem>
                                             )}
                                             
-                                            {product.productcolor && (
+                                            {getAvailableColors(product).length > 0 && (
                                                 <DetailItem>
-                                                    <strong>Color:</strong> {product.productcolor}
+                                                    <strong>Colors:</strong> {getAvailableColors(product).join(', ')}
                                                 </DetailItem>
                                             )}
                                         </ProductDetails>
@@ -683,8 +783,8 @@ const ProductsPage = () => {
                             Clear Filters
                         </RetryButton>
                     </EmptyState>
-                )}
-            </ContentWrapper>        </PageContainer>
+                )}            </ContentWrapper>
+        </PageContainer>
     );
 };
 
