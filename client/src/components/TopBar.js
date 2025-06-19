@@ -416,7 +416,7 @@ const TopBar = () => {
           <span className="nav-text">Products</span>
         </NavLink>        {/* Show Custom Design for all authenticated users */}
         {isAuthenticated && (
-          <NavLink to="/custom" className={location.pathname === '/custom' ? 'active' : ''}>
+          <NavLink to={currentUser?.role === 'admin' ? '/admin/custom' : '/custom'} className={location.pathname.includes('/custom') ? 'active' : ''}>
             <div className="icon-container">
               <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
             </div>

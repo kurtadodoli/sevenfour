@@ -118,8 +118,7 @@ function App() {
                       <Route path="/staff" element={<DashboardPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/inventory" element={<InventoryPage />} />
-                    </Route>                    {/* Protected Routes - Admin Only */}
-                    <Route element={<AdminRoute />}>
+                    </Route>                    {/* Protected Routes - Admin Only */}                    <Route element={<AdminRoute />}>
                       <Route path="/admin" element={<DashboardPage />} />
                       <Route path="/admin/users" element={<UsersPage />} />
                       <Route path="/admin/reports" element={<ReportsPage />} />
@@ -128,6 +127,7 @@ function App() {
                       <Route path="/transactions" element={<TransactionPage />} />
                       <Route path="/search" element={<SearchPage />} />
                       <Route path="/design-approval" element={<DesignApprovalPage />} />
+                      <Route path="/admin/custom" element={<CustomPage />} />
                     </Route>
                       {/* Additional Routes */}
                     <Route path="/help" element={<HelpPage />} />

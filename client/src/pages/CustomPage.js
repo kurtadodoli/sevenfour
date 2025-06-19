@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -15,7 +15,8 @@ import {
   faHourglass,
   faExclamationTriangle,
   faShoppingCart,
-  faDownload
+  faDownload,
+  faEye
 } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 import api from '../utils/api';
@@ -290,13 +291,116 @@ const InfoBox = styled.div`
   }
 `;
 
+// TabContainer component for navigation
+const TabContainer = styled.div`
+  display: flex;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e0e0e0;
+`;
+
+const Tab = styled.button`
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 500;
+  color: ${props => props.active ? '#000000' : '#666666'};
+  cursor: pointer;
+  position: relative;
+  
+  &:after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: #000000;
+    transform: scaleX(${props => props.active ? 1 : 0});
+    transition: transform 0.3s ease;
+  }
+  
+  &:hover {
+    color: #000000;
+    
+    &:after {
+      transform: scaleX(1);
+    }
+  }
+`;
+
+// Design card component for viewing designs
+const DesignCard = styled.div`
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const DesignHeader = styled.div`
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const DesignTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+`;
+
+const DesignStatus = styled.span`
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: ${props => {
+    switch(props.status) {
+      case 'pending': return '#FFF9C4';
+      case 'approved': return '#C8E6C9';
+      case 'rejected': return '#FFCDD2';
+      case 'in_progress': return '#BBDEFB';
+      case 'completed': return '#B2DFDB';
+      default: return '#E0E0E0';
+    }
+  }};
+  color: ${props => {
+    switch(props.status) {
+      case 'pending': return '#F57F17';
+      case 'approved': return '#1B5E20';
+      case 'rejected': return '#B71C1C';
+      case 'in_progress': return '#0D47A1';
+      case 'completed': return '#004D40';
+      default: return '#424242';
+    }
+  }};
+`;
+
+const DesignContent = styled.div`
+  padding: 16px;
+`;
+
 const CustomPage = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('submit'); // 'submit' or 'designs'
   const [userDesigns, setUserDesigns] = useState([]);
+  const [allDesigns, setAllDesigns] = useState([]); // For admin to view all designs
   const [images, setImages] = useState([]);
+  const [isAdminView, setIsAdminView] = useState(false);
+  
   const [formData, setFormData] = useState({
     productName: '',
     productDescription: '',
@@ -316,14 +420,23 @@ const CustomPage = () => {
       navigate('/login');
       return;
     }
-  }, [currentUser, navigate]);
 
-  // Load user's designs
+    // Check if the user is accessing the admin route
+    const isAdminRoute = location.pathname.includes('/admin');
+    setIsAdminView(currentUser.role === 'admin' && isAdminRoute);
+  }, [currentUser, navigate, location.pathname]);
+  // Load designs based on user role
   useEffect(() => {
     if (currentUser && activeTab === 'designs') {
-      loadUserDesigns();
+      if (isAdminView) {
+        // Admin sees all designs
+        loadAllDesigns();
+      } else {
+        // Normal users only see their own designs
+        loadUserDesigns();
+      }
     }
-  }, [currentUser, activeTab]);
+  }, [currentUser, activeTab, isAdminView]);
 
   const loadUserDesigns = async () => {
     try {
@@ -334,6 +447,23 @@ const CustomPage = () => {
     } catch (error) {
       console.error('Error loading designs:', error);
       toast.error('Failed to load your designs');
+    }
+  };
+
+  const loadAllDesigns = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/api/custom-designs/all');
+      if (response.data.success) {
+        setAllDesigns(response.data.data);
+      } else {
+        toast.error('Failed to load designs');
+      }
+    } catch (error) {
+      console.error('Error loading all designs:', error);
+      toast.error('Failed to load designs. Please try again later.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -540,35 +670,143 @@ const CustomPage = () => {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   };
-
-  if (!currentUser || currentUser.role !== 'customer') {
+  // If not logged in
+  if (!currentUser) {
     return null;
   }
 
   return (
-    <PageContainer>
-      <TopBar />
+    <PageContainer>      <TopBar />
       <ContentWrapper>
         <Header>
-          <Title>Custom Design Request</Title>
-          <Subtitle>
-            Bring your unique clothing ideas to life. Upload your designs and let our team create something special just for you.
-          </Subtitle>
+          {isAdminView ? (
+            <>
+              <Title>Custom Design Management</Title>
+              <Subtitle>
+                Review and manage custom design requests from customers. Approve designs, update statuses, and manage the design workflow.
+              </Subtitle>
+            </>
+          ) : (
+            <>
+              <Title>Custom Design Request</Title>
+              <Subtitle>
+                Bring your unique clothing ideas to life. Upload your designs and let our team create something special just for you.
+              </Subtitle>
+            </>
+          )}
         </Header>
 
-        <InfoBox>
-          <h3>How It Works</h3>
-          <ul>
-            <li>Upload up to 10 design images (sketches, inspirations, or reference photos)</li>
-            <li>Provide detailed descriptions of your vision</li>
-            <li>Our design team will review your request within 2-3 business days</li>
-            <li>Once approved, we'll provide a detailed quote and timeline</li>
-            <li>Upon confirmation, we'll begin crafting your custom piece</li>
-          </ul>
-        </InfoBox>
+        {!isAdminView && (
+          <InfoBox>
+            <h3>How It Works</h3>
+            <ul>
+              <li>Upload up to 10 design images (sketches, inspirations, or reference photos)</li>
+              <li>Provide detailed descriptions of your vision</li>
+              <li>Our design team will review your request within 2-3 business days</li>
+              <li>Once approved, we'll provide a detailed quote and timeline</li>
+              <li>Upon confirmation, we'll begin crafting your custom piece</li>
+            </ul>
+          </InfoBox>
+        )}
+          {isAdminView && (
+          <InfoBox>
+            <h3>Admin Design Management</h3>
+            <ul>
+              <li>Review all customer design requests</li>
+              <li>Approve or reject designs based on feasibility</li>
+              <li>Update design statuses as they progress through production</li>
+              <li>Communicate with customers about their designs</li>
+              <li>Generate quotes and manage the custom design workflow</li>
+            </ul>
+          </InfoBox>
+        )}
+        
+        {/* Tab navigation - different tabs for admin and regular users */}
+        <TabContainer>
+          {isAdminView ? (
+            <>
+              <Tab 
+                active={activeTab === 'pending'} 
+                onClick={() => setActiveTab('pending')}
+              >
+                Pending Designs
+              </Tab>
+              <Tab 
+                active={activeTab === 'approved'} 
+                onClick={() => setActiveTab('approved')}
+              >
+                Approved Designs
+              </Tab>
+              <Tab 
+                active={activeTab === 'all'} 
+                onClick={() => setActiveTab('all')}
+              >
+                All Designs
+              </Tab>
+            </>
+          ) : (
+            <>
+              <Tab 
+                active={activeTab === 'submit'} 
+                onClick={() => setActiveTab('submit')}
+              >
+                Submit Design
+              </Tab>
+              <Tab 
+                active={activeTab === 'designs'} 
+                onClick={() => setActiveTab('designs')}
+              >
+                My Designs
+              </Tab>
+            </>
+          )}
+        </TabContainer>
 
-        <FormContainer>
-          <form onSubmit={handleSubmit}>
+        {/* Admin design view */}
+        {isAdminView && (
+          <div>
+            {loading ? (
+              <p>Loading designs...</p>
+            ) : allDesigns.length === 0 ? (
+              <p>No designs found.</p>
+            ) : (
+              allDesigns.filter(design => 
+                (activeTab === 'all') || 
+                (activeTab === 'pending' && design.status === 'pending') || 
+                (activeTab === 'approved' && design.status === 'approved')
+              ).map(design => (
+                <DesignCard key={design.id}>
+                  <DesignHeader>
+                    <DesignTitle>{design.designName || 'Untitled Design'}</DesignTitle>
+                    <DesignStatus status={design.status}>
+                      {design.status.replace('_', ' ').toUpperCase()}
+                    </DesignStatus>
+                  </DesignHeader>
+                  <DesignContent>
+                    <p><strong>Customer:</strong> {design.customerName}</p>
+                    <p><strong>Submitted:</strong> {new Date(design.createdAt).toLocaleDateString()}</p>
+                    <p><strong>Category:</strong> {design.category}</p>
+                    <p><strong>Description:</strong> {design.description}</p>
+                    <div style={{display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px'}}>
+                      <button>View Details</button>
+                      {design.status === 'pending' && (
+                        <>
+                          <button style={{background: '#4CAF50', color: 'white'}}>Approve</button>
+                          <button style={{background: '#F44336', color: 'white'}}>Reject</button>
+                        </>
+                      )}
+                    </div>
+                  </DesignContent>
+                </DesignCard>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Regular user form - only visible to non-admin or when in submit tab */}
+        {!isAdminView && activeTab === 'submit' && (
+          <FormContainer>
+            <form onSubmit={handleSubmit}>
             <Section>
               <SectionTitle>
                 <FontAwesomeIcon icon={faPalette} />
@@ -743,6 +981,105 @@ const CustomPage = () => {
             </SubmitButton>
           </form>
         </FormContainer>
+
+        {isAdminView && (
+          <>
+            <TabContainer>
+              <Tab
+                active={activeTab === 'designs'}
+                onClick={() => setActiveTab('designs')}
+              >
+                All Designs
+              </Tab>
+              <Tab
+                active={activeTab === 'submitted'}
+                onClick={() => setActiveTab('submitted')}
+              >
+                Submitted Designs
+              </Tab>
+            </TabContainer>
+
+            {activeTab === 'designs' && (
+              <>
+                {loading && <p>Loading designs...</p>}
+                
+                {!loading && allDesigns.length === 0 && (
+                  <p>No designs found.</p>
+                )}
+
+                {!loading && allDesigns.length > 0 && (
+                  <div>
+                    {allDesigns.map(design => (
+                      <DesignCard key={design._id}>
+                        <DesignHeader>
+                          <DesignTitle>{design.productName}</DesignTitle>
+                          <DesignStatus status={design.status}>
+                            {design.status.charAt(0).toUpperCase() + design.status.slice(1)}
+                          </DesignStatus>
+                        </DesignHeader>
+
+                        <DesignContent>
+                          <p><strong>Customer:</strong> {design.customerName}</p>
+                          <p><strong>Email:</strong> {design.customerEmail}</p>
+                          <p><strong>Phone:</strong> {design.customerPhone || 'N/A'}</p>
+                          <p><strong>Address:</strong> {design.shippingAddress}</p>
+                          <p><strong>Design Concept:</strong> {design.designConcept}</p>
+                          <p><strong>Special Requirements:</strong> {design.specialRequirements || 'None'}</p>
+                          <p><strong>Notes:</strong> {design.notes || 'None'}</p>
+                          
+                          <button onClick={() => createOrderFromDesign(design._id)}>
+                            <FontAwesomeIcon icon={faShoppingCart} />
+                            Create Order
+                          </button>
+                        </DesignContent>
+                      </DesignCard>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 'submitted' && (
+              <>
+                {loading && <p>Loading your designs...</p>}
+                
+                {!loading && userDesigns.length === 0 && (
+                  <p>No submitted designs found.</p>
+                )}
+
+                {!loading && userDesigns.length > 0 && (
+                  <div>
+                    {userDesigns.map(design => (
+                      <DesignCard key={design._id}>
+                        <DesignHeader>
+                          <DesignTitle>{design.productName}</DesignTitle>
+                          <DesignStatus status={design.status}>
+                            {design.status.charAt(0).toUpperCase() + design.status.slice(1)}
+                          </DesignStatus>
+                        </DesignHeader>
+
+                        <DesignContent>
+                          <p><strong>Customer:</strong> {design.customerName}</p>
+                          <p><strong>Email:</strong> {design.customerEmail}</p>
+                          <p><strong>Phone:</strong> {design.customerPhone || 'N/A'}</p>
+                          <p><strong>Address:</strong> {design.shippingAddress}</p>
+                          <p><strong>Design Concept:</strong> {design.designConcept}</p>
+                          <p><strong>Special Requirements:</strong> {design.specialRequirements || 'None'}</p>
+                          <p><strong>Notes:</strong> {design.notes || 'None'}</p>
+                          
+                          <button onClick={() => createOrderFromDesign(design._id)}>
+                            <FontAwesomeIcon icon={faShoppingCart} />
+                            Create Order
+                          </button>
+                        </DesignContent>
+                      </DesignCard>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </ContentWrapper>
     </PageContainer>
   );
