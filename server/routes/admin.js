@@ -4,6 +4,136 @@ const { dbConfig } = require('../config/db');
 const { auth } = require('../middleware/auth');
 const router = express.Router();
 
+// NO-AUTH Transaction endpoints - explicitly at the top for development/testing
+
+// Get all transactions
+router.get('/transactions', async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        console.log('📊 Fetching all transactions');
+        
+        const [transactions] = await connection.execute(`
+            SELECT 
+                o.id,
+                o.order_number,
+                o.customer_id,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                u.email as customer_email,
+                o.shipping_address,
+                o.contact_phone,
+                o.total_amount,
+                o.payment_method,
+                o.status,
+                o.notes,
+                o.transaction_id,
+                o.created_at,
+                o.updated_at
+            FROM 
+                orders o
+            LEFT JOIN 
+                users u ON o.customer_id = u.user_id
+            ORDER BY 
+                o.created_at DESC
+        `);
+        
+        console.log(`✅ Fetched ${transactions.length} transactions successfully`);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: transactions
+        });
+    } catch (error) {
+        console.error('❌ Error fetching transactions:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch transactions',
+            details: error.message
+        });
+    }
+});
+// Approve transaction
+router.put('/transactions/:id/approve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        console.log(`🚀 Processing approval for transaction ID: ${id}`);
+        
+        // Update order status to approved
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['approved', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'approved'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        console.log(`✅ Transaction ${id} approved successfully`);
+        
+        res.json({
+            success: true,
+            message: 'Transaction approved successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error approving transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to approve transaction',
+            details: error.message 
+        });
+    }
+});
+
+// Reject transaction
+router.put('/transactions/:id/reject', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        console.log(`🚀 Processing rejection for transaction ID: ${id}`);
+        
+        // Update order status to rejected
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['rejected', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'rejected'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        console.log(`✅ Transaction ${id} rejected successfully`);
+        
+        res.json({
+            success: true,
+            message: 'Transaction rejected successfully'
+        });
+    } catch (error) {
+        console.error('❌ Error rejecting transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to reject transaction',
+            details: error.message 
+        });
+    }
+});
+
 // Get User Logs Report (TEST - No Auth Required)
 router.get('/user-logs-test', async (req, res) => {
     try {
@@ -305,41 +435,6 @@ router.put('/no-auth/transactions/:id/approve', async (req, res) => {
         res.status(500).json({ 
             success: false,
             error: 'Failed to approve transaction' 
-        });
-    }
-});
-
-// Reject transaction without auth
-router.put('/no-auth/transactions/:id/reject', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Update order status to rejected
-        await connection.execute(
-            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-            ['rejected', id]
-        );
-        
-        // Also update sales transaction status if exists
-        await connection.execute(`
-            UPDATE sales_transactions st
-            JOIN orders o ON st.transaction_id = o.transaction_id
-            SET st.transaction_status = 'rejected'
-            WHERE o.id = ?
-        `, [id]);
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            message: 'Transaction rejected successfully'
-        });
-    } catch (error) {
-        console.error('Error rejecting transaction:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to reject transaction' 
         });
     }
 });

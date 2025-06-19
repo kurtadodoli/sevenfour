@@ -497,18 +497,26 @@ const TransactionPage = () => {
     approved: 0,
     rejected: 0,
     totalAmount: 0
-  });
-  // Fetch transactions
+  });  // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching transactions...');
+      // api.js already includes the /api prefix, so we don't need to include it here
       const response = await api.get('/admin/transactions');
+      
       if (response.data.success) {
+        console.log('✅ Transactions fetched successfully:', response.data);
         setTransactions(response.data.data);
         calculateStats(response.data.data);
+      } else {
+        console.error('❌ Failed to fetch transactions:', response.data);
+        toast.error('Failed to fetch transactions');
       }
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('❌ Error fetching transactions:', error);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error details:', error.response?.data?.message || error.message);
       toast.error('Failed to fetch transactions');
     } finally {
       setLoading(false);
@@ -527,43 +535,49 @@ const TransactionPage = () => {
     setStats(stats);
   };  // Approve transaction
   const approveTransaction = async (transactionId) => {
+    if (!transactionId) {
+      console.error('❌ Invalid transaction ID');
+      toast.error('Invalid transaction ID');
+      return;
+    }
+    
     try {
-      console.log(`🚀 Starting approve for transaction ${transactionId}`);
-      console.log(`📡 Making request to: /admin/no-auth/transactions/${transactionId}/approve`);
+      console.log(`🔄 Approving transaction ${transactionId}...`);
+      // Use the api utility which handles baseURL and authentication
+      const response = await api.put(`/admin/transactions/${transactionId}/approve`);
       
-      // Use the no-auth endpoint for development/testing
-      const response = await api.put(`/admin/no-auth/transactions/${transactionId}/approve`);
+      console.log('✅ Transaction approved:', response.data);
+      toast.success('Transaction approved successfully');
       
-      console.log(`✅ Response received:`, response.data);
-      
-      if (response.data.success) {
-        toast.success('Transaction approved successfully');
-        fetchTransactions();
-      }
+      // Refresh transactions after approval
+      fetchTransactions();
     } catch (error) {
       console.error('❌ Error approving transaction:', error);
       console.error('❌ Error details:', error.response?.data || error.message);
-      toast.error('Failed to approve transaction');
+      toast.error(`Error approving transaction: ${error.response?.data?.message || error.message}`);
     }
   };  // Reject transaction
   const rejectTransaction = async (transactionId) => {
+    if (!transactionId) {
+      console.error('❌ Invalid transaction ID');
+      toast.error('Invalid transaction ID');
+      return;
+    }
+    
     try {
-      console.log(`🚀 Starting reject for transaction ${transactionId}`);
-      console.log(`📡 Making request to: /admin/no-auth/transactions/${transactionId}/reject`);
+      console.log(`🔄 Rejecting transaction ${transactionId}...`);
+      // Use the api utility which handles baseURL and authentication
+      const response = await api.put(`/admin/transactions/${transactionId}/reject`);
       
-      // Use the no-auth endpoint for development/testing
-      const response = await api.put(`/admin/no-auth/transactions/${transactionId}/reject`);
+      console.log('✅ Transaction rejected:', response.data);
+      toast.success('Transaction rejected successfully');
       
-      console.log(`✅ Response received:`, response.data);
-      
-      if (response.data.success) {
-        toast.success('Transaction rejected successfully');
-        fetchTransactions();
-      }
+      // Refresh transactions after rejection
+      fetchTransactions();
     } catch (error) {
       console.error('❌ Error rejecting transaction:', error);
       console.error('❌ Error details:', error.response?.data || error.message);
-      toast.error('Failed to reject transaction');
+      toast.error(`Error rejecting transaction: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -723,10 +737,11 @@ const TransactionPage = () => {
                     <FontAwesomeIcon icon={faEye} />
                   </ActionButton>                  
                   {transaction.status === 'pending' && (
-                    <>
-                      <ActionButton
+                    <>                      <ActionButton
                         variant="approve"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           console.log('🎯 Approve button clicked for transaction:', transaction.id);
                           approveTransaction(transaction.id);
                         }}
@@ -735,7 +750,9 @@ const TransactionPage = () => {
                       </ActionButton>
                         <ActionButton
                         variant="reject"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           console.log('🎯 Reject button clicked for transaction:', transaction.id);
                           rejectTransaction(transaction.id);
                         }}
