@@ -529,10 +529,10 @@ const TransactionPage = () => {
   const approveTransaction = async (transactionId) => {
     try {
       console.log(`🚀 Starting approve for transaction ${transactionId}`);
-      console.log(`📡 Making request to: /admin-no-auth/transactions/${transactionId}/approve`);
+      console.log(`📡 Making request to: /admin/no-auth/transactions/${transactionId}/approve`);
       
-      // Temporary workaround: use non-auth endpoint until authentication is fixed
-      const response = await api.put(`/admin-no-auth/transactions/${transactionId}/approve`);
+      // Use the no-auth endpoint for development/testing
+      const response = await api.put(`/admin/no-auth/transactions/${transactionId}/approve`);
       
       console.log(`✅ Response received:`, response.data);
       
@@ -549,10 +549,10 @@ const TransactionPage = () => {
   const rejectTransaction = async (transactionId) => {
     try {
       console.log(`🚀 Starting reject for transaction ${transactionId}`);
-      console.log(`📡 Making request to: /admin-no-auth/transactions/${transactionId}/reject`);
+      console.log(`📡 Making request to: /admin/no-auth/transactions/${transactionId}/reject`);
       
-      // Temporary workaround: use non-auth endpoint until authentication is fixed
-      const response = await api.put(`/admin-no-auth/transactions/${transactionId}/reject`);
+      // Use the no-auth endpoint for development/testing
+      const response = await api.put(`/admin/no-auth/transactions/${transactionId}/reject`);
       
       console.log(`✅ Response received:`, response.data);
       

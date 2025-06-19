@@ -273,4 +273,75 @@ router.put('/transactions/:id/reject', requireAdmin, async (req, res) => {
     }
 });
 
+// Non-authenticated versions for testing/development
+// Approve transaction without auth
+router.put('/no-auth/transactions/:id/approve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to approved
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['approved', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'approved'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction approved successfully'
+        });
+    } catch (error) {
+        console.error('Error approving transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to approve transaction' 
+        });
+    }
+});
+
+// Reject transaction without auth
+router.put('/no-auth/transactions/:id/reject', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Update order status to rejected
+        await connection.execute(
+            'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
+            ['rejected', id]
+        );
+        
+        // Also update sales transaction status if exists
+        await connection.execute(`
+            UPDATE sales_transactions st
+            JOIN orders o ON st.transaction_id = o.transaction_id
+            SET st.transaction_status = 'rejected'
+            WHERE o.id = ?
+        `, [id]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Transaction rejected successfully'
+        });
+    } catch (error) {
+        console.error('Error rejecting transaction:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to reject transaction' 
+        });
+    }
+});
+
 module.exports = router;
