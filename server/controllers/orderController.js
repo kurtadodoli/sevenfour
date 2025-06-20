@@ -51,6 +51,11 @@ exports.testListOrders = async (req, res) => {
 // Get user's orders
 exports.getUserOrders = async (req, res) => {
     try {
+        console.log('=== GET USER ORDERS DEBUG ===');
+        console.log('User ID from token:', req.user.id);
+        console.log('User email:', req.user.email);
+        console.log('User role:', req.user.role);
+        
         const connection = await mysql.createConnection(dbConfig);
         
         const [orders] = await connection.execute(`
@@ -66,6 +71,12 @@ exports.getUserOrders = async (req, res) => {
             WHERE o.user_id = ?
             ORDER BY o.order_date DESC
         `, [req.user.id]);
+        
+        console.log(`Found ${orders.length} orders for user ID ${req.user.id}`);
+        orders.forEach(order => {
+            console.log(`Order ${order.order_number}: user_id=${order.user_id}, total=${order.total_amount}`);
+        });
+        console.log('=== END GET USER ORDERS DEBUG ===');
         
         await connection.end();
         
@@ -85,6 +96,12 @@ exports.getUserOrders = async (req, res) => {
 // Create order from cart
 exports.createOrderFromCart = async (req, res) => {
     try {
+        console.log('=== CREATE ORDER FROM CART DEBUG ===');
+        console.log('User ID from token:', req.user.id);
+        console.log('User email:', req.user.email);
+        console.log('User role:', req.user.role);
+        console.log('Request body:', req.body);
+        
         const { 
             shipping_address, 
             contact_phone, 
@@ -112,11 +129,14 @@ exports.createOrderFromCart = async (req, res) => {
                 [req.user.id]
             );
             
+            console.log(`Found ${carts.length} carts for user ID ${req.user.id}`);
+            
             if (carts.length === 0) {
                 throw new Error('Cart not found');
             }
             
             const cartId = carts[0].id;
+            console.log('Using cart ID:', cartId);
             
             // Get cart items
             const [cartItems] = await connection.execute(`
@@ -131,6 +151,8 @@ exports.createOrderFromCart = async (req, res) => {
                 WHERE ci.cart_id = ?
             `, [cartId]);
             
+            console.log(`Found ${cartItems.length} items in cart`);
+            
             if (cartItems.length === 0) {
                 throw new Error('Cart is empty');
             }
@@ -140,10 +162,14 @@ exports.createOrderFromCart = async (req, res) => {
                 sum + (item.productprice * item.quantity), 0
             );
             
+            console.log('Total amount:', totalAmount);
+            
             // Generate IDs
             const invoiceId = generateId('INV');
             const transactionId = generateId('TXN');
             const orderNumber = generateId('ORD');
+            
+            console.log('Generated IDs:', { invoiceId, transactionId, orderNumber });
             
             // Create invoice
             await connection.execute(`
@@ -156,12 +182,16 @@ exports.createOrderFromCart = async (req, res) => {
                 customer_email || req.user.email, contact_phone, shipping_address, notes
             ]);
             
+            console.log('Invoice created with user_id:', req.user.id);
+            
             // Create transaction
             await connection.execute(`
                 INSERT INTO sales_transactions (
                     transaction_id, invoice_id, user_id, amount, payment_method
                 ) VALUES (?, ?, ?, ?, 'cash_on_delivery')
             `, [transactionId, invoiceId, req.user.id, totalAmount]);
+            
+            console.log('Transaction created with user_id:', req.user.id);
             
             // Create order
             await connection.execute(`
@@ -173,6 +203,9 @@ exports.createOrderFromCart = async (req, res) => {
                 orderNumber, req.user.id, invoiceId, transactionId,
                 totalAmount, shipping_address, contact_phone, notes
             ]);
+            
+            console.log('Order created with user_id:', req.user.id);
+            console.log('=== END CREATE ORDER DEBUG ===');
             
             // Create order items
             for (const item of cartItems) {
@@ -449,32 +482,186 @@ exports.getOrder = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
     try {
+        // Only allow admin access
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin access required'
+            });
+        }
+
         const connection = await mysql.createConnection(dbConfig);
         
+        // Extract query parameters
+        const {
+            page = 1,
+            limit = 20,
+            search = '',
+            status = '',
+            dateFrom = '',
+            dateTo = '',
+            minAmount = '',
+            maxAmount = '',
+            sortBy = 'order_date',
+            sortOrder = 'desc',
+            export: isExport = false
+        } = req.query;
+
+        // Build WHERE clause
+        let whereConditions = [];
+        let queryParams = [];
+
+        if (search) {
+            whereConditions.push(`(o.order_number LIKE ? OR o.customer_name LIKE ? OR o.customer_email LIKE ?)`);
+            const searchPattern = `%${search}%`;
+            queryParams.push(searchPattern, searchPattern, searchPattern);
+        }
+
+        if (status) {
+            whereConditions.push('o.status = ?');
+            queryParams.push(status);
+        }
+
+        if (dateFrom) {
+            whereConditions.push('DATE(o.order_date) >= ?');
+            queryParams.push(dateFrom);
+        }
+
+        if (dateTo) {
+            whereConditions.push('DATE(o.order_date) <= ?');
+            queryParams.push(dateTo);
+        }
+
+        if (minAmount) {
+            whereConditions.push('o.total_amount >= ?');
+            queryParams.push(parseFloat(minAmount));
+        }
+
+        if (maxAmount) {
+            whereConditions.push('o.total_amount <= ?');
+            queryParams.push(parseFloat(maxAmount));
+        }
+
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+        
+        // Validate sort parameters
+        const validSortColumns = ['order_number', 'order_date', 'customer_name', 'total_amount', 'status'];
+        const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'order_date';
+        const sortDirection = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+        // If exporting, don't use pagination
+        if (isExport === 'csv') {
+            const [orders] = await connection.execute(`
+                SELECT 
+                    o.order_number,
+                    o.order_date,
+                    o.customer_name,
+                    o.customer_email,
+                    o.contact_phone,
+                    o.shipping_address,
+                    o.total_amount,
+                    o.status,
+                    oi.invoice_status,
+                    st.transaction_status,
+                    st.payment_method,
+                    o.notes
+                FROM orders o
+                LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+                LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+                ${whereClause}
+                ORDER BY o.${sortColumn} ${sortDirection}
+            `, queryParams);
+
+            // Generate CSV
+            const csvHeaders = [
+                'Order Number', 'Order Date', 'Customer Name', 'Customer Email', 
+                'Phone', 'Shipping Address', 'Total Amount', 'Status', 
+                'Invoice Status', 'Transaction Status', 'Payment Method', 'Notes'
+            ];
+            
+            let csvContent = csvHeaders.join(',') + '\n';
+            
+            orders.forEach(order => {
+                const row = [
+                    order.order_number,
+                    new Date(order.order_date).toLocaleDateString(),
+                    `"${order.customer_name || ''}"`,
+                    order.customer_email || '',
+                    order.contact_phone || '',
+                    `"${(order.shipping_address || '').replace(/"/g, '""')}"`,
+                    order.total_amount || 0,
+                    order.status || '',
+                    order.invoice_status || '',
+                    order.transaction_status || '',
+                    order.payment_method || '',
+                    `"${(order.notes || '').replace(/"/g, '""')}"`
+                ].join(',');
+                csvContent += row + '\n';
+            });
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename=orders-export.csv');
+            return res.send(csvContent);
+        }
+
+        // Regular pagination query
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const limitClause = `LIMIT ${parseInt(limit)} OFFSET ${offset}`;
+
+        // Get total count for pagination
+        const [countResult] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM orders o
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            ${whereClause}
+        `, queryParams);
+
+        const totalOrders = countResult[0].total;
+        const totalPages = Math.ceil(totalOrders / parseInt(limit));
+
+        // Get orders with count of items
         const [orders] = await connection.execute(`
             SELECT 
                 o.*,
                 oi.total_amount as invoice_total,
                 oi.invoice_status,
                 st.transaction_status,
-                st.payment_method
+                st.payment_method,
+                COALESCE(item_counts.item_count, 0) as item_count
             FROM orders o
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            ORDER BY o.order_date DESC
-        `);
+            LEFT JOIN (
+                SELECT order_id, COUNT(*) as item_count 
+                FROM order_items 
+                GROUP BY order_id
+            ) item_counts ON o.id = item_counts.order_id
+            ${whereClause}
+            ORDER BY o.${sortColumn} ${sortDirection}
+            ${limitClause}
+        `, queryParams);
         
         await connection.end();
         
         res.json({
             success: true,
-            data: orders
+            data: {
+                orders,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages,
+                    totalOrders,
+                    itemsPerPage: parseInt(limit)
+                }
+            }
         });
     } catch (error) {
         console.error('Error fetching all orders:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to fetch orders' 
+            message: 'Failed to fetch orders',
+            error: error.message
         });
     }
 };

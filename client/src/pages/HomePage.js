@@ -10,7 +10,6 @@ import { jacketProducts } from '../data/jacketProducts'; // Import jacket produc
 
 // Import your images with their proper file extensions
 import heroImage from '../assets/images/seven-four-hero.jpg';
-import sfcLogo from '../assets/images/sfc-logo-white.png';
 import tshirtImage from '../assets/images/seven-four-tshirt.jpg';
 import shortsImage from '../assets/images/seven-four-shorts.jpg';
 import hatImage from '../assets/images/seven-four-hat.jpg';
@@ -49,19 +48,7 @@ const HeroSection = styled.section`
 
   // Hide the default Carousel captions
   .carousel-caption {
-    display: none;
-  }
-`;
-
-const HeroLogo = styled.img`
-  position: absolute;
-  top: 20px; // Adjusted from -30px
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200px;
-  height: auto;
-  z-index: 4; // Increased z-index to appear above everything
-  opacity: 0.9;
+    display: none;  }
 `;
 
 const HeroContent = styled.div`
@@ -293,9 +280,7 @@ const HomePage = () => {
               <h3>Welcome to Seven Four</h3>
               <p>Discover our latest collection</p>
             </Carousel.Caption>
-          </Carousel.Item>
-        </Carousel>
-        <HeroLogo src={sfcLogo} alt="Seven Four Clothing Logo" />
+          </Carousel.Item>        </Carousel>
         <HeroContent>
           <HeroTitle>Welcome to Seven Four Clothing</HeroTitle>
           <HeroSubtitle>Discover our latest collection of premium streetwear designed for comfort and style.</HeroSubtitle>

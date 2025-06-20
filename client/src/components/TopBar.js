@@ -1,22 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import UserAvatar from './UserAvatar';
-import logo from '../assets/images/sfc-logo-white.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faUser, 
-  faHome, 
-  faShoppingBag, 
-  faQuestionCircle, 
-  faInfoCircle, 
-  faSignOutAlt,  faCog,
-  faChartLine,
-  faClipboardList,
-  faTruck,
-  faSearch,
-  faReceipt
+  faSignOutAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 const TopBarContainer = styled.div`
@@ -24,180 +14,16 @@ const TopBarContainer = styled.div`
   background: #050505;
   box-shadow: 0 1px 2px rgba(0,0,0,0.08);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 0 1.25rem;
   position: fixed;
   top: 0;
   right: 0;
-  left: 0;
+  left: 0; /* Full width - sidebar will overlay */
   z-index: 900;
   color: white;
   border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-  
-  &::after {
-    content: '';
-    position: absolute;
-    left: 65px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1px;
-    height: 30px;
-    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
-    opacity: 0.7;
-  }
-`;
-
-// Removed unused MenuToggle component
-
-const LogoSection = styled.div`
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-  padding: ${props => props.$isMenuToggle ? '0 8px' : '0'};
-  border-radius: 8px;
-  position: relative;  overflow: visible;
-  
-  // Remove the before pseudo-element for minimalist design
-  ${props => props.$isMenuToggle && `
-    &:hover {
-      opacity: 0.9;
-    }
-    
-    &:active {
-      opacity: 0.8;
-    }
-  `}
-`;
-
-const Logo = styled.img`
-  height: 28px;
-  width: 28px;
-  object-fit: contain;
-  margin-left: 5px;
-  transition: opacity 0.2s ease;
-  position: relative;
-  z-index: 1;
-  opacity: 0.9;
-  
-  &:hover {
-    opacity: 1;
-  }
-`;
-
-const NavSection = styled.div`
-  position: absolute;
-  top: 60px;
-  left: ${props => props.$isOpen ? '0' : '-200px'};
-  width: 200px;
-  background: #0a0a0a;
-  height: calc(100vh - 60px);
-  display: flex;
-  flex-direction: column;
-  padding: 0.25rem 0;
-  transition: all 0.3s ease;
-  box-shadow: ${props => props.$isOpen ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'};
-  z-index: 990;
-  overflow-y: auto;
-  
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
-  }
-`;
-
-const Overlay = styled.div`
-  position: fixed;
-  top: 60px;
-  left: 0;
-  right: 0;
-  bottom: 0;  background-color: rgba(0, 0, 0, 0.2);
-  z-index: 980;
-  opacity: ${props => props.$isOpen ? 1 : 0};
-  visibility: ${props => props.$isOpen ? 'visible' : 'hidden'};
-  transition: opacity 0.25s ease, visibility 0.25s ease;
-  // Removed blur effect
-  }
-`;
-
-const NavSectionTitle = styled.div`
-  color: #888888;
-  font-size: 9px;
-  text-transform: uppercase;
-  margin: 14px 16px 4px;
-  padding: 0 6px;
-  font-weight: 500;
-  letter-spacing: 0.8px;
-  position: relative;
-  opacity: 0.7;
-`;
-
-const NavLink = styled(Link)`
-  color: #e0e0e0;
-  text-decoration: none;
-  font-size: 0.9rem;
-  padding: 0.6rem 1.1rem;
-  margin: 2px 6px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  transition: all 0.2s ease;
-  position: relative;
-  border: none;
-  opacity: 0.85;.icon-container {
-    width: 18px;
-    height: 18px;
-    margin-right: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    color: white;
-    opacity: 0.8;
-    font-size: 16px;
-    background: transparent;
-    box-shadow: none;
-    border: none;
-  }    .nav-text {
-    font-weight: 400;
-    font-size: 12px;
-  }&.active {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.06);
-    box-shadow: none;
-    border-left: 2px solid #ffffff;
-    
-    .icon-container {
-      opacity: 1;
-      color: #ffffff;
-    }
-  }
-    &:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.03);
-    transform: translateX(2px);
-    
-    .icon-container {
-      opacity: 1;
-      transform: scale(1.05);
-      color: #ffffff;
-    }
-  }
 `;
 
 const AccountSection = styled.div`
@@ -339,18 +165,16 @@ const DropdownItem = styled.button`
 `;
 
 const DropdownDivider = styled.div`
-  height: 1px;  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
   margin: 0.5rem 1rem;
 `;
 
 const TopBar = () => {
-  const [isNavOpen, setIsNavOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const { currentUser, loading, logout } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
-  const logoRef = useRef(null);
   
   const isAuthenticated = !!currentUser && !loading;
 
@@ -362,6 +186,7 @@ const TopBar = () => {
       console.error('Failed to logout:', error);
     }
   };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -372,114 +197,11 @@ const TopBar = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-    };  }, []);
-  
-  // Removed hint functionality
-  return (
+    };
+  }, []);  return (
     <TopBarContainer>
-      <div style={{ display: 'flex', alignItems: 'center' }}>        <LogoSection 
-          onClick={() => setIsNavOpen(!isNavOpen)}
-          aria-label={isNavOpen ? "Close menu" : "Open menu"}
-          title={isNavOpen ? "Click to close menu" : "Click to open menu"}
-          $isMenuToggle={true}
-          $isOpen={isNavOpen}
-          ref={logoRef}
-        ><Logo 
-            src={logo} 
-            alt="Seven Four Clothing" 
-            $isMenuToggle={true}
-          />
-        </LogoSection>
-      </div>
-      {isNavOpen && <Overlay $isOpen={isNavOpen} onClick={() => setIsNavOpen(false)} />}
-      <NavSection $isOpen={isNavOpen}>
-        <NavSectionTitle>Main</NavSectionTitle>        <NavLink to="/" className={location.pathname === '/' ? 'active' : ''}>
-          <div className="icon-container">
-            <FontAwesomeIcon icon={faHome} style={{ color: 'white' }} />
-          </div>
-          <span className="nav-text">Home</span>
-        </NavLink>
-        
-        {isAuthenticated && currentUser?.role === 'admin' && (
-          <NavLink to="/dashboard" className={location.pathname === '/dashboard' ? 'active' : ''}>          <div className="icon-container">
-            <FontAwesomeIcon icon={faChartLine} style={{ color: 'white' }} />
-          </div>
-            <span className="nav-text">Dashboard</span>
-          </NavLink>
-        )}
-          <NavSectionTitle>Shop</NavSectionTitle>        <NavLink to="/products" className={location.pathname === '/products' ? 'active' : ''}>
-          <div className="icon-container">
-            <FontAwesomeIcon icon={faShoppingBag} style={{ color: 'white' }} />
-          </div>
-          <span className="nav-text">Products</span>
-        </NavLink>
-        
-        {/* Cart and Wishlist removed from sidebar - functionality moved to Orders page */}
-        
-          {/* Only show Orders & Delivery section for authenticated non-admin users */}
-        {isAuthenticated && currentUser?.role !== 'admin' && (          <>
-            <NavSectionTitle>Orders & Delivery</NavSectionTitle>
-            <NavLink to="/orders" className={location.pathname === '/orders' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faClipboardList} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Orders</span>
-            </NavLink>
-          </>
-        )}{isAuthenticated && currentUser?.role === 'admin' && (
-          <>
-            <NavSectionTitle>Management</NavSectionTitle>
-            
-            <NavLink to="/inventory" className={location.pathname === '/inventory' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faClipboardList} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Inventory</span>            </NavLink>
-              <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faCog} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Maintenance</span>
-            </NavLink>
-            
-            <NavLink to="/transactions" className={location.pathname === '/transactions' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faReceipt} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Transactions</span>
-            </NavLink>
-              <NavLink to="/search" className={location.pathname === '/search' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faSearch} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Search</span>
-            </NavLink>
-            
-            <NavLink to="/delivery" className={location.pathname === '/delivery' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />              </div>
-              <span className="nav-text">Delivery</span>
-            </NavLink>
-          </>
-        )}
-        
-        <NavSectionTitle>Support</NavSectionTitle>
-        <NavLink to="/help" className={location.pathname === '/help' ? 'active' : ''}>
-          <div className="icon-container">
-            <FontAwesomeIcon icon={faQuestionCircle} style={{ color: 'white' }} />
-          </div>
-          <span className="nav-text">Help</span>
-        </NavLink>
-        
-        <NavLink to="/about" className={location.pathname === '/about' ? 'active' : ''}>
-          <div className="icon-container">
-            <FontAwesomeIcon icon={faInfoCircle} style={{ color: 'white' }} />
-          </div>
-          <span className="nav-text">About</span>
-        </NavLink>
-      </NavSection>
-
-      <AccountSection>        {isAuthenticated ? (
+      <AccountSection>
+        {isAuthenticated ? (
           <AccountDropdown ref={dropdownRef}>
             <AccountButton onClick={() => setShowDropdown(!showDropdown)}>
               <UserAvatar 
@@ -492,7 +214,8 @@ const TopBar = () => {
               <DropdownArrow $isOpen={showDropdown} />
             </AccountButton>
             {showDropdown && (
-              <DropdownMenu>                <DropdownItem onClick={() => {
+              <DropdownMenu>
+                <DropdownItem onClick={() => {
                   navigate('/profile');
                   setShowDropdown(false);
                 }}>

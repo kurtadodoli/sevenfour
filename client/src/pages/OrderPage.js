@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -17,13 +17,15 @@ import {
   faEye,
   faMinus,
   faPlus,
-  faClipboardList
+  faClipboardList,
+  faTrash
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 
 // Styled Components with Glassmorphic Design
 const PageContainer = styled.div`
-  min-height: 100vh;
+  height: 100%;
+  width: 100%;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   position: relative;
   
@@ -45,9 +47,17 @@ const PageContainer = styled.div`
 const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
-  padding: 80px 24px 40px;
+  padding: 20px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  box-sizing: border-box;
+  
+  @media (max-width: 1440px) {
+    max-width: 1200px;
+  }
+    @media (max-width: 768px) {
+    padding: 15px;
+  }
 `;
 
 const Header = styled.div`
@@ -177,11 +187,12 @@ const SectionTitle = styled.h2`
 
 const CartItem = styled.div`
   display: grid;
-  grid-template-columns: 80px 1fr auto;
+  grid-template-columns: 80px 1fr auto auto;
   gap: 16px;
   padding: 20px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.3);
   transition: all 0.3s ease;
+  align-items: center;
   
   &:last-child {
     border-bottom: none;
@@ -260,6 +271,12 @@ const QuantityControls = styled.div`
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   margin-top: 8px;
   width: fit-content;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  }
 `;
 
 const QuantityButton = styled.button`
@@ -424,15 +441,22 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 60px 32px;
   color: #999999;
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  margin: 20px 0;
   
   svg {
     margin-bottom: 20px;
-    opacity: 0.5;
+    opacity: 0.4;
+    color: #cccccc;
   }
   
   p {
     font-size: 16px;
     margin: 0;
+    font-weight: 400;
   }
 `;
 
@@ -450,11 +474,29 @@ const OrderCard = styled.div`
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.1) 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
   
   &:hover {
     background: rgba(255, 255, 255, 0.95);
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
+    
+    &::before {
+      opacity: 1;
+    }
   }
 `;
 
@@ -562,6 +604,36 @@ const ActionButton = styled.button`
   }
 `;
 
+const RemoveButton = styled.button`
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    background: linear-gradient(135deg, #c82333 0%, #a02030 100%);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
 const OrderPage = () => {
   const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
@@ -580,15 +652,21 @@ const OrderPage = () => {
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
   
   const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
-  const { user } = useAuth();
-
-  // Fetch user orders
-  const fetchOrders = async () => {
+  const { user } = useAuth();  // Fetch user orders
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/orders/me');
+      
+      // If user is admin, show all orders, otherwise show user's orders
+      const endpoint = user?.role === 'admin' ? '/orders' : '/orders/me';
+      const response = await api.get(endpoint);
+      
       if (response.data.success) {
-        setOrders(response.data.data);
+        // Handle different response formats
+        const ordersData = user?.role === 'admin' 
+          ? response.data.data.orders || response.data.data || []
+          : response.data.data || [];
+        setOrders(ordersData);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -596,13 +674,12 @@ const OrderPage = () => {
     } finally {
       setLoading(false);
     }
-  };
-
+  }, [user?.role]);
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchOrders]);
 
   useEffect(() => {
     if (user) {
@@ -720,6 +797,17 @@ const OrderPage = () => {
     setSelectedOrder(null);
     setSelectedOrderItems([]);
   };
+  const handleRemoveItem = async (itemId, itemName) => {
+    const confirmed = window.confirm(`Are you sure you want to remove "${itemName}" from your cart?`);
+    if (confirmed) {
+      try {
+        await removeFromCart(itemId);
+        toast.success(`${itemName} removed from cart`);
+      } catch (error) {
+        toast.error('Failed to remove item from cart');
+      }
+    }
+  };
   const renderCartTab = () => (
     <Content>
       <CartSection>
@@ -740,8 +828,7 @@ const OrderPage = () => {
                   src={item.main_image ? `http://localhost:3001/uploads/${item.main_image}` : '/placeholder.png'} 
                   alt={item.name} 
                 />                <ItemDetails>
-                  <ItemName>{item.name}</ItemName>
-                  <ItemSpecs>
+                  <ItemName>{item.name}</ItemName>                  <ItemSpecs>
                     <ItemBadge>Color: {item.color}</ItemBadge>
                     <ItemBadge>Size: {item.size}</ItemBadge>
                   </ItemSpecs>
@@ -764,6 +851,12 @@ const OrderPage = () => {
                 <ItemPrice>
                   <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
                 </ItemPrice>
+                <RemoveButton 
+                  onClick={() => handleRemoveItem(item.id, item.name)}
+                  disabled={cartLoading}
+                >
+                  <FontAwesomeIcon icon={faTrash} size="sm" />
+                </RemoveButton>
               </CartItem>
             ))}
           </div>
@@ -848,21 +941,31 @@ const OrderPage = () => {
         </CheckoutSection>
       )}
     </Content>
-  );
-  const renderOrdersTab = () => (
+  );  const renderOrdersTab = () => (
     <div>
       <SectionTitle>
         <FontAwesomeIcon icon={faClipboardList} />
-        My Orders
+        My Orders {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
       </SectionTitle>
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '3rem',
+          background: 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" color="#666" />
+          <p style={{ marginTop: '1rem', color: '#666', fontSize: '14px' }}>Loading your orders...</p>
         </div>
       ) : orders.length === 0 ? (
         <EmptyState>
-          <FontAwesomeIcon icon={faShoppingBag} size="3x" color="#ccc" />
+          <FontAwesomeIcon icon={faShoppingBag} size="3x" />
           <p>No orders found</p>
+          <p style={{ fontSize: '14px', marginTop: '8px', opacity: '0.7' }}>
+            Your order history will appear here once you make a purchase
+          </p>
         </EmptyState>
       ) : (
         <OrderList>
@@ -894,19 +997,27 @@ const OrderPage = () => {
                     onClick={() => confirmOrder(order.id)}
                     disabled={loading}
                   >
-                    <FontAwesomeIcon icon={faCheck} />
+                    {loading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                    ) : (
+                      <FontAwesomeIcon icon={faCheck} />
+                    )}
                     Confirm Order
                   </ActionButton>
                 )}
                 
                 {/* Always show View Invoice button for orders */}
-                <ActionButton onClick={() => viewInvoice(order)}>
-                  <FontAwesomeIcon icon={faEye} />
+                <ActionButton onClick={() => viewInvoice(order)} disabled={loading}>
+                  {loading ? (
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                  ) : (
+                    <FontAwesomeIcon icon={faEye} />
+                  )}
                   View Invoice
                 </ActionButton>
                 
                 {order.invoice_id && (
-                  <ActionButton onClick={() => downloadInvoice(order.invoice_id)}>
+                  <ActionButton onClick={() => downloadInvoice(order.invoice_id)} disabled={loading}>
                     <FontAwesomeIcon icon={faDownload} />
                     Download PDF
                   </ActionButton>

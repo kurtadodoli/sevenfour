@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardPage = () => {
     const { currentUser } = useAuth();
+    const navigate = useNavigate();
     const [activeReport, setActiveReport] = useState('user-logs');
     const [userLogs, setUserLogs] = useState([]);
     const [inventoryData, setInventoryData] = useState([]);
@@ -73,22 +75,23 @@ const DashboardPage = () => {
         if (activeReport === 'user-logs') {
             fetchUserLogs();
         }
-    }, [activeReport]);
-
-    // Check if user is admin
+    }, [activeReport]);    // Check if user is admin
     if (!currentUser || currentUser.role !== 'admin') {
         return (
-            <Container>
-                <UnauthorizedMessage>
-                    <h2>Unauthorized Access</h2>
-                    <p>You need admin privileges to access this dashboard.</p>
-                </UnauthorizedMessage>
-            </Container>
+            <PageWrapper>
+                <Container>
+                    <UnauthorizedMessage>
+                        <h2>Unauthorized Access</h2>
+                        <p>You need admin privileges to access this dashboard.</p>
+                    </UnauthorizedMessage>
+                </Container>
+            </PageWrapper>
         );
     }
 
     return (
-        <Container>
+        <PageWrapper>
+            <Container>
             <Header>
                 <Title>Dashboard</Title>
                 <Subtitle>Administrative Reports & Analytics</Subtitle>
@@ -97,7 +100,14 @@ const DashboardPage = () => {
             <ReportsContainer>
                 <SidePanel>
                     <SectionTitle>Reports</SectionTitle>
-                    <ReportNavigation>
+                    <ReportNavigation>                        <ReportButton 
+                            onClick={() => navigate('/admin/orders')}
+                            style={{ background: 'linear-gradient(135deg, #000000 0%, #333333 100%)', color: 'white' }}
+                        >
+                            <ReportIcon>📋</ReportIcon>
+                            Orders Management
+                        </ReportButton>
+                        
                         <ReportButton 
                             $active={activeReport === 'user-logs'}
                             onClick={() => setActiveReport('user-logs')}
@@ -301,24 +311,41 @@ const DashboardPage = () => {
                                     <li>Top-selling products</li>
                                     <li>Customer purchase patterns</li>
                                     <li>Profit margin calculations</li>
-                                    <li>Sales performance trends</li>
-                                </FeatureList>
+                                    <li>Sales performance trends</li>                                </FeatureList>
                             </ComingSoonSection>
                         </ReportSection>
                     )}
                 </MainContent>
             </ReportsContainer>
         </Container>
+        </PageWrapper>
     );
 };
 
 // Styled Components
+const PageWrapper = styled.div`
+    min-height: 100vh;
+    background: #ffffff;
+    width: 100vw;
+    overflow-x: hidden;
+`;
+
 const Container = styled.div`
     min-height: 100vh;
     background: #ffffff;
     color: #000000;
     padding: 1.5rem;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+    
+    @media (max-width: 1440px) {
+        max-width: 1200px;
+    }
+    
+    @media (max-width: 768px) {
+        padding: 1rem;
+    }
 `;
 
 const Header = styled.div`

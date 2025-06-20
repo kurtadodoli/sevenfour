@@ -29,9 +29,14 @@ router.get('/:id', auth, orderController.getOrder);
 router.get('/:id/items', auth, orderController.getOrderItems);
 
 // @route   GET api/orders
-// @desc    Get all orders (with filtering)
-// @access  Private/Staff/Admin
+// @desc    Get all orders (with filtering and pagination for admin)
+// @access  Private/Admin
 router.get('/', auth, orderController.getAllOrders);
+
+// @route   GET api/orders/export
+// @desc    Export orders as CSV
+// @access  Private/Admin
+router.get('/export', auth, orderController.getAllOrders);
 
 // @route   PUT api/orders/:id/status
 // @desc    Update order status

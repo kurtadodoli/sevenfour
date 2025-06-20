@@ -7,7 +7,8 @@ import TopBar from '../components/TopBar';
 
 // Styled Components
 const PageContainer = styled.div`
-  min-height: 100vh;
+  height: 100%;
+  width: 100%;
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
   position: relative;
   
@@ -27,9 +28,18 @@ const PageContainer = styled.div`
 const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
-  padding: 80px 24px 40px;
+  padding: 20px;
   position: relative;
   z-index: 2;
+  box-sizing: border-box;
+  
+  @media (max-width: 1440px) {
+    max-width: 1200px;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 15px;
+  }
 `;
 
 const Header = styled.div`

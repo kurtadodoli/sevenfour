@@ -22,6 +22,7 @@ import { useCart } from '../context/CartContext';
 // Styled Components
 const PageContainer = styled.div`
   min-height: 100vh;
+  width: 100vw;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   position: relative;
   
@@ -41,11 +42,13 @@ const PageContainer = styled.div`
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 80px 24px 40px;
+  height: 100%;
+  padding: 20px;
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
 `;
 
 const BackButton = styled.button`

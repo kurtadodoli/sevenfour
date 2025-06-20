@@ -1,3 +1,9 @@
+.help-page-wrapper {
+  min-height: 100vh;
+  background: #ffffff;
+  width: 100%;
+}
+
 .help-container {
   padding: 4rem 2rem;
   max-width: 1200px;

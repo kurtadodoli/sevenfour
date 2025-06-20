@@ -3,7 +3,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
-import sfcLogo from '../assets/images/sfc-logo-white.png'; // Adjust path as needed
 
 const FooterContainer = styled.footer`
   background-color: #1a1a1a;
@@ -19,19 +18,6 @@ const FooterContent = styled.div`
   flex-direction: column;
   align-items: center;
   text-align: center;
-`;
-
-const FooterLogo = styled.img`
-  width: 120px;
-  height: auto;
-  margin-bottom: 2rem;
-  opacity: 0.9;
-  cursor: pointer;
-  transition: opacity 0.3s ease;
-  
-  &:hover {
-    opacity: 1;
-  }
 `;
 
 const FooterNav = styled.nav`
@@ -90,13 +76,8 @@ const Footer = () => {
   const { currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
-  return (
-    <FooterContainer>
-      <FooterContent>
-        <Link to="/">
-          <FooterLogo src={sfcLogo} alt="SevenFour Clothing Logo" />
-        </Link>
-        
+  return (    <FooterContainer>
+      <FooterContent>        
         <FooterNav>
           <FooterNavList>
             <FooterNavItem>

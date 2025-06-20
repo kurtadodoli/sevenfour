@@ -14,6 +14,7 @@ import {
   faTruck,
   faShield
 } from '@fortawesome/free-solid-svg-icons';
+import { toast } from 'react-toastify';
 
 // Animations
 const fadeIn = keyframes`
@@ -276,6 +277,48 @@ const RemoveButton = styled.button`
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
   }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+    }
+  }
+`;
+
+const ClearAllButton = styled.button`
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    }
+  }
 `;
 
 const CartSummary = styled.div`
@@ -507,15 +550,16 @@ const CartPage = () => {
       return newSet;
     });
   };
-
-  const handleRemoveItem = async (itemId) => {
-    if (window.confirm('Are you sure you want to remove this item from your cart?')) {
+  const handleRemoveItem = async (itemId, itemName) => {
+    if (window.confirm(`Remove "${itemName}" from your cart?`)) {
       setUpdatingItems(prev => new Set(prev).add(itemId));
       
       try {
         await removeFromCart(itemId);
+        toast.success(`"${itemName}" removed from cart`);
       } catch (error) {
         console.error('Error removing item:', error);
+        toast.error('Failed to remove item from cart');
       }
       
       setUpdatingItems(prev => {
@@ -523,6 +567,17 @@ const CartPage = () => {
         newSet.delete(itemId);
         return newSet;
       });
+    }
+  };
+
+  const handleClearCart = async () => {
+    if (window.confirm(`Are you sure you want to remove all ${cartCount} items from your cart? This action cannot be undone.`)) {
+      try {
+        await clearCart();
+        toast.success('Cart cleared');
+      } catch (error) {
+        console.error('Error clearing cart:', error);
+      }
     }
   };
 
@@ -539,18 +594,25 @@ const CartPage = () => {
   }
 
   return (
-    <PageContainer>
-      <Header>
+    <PageContainer>      <Header>
         <Title>
           <span className="icon">
             <FontAwesomeIcon icon={faShoppingCart} />
           </span>
           Shopping Cart ({cartCount})
         </Title>
-        <BackButton to="/products">
-          <FontAwesomeIcon icon={faArrowLeft} />
-          Continue Shopping
-        </BackButton>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {cartItems.length > 0 && (
+            <ClearAllButton onClick={handleClearCart}>
+              <FontAwesomeIcon icon={faTrash} />
+              Clear All
+            </ClearAllButton>
+          )}
+          <BackButton to="/products">
+            <FontAwesomeIcon icon={faArrowLeft} />
+            Continue Shopping
+          </BackButton>
+        </div>
       </Header>
 
       {cartItems.length === 0 ? (
@@ -599,9 +661,8 @@ const CartPage = () => {
                       <FontAwesomeIcon icon={faPlus} />
                     </button>
                   </QuantityControl>
-                  
-                  <RemoveButton 
-                    onClick={() => handleRemoveItem(item.id)}
+                    <RemoveButton 
+                    onClick={() => handleRemoveItem(item.id, item.name)}
                     disabled={updatingItems.has(item.id)}
                   >
                     <FontAwesomeIcon icon={faTrash} />

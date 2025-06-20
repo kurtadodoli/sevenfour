@@ -5,7 +5,8 @@ import { faCode, faGear, faUser } from '@fortawesome/free-solid-svg-icons';
 
 const AboutPage = () => {
   return (
-    <div className="about-container">
+    <div className="about-page-wrapper">
+      <div className="about-container">
       <div className="about-header">
         <h1>About SevenFour</h1>
         <div className="header-line"></div>
@@ -65,11 +66,11 @@ const AboutPage = () => {
             <div className="system-info">
               <h3>SevenFour Clothing</h3>
               <p>E-Commerce Platform</p>
-              <p>Version 1.0.0</p>
-            </div>
+              <p>Version 1.0.0</p>            </div>
           </div>
         </section>
       </div>
+    </div>
     </div>
   );
 };

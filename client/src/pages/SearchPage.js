@@ -17,6 +17,12 @@ import {
   faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 
+const PageWrapper = styled.div`
+  min-height: 100vh;
+  background: #fafafa;
+  width: 100%;
+`;
+
 const Container = styled.div`
   max-width: 1200px;
   margin: 0 auto;
@@ -866,16 +872,16 @@ const SearchPage = () => {
       </Container>
     );
   }
-
   return (
-    <Container>
-      <Header>
-        <Title>
-          <FontAwesomeIcon icon={faSearch} style={{ marginRight: '1rem' }} />
-          Search
-        </Title>
-        <Subtitle>Search products, transactions, and customers by ID, name, or details</Subtitle>
-      </Header>
+    <PageWrapper>
+      <Container>
+        <Header>
+          <Title>
+            <FontAwesomeIcon icon={faSearch} style={{ marginRight: '1rem' }} />
+            Search
+          </Title>
+          <Subtitle>Search products, transactions, and customers by ID, name, or details</Subtitle>
+        </Header>
 
       <SearchControls>
         <SearchRow>
@@ -940,10 +946,10 @@ const SearchPage = () => {
               <h3>No results found</h3>
               <p>Try adjusting your search terms or filters</p>
             </NoResults>
-          )}
-        </ResultsList>
+          )}        </ResultsList>
       </ResultsContainer>
     </Container>
+    </PageWrapper>
   );
 };
 

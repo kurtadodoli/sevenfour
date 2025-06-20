@@ -6,7 +6,8 @@ import { faEnvelope, faMoneyBill, faQuestionCircle } from '@fortawesome/free-sol
 
 const HelpPage = () => {
   return (
-    <div className="help-container">
+    <div className="help-page-wrapper">
+      <div className="help-container">
       <div className="help-header">
         <h1>Help Center</h1>
         <div className="header-line"></div>
@@ -75,10 +76,10 @@ const HelpPage = () => {
                 <FontAwesomeIcon icon={faQuestionCircle} />
               </div>
               <p>Need assistance? Reach out to us through our social media channels!</p>
-            </div>
-          </div>
+            </div>          </div>
         </section>
       </div>
+    </div>
     </div>
   );
 };
