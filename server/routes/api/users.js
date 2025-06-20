@@ -71,11 +71,9 @@ router.post('/login', async (req, res) => {
     // Validation
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
-    }
-
-    // Check if user exists
+    }    // Check if user exists
     const [users] = await pool.execute(
-      'SELECT id, name, email, password FROM users WHERE email = ?',
+      'SELECT user_id, first_name, last_name, email, password, role, is_active FROM users WHERE email = ?',
       [email]
     );
 
@@ -89,22 +87,24 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    // Create JWT token
+    }    // Create JWT token
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { 
+        id: user.user_id, 
+        email: user.email, 
+        role: user.role || 'customer'
+      },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '24h' }
-    );
-
-    res.json({
+    );    res.json({
+      success: true,
       message: 'Login successful',
       token,
       user: {
-        id: user.id,
-        name: user.name,
-        email: user.email
+        id: user.user_id,
+        username: `${user.first_name} ${user.last_name}`,
+        email: user.email,
+        role: user.role
       }
     });
 

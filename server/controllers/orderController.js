@@ -192,8 +192,7 @@ exports.createOrderFromCart = async (req, res) => {
             `, [transactionId, invoiceId, req.user.id, totalAmount]);
             
             console.log('Transaction created with user_id:', req.user.id);
-            
-            // Create order
+              // Create order
             await connection.execute(`
                 INSERT INTO orders (
                     order_number, user_id, invoice_id, transaction_id, 
@@ -204,25 +203,39 @@ exports.createOrderFromCart = async (req, res) => {
                 totalAmount, shipping_address, contact_phone, notes
             ]);
             
-            console.log('Order created with user_id:', req.user.id);
+            // Get the created order ID
+            const [orderResult] = await connection.execute(
+                'SELECT id FROM orders WHERE order_number = ?',
+                [orderNumber]
+            );
+            const orderId = orderResult[0].id;
+            
+            console.log('Order created with ID:', orderId, 'for user:', req.user.id);
             console.log('=== END CREATE ORDER DEBUG ===');
             
-            // Create order items
+            // Create order items with proper order_id reference
             for (const item of cartItems) {
                 await connection.execute(`
                     INSERT INTO order_items (
-                        invoice_id, product_id, product_name, product_price,
+                        order_id, invoice_id, product_id, product_name, product_price,
                         quantity, color, size, subtotal
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
-                    invoiceId, item.product_id, item.productname, item.productprice,
+                    orderId, invoiceId, item.product_id, item.productname, item.productprice,
                     item.quantity, item.productcolor, item.size || 'N/A',
                     item.productprice * item.quantity
                 ]);
             }
             
-            // Clear cart
-            await connection.execute('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+            // CRITICAL: Clear only THIS user's cart items with proper verification
+            await connection.execute(`
+                DELETE FROM cart_items 
+                WHERE cart_id = ? AND cart_id IN (
+                    SELECT id FROM carts WHERE user_id = ?
+                )
+            `, [cartId, req.user.id]);
+            
+            console.log(`Cleared cart ${cartId} for user ${req.user.id} after order creation`);
             
             // Commit transaction
             await connection.commit();
@@ -257,7 +270,7 @@ exports.createOrderFromCart = async (req, res) => {
 // Confirm order and update status
 exports.confirmOrder = async (req, res) => {
     try {
-        const { orderId } = req.params;
+        const orderId = req.params.id; // Use 'id' instead of 'orderId'
         
         console.log('=== CONFIRM ORDER DEBUG ===');
         console.log('req.user:', req.user);
@@ -424,6 +437,221 @@ exports.generateInvoicePDF = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to generate invoice PDF' 
+        });
+    }
+};
+
+// Request order cancellation (customer creates cancellation request)
+exports.cancelOrder = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { reason } = req.body;
+        
+        console.log('=== CREATE CANCELLATION REQUEST ===');
+        console.log('Order ID:', orderId);
+        console.log('User ID:', req.user.id);
+        console.log('Cancellation reason:', reason);
+        
+        if (!reason || !reason.trim()) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Cancellation reason is required' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // First verify the order belongs to the user and can be cancelled
+            const [orderCheck] = await connection.execute(`
+                SELECT user_id, status, total_amount, order_number 
+                FROM orders 
+                WHERE id = ?
+            `, [orderId]);
+            
+            if (orderCheck.length === 0) {
+                await connection.end();
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Order not found' 
+                });
+            }
+            
+            const order = orderCheck[0];
+            
+            // Only allow users to cancel their own orders
+            if (order.user_id !== req.user.id) {
+                await connection.end();
+                return res.status(403).json({ 
+                    success: false, 
+                    message: 'Access denied - Order does not belong to this user' 
+                });
+            }
+            
+            // Check if order can be cancelled
+            const cancellableStatuses = ['pending', 'confirmed', 'processing'];
+            if (!cancellableStatuses.includes(order.status)) {
+                await connection.end();
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Cannot cancel order with status: ${order.status}` 
+                });
+            }
+            
+            // Check if there's already a pending cancellation request
+            const [existingRequest] = await connection.execute(`
+                SELECT id, status FROM cancellation_requests 
+                WHERE order_id = ? AND status = 'pending'
+            `, [orderId]);
+            
+            if (existingRequest.length > 0) {
+                await connection.end();
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'A cancellation request for this order is already pending' 
+                });
+            }
+            
+            // Create cancellation request
+            await connection.execute(`
+                INSERT INTO cancellation_requests (
+                    order_id, user_id, order_number, reason, status
+                ) VALUES (?, ?, ?, ?, 'pending')
+            `, [orderId, req.user.id, order.order_number, reason.trim()]);
+            
+            await connection.end();
+            
+            console.log(`Cancellation request created for order ${orderId} by user ${req.user.id}`);
+            
+            res.json({
+                success: true,
+                message: 'Cancellation request submitted successfully. An admin will review your request.',
+                data: {
+                    orderId,
+                    orderNumber: order.order_number,
+                    reason: reason.trim(),
+                    status: 'pending'
+                }
+            });
+            
+        } catch (error) {
+            await connection.end();
+            throw error;
+        }
+        
+    } catch (error) {
+        console.error('Error creating cancellation request:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to submit cancellation request' 
+        });
+    }
+};
+
+// Get all transactions for admin dashboard
+exports.getAllTransactions = async (req, res) => {
+    try {
+        console.log('=== GET ALL TRANSACTIONS ===');
+        console.log('User role:', req.user.role);
+        
+        // Only allow admin/staff to view all transactions
+        if (!['admin', 'staff'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin/staff only' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const { status, page = 1, limit = 10, search } = req.query;
+        const offset = (page - 1) * limit;
+        
+        let whereClause = '1=1';
+        let queryParams = [];
+        
+        // Add status filter
+        if (status && status !== 'all') {
+            whereClause += ' AND st.transaction_status = ?';
+            queryParams.push(status);
+        }
+        
+        // Add search filter
+        if (search) {
+            whereClause += ` AND (
+                st.transaction_id LIKE ? OR 
+                o.order_number LIKE ? OR 
+                u.email LIKE ? OR 
+                u.username LIKE ?
+            )`;
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
+        }
+        
+        // Get transactions with order and user details
+        const [transactions] = await connection.execute(`
+            SELECT 
+                st.*,
+                o.order_number,
+                o.status as order_status,
+                o.shipping_address,
+                o.contact_phone,
+                o.order_date,
+                oi.customer_name,
+                oi.customer_email,
+                oi.total_amount as invoice_total,
+                oi.invoice_status,
+                u.username,
+                u.email as user_email,
+                u.first_name,
+                u.last_name
+            FROM sales_transactions st
+            LEFT JOIN orders o ON st.transaction_id = (
+                SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
+            )
+            LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
+            LEFT JOIN users u ON st.user_id = u.id
+            WHERE ${whereClause}
+            ORDER BY st.created_at DESC
+            LIMIT ? OFFSET ?
+        `, [...queryParams, parseInt(limit), parseInt(offset)]);
+        
+        // Get total count for pagination
+        const [countResult] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM sales_transactions st
+            LEFT JOIN orders o ON st.transaction_id = (
+                SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
+            )
+            LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
+            LEFT JOIN users u ON st.user_id = u.id
+            WHERE ${whereClause}
+        `, queryParams);
+        
+        const total = countResult[0].total;
+        
+        await connection.end();
+        
+        console.log(`Found ${transactions.length} transactions (${total} total)`);
+        
+        res.json({
+            success: true,
+            data: {
+                transactions,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                    itemsPerPage: parseInt(limit)
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch transactions' 
         });
     }
 };
@@ -697,6 +925,10 @@ exports.updateOrderStatus = async (req, res) => {
 exports.getOrderItems = async (req, res) => {
     try {
         const orderId = req.params.id;
+        console.log('=== GET ORDER ITEMS (FIXED) ===');
+        console.log('Order ID:', orderId);
+        console.log('User ID:', req.user.id);
+        
         const connection = await mysql.createConnection(dbConfig);
         
         // First verify the order belongs to the user (unless admin)
@@ -715,15 +947,15 @@ exports.getOrderItems = async (req, res) => {
             }
             
             if (orderCheck[0].user_id !== req.user.id) {
+                console.log(`Access denied: Order ${orderId} belongs to user ${orderCheck[0].user_id}, not ${req.user.id}`);
                 await connection.end();
                 return res.status(403).json({ 
                     success: false, 
-                    message: 'Access denied' 
+                    message: 'Access denied - Order does not belong to this user' 
                 });
             }
         }
-        
-        // Get order items with product details
+          // Get order items with product details using invoice_id
         const [orderItems] = await connection.execute(`
             SELECT 
                 oi.*,
@@ -731,14 +963,17 @@ exports.getOrderItems = async (req, res) => {
                 p.productdescription,
                 p.productcolor,
                 p.product_type,
-                oi.price as price,
+                p.productimage,
+                oi.product_price as price,
                 oi.quantity,
-                (oi.price * oi.quantity) as total_price
+                oi.subtotal as total_price
             FROM order_items oi
             LEFT JOIN products p ON oi.product_id = p.product_id
-            WHERE oi.order_id = ?
+            WHERE oi.invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
             ORDER BY oi.id
         `, [orderId]);
+        
+        console.log(`Found ${orderItems.length} items for order ${orderId}`);
         
         await connection.end();
         
@@ -751,6 +986,266 @@ exports.getOrderItems = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to fetch order items' 
+        });
+    }
+};
+
+// Get user's orders with items
+exports.getUserOrdersWithItems = async (req, res) => {
+    try {
+        console.log('=== GET USER ORDERS WITH ITEMS ===');
+        console.log('User ID from token:', req.user.id);
+        
+        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                oi.total_amount as invoice_total,
+                oi.invoice_status,
+                oi.customer_name,
+                oi.customer_email,
+                st.transaction_status,
+                st.payment_method,
+                u.first_name,
+                u.last_name,
+                u.email as user_email
+            FROM orders o
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            LEFT JOIN users u ON o.user_id = u.user_id
+            WHERE o.user_id = ?
+            ORDER BY o.order_date DESC
+        `, [req.user.id]);
+        
+        // For each order, get its items with product details
+        for (let order of orders) {
+            const [items] = await connection.execute(`
+                SELECT 
+                    oitems.*,
+                    p.productname,
+                    p.productdescription,
+                    p.productcolor,
+                    p.product_type,
+                    p.productimage,
+                    oitems.product_price as price,
+                    oitems.quantity,
+                    oitems.subtotal as total_price
+                FROM order_items oitems
+                LEFT JOIN products p ON oitems.product_id = p.product_id
+                WHERE oitems.invoice_id = ?
+                ORDER BY oitems.id
+            `, [order.invoice_id]);
+            
+            order.items = items;
+        }
+        
+        console.log(`Found ${orders.length} orders with items for user ID ${req.user.id}`);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: orders
+        });
+    } catch (error) {
+        console.error('Error fetching user orders with items:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch orders with items' 
+        });
+    }
+};
+
+// Get all cancellation requests for admin
+exports.getCancellationRequests = async (req, res) => {
+    try {
+        console.log('=== GET CANCELLATION REQUESTS ===');
+        console.log('User role:', req.user.role);
+        
+        // Only allow admin/staff to view cancellation requests
+        if (!['admin', 'staff'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin/staff only' 
+            });
+        }        const connection = await mysql.createConnection(dbConfig);
+        
+        const { status = 'all', page = 1, limit = 20 } = req.query;
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 20;
+        const offset = (pageNum - 1) * limitNum;
+        
+        let whereClause = '1=1';
+        let whereParams = [];
+        
+        // Add status filter
+        if (status && status !== 'all') {
+            whereClause += ' AND cr.status = ?';
+            whereParams.push(status);
+        }
+          // Query for the actual data with pagination
+        const [requests] = await connection.execute(`
+            SELECT 
+                cr.*,
+                u.first_name as customer_first_name,
+                u.last_name as customer_last_name,
+                u.email as customer_email,
+                o.total_amount as order_total,
+                o.status as order_status,
+                admin_user.first_name as admin_first_name,
+                admin_user.last_name as admin_last_name
+            FROM cancellation_requests cr
+            JOIN users u ON cr.user_id = u.user_id
+            JOIN orders o ON cr.order_id = o.id
+            LEFT JOIN users admin_user ON cr.processed_by = admin_user.user_id
+            WHERE ${whereClause}
+            ORDER BY cr.created_at DESC
+            LIMIT ${limitNum} OFFSET ${offset}
+        `, whereParams);
+        
+        // Get total count using only where parameters (no pagination)
+        const [countResult] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM cancellation_requests cr
+            JOIN users u ON cr.user_id = u.user_id
+            JOIN orders o ON cr.order_id = o.id
+            WHERE ${whereClause}
+        `, whereParams);
+        
+        await connection.end();
+        
+        console.log(`✅ Found ${requests.length} cancellation requests (total: ${countResult[0].total})`);
+        
+        res.json({
+            success: true,            data: requests,
+            pagination: {
+                total: countResult[0].total,
+                page: pageNum,
+                limit: limitNum,
+                pages: Math.ceil(countResult[0].total / limitNum)
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching cancellation requests:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch cancellation requests' 
+        });
+    }
+};
+
+// Process cancellation request (approve/deny)
+exports.processCancellationRequest = async (req, res) => {
+    try {
+        const requestId = req.params.id;
+        const { action, adminNotes } = req.body; // action: 'approve' or 'deny'
+        
+        console.log('=== PROCESS CANCELLATION REQUEST ===');
+        console.log('Request ID:', requestId);
+        console.log('Action:', action);
+        console.log('Admin ID:', req.user.id);
+        console.log('Admin Notes:', adminNotes);
+        
+        // Only allow admin/staff to process cancellation requests
+        if (!['admin', 'staff'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin/staff only' 
+            });
+        }
+        
+        if (!['approve', 'deny'].includes(action)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid action. Must be approve or deny' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            await connection.beginTransaction();
+            
+            // Get the cancellation request
+            const [requestResult] = await connection.execute(`
+                SELECT cr.*, o.status as order_status
+                FROM cancellation_requests cr
+                JOIN orders o ON cr.order_id = o.id
+                WHERE cr.id = ? AND cr.status = 'pending'
+            `, [requestId]);
+            
+            if (requestResult.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Cancellation request not found or already processed' 
+                });
+            }
+            
+            const request = requestResult[0];
+            
+            // Update the cancellation request
+            const newStatus = action === 'approve' ? 'approved' : 'denied';
+            await connection.execute(`
+                UPDATE cancellation_requests 
+                SET status = ?, admin_notes = ?, processed_by = ?, processed_at = NOW()
+                WHERE id = ?
+            `, [newStatus, adminNotes || null, req.user.id, requestId]);
+            
+            // If approved, update the order status to cancelled
+            if (action === 'approve') {
+                await connection.execute(`
+                    UPDATE orders 
+                    SET status = 'cancelled', updated_at = NOW()
+                    WHERE id = ?
+                `, [request.order_id]);
+                
+                // Also update the invoice status if it exists
+                await connection.execute(`
+                    UPDATE order_invoices 
+                    SET invoice_status = 'cancelled', updated_at = NOW()
+                    WHERE invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
+                `, [request.order_id]);
+                
+                // Update sales transaction status
+                await connection.execute(`
+                    UPDATE sales_transactions 
+                    SET transaction_status = 'cancelled', updated_at = NOW()
+                    WHERE transaction_id = (SELECT transaction_id FROM orders WHERE id = ?)
+                `, [request.order_id]);
+            }
+            
+            await connection.commit();
+            await connection.end();
+            
+            const message = action === 'approve' 
+                ? 'Cancellation request approved and order cancelled successfully'
+                : 'Cancellation request denied successfully';
+            
+            res.json({
+                success: true,
+                message,
+                data: {
+                    requestId,
+                    action,
+                    status: newStatus,
+                    adminNotes
+                }
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            await connection.end();
+            throw error;
+        }
+        
+    } catch (error) {
+        console.error('Error processing cancellation request:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to process cancellation request' 
         });
     }
 };

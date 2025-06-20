@@ -18,7 +18,8 @@ import {
   faMinus,
   faPlus,
   faClipboardList,
-  faTrash
+  faTrash,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 
@@ -634,6 +635,167 @@ const RemoveButton = styled.button`
   }
 `;
 
+// Modal Components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const Modal = styled.div`
+  background: white;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  
+  h2 {
+    margin: 0;
+    color: #1a1a1a;
+    font-size: 20px;
+    font-weight: 600;
+  }
+`;
+
+const ModalContent = styled.div`
+  padding: 30px;
+  
+  p {
+    margin: 0 0 20px 0;
+    color: #333;
+    line-height: 1.5;
+  }
+`;
+
+const ModalActions = styled.div`
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 30px;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  
+  &:hover {
+    background: #f0f0f0;
+    color: #1a1a1a;
+  }
+`;
+
+const CancelReasonTextarea = styled.textarea`
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+  
+  &:focus {
+    outline: none;
+    border-color: #000000;
+  }
+  
+  &::placeholder {
+    color: #999;
+  }
+`;
+
+// Order Items Display Components
+const OrderItems = styled.div`
+  margin: 20px 0;
+  padding: 16px;
+  background: rgba(248, 249, 250, 0.8);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+`;
+
+const OrderItemsHeader = styled.div`
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #000000;
+  font-size: 14px;
+`;
+
+const OrderItemsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const OrderItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+`;
+
+const OrderItemImage = styled.img`
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+`;
+
+const OrderItemDetails = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const OrderItemName = styled.div`
+  font-weight: 500;
+  font-size: 13px;
+  color: #000000;
+`;
+
+const OrderItemMeta = styled.div`
+  font-size: 12px;
+  color: #666666;
+`;
+
+const OrderItemPrice = styled.div`
+  font-weight: 600;
+  font-size: 13px;
+  color: #000000;
+  text-align: right;
+  min-width: 80px;
+`;
+
 const OrderPage = () => {
   const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
@@ -651,14 +813,19 @@ const OrderPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
   
+  // Cancellation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelOrderData, setCancelOrderData] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  
   const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { user } = useAuth();  // Fetch user orders
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // If user is admin, show all orders, otherwise show user's orders
-      const endpoint = user?.role === 'admin' ? '/orders' : '/orders/me';
+      // If user is admin, show all orders, otherwise show user's orders with items
+      const endpoint = user?.role === 'admin' ? '/orders' : '/orders/me-with-items';
       const response = await api.get(endpoint);
       
       if (response.data.success) {
@@ -745,13 +912,46 @@ const OrderPage = () => {
       if (response.data.success) {
         toast.success('Order confirmed successfully!');
         fetchOrders();
-      }
-    } catch (error) {
+      }    } catch (error) {
       console.error('Error confirming order:', error);
       toast.error('Failed to confirm order');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Cancel order function
+  const cancelOrder = (orderId, orderNumber) => {
+    setCancelOrderData({ orderId, orderNumber });
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelOrder = async () => {
+    if (!cancelOrderData) return;
+    
+    try {
+      setLoading(true);
+      const response = await api.put(`/orders/${cancelOrderData.orderId}/cancel`, {
+        reason: cancelReason || 'Customer requested cancellation'
+      });
+      
+      if (response.data.success) {
+        toast.success('Order cancelled successfully');
+        closeCancelModal();
+        fetchOrders(); // Refresh orders list
+      }
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      toast.error('Failed to cancel order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+    setCancelOrderData(null);
+    setCancelReason('');
   };
 
   const downloadInvoice = async (invoiceId) => {
@@ -823,11 +1023,13 @@ const OrderPage = () => {
         ) : (
           <div>
             {cartItems.map((item) => (
-              <CartItem key={item.id}>
-                <ItemImage 
-                  src={item.main_image ? `http://localhost:3001/uploads/${item.main_image}` : '/placeholder.png'} 
-                  alt={item.name} 
-                />                <ItemDetails>
+              <CartItem key={item.id}>                <ItemImage 
+                  src={item.main_image ? `http://localhost:3001/uploads/${item.main_image}` : 'http://localhost:3001/images/placeholder.svg'} 
+                  alt={item.name}
+                  onError={(e) => {
+                    e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                  }}
+                /><ItemDetails>
                   <ItemName>{item.name}</ItemName>                  <ItemSpecs>
                     <ItemBadge>Color: {item.color}</ItemBadge>
                     <ItemBadge>Size: {item.size}</ItemBadge>
@@ -990,7 +1192,39 @@ const OrderPage = () => {
                   <strong>Status:</strong> {order.transaction_status || 'Pending'}
                 </OrderInfo>
               </OrderDetails>
-                <OrderActions>
+
+              {/* Display order items if available */}
+              {order.items && order.items.length > 0 && (
+                <OrderItems>
+                  <OrderItemsHeader>Ordered Items ({order.items.length})</OrderItemsHeader>
+                  <OrderItemsList>
+                    {order.items.map((item, index) => (
+                      <OrderItem key={index}>                        <OrderItemImage 
+                          src={item.productimage ? `http://localhost:3001/uploads/${item.productimage}` : 'http://localhost:3001/images/placeholder.svg'}
+                          alt={item.productname || 'Product'}
+                          onError={(e) => {
+                            e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                          }}
+                        />
+                        <OrderItemDetails>
+                          <OrderItemName>{item.productname || 'Unknown Product'}</OrderItemName>
+                          <OrderItemMeta>
+                            {item.productcolor && `Color: ${item.productcolor}`}
+                            {item.productcolor && item.product_type && ' • '}
+                            {item.product_type && `Type: ${item.product_type}`}
+                          </OrderItemMeta>
+                          <OrderItemMeta>Qty: {item.quantity}</OrderItemMeta>
+                        </OrderItemDetails>
+                        <OrderItemPrice>
+                          ₱{parseFloat(item.price || 0).toFixed(2)}
+                        </OrderItemPrice>
+                      </OrderItem>
+                    ))}
+                  </OrderItemsList>
+                </OrderItems>
+              )}
+
+              <OrderActions>
                 {order.status === 'pending' && (
                   <ActionButton 
                     primary 
@@ -1006,20 +1240,35 @@ const OrderPage = () => {
                   </ActionButton>
                 )}
                 
-                {/* Always show View Invoice button for orders */}
-                <ActionButton onClick={() => viewInvoice(order)} disabled={loading}>
-                  {loading ? (
-                    <FontAwesomeIcon icon={faSpinner} spin />
-                  ) : (
-                    <FontAwesomeIcon icon={faEye} />
-                  )}
-                  View Invoice
-                </ActionButton>
+                {/* Cancel button for cancellable orders */}
+                {['pending', 'confirmed', 'processing'].includes(order.status) && (
+                  <ActionButton 
+                    onClick={() => cancelOrder(order.id, order.order_number)}
+                    disabled={loading}
+                    style={{ 
+                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)', 
+                      color: 'white',
+                      border: '1px solid transparent'
+                    }}
+                  >
+                    {loading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                    ) : (
+                      <FontAwesomeIcon icon={faTimes} />
+                    )}
+                    Cancel Order
+                  </ActionButton>
+                )}
                 
-                {order.invoice_id && (
-                  <ActionButton onClick={() => downloadInvoice(order.invoice_id)} disabled={loading}>
-                    <FontAwesomeIcon icon={faDownload} />
-                    Download PDF
+                {/* Show View Invoice only for confirmed and later status orders */}
+                {['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status) && (
+                  <ActionButton onClick={() => viewInvoice(order)} disabled={loading}>
+                    {loading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                    ) : (
+                      <FontAwesomeIcon icon={faEye} />
+                    )}
+                    View Invoice
                   </ActionButton>
                 )}
               </OrderActions>
@@ -1055,8 +1304,7 @@ const OrderPage = () => {
         </TabContainer>
         
         {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
-        
-        {/* Invoice Modal */}
+          {/* Invoice Modal */}
         <InvoiceModal
           isOpen={showInvoiceModal}
           onClose={closeInvoiceModal}
@@ -1064,6 +1312,49 @@ const OrderPage = () => {
           orderItems={selectedOrderItems}
           onDownloadPDF={downloadInvoice}
         />
+        
+        {/* Cancel Order Modal */}
+        {showCancelModal && (
+          <ModalOverlay onClick={closeCancelModal}>
+            <Modal onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <h2>Cancel Order</h2>
+                <CloseButton onClick={closeCancelModal}>
+                  <FontAwesomeIcon icon={faTimes} />
+                </CloseButton>
+              </ModalHeader>
+              <ModalContent>
+                <p><strong>Order Number:</strong> {cancelOrderData?.orderNumber}</p>
+                <p>Are you sure you want to cancel this order? Please provide a reason:</p>
+                
+                <CancelReasonTextarea
+                  placeholder="Please explain why you want to cancel this order..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows="4"
+                />
+                
+                <ModalActions>
+                  <ActionButton onClick={closeCancelModal}>
+                    Cancel
+                  </ActionButton>
+                  <ActionButton 
+                    primary 
+                    onClick={confirmCancelOrder}
+                    disabled={!cancelReason.trim() || loading}
+                  >
+                    {loading ? (
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                    ) : (
+                      <FontAwesomeIcon icon={faCheck} />
+                    )}
+                    Submit Cancellation Request
+                  </ActionButton>
+                </ModalActions>
+              </ModalContent>
+            </Modal>
+          </ModalOverlay>
+        )}
       </ContentWrapper>
     </PageContainer>
   );

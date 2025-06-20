@@ -281,7 +281,7 @@ exports.login = async (req, res) => {
 exports.getProfile = async (req, res) => {
     try {
         const userId = req.user.id;        const users = await query(
-            'SELECT user_id, first_name, last_name, email, gender, profile_picture_url, birthday, role, created_at, last_login FROM users WHERE user_id = ?',
+            'SELECT user_id, first_name, last_name, email, gender, profile_picture_url, birthday, province, city, address, postal_code, phone, role, created_at, last_login FROM users WHERE user_id = ?',
             [userId]
         );
 
@@ -305,6 +305,11 @@ exports.getProfile = async (req, res) => {
                     gender: user.gender,
                     profile_picture_url: user.profile_picture_url,
                     birthday: user.birthday,
+                    province: user.province,
+                    city: user.city,
+                    address: user.address,
+                    postal_code: user.postal_code,
+                    phone: user.phone,
                     role: user.role,
                     created_at: user.created_at,
                     last_login: user.last_login
@@ -325,25 +330,25 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { first_name, last_name, gender, birthday } = req.body;
+        const { first_name, last_name, gender, birthday, province, city, address, postal_code, phone } = req.body;
 
         // Validate required fields
         if (!first_name || !last_name || !gender || !birthday) {
             return res.status(400).json({
                 success: false,
-                message: 'All fields are required: first_name, last_name, gender, birthday'
+                message: 'Basic profile fields are required: first_name, last_name, gender, birthday'
             });
         }
 
-        // Update user profile
+        // Update user profile with address fields
         await query(
-            'UPDATE users SET first_name = ?, last_name = ?, gender = ?, birthday = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?',
-            [first_name, last_name, gender, birthday, userId]
+            'UPDATE users SET first_name = ?, last_name = ?, gender = ?, birthday = ?, province = ?, city = ?, address = ?, postal_code = ?, phone = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?',
+            [first_name, last_name, gender, birthday, province, city, address, postal_code, phone, userId]
         );
 
         // Get updated user data
         const users = await query(
-            'SELECT user_id, first_name, last_name, email, gender, birthday, role, updated_at FROM users WHERE user_id = ?',
+            'SELECT user_id, first_name, last_name, email, gender, birthday, province, city, address, postal_code, phone, role, updated_at FROM users WHERE user_id = ?',
             [userId]
         );
 
@@ -358,6 +363,11 @@ exports.updateProfile = async (req, res) => {
                     email: users[0].email,
                     gender: users[0].gender,
                     birthday: users[0].birthday,
+                    province: users[0].province,
+                    city: users[0].city,
+                    address: users[0].address,
+                    postal_code: users[0].postal_code,
+                    phone: users[0].phone,
                     role: users[0].role,
                     updated_at: users[0].updated_at
                 }

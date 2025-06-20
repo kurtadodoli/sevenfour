@@ -3,13 +3,13 @@ import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faReceipt, 
-  faCheck, 
   faTimes, 
   faEye, 
   faSearch,
   faRefresh,
   faInfoCircle,
-  faExclamationTriangle
+  faExclamationTriangle,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -484,6 +484,169 @@ const CloseButton = styled.button`
   }
 `;
 
+const TabsContainer = styled.div`
+  display: flex;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 1px;
+`;
+
+const Tab = styled.button`
+  flex: 1;
+  padding: 16px 24px;
+  background: ${props => props.active ? '#000000' : '#ffffff'};
+  color: ${props => props.active ? '#ffffff' : '#666666'};
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: ${props => props.active ? '#000000' : '#f5f5f5'};
+  }
+`;
+
+const CancellationRequestCard = styled.div`
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  margin-bottom: 1px;
+  padding: 24px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: #fafafa;
+  }
+`;
+
+const RequestHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+`;
+
+const RequestInfo = styled.div`
+  flex: 1;
+  
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #000000;
+  }
+  
+  .meta {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 12px;
+    
+    .item {
+      font-size: 14px;
+      color: #666666;
+      
+      strong {
+        color: #000000;
+      }
+    }
+  }
+`;
+
+
+
+const ReasonBox = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 16px;
+  margin: 16px 0;
+  
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #000000;
+  }
+  
+  p {
+    margin: 0;
+    font-size: 14px;
+    color: #666666;
+    line-height: 1.5;
+  }
+`;
+
+const RequestActions = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+const AdminNotesTextarea = styled.textarea`
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  
+  &:focus {
+    outline: none;
+    border-color: #000000;
+  }
+`;
+
+const ProcessingModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ProcessingModalContent = styled.div`
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 24px;
+  max-width: 500px;
+  width: 90%;
+  
+  h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #000000;
+  }
+  
+  .form-group {
+    margin-bottom: 16px;
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #000000;
+    }
+  }
+  
+  .actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+`;
+
 const TransactionPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -497,102 +660,101 @@ const TransactionPage = () => {
     approved: 0,
     rejected: 0,
     totalAmount: 0
-  });  // Fetch transactions
+  });
+  
+  // Cancellation requests state
+  const [activeTab, setActiveTab] = useState('orders');
+  const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [processingRequest, setProcessingRequest] = useState(null);
+  const [adminNotes, setAdminNotes] = useState('');
+  const [showProcessingModal, setShowProcessingModal] = useState(false);// Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching transactions...');
-      // api.js already includes the /api prefix, so we don't need to include it here
-      const response = await api.get('/admin/transactions');
+      console.log('🔄 Fetching confirmed orders...');
+      
+      // Use the same endpoint logic as OrderPage.js
+      const endpoint = '/orders/me-with-items'; // Get user's orders with items
+      const response = await api.get(endpoint);
       
       if (response.data.success) {
-        console.log('✅ Transactions fetched successfully:', response.data);
-        setTransactions(response.data.data);
-        calculateStats(response.data.data);
+        console.log('✅ Orders fetched successfully:', response.data);
+        const ordersData = response.data.data || [];        // Filter for only confirmed orders and map the data structure
+        const confirmedOrders = ordersData
+          .filter(order => order.status === 'confirmed')
+          .map(order => {
+            // Create full customer name from user data and order invoice data
+            const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
+                           order.customer_name || 
+                           'Unknown Customer';
+            
+            return {
+              // Map order data to transaction-like structure
+              id: order.id,
+              order_number: order.order_number,
+              transaction_id: order.transaction_id,
+              customer_name: fullName,
+              customer_email: order.user_email || order.customer_email,
+              user_email: order.user_email,
+              first_name: order.first_name,
+              last_name: order.last_name,
+              amount: order.total_amount,
+              total_amount: order.total_amount,
+              invoice_total: order.invoice_total,
+              payment_method: order.payment_method || 'Cash on Delivery',
+              order_status: order.status,
+              transaction_status: order.transaction_status || order.status,
+              status: order.status,
+              order_date: order.order_date,
+              created_at: order.created_at,
+              updated_at: order.updated_at,
+              shipping_address: order.shipping_address,
+              contact_phone: order.contact_phone,
+              notes: order.notes,
+              items: order.items || []
+            };
+          });
+        
+        console.log(`Found ${confirmedOrders.length} confirmed orders out of ${ordersData.length} total orders`);
+        setTransactions(confirmedOrders);
+        calculateStats(confirmedOrders);
       } else {
-        console.error('❌ Failed to fetch transactions:', response.data);
-        toast.error('Failed to fetch transactions');
+        console.error('❌ Failed to fetch orders:', response.data);
+        toast.error('Failed to fetch orders');
       }
     } catch (error) {
-      console.error('❌ Error fetching transactions:', error);
+      console.error('❌ Error fetching confirmed orders:', error);
       console.error('❌ Error status:', error.response?.status);
       console.error('❌ Error details:', error.response?.data?.message || error.message);
-      toast.error('Failed to fetch transactions');
+      toast.error('Failed to fetch confirmed orders');
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Calculate statistics
+  }, []);  // Calculate statistics
   const calculateStats = (data) => {
     const stats = {
       total: data.length,
       pending: data.filter(t => t.status === 'pending').length,
-      approved: data.filter(t => t.status === 'approved').length,
-      rejected: data.filter(t => t.status === 'rejected').length,
-      totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || 0), 0)
+      approved: data.filter(t => t.status === 'confirmed').length,
+      rejected: data.filter(t => t.status === 'cancelled').length,
+      totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || t.amount || 0), 0)
     };
-    setStats(stats);
-  };  // Approve transaction
-  const approveTransaction = async (transactionId) => {
-    if (!transactionId) {
-      console.error('❌ Invalid transaction ID');
-      toast.error('Invalid transaction ID');
-      return;
-    }
-    
-    try {
-      console.log(`🔄 Approving transaction ${transactionId}...`);
-      // Use the api utility which handles baseURL and authentication
-      const response = await api.put(`/admin/transactions/${transactionId}/approve`);
-      
-      console.log('✅ Transaction approved:', response.data);
-      toast.success('Transaction approved successfully');
-      
-      // Refresh transactions after approval
-      fetchTransactions();
-    } catch (error) {
-      console.error('❌ Error approving transaction:', error);
-      console.error('❌ Error details:', error.response?.data || error.message);
-      toast.error(`Error approving transaction: ${error.response?.data?.message || error.message}`);
-    }
-  };  // Reject transaction
-  const rejectTransaction = async (transactionId) => {
-    if (!transactionId) {
-      console.error('❌ Invalid transaction ID');
-      toast.error('Invalid transaction ID');
-      return;
-    }
-    
-    try {
-      console.log(`🔄 Rejecting transaction ${transactionId}...`);
-      // Use the api utility which handles baseURL and authentication
-      const response = await api.put(`/admin/transactions/${transactionId}/reject`);
-      
-      console.log('✅ Transaction rejected:', response.data);
-      toast.success('Transaction rejected successfully');
-      
-      // Refresh transactions after rejection
-      fetchTransactions();
-    } catch (error) {
-      console.error('❌ Error rejecting transaction:', error);
-      console.error('❌ Error details:', error.response?.data || error.message);
-      toast.error(`Error rejecting transaction: ${error.response?.data?.message || error.message}`);
-    }
-  };
+    setStats(stats);  };
 
   // View transaction details
   const viewTransaction = (transaction) => {
     setSelectedTransaction(transaction);
     setShowModal(true);
-  };
-  // Filter transactions
+  };  // Filter transactions
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
+                         transaction.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.user_email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
+    const transactionStatus = transaction.status || 'pending';
+    const matchesStatus = statusFilter === 'all' || transactionStatus === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
@@ -601,7 +763,6 @@ const TransactionPage = () => {
   const formatCurrency = (amount) => {
     return `₱${parseFloat(amount || 0).toFixed(2)}`;
   };
-
   // Format date
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -610,43 +771,129 @@ const TransactionPage = () => {
       year: 'numeric'
     });
   };
+  
+  // Fetch cancellation requests
+  const fetchCancellationRequests = useCallback(async () => {
+    try {
+      setRequestsLoading(true);
+      console.log('🔄 Fetching cancellation requests...');
+      
+      const response = await api.get('/orders/cancellation-requests');
+      
+      if (response.data.success) {
+        console.log('✅ Cancellation requests fetched:', response.data);
+        setCancellationRequests(response.data.data || []);
+      } else {
+        console.error('❌ Failed to fetch cancellation requests:', response.data);
+        toast.error('Failed to fetch cancellation requests');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching cancellation requests:', error);
+      toast.error('Failed to fetch cancellation requests');
+    } finally {
+      setRequestsLoading(false);
+    }
+  }, []);
+  
+  // Process cancellation request
+  const processCancellationRequest = async (requestId, action) => {
+    try {
+      console.log(`🔄 ${action === 'approve' ? 'Approving' : 'Denying'} cancellation request ${requestId}...`);
+      
+      const response = await api.put(`/orders/cancellation-requests/${requestId}`, {
+        action,
+        adminNotes: adminNotes.trim() || undefined
+      });
+      
+      if (response.data.success) {
+        toast.success(response.data.message);
+        setShowProcessingModal(false);
+        setProcessingRequest(null);
+        setAdminNotes('');
+        // Refresh both lists
+        fetchCancellationRequests();
+        fetchTransactions();
+      } else {
+        toast.error(response.data.message || 'Failed to process request');
+      }
+    } catch (error) {
+      console.error(`❌ Error processing cancellation request:`, error);
+      toast.error('Failed to process cancellation request');
+    }
+  };
+  
+  // Open processing modal
+  const openProcessingModal = (request, action) => {
+    setProcessingRequest({ ...request, action });
+    setAdminNotes('');
+    setShowProcessingModal(true);
+  };
+  
+  // Close processing modal
+  const closeProcessingModal = () => {
+    setShowProcessingModal(false);
+    setProcessingRequest(null);
+    setAdminNotes('');
+  };
+  
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
-
+    if (activeTab === 'cancellations') {
+      fetchCancellationRequests();
+    }
+  }, [fetchTransactions, fetchCancellationRequests, activeTab]);
   return (
     <PageContainer>
       <ContentWrapper>
         <Header>
           <Title>
             <FontAwesomeIcon icon={faReceipt} />
-            Transaction Management
+            Admin Dashboard
           </Title>
           <Subtitle>
-            Approve or reject customer orders and manage transaction status
+            Manage confirmed orders and cancellation requests
           </Subtitle>
-        </Header>        {/* Statistics */}
-        <StatsContainer>
-          <StatCard color="#000000">
-            <h3>{stats.total}</h3>
-            <p>Total Orders</p>
-          </StatCard>
-          <StatCard color="#f39c12">
-            <h3>{stats.pending}</h3>
-            <p>Pending Approval</p>
-          </StatCard>
-          <StatCard color="#27ae60">
-            <h3>{stats.approved}</h3>
-            <p>Approved Orders</p>
-          </StatCard>
-          <StatCard color="#e74c3c">
-            <h3>{stats.rejected}</h3>
-            <p>Rejected Orders</p>
-          </StatCard>
-        </StatsContainer>
+        </Header>
+        
+        {/* Tabs */}
+        <TabsContainer>
+          <Tab 
+            active={activeTab === 'orders'} 
+            onClick={() => setActiveTab('orders')}
+          >
+            Confirmed Orders
+          </Tab>          <Tab 
+            active={activeTab === 'cancellations'} 
+            onClick={() => setActiveTab('cancellations')}
+          >
+            Cancellation Requests
+          </Tab>
+        </TabsContainer>
+        
+        {activeTab === 'orders' && (
+          <>
+            {/* Statistics */}
+            <StatsContainer>
+              <StatCard color="#000000">
+                <h3>{stats.total}</h3>
+                <p>Total Confirmed</p>
+              </StatCard>
+              <StatCard color="#27ae60">
+                <h3>{stats.approved}</h3>
+                <p>Confirmed Orders</p>
+              </StatCard>
+              <StatCard color="#000000">
+                <h3>{formatCurrency(stats.totalAmount)}</h3>
+                <p>Total Revenue</p>
+              </StatCard>
+              <StatCard color="#3498db">
+                <h3>{stats.total > 0 ? (stats.totalAmount / stats.total).toFixed(0) : 0}</h3>
+                <p>Avg Order Value</p>
+              </StatCard>
+            </StatsContainer>
 
-        {/* Controls */}
-        <ControlsSection>
+            {/* Controls */}
+            <ControlsSection>
           <ControlsGrid>
             <SearchContainer>
               <SearchIcon icon={faSearch} />
@@ -656,17 +903,15 @@ const TransactionPage = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </SearchContainer>
-            
-            <FilterSelect
+            </SearchContainer>            <FilterSelect
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="completed">Completed</option>
+              <option value="all">All Confirmed Orders</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="delivered">Delivered</option>
             </FilterSelect>
               <RefreshButton onClick={fetchTransactions} disabled={loading}>
               <FontAwesomeIcon icon={faRefresh} />
@@ -690,18 +935,16 @@ const TransactionPage = () => {
           
           {loading ? (
             <LoadingContainer>
-              <FontAwesomeIcon icon={faInfoCircle} size="2x" color="#ddd" />
-              <p>Loading transactions...</p>
+              <FontAwesomeIcon icon={faInfoCircle} size="2x" color="#ddd" />              <p>Loading confirmed orders...</p>
             </LoadingContainer>
           ) : filteredTransactions.length === 0 ? (
             <EmptyState>
               <FontAwesomeIcon icon={faExclamationTriangle} className="icon" />
-              <h3>No transactions found</h3>
-              <p>No transactions match your current filters.</p>
+              <h3>No confirmed orders found</h3>
+              <p>No confirmed orders match your current filters.</p>
             </EmptyState>
-          ) : (
-            filteredTransactions.map((transaction) => (
-              <TableRow key={transaction.id}>
+          ) : (            filteredTransactions.map((transaction) => (
+              <TableRow key={transaction.transaction_id || transaction.id}>
                 <OrderNumber>
                   {transaction.order_number}
                 </OrderNumber>
@@ -711,56 +954,30 @@ const TransactionPage = () => {
                 </DateInfo>
                 
                 <CustomerInfo>
-                  <div className="name">{transaction.customer_name || 'N/A'}</div>
-                  <div className="email">{transaction.customer_email || 'N/A'}</div>
+                  <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
+                  <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
                 </CustomerInfo>
                 
                 <OrderDetails>
-                  <div className="amount">{formatCurrency(transaction.total_amount)}</div>
+                  <div className="amount">{formatCurrency(transaction.amount || transaction.total_amount || transaction.invoice_total)}</div>
                 </OrderDetails>
                 
                 <div>{transaction.payment_method || 'COD'}</div>
                 
-                <StatusBadge status={transaction.status}>
-                  {transaction.status}
+                <StatusBadge status={transaction.transaction_status || transaction.order_status}>
+                  {transaction.transaction_status || transaction.order_status}
                 </StatusBadge>
                 
                 <DateInfo>
                   {formatDate(transaction.created_at)}
                 </DateInfo>
-                
-                <ActionsContainer>
+                  <ActionsContainer>
                   <ActionButton
                     variant="view"
                     onClick={() => viewTransaction(transaction)}
                   >
                     <FontAwesomeIcon icon={faEye} />
-                  </ActionButton>                  
-                  {transaction.status === 'pending' && (
-                    <>                      <ActionButton
-                        variant="approve"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          console.log('🎯 Approve button clicked for transaction:', transaction.id);
-                          approveTransaction(transaction.id);
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faCheck} />
-                      </ActionButton>
-                        <ActionButton
-                        variant="reject"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          console.log('🎯 Reject button clicked for transaction:', transaction.id);
-                          rejectTransaction(transaction.id);
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faTimes} />
-                      </ActionButton>
-                    </>
-                  )}
+                  </ActionButton>
                 </ActionsContainer>
               </TableRow>
             ))
@@ -777,20 +994,21 @@ const TransactionPage = () => {
                   <FontAwesomeIcon icon={faTimes} />
                 </CloseButton>
               </ModalHeader>
-              
-              <ModalContent>
+                <ModalContent>
                 <div style={{ marginBottom: '24px' }}>
                   <h3>Order Information</h3>
                   <p><strong>Order Number:</strong> {selectedTransaction.order_number}</p>
-                  <p><strong>Status:</strong> <StatusBadge status={selectedTransaction.status}>{selectedTransaction.status}</StatusBadge></p>
-                  <p><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.total_amount)}</p>
+                  <p><strong>Transaction ID:</strong> {selectedTransaction.transaction_id}</p>
+                  <p><strong>Order Status:</strong> <StatusBadge status={selectedTransaction.order_status}>{selectedTransaction.order_status}</StatusBadge></p>
+                  <p><strong>Transaction Status:</strong> <StatusBadge status={selectedTransaction.transaction_status}>{selectedTransaction.transaction_status}</StatusBadge></p>
+                  <p><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.amount || selectedTransaction.total_amount || selectedTransaction.invoice_total)}</p>
                   <p><strong>Payment Method:</strong> {selectedTransaction.payment_method || 'Cash on Delivery'}</p>
                 </div>
                 
                 <div style={{ marginBottom: '24px' }}>
                   <h3>Customer Information</h3>
-                  <p><strong>Name:</strong> {selectedTransaction.customer_name || 'N/A'}</p>
-                  <p><strong>Email:</strong> {selectedTransaction.customer_email || 'N/A'}</p>
+                  <p><strong>Name:</strong> {selectedTransaction.customer_name || (selectedTransaction.first_name + ' ' + selectedTransaction.last_name) || selectedTransaction.username || 'N/A'}</p>
+                  <p><strong>Email:</strong> {selectedTransaction.customer_email || selectedTransaction.user_email || 'N/A'}</p>
                   <p><strong>Phone:</strong> {selectedTransaction.contact_phone || 'N/A'}</p>
                   <p><strong>Address:</strong> {selectedTransaction.shipping_address || 'N/A'}</p>
                 </div>
@@ -808,9 +1026,162 @@ const TransactionPage = () => {
                   <p><strong>Created:</strong> {formatDate(selectedTransaction.created_at)}</p>
                   <p><strong>Last Updated:</strong> {formatDate(selectedTransaction.updated_at)}</p>
                 </div>
-              </ModalContent>
-            </Modal>
+              </ModalContent>            </Modal>
           </ModalOverlay>
+        )}
+          </>
+        )}
+        
+        {activeTab === 'cancellations' && (
+          <>
+            {/* Cancellation Requests Header */}
+            <ControlsSection>
+              <ControlsGrid>
+                <SearchContainer>
+                  <SearchIcon icon={faSearch} />
+                  <SearchInput
+                    type="text"
+                    placeholder="Search by order number or customer name..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </SearchContainer>
+                <FilterSelect
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Requests</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="denied">Denied</option>
+                </FilterSelect>
+                <RefreshButton onClick={fetchCancellationRequests} disabled={requestsLoading}>
+                  <FontAwesomeIcon icon={faRefresh} />
+                  Refresh
+                </RefreshButton>
+              </ControlsGrid>
+            </ControlsSection>
+            
+            {/* Cancellation Requests List */}
+            {requestsLoading ? (
+              <LoadingContainer>
+                <FontAwesomeIcon icon={faInfoCircle} size="2x" color="#ddd" />
+                <p>Loading cancellation requests...</p>
+              </LoadingContainer>
+            ) : cancellationRequests.length === 0 ? (
+              <EmptyState>
+                <FontAwesomeIcon icon={faExclamationTriangle} className="icon" />
+                <h3>No cancellation requests found</h3>
+                <p>No cancellation requests match your current filters.</p>
+              </EmptyState>
+            ) : (
+              cancellationRequests
+                .filter(request => {
+                  const matchesSearch = request.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                       request.customer_first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                       request.customer_last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                  const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+                  return matchesSearch && matchesStatus;
+                })
+                .map((request) => (
+                  <CancellationRequestCard key={request.id}>
+                    <RequestHeader>
+                      <RequestInfo>
+                        <h3>Order #{request.order_number}</h3>
+                        <div className="meta">
+                          <div className="item">
+                            <strong>Customer:</strong> {request.customer_first_name} {request.customer_last_name}
+                          </div>
+                          <div className="item">
+                            <strong>Email:</strong> {request.customer_email}
+                          </div>
+                          <div className="item">
+                            <strong>Amount:</strong> {formatCurrency(request.order_total)}
+                          </div>
+                          <div className="item">
+                            <strong>Submitted:</strong> {formatDate(request.created_at)}
+                          </div>
+                        </div>
+                      </RequestInfo>
+                      <StatusBadge status={request.status}>
+                        {request.status}
+                      </StatusBadge>
+                    </RequestHeader>
+                    
+                    <ReasonBox>
+                      <h4>Cancellation Reason</h4>
+                      <p>{request.reason}</p>
+                    </ReasonBox>
+                    
+                    {request.admin_notes && (
+                      <ReasonBox>
+                        <h4>Admin Notes</h4>
+                        <p>{request.admin_notes}</p>
+                        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                          Processed by: {request.admin_first_name} {request.admin_last_name} on {formatDate(request.processed_at)}
+                        </div>
+                      </ReasonBox>
+                    )}
+                    
+                    {request.status === 'pending' && (
+                      <RequestActions>
+                        <ActionButton
+                          variant="approve"
+                          onClick={() => openProcessingModal(request, 'approve')}
+                        >
+                          <FontAwesomeIcon icon={faCheck} />
+                          Approve
+                        </ActionButton>
+                        <ActionButton
+                          variant="reject"
+                          onClick={() => openProcessingModal(request, 'deny')}
+                        >
+                          <FontAwesomeIcon icon={faTimes} />
+                          Deny
+                        </ActionButton>
+                      </RequestActions>
+                    )}
+                  </CancellationRequestCard>
+                ))
+            )}
+          </>
+        )}
+        
+        {/* Processing Modal */}
+        {showProcessingModal && processingRequest && (
+          <ProcessingModal>
+            <ProcessingModalContent>
+              <h3>
+                {processingRequest.action === 'approve' ? 'Approve' : 'Deny'} Cancellation Request
+              </h3>
+              <p>
+                <strong>Order:</strong> #{processingRequest.order_number}<br />
+                <strong>Customer:</strong> {processingRequest.customer_first_name} {processingRequest.customer_last_name}<br />
+                <strong>Reason:</strong> {processingRequest.reason}
+              </p>
+              
+              <div className="form-group">
+                <label>Admin Notes (Optional)</label>
+                <AdminNotesTextarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Add any notes about this decision..."
+                />
+              </div>
+              
+              <div className="actions">
+                <ActionButton onClick={closeProcessingModal}>
+                  Cancel
+                </ActionButton>
+                <ActionButton
+                  variant={processingRequest.action === 'approve' ? 'approve' : 'reject'}
+                  onClick={() => processCancellationRequest(processingRequest.id, processingRequest.action)}
+                >
+                  {processingRequest.action === 'approve' ? 'Approve Request' : 'Deny Request'}
+                </ActionButton>
+              </div>
+            </ProcessingModalContent>
+          </ProcessingModal>
         )}
       </ContentWrapper>
     </PageContainer>
