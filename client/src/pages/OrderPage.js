@@ -11,102 +11,187 @@ import {
   faPhone, 
   faMapMarkerAlt, 
   faMoneyBillWave,
-  faFileInvoiceDollar,
   faDownload,
   faCheck,
   faSpinner,
-  faTimes,
-  faEye
+  faEye,
+  faMinus,
+  faPlus,
+  faClipboardList
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 
+// Styled Components with Glassmorphic Design
 const PageContainer = styled.div`
-  padding: 2rem;
-  max-width: 1200px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(200, 200, 200, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+`;
+
+const ContentWrapper = styled.div`
+  max-width: 1400px;
   margin: 0 auto;
-  min-height: calc(100vh - 200px);
+  padding: 80px 24px 40px;
+  position: relative;
+  z-index: 1;
 `;
 
 const Header = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
 `;
 
 const Title = styled.h1`
-  color: #333;
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: #000000;
   margin: 0;
-  font-size: 2rem;
-  font-weight: 600;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
   
-  .icon {
-    color: #1a1a1a;
-    padding: 0.5rem;
-    border-radius: 6px;
-    font-size: 1.5rem;
+  svg {
+    color: #000000;
+    -webkit-text-fill-color: #000000;
+  }  
+  @media (max-width: 768px) {
+    font-size: 2rem;
   }
 `;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  border-bottom: 2px solid #eee;
+  gap: 4px;
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: fit-content;
 `;
 
 const Tab = styled.button`
-  padding: 1rem 2rem;
+  padding: 12px 24px;
   border: none;
-  background: ${props => props.active ? '#1a1a1a' : 'transparent'};
-  color: ${props => props.active ? 'white' : '#666'};
-  font-weight: 600;
+  background: ${props => props.active ? 
+    'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
+    'transparent'
+  };
+  color: ${props => props.active ? '#ffffff' : '#666666'};
+  font-weight: 500;
   cursor: pointer;
-  border-radius: 8px 8px 0 0;
+  border-radius: 8px;
   transition: all 0.3s ease;
+  font-size: 14px;
   
   &:hover {
-    background: ${props => props.active ? '#1a1a1a' : '#f5f5f5'};
+    background: ${props => props.active ? 
+      'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
+      'rgba(0, 0, 0, 0.05)'
+    };
+    color: ${props => props.active ? '#ffffff' : '#000000'};
   }
 `;
 
 const Content = styled.div`
   display: grid;
-  grid-template-columns: 1fr 400px;
-  gap: 2rem;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
   
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 30px;
   }
 `;
 
 const CartSection = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  }
 `;
 
 const CheckoutSection = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   height: fit-content;
   position: sticky;
-  top: 2rem;
+  top: 100px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: #000000;
+  margin: 0 0 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;  
+  svg {
+    color: #666666;
+  }
 `;
 
 const CartItem = styled.div`
   display: grid;
   grid-template-columns: 80px 1fr auto;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #eee;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
   
   &:last-child {
     border-bottom: none;
+  }
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    padding: 20px 16px;
+    margin: 0 -16px;
   }
 `;
 
@@ -115,260 +200,365 @@ const ItemImage = styled.img`
   height: 80px;
   object-fit: cover;
   border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const ItemDetails = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
+  min-width: 0;
 `;
 
 const ItemName = styled.h3`
-  font-size: 1rem;
-  font-weight: 600;
-  color: #333;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #000000;
   margin: 0;
+  line-height: 1.3;
+  word-wrap: break-word;
 `;
 
 const ItemSpecs = styled.div`
-  font-size: 0.875rem;
-  color: #666;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const ItemBadge = styled.span`
+  background: rgba(0, 0, 0, 0.05);
+  color: #666666;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
 `;
 
 const ItemPrice = styled.div`
-  font-size: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+`;
+
+const Price = styled.span`
+  font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: #000000;
 `;
 
 const QuantityControls = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 8px;
+  width: fit-content;
 `;
 
 const QuantityButton = styled.button`
   width: 32px;
   height: 32px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
+  background: none;
+  border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #666666;
+  transition: all 0.3s ease;
   
   &:hover {
-    background: #f5f5f5;
+    background: rgba(0, 0, 0, 0.05);
+    color: #000000;
   }
   
   &:disabled {
-    opacity: 0.5;
+    opacity: 0.3;
     cursor: not-allowed;
   }
 `;
 
 const QuantityDisplay = styled.span`
-  min-width: 40px;
+  padding: 0 12px;
+  font-weight: 500;
+  color: #000000;
+  min-width: 30px;
   text-align: center;
-  font-weight: 600;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 14px;
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 1.5rem;
+  margin-bottom: 24px;
 `;
 
 const Label = styled.label`
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-  color: #333;
-  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #000000;
+  font-size: 14px;
+  
+  svg {
+    color: #666666;
+  }
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #000000;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   
   &:focus {
     outline: none;
-    border-color: #1a1a1a;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999999;
   }
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+  color: #000000;
   min-height: 100px;
   resize: vertical;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  font-family: inherit;
   
   &:focus {
     outline: none;
-    border-color: #1a1a1a;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999999;
   }
 `;
 
 const OrderSummary = styled.div`
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 2px solid #eee;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #666666;
   
   &.total {
-    font-size: 1.25rem;
-    font-weight: 700;
-    border-top: 1px solid #eee;
-    padding-top: 1rem;
-    margin-top: 1rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #000000;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    padding-top: 16px;
+    margin-top: 16px;
   }
 `;
 
 const Button = styled.button`
   width: 100%;
-  padding: 1rem;
-  background: #1a1a1a;
-  color: white;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  color: #ffffff;
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   
   &:hover {
-    background: #333;
+    background: linear-gradient(135deg, #333333 0%, #555555 100%);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
   }
   
   &:disabled {
-    background: #ccc;
+    background: rgba(0, 0, 0, 0.3);
     cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: 3rem;
-  color: #666;
+  padding: 60px 32px;
+  color: #999999;
+  
+  svg {
+    margin-bottom: 20px;
+    opacity: 0.5;
+  }
+  
+  p {
+    font-size: 16px;
+    margin: 0;
+  }
 `;
 
 const OrderList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 20px;
 `;
 
 const OrderCard = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid #eee;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
 `;
 
 const OrderHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 `;
 
 const OrderNumber = styled.h3`
   margin: 0;
-  color: #333;
+  color: #000000;
   font-size: 1.1rem;
+  font-weight: 600;
 `;
 
 const OrderStatus = styled.span`
-  padding: 0.25rem 0.75rem;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   
   ${props => {
     switch (props.status) {
       case 'pending':
-        return 'background: #fff3cd; color: #856404;';
+        return 'background: rgba(255, 193, 7, 0.2); color: #856404; border: 1px solid rgba(255, 193, 7, 0.3);';
       case 'confirmed':
-        return 'background: #d1ecf1; color: #0c5460;';
+        return 'background: rgba(13, 202, 240, 0.2); color: #0c5460; border: 1px solid rgba(13, 202, 240, 0.3);';
       case 'processing':
-        return 'background: #d4edda; color: #155724;';
+        return 'background: rgba(25, 135, 84, 0.2); color: #155724; border: 1px solid rgba(25, 135, 84, 0.3);';
       case 'shipped':
-        return 'background: #cce7ff; color: #004085;';
+        return 'background: rgba(13, 110, 253, 0.2); color: #004085; border: 1px solid rgba(13, 110, 253, 0.3);';
       case 'delivered':
-        return 'background: #d4edda; color: #155724;';
+        return 'background: rgba(25, 135, 84, 0.2); color: #155724; border: 1px solid rgba(25, 135, 84, 0.3);';
       case 'cancelled':
-        return 'background: #f8d7da; color: #721c24;';
+        return 'background: rgba(220, 53, 69, 0.2); color: #721c24; border: 1px solid rgba(220, 53, 69, 0.3);';
       default:
-        return 'background: #e2e3e5; color: #383d41;';
+        return 'background: rgba(108, 117, 125, 0.2); color: #383d41; border: 1px solid rgba(108, 117, 125, 0.3);';
     }
   }}
 `;
 
 const OrderDetails = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
 `;
 
 const OrderInfo = styled.div`
-  font-size: 0.875rem;
-  color: #666;
+  font-size: 14px;
+  color: #666666;
   
   strong {
-    color: #333;
+    color: #000000;
     font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
   }
 `;
 
 const OrderActions = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 12px;
+  flex-wrap: wrap;
 `;
 
 const ActionButton = styled.button`
-  padding: 0.5rem 1rem;
-  border: 1px solid #1a1a1a;
-  background: ${props => props.primary ? '#1a1a1a' : 'white'};
-  color: ${props => props.primary ? 'white' : '#1a1a1a'};
-  border-radius: 6px;
-  font-size: 0.875rem;
+  padding: 8px 16px;
+  border: 1px solid ${props => props.primary ? 'transparent' : 'rgba(0, 0, 0, 0.2)'};
+  background: ${props => props.primary ? 
+    'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
+    'rgba(255, 255, 255, 0.9)'
+  };
+  backdrop-filter: blur(10px);
+  color: ${props => props.primary ? '#ffffff' : '#000000'};
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    background: ${props => props.primary ? '#333' : '#f5f5f5'};
+    background: ${props => props.primary ? 
+      'linear-gradient(135deg, #333333 0%, #555555 100%)' : 
+      'rgba(255, 255, 255, 1)'
+    };
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
   }
   
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -530,14 +720,16 @@ const OrderPage = () => {
     setSelectedOrder(null);
     setSelectedOrderItems([]);
   };
-
   const renderCartTab = () => (
     <Content>
       <CartSection>
-        <h2>Shopping Cart ({cartCount} items)</h2>
+        <SectionTitle>
+          <FontAwesomeIcon icon={faShoppingBag} />
+          Shopping Cart ({cartCount} items)
+        </SectionTitle>
         {cartItems.length === 0 ? (
           <EmptyState>
-            <FontAwesomeIcon icon={faShoppingBag} size="3x" color="#ccc" />
+            <FontAwesomeIcon icon={faShoppingBag} size="3x" />
             <p>Your cart is empty</p>
           </EmptyState>
         ) : (
@@ -547,38 +739,42 @@ const OrderPage = () => {
                 <ItemImage 
                   src={item.main_image ? `http://localhost:3001/uploads/${item.main_image}` : '/placeholder.png'} 
                   alt={item.name} 
-                />
-                <ItemDetails>
+                />                <ItemDetails>
                   <ItemName>{item.name}</ItemName>
                   <ItemSpecs>
-                    Color: {item.color} | Size: {item.size}
+                    <ItemBadge>Color: {item.color}</ItemBadge>
+                    <ItemBadge>Size: {item.size}</ItemBadge>
                   </ItemSpecs>
                   <QuantityControls>
                     <QuantityButton 
                       onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                       disabled={cartLoading}
                     >
-                      <FontAwesomeIcon icon={faTimes} size="xs" />
+                      <FontAwesomeIcon icon={faMinus} size="xs" />
                     </QuantityButton>
                     <QuantityDisplay>{item.quantity}</QuantityDisplay>
                     <QuantityButton 
                       onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                       disabled={cartLoading}
                     >
-                      +
+                      <FontAwesomeIcon icon={faPlus} size="xs" />
                     </QuantityButton>
                   </QuantityControls>
                 </ItemDetails>
-                <ItemPrice>₱{(item.price * item.quantity).toFixed(2)}</ItemPrice>
+                <ItemPrice>
+                  <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
+                </ItemPrice>
               </CartItem>
             ))}
           </div>
         )}
       </CartSection>
-      
-      {cartItems.length > 0 && (
+        {cartItems.length > 0 && (
         <CheckoutSection>
-          <h3>Checkout Information</h3>
+          <SectionTitle>
+            <FontAwesomeIcon icon={faMoneyBillWave} />
+            Checkout Information
+          </SectionTitle>
           <FormGroup>
             <Label><FontAwesomeIcon icon={faUser} /> Full Name</Label>
             <Input
@@ -653,10 +849,12 @@ const OrderPage = () => {
       )}
     </Content>
   );
-
   const renderOrdersTab = () => (
     <div>
-      <h2>My Orders</h2>
+      <SectionTitle>
+        <FontAwesomeIcon icon={faClipboardList} />
+        My Orders
+      </SectionTitle>
       {loading ? (
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <FontAwesomeIcon icon={faSpinner} spin size="2x" />
@@ -720,40 +918,42 @@ const OrderPage = () => {
       )}
     </div>
   );
-
   return (
     <PageContainer>
-      <Header>
-        <Title>
-          <FontAwesomeIcon icon={faShoppingBag} className="icon" />
-          My Orders
-        </Title>
-      </Header>
-      
-      <TabContainer>
-        <Tab 
-          active={activeTab === 'cart'} 
-          onClick={() => setActiveTab('cart')}
-        >
-          Shopping Cart ({cartCount})
-        </Tab>
-        <Tab 
-          active={activeTab === 'orders'} 
-          onClick={() => setActiveTab('orders')}
-        >
-          Order History
-        </Tab>
-      </TabContainer>
+      <ContentWrapper>
+        <Header>
+          <Title>
+            <FontAwesomeIcon icon={faShoppingBag} />
+            Order Management
+          </Title>
+        </Header>
+        
+        <TabContainer>
+          <Tab 
+            active={activeTab === 'cart'} 
+            onClick={() => setActiveTab('cart')}
+          >
+            Shopping Cart ({cartCount})
+          </Tab>
+          <Tab 
+            active={activeTab === 'orders'} 
+            onClick={() => setActiveTab('orders')}
+          >
+            Order History
+          </Tab>
+        </TabContainer>
+        
         {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
-      
-      {/* Invoice Modal */}
-      <InvoiceModal
-        isOpen={showInvoiceModal}
-        onClose={closeInvoiceModal}
-        order={selectedOrder}
-        orderItems={selectedOrderItems}
-        onDownloadPDF={downloadInvoice}
-      />
+        
+        {/* Invoice Modal */}
+        <InvoiceModal
+          isOpen={showInvoiceModal}
+          onClose={closeInvoiceModal}
+          order={selectedOrder}
+          orderItems={selectedOrderItems}
+          onDownloadPDF={downloadInvoice}
+        />
+      </ContentWrapper>
     </PageContainer>
   );
 };

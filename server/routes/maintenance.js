@@ -147,14 +147,14 @@ router.post('/products', (req, res, next) => {
         console.log('=== ADD PRODUCT REQUEST ===');
         console.log('Request body:', req.body);
         console.log('Request files:', req.files);        console.log('Files field names:', req.files ? req.files.map(f => f.fieldname) : 'No files');
-        
-        const {
+          const {
             productname,
             productdescription,
             productprice,
             productcolor,
             product_type,
             sizes,
+            sizeColorVariants,
             total_stock
         } = req.body;
         
@@ -173,13 +173,25 @@ router.post('/products', (req, res, next) => {
         } catch (error) {
             parsedSizes = [];
         }
-          // Insert product
+        
+        // Parse sizeColorVariants if it's a string
+        let parsedSizeColorVariants;
+        try {
+            parsedSizeColorVariants = typeof sizeColorVariants === 'string' ? JSON.parse(sizeColorVariants) : sizeColorVariants;
+        } catch (error) {
+            parsedSizeColorVariants = [];
+        }
+        
+        console.log('Processing product data:');
+        console.log('Size Color Variants:', parsedSizeColorVariants);
+        console.log('Legacy Sizes:', parsedSizes);          // Insert product
         const insertQuery = `
             INSERT INTO products 
             (product_id, productname, productdescription, productprice, productcolor, product_type, sizes, total_stock, productstatus) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
+        // Store sizeColorVariants in the sizes field for now
         const insertParams = [
             generatedProductId,
             productname,
@@ -187,7 +199,7 @@ router.post('/products', (req, res, next) => {
             parseFloat(productprice) || 0,
             productcolor || '',
             product_type || null,
-            JSON.stringify(parsedSizes),
+            JSON.stringify(parsedSizeColorVariants || parsedSizes), // Prefer sizeColorVariants, fallback to sizes
             parseInt(total_stock) || 0,
             'active'
         ];
@@ -347,13 +359,14 @@ router.delete('/images/:imageId', async (req, res) => {
 // Update product
 router.put('/products/:id', upload.array('images', 10), async (req, res) => {
     try {
-        const { id } = req.params;
-        const {
+        const { id } = req.params;        const {
             productname,
             productdescription,
             productprice,
             productcolor,
+            product_type,
             sizes,
+            sizeColorVariants,
             total_stock
         } = req.body;
         
@@ -367,6 +380,16 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
             parsedSizes = [];
         }
         
+        // Parse sizeColorVariants if it's a string
+        let parsedSizeColorVariants;
+        try {
+            parsedSizeColorVariants = typeof sizeColorVariants === 'string' ? JSON.parse(sizeColorVariants) : sizeColorVariants;
+        } catch (error) {
+            parsedSizeColorVariants = [];
+        }
+        
+        console.log('Updating product with Size Color Variants:', parsedSizeColorVariants);
+        
         // Get the product_id for this database id
         const [productResult] = await connection.execute(
             'SELECT product_id FROM products WHERE id = ?',
@@ -379,21 +402,20 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
         }
         
         const productId = productResult[0].product_id;
-        
-        // Update product
+          // Update product
         const updateQuery = `
             UPDATE products 
             SET productname = ?, productdescription = ?, productprice = ?, 
-                productcolor = ?, sizes = ?, total_stock = ?, updated_at = CURRENT_TIMESTAMP
+                productcolor = ?, product_type = ?, sizes = ?, total_stock = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
-        
-        await connection.execute(updateQuery, [
+          await connection.execute(updateQuery, [
             productname,
             productdescription || '',
             parseFloat(productprice) || 0,
             productcolor || '',
-            JSON.stringify(parsedSizes),
+            product_type || '',
+            JSON.stringify(parsedSizeColorVariants || parsedSizes), // Prefer sizeColorVariants, fallback to sizes
             parseInt(total_stock) || 0,
             id
         ]);

@@ -22,19 +22,37 @@ import { useCart } from '../context/CartContext';
 // Styled Components
 const PageContainer = styled.div`
   min-height: 100vh;
-  background-color: #ffffff;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+      radial-gradient(circle at 40% 40%, rgba(200, 200, 200, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
 `;
 
 const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
   padding: 80px 24px 40px;
+  position: relative;
+  z-index: 1;
 `;
 
 const BackButton = styled.button`
-  background: none;
-  border: 1px solid #f0f0f0;
-  color: #666666;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #000;
   padding: 12px 20px;
   font-size: 14px;
   cursor: pointer;
@@ -43,10 +61,13 @@ const BackButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    border-color: #000000;
-    color: #000000;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
   }
 `;
 
@@ -69,10 +90,12 @@ const ImageSection = styled.div`
 const MainImageContainer = styled.div`
   position: relative;
   margin-bottom: 20px;
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 `;
 
 const ProductImage = styled.img`
@@ -87,6 +110,7 @@ const NavButton = styled.button`
   top: 50%;
   transform: translateY(-50%);
   background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
   color: white;
   border: none;
   width: 40px;
@@ -96,11 +120,12 @@ const NavButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
   z-index: 10;
   
   &:hover {
     background: rgba(0, 0, 0, 0.9);
+    transform: translateY(-50%) scale(1.1);
   }
   
   ${props => props.direction === 'left' ? 'left: 16px;' : 'right: 16px;'}
@@ -117,11 +142,12 @@ const ThumbnailContainer = styled.div`
   }
   
   &::-webkit-scrollbar-track {
-    background: #f0f0f0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #ccc;
+    background: rgba(0, 0, 0, 0.2);
     border-radius: 2px;
   }
 `;
@@ -130,34 +156,45 @@ const Thumbnail = styled.img`
   width: 80px;
   height: 80px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  border: 2px solid ${props => props.active ? '#000000' : '#f0f0f0'};
-  transition: border-color 0.3s ease;
+  border: 2px solid ${props => props.active ? '#000000' : 'rgba(255, 255, 255, 0.5)'};
+  transition: all 0.3s ease;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
   
   &:hover {
     border-color: #000000;
+    transform: scale(1.05);
   }
 `;
 
 const NoImagePlaceholder = styled.div`
   width: 100%;
   height: 500px;
-  background: #f8f8f8;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999999;
+  color: #666;
   font-size: 16px;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 `;
 
 const DetailsSection = styled.div`
   display: flex;
   flex-direction: column;
   gap: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 `;
 
 const ProductName = styled.h1`
@@ -193,7 +230,7 @@ const Description = styled.div`
 `;
 
 const Specifications = styled.div`
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
   padding-top: 32px;
   
   h3 {
@@ -242,20 +279,24 @@ const SizeOptions = styled.div`
 
 const SizeButton = styled.button`
   padding: 12px 16px;
-  border: 1px solid ${props => props.selected ? '#000000' : '#e0e0e0'};
-  background: ${props => props.selected ? '#000000' : '#ffffff'};
+  border: 1px solid ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 0.3)'};
+  background: ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 0.9)'};
+  backdrop-filter: blur(10px);
   color: ${props => props.selected ? '#ffffff' : '#000000'};
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
   text-align: center;
   min-width: 60px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   
   &:hover {
     border-color: #000000;
-    background: ${props => props.selected ? '#000000' : '#fafafa'};
+    background: ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 1)'};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   }
   
   small {
@@ -278,10 +319,11 @@ const ColorButton = styled.button`
   height: 30px;
   border-radius: 50%;
   background-color: ${props => props.color || '#ffffff'};
-  border: 1px solid #e0e0e0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   position: relative;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   
   ${props => props.selected && `
     &::after {
@@ -293,11 +335,13 @@ const ColorButton = styled.button`
       border: 2px solid #000000;
       left: -5px;
       top: -5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
   `}
   
   &:hover {
     transform: scale(1.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -311,7 +355,7 @@ const ColorName = styled.small`
 `;
 
 const PurchaseSection = styled.div`
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
   padding-top: 32px;
   display: flex;
   flex-direction: column;
@@ -333,8 +377,11 @@ const QuantityLabel = styled.span`
 const QuantityControls = styled.div`
   display: flex;
   align-items: center;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const QuantityButton = styled.button`
@@ -350,7 +397,7 @@ const QuantityButton = styled.button`
   transition: all 0.3s ease;
   
   &:hover {
-    background: #f0f0f0;
+    background: rgba(0, 0, 0, 0.05);
     color: #000000;
   }
   
@@ -366,8 +413,8 @@ const QuantityDisplay = styled.span`
   color: #000000;
   min-width: 40px;
   text-align: center;
-  border-left: 1px solid #e0e0e0;
-  border-right: 1px solid #e0e0e0;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
 `;
 
 const ActionButtons = styled.div`
@@ -377,7 +424,7 @@ const ActionButtons = styled.div`
 
 const AddToCartButton = styled.button`
   flex: 1;
-  background-color: #000000;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
   color: #ffffff;
   border: none;
   padding: 16px 24px;
@@ -391,15 +438,21 @@ const AddToCartButton = styled.button`
   gap: 8px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   
   &:hover {
-    background-color: #333333;
+    background: linear-gradient(135deg, #333333 0%, #555555 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
   }
   
   &:disabled {
-    background-color: #e0e0e0;
+    background: rgba(0, 0, 0, 0.1);
     color: #999999;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
   
   svg {
@@ -419,8 +472,9 @@ const AddToCartButton = styled.button`
 `;
 
 const WishlistButton = styled.button`
-  background: none;
-  border: 1px solid #e0e0e0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   color: #666666;
   padding: 16px;
   cursor: pointer;
@@ -428,21 +482,28 @@ const WishlistButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   
   &:hover {
     border-color: #000000;
     color: #000000;
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   }
 `;
 
 const OutOfStock = styled.div`
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
+  background: rgba(255, 245, 245, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(254, 215, 215, 0.5);
   color: #c53030;
   padding: 16px;
-  border-radius: 4px;
+  border-radius: 8px;
   text-align: center;
   font-weight: 500;
+  box-shadow: 0 2px 10px rgba(197, 48, 48, 0.1);
 `;
 
 const InfoCards = styled.div`
@@ -451,19 +512,23 @@ const InfoCards = styled.div`
   gap: 16px;
   margin-top: 32px;
   padding-top: 32px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
 `;
 
 const InfoCard = styled.div`
   padding: 20px;
-  border: 1px solid #f0f0f0;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   text-align: center;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    border-color: #e0e0e0;
-    background: #fafafa;
+    background: rgba(255, 255, 255, 1);
+    transform: translateY(-5px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
   }
   
   .icon {
@@ -491,6 +556,11 @@ const LoadingContainer = styled.div`
   min-height: 50vh;
   font-size: 18px;
   color: #666666;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  margin: 40px 0;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 `;
 
 const ErrorContainer = styled.div`
@@ -500,6 +570,11 @@ const ErrorContainer = styled.div`
   justify-content: center;
   min-height: 50vh;
   text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   
   h2 {
     color: #000000;
@@ -511,12 +586,15 @@ const NotificationContainer = styled.div`
   position: fixed;
   top: 100px;
   right: 24px;
-  background: ${props => props.type === 'success' ? '#d4edda' : '#f8d7da'};
-  border: 1px solid ${props => props.type === 'success' ? '#c3e6cb' : '#f5c6cb'};
+  background: ${props => props.type === 'success' ? 
+    'rgba(212, 237, 218, 0.95)' : 'rgba(248, 215, 218, 0.95)'};
+  backdrop-filter: blur(10px);
+  border: 1px solid ${props => props.type === 'success' ? 
+    'rgba(195, 230, 203, 0.5)' : 'rgba(245, 198, 203, 0.5)'};
   color: ${props => props.type === 'success' ? '#155724' : '#721c24'};
   padding: 16px 20px;
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -547,45 +625,52 @@ const ProductDetailsPage = () => {
     const [quantity, setQuantity] = useState(1);    const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState('');
     const [notification, setNotification] = useState(null);
-    const [addingToCart, setAddingToCart] = useState(false);
-    
-    const fetchProduct = useCallback(async () => {
+    const [addingToCart, setAddingToCart] = useState(false);    const fetchProduct = useCallback(async () => {
         try {
             setLoading(true);
-            // Use the enhanced API endpoint that includes size-color variants
-            const response = await fetch(`http://localhost:3001/api/enhanced-maintenance/products`);
+            
+            // Use the maintenance API endpoint that includes all enhanced fields and structure
+            const response = await fetch(`http://localhost:3001/api/maintenance/products`);
             
             if (response.ok) {
                 const products = await response.json();
+                
                 // Look for the product by both ID and product_id for compatibility
                 const foundProduct = products.find(p => 
                     p.id === parseInt(id) || p.product_id === parseInt(id)
                 );
                 
-                if (foundProduct) {
-                    console.log('Found product:', foundProduct);
-                    setProduct(foundProduct);
-                    
-                    // If the product has sizeColorVariants, ensure it's parsed
+                if (foundProduct) {                    // Process the product to ensure sizeColorVariants are properly handled
                     if (foundProduct.sizeColorVariants && typeof foundProduct.sizeColorVariants === 'string') {
-                        foundProduct.sizeColorVariants = JSON.parse(foundProduct.sizeColorVariants);
+                        try {
+                            foundProduct.sizeColorVariants = JSON.parse(foundProduct.sizeColorVariants);
+                        } catch (e) {
+                            console.warn('Failed to parse sizeColorVariants:', e);
+                        }
                     }
                     
-                    // Fetch product images
-                    const imagesResponse = await fetch(`http://localhost:3001/api/enhanced-maintenance/products/${foundProduct.product_id}/images`);
+                    setProduct(foundProduct);
+                    
+                    // Fetch product images using the maintenance API endpoint
+                    const imagesResponse = await fetch(`http://localhost:3001/api/maintenance/products/${foundProduct.product_id || foundProduct.id}/images`);
                     if (imagesResponse.ok) {
                         const images = await imagesResponse.json();
                         setProductImages(images);
                     }
-                    
-                    // Initialize with first available size and color if any
+                      // Initialize with first available size and color if any
                     const availableSizes = getAvailableSizes(foundProduct);
                     if (availableSizes.length > 0) {
                         setSelectedSize(availableSizes[0].size);
                         
                         const colors = getAvailableColors(foundProduct, availableSizes[0].size);
-                        if (colors.length > 0) {
+                        if (colors.length > 0 && colors[0] !== 'Not specified') {
                             setSelectedColor(colors[0]);
+                        }
+                    } else {
+                        // If no sizes available, check for any colors available for the product
+                        const allColors = getProductColors(foundProduct);
+                        if (allColors.length > 0 && allColors[0] !== 'Not specified') {
+                            setSelectedColor(allColors[0]);
                         }
                     }
                 } else {
@@ -631,11 +716,32 @@ const ProductDetailsPage = () => {
         } catch (error) {
             return [];
         }
-    };
-
-    // Get available sizes from the enhanced structure
+    };    // Get available sizes from the enhanced structure (matches MaintenancePage.js logic)
     const getAvailableSizes = (product) => {
-        // Check if the product has the new sizeColorVariants structure
+        // First check if sizes field contains sizeColorVariants structure
+        if (product?.sizes) {
+            try {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                    return parsedSizes
+                        .filter(variant => variant.colorStocks.some(cs => cs.stock > 0))
+                        .map(variant => ({ 
+                            size: variant.size, 
+                            stock: variant.colorStocks.reduce((total, cs) => total + (cs.stock || 0), 0)
+                        }));
+                }
+                // Otherwise it's the old format (array of objects with size and stock)
+                else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
+                    return parsedSizes.filter(size => size.stock > 0);
+                }
+            } catch (e) {
+                console.log('Error parsing sizes field:', e);
+            }
+        }
+        
+        // Check if the product has the sizeColorVariants field separately
         if (product?.sizeColorVariants) {
             const variants = parseSizeColorVariants(product.sizeColorVariants);
             return variants
@@ -646,15 +752,46 @@ const ProductDetailsPage = () => {
                 }));
         }
         
-        // Fallback to the old structure
-        const sizes = parseSizes(product?.sizes);
-        return sizes.filter(size => size.stock > 0);
-    };
-
-    // Get available colors for a product or for a specific size
+        return [];
+    };    // Get available colors for a product or for a specific size (matches MaintenancePage.js logic)
     const getAvailableColors = (product, size = null) => {
         if (!product) return [];
         
+        // First check if sizes field contains sizeColorVariants structure
+        if (product.sizes) {
+            try {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                    // If a size is specified, get colors just for that size
+                    if (size) {
+                        const sizeVariant = parsedSizes.find(variant => variant.size === size);
+                        if (sizeVariant) {
+                            return sizeVariant.colorStocks
+                                .filter(cs => cs.stock > 0)
+                                .map(cs => cs.color);
+                        }
+                        return [];
+                    }
+                    
+                    // Otherwise get all unique colors across all variants that have stock
+                    const colors = new Set();
+                    parsedSizes.forEach(variant => {
+                        variant.colorStocks.forEach(cs => {
+                            if (cs.stock > 0 && cs.color && cs.color.trim() !== '') {
+                                colors.add(cs.color.trim());
+                            }
+                        });
+                    });
+                    return Array.from(colors);
+                }
+            } catch (e) {
+                console.log('Error parsing sizes field for colors:', e);
+            }
+        }
+        
+        // Then check sizeColorVariants field
         if (product.sizeColorVariants) {
             const variants = parseSizeColorVariants(product.sizeColorVariants);
             
@@ -673,37 +810,134 @@ const ProductDetailsPage = () => {
             const colors = new Set();
             variants.forEach(variant => {
                 variant.colorStocks.forEach(cs => {
-                    if (cs.stock > 0 && cs.color.trim() !== '') {
-                        colors.add(cs.color);
+                    if (cs.stock > 0 && cs.color && cs.color.trim() !== '') {
+                        colors.add(cs.color.trim());
                     }
                 });
             });
             return Array.from(colors);
         }
         
-        // Fallback to old structure or single color
-        if (product.colors) {
-            try {
-                const colors = parseSizes(product.colors);
-                return colors.filter(color => color.trim() !== '');
-            } catch {
-                return product.productcolor ? [product.productcolor] : [];
+        // Fallback: use the main getProductColors function for all colors
+        return getProductColors(product);
+    };// Extract all unique colors from sizeColorVariants for display (matches MaintenancePage.js logic exactly)
+    const getProductColors = (product) => {
+        try {
+            // First, check if sizes field contains sizeColorVariants structure
+            if (product.sizes) {
+                try {
+                    const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                    
+                    // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
+                    if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                        const allColors = [];
+                        parsedSizes.forEach(sizeVariant => {
+                            if (sizeVariant.colorStocks && Array.isArray(sizeVariant.colorStocks)) {
+                                sizeVariant.colorStocks.forEach(colorStock => {
+                                    if (colorStock.color && colorStock.color.trim() !== '' && !allColors.includes(colorStock.color.trim())) {
+                                        allColors.push(colorStock.color.trim());
+                                    }
+                                });
+                            }
+                        });
+                        
+                        if (allColors.length > 0) {
+                            return allColors;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error parsing sizes field:', e);
+                }
             }
+            
+            // Then try sizeColorVariants field (if it exists)
+            if (product.sizeColorVariants && Array.isArray(product.sizeColorVariants)) {
+                const allColors = [];
+                product.sizeColorVariants.forEach(sizeVariant => {
+                    if (sizeVariant.colorStocks && Array.isArray(sizeVariant.colorStocks)) {
+                        sizeVariant.colorStocks.forEach(colorStock => {
+                            if (colorStock.color && colorStock.color.trim() !== '' && !allColors.includes(colorStock.color.trim())) {
+                                allColors.push(colorStock.color.trim());
+                            }
+                        });
+                    }
+                });
+                
+                if (allColors.length > 0) {
+                    return allColors;
+                }
+            }
+            
+            // Fallback to legacy colors field
+            if (product.colors) {
+                try {
+                    const colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : product.colors;
+                    if (Array.isArray(colors) && colors.length > 0) {
+                        const validColors = colors.filter(color => color && color.trim() !== '');
+                        if (validColors.length > 0) {
+                            return validColors;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Error parsing colors field:', e);
+                }
+            }
+            
+            // Fallback to single productcolor
+            if (product.productcolor && product.productcolor.trim() !== '') {
+                // Handle comma-separated colors in productcolor field
+                if (product.productcolor.includes(',')) {
+                    return product.productcolor.split(',').map(c => c.trim()).filter(c => c);
+                }
+                return [product.productcolor.trim()];
+            }
+            
+            return ['Not specified'];
+        } catch (error) {
+            console.error('Error parsing product colors:', error);
+            // Fallback handling
+            if (product.productcolor && product.productcolor.trim() !== '') {
+                return [product.productcolor.trim()];
+            }
+            return ['Not specified'];
         }
-        
-        return product.productcolor ? [product.productcolor] : [];
     };
 
-    // Get total stock for a product
+    // Get all unique colors available for the product (for display purposes) - alias for consistency
+    const getAllProductColors = (product) => {
+        return getProductColors(product);
+    };    // Get total stock for a product (matches MaintenancePage.js logic)
     const getTotalStock = (product) => {
         if (!product) return 0;
         
-        // Use total_stock if it exists
+        // Use total_stock if it exists (most reliable)
         if (product.total_stock !== undefined && product.total_stock !== null) {
             return product.total_stock;
         }
         
-        // Use sizeColorVariants if available
+        // First check if sizes field contains sizeColorVariants structure
+        if (product.sizes) {
+            try {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                    return parsedSizes.reduce((total, variant) => {
+                        return total + variant.colorStocks.reduce((subtotal, cs) => {
+                            return subtotal + (cs.stock || 0);
+                        }, 0);
+                    }, 0);
+                }
+                // Otherwise it's the old format
+                else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
+                    return parsedSizes.reduce((total, size) => total + (size.stock || 0), 0);
+                }
+            } catch (e) {
+                console.log('Error parsing sizes field for total stock:', e);
+            }
+        }
+        
+        // Then check sizeColorVariants field
         if (product.sizeColorVariants) {
             const variants = parseSizeColorVariants(product.sizeColorVariants);
             return variants.reduce((total, variant) => {
@@ -713,15 +947,40 @@ const ProductDetailsPage = () => {
             }, 0);
         }
         
-        // Fallback to old sizes structure
-        const sizes = parseSizes(product.sizes);
-        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+        // Fallback to productquantity
+        return product.productquantity || 0;
     };
 
-    // Get stock for selected size and color
+    // Get stock for selected size and color    // Get stock for selected size and color (matches MaintenancePage.js logic)
     const getStockForSizeAndColor = (size, color) => {
         if (!product) return 0;
         
+        // First check if sizes field contains sizeColorVariants structure
+        if (product.sizes) {
+            try {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                    const sizeVariant = parsedSizes.find(v => v.size === size);
+                    
+                    if (sizeVariant) {
+                        if (color) {
+                            // Return stock for specific color
+                            const colorStock = sizeVariant.colorStocks.find(cs => cs.color === color);
+                            return colorStock ? colorStock.stock : 0;
+                        } else {
+                            // Return total stock for all colors in this size
+                            return sizeVariant.colorStocks.reduce((total, cs) => total + (cs.stock || 0), 0);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Error parsing sizes field for stock:', e);
+            }
+        }
+        
+        // Then check sizeColorVariants field
         if (product.sizeColorVariants) {
             const variants = parseSizeColorVariants(product.sizeColorVariants);
             const sizeVariant = variants.find(v => v.size === size);
@@ -740,7 +999,59 @@ const ProductDetailsPage = () => {
         
         // Fallback to old structure
         return getStockForSize(size);
-    };    const addToCart = async () => {
+    };// Get detailed size-color breakdown for display (matches MaintenancePage.js logic)
+    const getSizeColorBreakdown = (product) => {
+        try {
+            // First check if sizes field contains sizeColorVariants structure
+            if (product.sizes) {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                    // Ensure the structure is correct
+                    const validVariants = parsedSizes.filter(sizeVariant => {
+                        return sizeVariant && 
+                               typeof sizeVariant.size === 'string' && 
+                               Array.isArray(sizeVariant.colorStocks) &&
+                               sizeVariant.colorStocks.some(colorStock => 
+                                   colorStock && 
+                                   typeof colorStock.color === 'string' && 
+                                   typeof colorStock.stock === 'number' && 
+                                   colorStock.stock > 0
+                               );
+                    });
+                    
+                    return validVariants;
+                }
+            }
+            
+            // Then check sizeColorVariants field
+            if (product.sizeColorVariants) {
+                const sizeColorVariants = typeof product.sizeColorVariants === 'string' 
+                    ? JSON.parse(product.sizeColorVariants) 
+                    : product.sizeColorVariants;
+                
+                // Ensure the structure is correct
+                const validVariants = sizeColorVariants.filter(sizeVariant => {
+                    return sizeVariant && 
+                           typeof sizeVariant.size === 'string' && 
+                           Array.isArray(sizeVariant.colorStocks) &&
+                           sizeVariant.colorStocks.some(colorStock => 
+                               colorStock && 
+                               typeof colorStock.color === 'string' && 
+                               typeof colorStock.stock === 'number' && 
+                               colorStock.stock > 0
+                           );
+                });
+                
+                return validVariants;
+            }
+        } catch (error) {
+            console.error('Error parsing size-color variants:', error);
+        }
+        
+        return [];
+    };const addToCart = async () => {
         // Validate required fields
         if (availableSizes.length > 0 && !selectedSize) {
             showNotification('Please select a size first', 'error');
@@ -806,6 +1117,36 @@ const ProductDetailsPage = () => {
         return sizeData ? sizeData.stock : 0;
     };
     
+    // Convert color name to CSS color value
+    const getColorValue = (colorName) => {
+        const colorMap = {
+            'black': '#000000',
+            'white': '#ffffff',
+            'red': '#ff0000',
+            'blue': '#0000ff',
+            'green': '#008000',
+            'yellow': '#ffff00',
+            'pink': '#ffc0cb',
+            'purple': '#800080',
+            'orange': '#ffa500',
+            'brown': '#a52a2a',
+            'gray': '#808080',
+            'grey': '#808080',
+            'navy': '#000080',
+            'beige': '#f5f5dc',
+            'maroon': '#800000',
+            'olive': '#808000',
+            'lime': '#00ff00',
+            'aqua': '#00ffff',
+            'teal': '#008080',
+            'silver': '#c0c0c0',
+            'gold': '#ffd700'
+        };
+        
+        const lowerName = colorName.toLowerCase();
+        return colorMap[lowerName] || lowerName;
+    };
+
     if (loading) {
         return (
             <PageContainer>
@@ -925,56 +1266,114 @@ const ProductDetailsPage = () => {
                             <h3>Description</h3>
                             <p>{product.productdescription || 'No description available'}</p>
                         </Description>
-                        
-                        <Specifications>
+                          <Specifications>
                             <h3>Product Details</h3>
+                              {/* Product Type */}
+                            {product.product_type && (
+                                <SpecItem>
+                                    <SpecLabel>Category:</SpecLabel>
+                                    <SpecValue style={{ textTransform: 'capitalize' }}>
+                                        {product.product_type.replace('-', ' ')}
+                                    </SpecValue>
+                                </SpecItem>
+                            )}
+                            
+                            {/* Product ID */}
+                            <SpecItem>
+                                <SpecLabel>Product ID:</SpecLabel>
+                                <SpecValue>
+                                    #{product.product_id || product.id}
+                                </SpecValue>
+                            </SpecItem>                              {/* Available Colors Display - Enhanced */}
+                            {(() => {
+                                const allColors = getAllProductColors(product);
+                                return allColors.length > 0 && allColors[0] !== 'Not specified' ? (
+                                    <SpecItem>
+                                        <SpecLabel>Available Colors:</SpecLabel>
+                                        <SpecValue style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                                            {allColors.map((color, index) => (
+                                                <span key={`${color}-${index}`} style={{ 
+                                                    padding: '4px 10px', 
+                                                    background: 'rgba(0, 0, 0, 0.08)', 
+                                                    borderRadius: '16px', 
+                                                    fontSize: '12px',
+                                                    textTransform: 'capitalize',
+                                                    border: '1px solid rgba(0, 0, 0, 0.1)',
+                                                    fontWeight: '500'
+                                                }}>
+                                                    {color}
+                                                </span>
+                                            ))}
+                                        </SpecValue>
+                                    </SpecItem>
+                                ) : null;
+                            })()}
                               {/* Size Selection */}
                             {availableSizes.length > 0 && (
                                 <SpecItem>
                                     <SpecLabel>Size:</SpecLabel>
                                     <SizeOptions>
-                                        {availableSizes.map((sizeData) => (
-                                            <SizeButton
-                                                key={sizeData.size}
-                                                selected={selectedSize === sizeData.size}
-                                                onClick={() => {
-                                                    setSelectedSize(sizeData.size);
-                                                    // Reset color when size changes
-                                                    const colorsForSize = getAvailableColors(product, sizeData.size);
-                                                    if (colorsForSize.length > 0) {
-                                                        setSelectedColor(colorsForSize[0]);
-                                                    } else {
-                                                        setSelectedColor('');
+                                        {availableSizes.map((sizeData) => {
+                                            // Get color breakdown for this size
+                                            const sizeColorBreakdown = getSizeColorBreakdown(product);
+                                            const sizeVariant = sizeColorBreakdown.find(variant => variant.size === sizeData.size);
+                                            
+                                            return (
+                                                <SizeButton
+                                                    key={sizeData.size}
+                                                    selected={selectedSize === sizeData.size}
+                                                    onClick={() => {
+                                                        setSelectedSize(sizeData.size);
+                                                        // Reset color when size changes
+                                                        const colorsForSize = getAvailableColors(product, sizeData.size);
+                                                        if (colorsForSize.length > 0) {
+                                                            setSelectedColor(colorsForSize[0]);
+                                                        } else {
+                                                            setSelectedColor('');
+                                                        }
+                                                    }}
+                                                    title={sizeVariant ? 
+                                                        `${sizeData.size}: ${sizeVariant.colorStocks.map(cs => `${cs.color} (${cs.stock})`).join(', ')}` :
+                                                        `${sizeData.size}: ${sizeData.stock} available`
                                                     }
-                                                }}
-                                            >
-                                                {sizeData.size}
-                                                <small>({sizeData.stock} available)</small>
-                                            </SizeButton>
-                                        ))}
+                                                >
+                                                    {sizeData.size}
+                                                    <small>({sizeData.stock} available)</small>
+                                                </SizeButton>
+                                            );
+                                        })}
                                     </SizeOptions>
                                 </SpecItem>
-                            )}
+                            )}{/* Color Selection - Enhanced for size-color variants */}
+                            {(() => {
+                                const availableColors = selectedSize ? getAvailableColors(product, selectedSize) : getAllProductColors(product);
+                                return availableColors.length > 0 && availableColors[0] !== 'Not specified' ? (
+                                    <SpecItem>
+                                        <SpecLabel>Color:</SpecLabel>
+                                        <ColorOptions>
+                                            {availableColors.map((color, index) => (
+                                                <ColorButton
+                                                    key={`${color}-${index}`}
+                                                    color={getColorValue(color.toLowerCase())}
+                                                    selected={selectedColor === color}
+                                                    onClick={() => setSelectedColor(color)}
+                                                    title={color}
+                                                >
+                                                    <ColorName>{color}</ColorName>
+                                                </ColorButton>
+                                            ))}
+                                        </ColorOptions>
+                                    </SpecItem>
+                                ) : null;
+                            })()}
                             
-                            {/* Color Selection - Enhanced for size-color variants */}
-                            {selectedSize && availableColors.length > 0 && (
-                                <SpecItem>
-                                    <SpecLabel>Color:</SpecLabel>
-                                    <ColorOptions>
-                                        {availableColors.map((color) => (
-                                            <ColorButton
-                                                key={color}
-                                                color={color.toLowerCase()}
-                                                selected={selectedColor === color}
-                                                onClick={() => setSelectedColor(color)}
-                                                title={color}
-                                            >
-                                                <ColorName>{color}</ColorName>
-                                            </ColorButton>
-                                        ))}
-                                    </ColorOptions>
-                                </SpecItem>
-                            )}
+                            {/* Product Status */}
+                            <SpecItem>
+                                <SpecLabel>Status:</SpecLabel>
+                                <SpecValue className={product.status === 'active' ? 'stock-available' : 'stock-unavailable'}>
+                                    {product.status === 'archived' ? 'Archived' : 'Active'}
+                                </SpecValue>
+                            </SpecItem>
                             
                             <SpecItem>
                                 <SpecLabel>Availability:</SpecLabel>
@@ -1028,13 +1427,12 @@ const ProductDetailsPage = () => {
                             </OutOfStock>
                         )}
 
-                        <InfoCards>
-                            <InfoCard>
+                        <InfoCards>                            <InfoCard>
                                 <div className="icon">
                                     <FontAwesomeIcon icon={faTruck} size="lg" />
                                 </div>
-                                <div className="title">Free Shipping</div>
-                                <div className="description">On orders over ₱1,500</div>
+                                <div className="title">Cash on Delivery</div>
+                                <div className="description">Pay when you receive</div>
                             </InfoCard>
                             <InfoCard>
                                 <div className="icon">

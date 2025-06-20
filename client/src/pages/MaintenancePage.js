@@ -38,10 +38,10 @@ const MaintenancePage = () => {
     // Multiple image handling
     const [selectedImages, setSelectedImages] = useState([]);
     const [imagePreviews, setImagePreviews] = useState([]);
-    const [existingImages, setExistingImages] = useState([]);    // Generate random product ID
-    const generateProductId = () => {
-        return Math.floor(100000000000 + Math.random() * 899999999999);
-    };    // Clear browser cache/cookies if needed
+    const [existingImages, setExistingImages] = useState([]);    // Generate random product ID    // Commented out unused functions - these were for legacy compatibility
+    // const generateProductId = () => {
+    //     return Math.floor(100000000000 + Math.random() * 899999999999);
+    // };// Clear browser cache/cookies if needed
     const clearBrowserData = () => {
         // Clear localStorage
         localStorage.clear();
@@ -55,31 +55,100 @@ const MaintenancePage = () => {
         console.log('🔄 fetchProducts called');
         try {
             setLoading(true);
-            setMessage('');
-              console.log('📡 Making fetch request to /api/enhanced-maintenance/products');
-            const response = await fetch('http://localhost:3001/api/enhanced-maintenance/products', {
+            setMessage('');              console.log('📡 Making fetch request to /api/maintenance/products');
+            const response = await fetch('http://localhost:3001/api/maintenance/products', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json'
                 }
             });
-            console.log('📡 Response received:', response.status, response.statusText);
-              if (response.ok) {
+            console.log('📡 Response received:', response.status, response.statusText);              if (response.ok) {
                 const data = await response.json();
                 console.log('📦 Data received:', data);
                 console.log('📊 Data length:', data.length);
                 console.log('📋 Setting products in state...');
+                  // Process the regular maintenance API data to add enhanced functionality
+                const processedProducts = data.map(product => {
+                    console.log('Processing product:', product.productname, 'Raw sizes:', product.sizes, 'Raw color:', product.productcolor);
+                      // Create basic size-color variants from existing data
+                    let sizeColorVariants = [];
+                    
+                    // First, check if the sizes field contains sizeColorVariants structure
+                    if (product.sizes) {
+                        try {
+                            const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                            
+                            // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
+                            if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                                sizeColorVariants = parsedSizes;
+                                console.log('Found sizeColorVariants in sizes field for', product.productname, ':', sizeColorVariants);
+                            }
+                            // Otherwise it's the old format (array of objects with size and stock, or just strings)
+                            else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
+                                // Parse colors from productcolor field
+                                let colorsArray = [];
+                                if (typeof product.productcolor === 'string' && product.productcolor.startsWith('[')) {
+                                    colorsArray = JSON.parse(product.productcolor);
+                                } else if (typeof product.productcolor === 'string' && product.productcolor.includes(',')) {
+                                    colorsArray = product.productcolor.split(',').map(c => c.trim()).filter(c => c);
+                                } else if (typeof product.productcolor === 'string') {
+                                    colorsArray = [product.productcolor];
+                                } else {
+                                    colorsArray = ['Default'];
+                                }
+                                
+                                // Convert old format to new format
+                                parsedSizes.forEach(sizeItem => {
+                                    const sizeName = typeof sizeItem === 'object' && sizeItem.size ? sizeItem.size : String(sizeItem);
+                                    const stock = typeof sizeItem === 'object' && sizeItem.stock ? sizeItem.stock : 0;
+                                    
+                                    const colorStocks = colorsArray.map(color => ({
+                                        color: color,
+                                        stock: Math.floor(stock / colorsArray.length)
+                                    }));
+                                    
+                                    sizeColorVariants.push({
+                                        size: sizeName,
+                                        colorStocks: colorStocks
+                                    });
+                                });
+                                
+                                console.log('Converted old format to sizeColorVariants for', product.productname, ':', sizeColorVariants);
+                            }
+                        } catch (e) {
+                            console.log('Error parsing sizes field for product', product.product_id, ':', e);
+                        }
+                    }
+                    
+                    // Final fallback: create a default variant
+                    if (!sizeColorVariants || sizeColorVariants.length === 0) {
+                        sizeColorVariants = [{
+                            size: 'One Size', 
+                            colorStocks: [{
+                                color: product.productcolor || 'Default',
+                                stock: product.total_stock || product.productquantity || 0
+                            }]
+                        }];
+                        console.log('Using default sizeColorVariants for', product.productname, ':', sizeColorVariants);
+                    }
+                    
+                    return {
+                        ...product,
+                        sizeColorVariants,
+                        // Add fields for consistency
+                        status: product.productstatus || 'active',
+                        is_archived: product.productstatus === 'archived'
+                    };
+                });
                 
-                // Data is already processed by the enhanced API with sizeColorVariants
-                // Separate active and archived products
-                const activeProducts = data.filter(product => product.status !== 'archived' && !product.is_archived);
-                const archived = data.filter(product => product.status === 'archived' || product.is_archived);
-                
-                setProducts(activeProducts);
+                // Show all products together, we'll handle archived styling in the UI
+                const allProducts = processedProducts;
+                const archived = processedProducts.filter(product => product.status === 'archived' || product.is_archived);
+                  setProducts(allProducts);
                 setArchivedProducts(archived);
                 console.log('✅ Products set in state');
-                console.log('Sample product with sizeColorVariants:', activeProducts[0]?.sizeColorVariants);
+                console.log('Sample product with sizeColorVariants:', allProducts[0]?.sizeColorVariants);
             } else if (response.status === 431) {
                 console.error('❌ Request Header Fields Too Large');
                 setMessage('Error: Request headers too large. Please try refreshing the page.');
@@ -106,9 +175,7 @@ const MaintenancePage = () => {
             console.error('Error fetching product images:', error);
         }
         return [];
-    };
-
-    useEffect(() => {
+    };    useEffect(() => {
         fetchProducts();
     }, []);
 
@@ -118,64 +185,82 @@ const MaintenancePage = () => {
             console.log('🔄 Manage tab activated, fetching products...');
             fetchProducts();
         }
-    }, [activeTab]);    // Handle form input changes
+    }, [activeTab]);
+
+    // Debug: Log form data changes
+    useEffect(() => {
+        console.log('Form data changed:', formData);
+    }, [formData]);// Handle form input changes
     const handleInputChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
-    };    // Handle size and color variant changes
-    const handleSizeColorVariantChange = (sizeIndex, colorIndex, field, value) => {
-        const newVariants = [...formData.sizeColorVariants];
-        if (field === 'size') {
-            newVariants[sizeIndex].size = value;
-        } else if (field === 'color') {
-            newVariants[sizeIndex].colorStocks[colorIndex].color = value;
-        } else if (field === 'stock') {
-            newVariants[sizeIndex].colorStocks[colorIndex].stock = parseInt(value) || 0;
-        }
-        setFormData({
-            ...formData,
-            sizeColorVariants: newVariants
-        });
+        const { name, value } = e.target;
+        console.log('Form input changed:', name, '=', value);
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
-    // Add new color to a specific size
+    // Handle product type change specifically  
+    const handleProductTypeChange = (e) => {
+        console.log('Product type changed to:', e.target.value);
+        setFormData(prev => ({
+            ...prev,
+            product_type: e.target.value
+        }));
+    };// Handle size and color variant changes    // Commented out unused legacy function
+    // const handleSizeColorVariantChange = (sizeIndex, colorIndex, field, value) => {
+    //     const newVariants = [...formData.sizeColorVariants];
+    //     if (field === 'size') {
+    //         newVariants[sizeIndex].size = value;
+    //     } else if (field === 'color') {
+    //         newVariants[sizeIndex].colorStocks[colorIndex].color = value;
+    //     } else if (field === 'stock') {
+    //         newVariants[sizeIndex].colorStocks[colorIndex].stock = parseInt(value) || 0;
+    //     }
+    //     setFormData({
+    //         ...formData,
+    //         sizeColorVariants: newVariants
+    //     });
+    // };    // Add new color to a specific size
     const addColorToSize = (sizeIndex) => {
+        console.log('Adding color to size index:', sizeIndex);
         const newVariants = [...formData.sizeColorVariants];
         newVariants[sizeIndex].colorStocks.push({ color: '', stock: 0 });
-        setFormData({
-            ...formData,
+        setFormData(prev => ({
+            ...prev,
             sizeColorVariants: newVariants
-        });
+        }));
     };
 
     // Remove color from a specific size
     const removeColorFromSize = (sizeIndex, colorIndex) => {
+        console.log('Removing color from size:', sizeIndex, 'color:', colorIndex);
         const newVariants = [...formData.sizeColorVariants];
         newVariants[sizeIndex].colorStocks = newVariants[sizeIndex].colorStocks.filter((_, i) => i !== colorIndex);
-        setFormData({
-            ...formData,
+        setFormData(prev => ({
+            ...prev,
             sizeColorVariants: newVariants
-        });
+        }));
     };
 
     // Add new size variant
     const addSizeVariant = () => {
-        setFormData({
-            ...formData,
-            sizeColorVariants: [...formData.sizeColorVariants, { size: '', colorStocks: [{ color: '', stock: 0 }] }]
-        });
+        console.log('Adding new size variant');
+        setFormData(prev => ({
+            ...prev,
+            sizeColorVariants: [...prev.sizeColorVariants, { size: '', colorStocks: [{ color: '', stock: 0 }] }]
+        }));
     };
 
     // Remove size variant
     const removeSizeVariant = (index) => {
+        console.log('Removing size variant at index:', index);
         const newVariants = formData.sizeColorVariants.filter((_, i) => i !== index);
-        setFormData({
-            ...formData,
+        setFormData(prev => ({
+            ...prev,
             sizeColorVariants: newVariants
-        });
-    };    // Calculate total stock across all variants
+        }));
+    };// Calculate total stock across all variants
     const getTotalStock = () => {
         return formData.sizeColorVariants.reduce((total, sizeVariant) => {
             return total + sizeVariant.colorStocks.reduce((sizeTotal, colorStock) => {
@@ -185,43 +270,45 @@ const MaintenancePage = () => {
     };    // Extract all unique colors from sizeColorVariants for display
     const getProductColors = (product) => {
         try {
-            // First, try to get colors from new sizeColorVariants structure
-            if (product.sizeColorVariants) {
-                const sizeColorVariants = typeof product.sizeColorVariants === 'string' 
-                    ? JSON.parse(product.sizeColorVariants) 
-                    : product.sizeColorVariants;
-                
-                if (Array.isArray(sizeColorVariants)) {
-                    const allColors = [];
-                    sizeColorVariants.forEach(sizeVariant => {
-                        if (sizeVariant.colorStocks && Array.isArray(sizeVariant.colorStocks)) {
-                            sizeVariant.colorStocks.forEach(colorStock => {
-                                if (colorStock.color && colorStock.color.trim() !== '' && !allColors.includes(colorStock.color.trim())) {
-                                    allColors.push(colorStock.color.trim());
-                                }
-                            });
-                        }
-                    });
-                    
-                    if (allColors.length > 0) {
-                        return allColors;
+            // First, try to get colors from sizeColorVariants structure
+            if (product.sizeColorVariants && Array.isArray(product.sizeColorVariants)) {
+                const allColors = [];
+                product.sizeColorVariants.forEach(sizeVariant => {
+                    if (sizeVariant.colorStocks && Array.isArray(sizeVariant.colorStocks)) {
+                        sizeVariant.colorStocks.forEach(colorStock => {
+                            if (colorStock.color && colorStock.color.trim() !== '' && !allColors.includes(colorStock.color.trim())) {
+                                allColors.push(colorStock.color.trim());
+                            }
+                        });
                     }
+                });
+                
+                if (allColors.length > 0) {
+                    return allColors;
                 }
             }
             
             // Fallback to legacy colors field
             if (product.colors) {
-                const colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : product.colors;
-                if (Array.isArray(colors) && colors.length > 0) {
-                    const validColors = colors.filter(color => color && color.trim() !== '');
-                    if (validColors.length > 0) {
-                        return validColors;
+                try {
+                    const colors = typeof product.colors === 'string' ? JSON.parse(product.colors) : product.colors;
+                    if (Array.isArray(colors) && colors.length > 0) {
+                        const validColors = colors.filter(color => color && color.trim() !== '');
+                        if (validColors.length > 0) {
+                            return validColors;
+                        }
                     }
+                } catch (e) {
+                    console.log('Error parsing colors field:', e);
                 }
             }
             
             // Fallback to single productcolor
             if (product.productcolor && product.productcolor.trim() !== '') {
+                // Handle comma-separated colors in productcolor field
+                if (product.productcolor.includes(',')) {
+                    return product.productcolor.split(',').map(c => c.trim()).filter(c => c);
+                }
                 return [product.productcolor.trim()];
             }
             
@@ -234,9 +321,7 @@ const MaintenancePage = () => {
             }
             return ['Not specified'];
         }
-    };
-
-    // Get detailed size-color breakdown for display
+    };    // Get detailed size-color breakdown for display
     const getSizeColorBreakdown = (product) => {
         try {
             if (product.sizeColorVariants) {
@@ -244,67 +329,99 @@ const MaintenancePage = () => {
                     ? JSON.parse(product.sizeColorVariants) 
                     : product.sizeColorVariants;
                 
-                return sizeColorVariants.filter(sizeVariant => 
-                    sizeVariant.colorStocks.some(colorStock => colorStock.stock > 0)
-                );
+                // Ensure the structure is correct
+                const validVariants = sizeColorVariants.filter(sizeVariant => {
+                    // Check that sizeVariant has the expected structure
+                    return sizeVariant && 
+                           typeof sizeVariant.size === 'string' && 
+                           Array.isArray(sizeVariant.colorStocks) &&
+                           sizeVariant.colorStocks.some(colorStock => 
+                               colorStock && 
+                               typeof colorStock.color === 'string' && 
+                               typeof colorStock.stock === 'number' && 
+                               colorStock.stock > 0
+                           );
+                });
+                
+                return validVariants;
             }
         } catch (error) {
             console.error('Error parsing size-color variants:', error);
-        }
+            console.error('Product sizeColorVariants:', product.sizeColorVariants);        }
         return [];
+    };    // Handle size-color variant changes for the new structure
+    const handleSizeVariantChange = (sizeIndex, field, value) => {
+        console.log('Size variant change:', sizeIndex, field, value);
+        const newVariants = [...formData.sizeColorVariants];
+        if (field === 'size') {
+            newVariants[sizeIndex].size = value;
+        }
+        setFormData(prev => ({
+            ...prev,
+            sizeColorVariants: newVariants
+        }));
     };
 
-    // Handle size and stock changes (keep for backward compatibility)
-    const handleSizeChange = (index, field, value) => {
-        const newSizes = [...formData.sizes];
-        newSizes[index][field] = field === 'stock' ? parseInt(value) || 0 : value;
-        setFormData({
-            ...formData,
-            sizes: newSizes
-        });
-    };
+    const handleColorStockChange = (sizeIndex, colorIndex, field, value) => {
+        console.log('Color stock change:', sizeIndex, colorIndex, field, value);
+        const newVariants = [...formData.sizeColorVariants];
+        if (field === 'color') {
+            newVariants[sizeIndex].colorStocks[colorIndex].color = value;
+        } else if (field === 'stock') {
+            newVariants[sizeIndex].colorStocks[colorIndex].stock = parseInt(value) || 0;
+        }
+        setFormData(prev => ({
+            ...prev,
+            sizeColorVariants: newVariants
+        }));
+    };// Legacy functions (keep for backward compatibility but update to sync with sizeColorVariants)    // Commented out legacy functions (keeping for backward compatibility but not currently used)
+    // const handleSizeChange = (index, field, value) => {
+    //     const newSizes = [...formData.sizes];
+    //     newSizes[index][field] = field === 'stock' ? parseInt(value) || 0 : value;
+    //     setFormData({
+    //         ...formData,
+    //         sizes: newSizes
+    //     });
+    // };
 
-    // Add new size
-    const addSize = () => {
-        setFormData({
-            ...formData,
-            sizes: [...formData.sizes, { size: '', stock: 0 }]
-        });
-    };    // Remove size
-    const removeSize = (index) => {
-        const newSizes = formData.sizes.filter((_, i) => i !== index);
-        setFormData({
-            ...formData,
-            sizes: newSizes
-        });
-    };
+    // const addSize = () => {
+    //     setFormData({
+    //         ...formData,
+    //         sizes: [...formData.sizes, { size: '', stock: 0 }]
+    //     });
+    // };
 
-    // Handle color changes
-    const handleColorChange = (index, value) => {
-        const newColors = [...formData.colors];
-        newColors[index] = value;
-        setFormData({
-            ...formData,
-            colors: newColors
-        });
-    };
+    // const removeSize = (index) => {
+    //     const newSizes = formData.sizes.filter((_, i) => i !== index);
+    //     setFormData({
+    //         ...formData,
+    //         sizes: newSizes
+    //     });
+    // };
 
-    // Add new color
-    const addColor = () => {
-        setFormData({
-            ...formData,
-            colors: [...formData.colors, '']
-        });
-    };
+    // const handleColorChange = (index, value) => {
+    //     const newColors = [...formData.colors];
+    //     newColors[index] = value;
+    //     setFormData({
+    //         ...formData,
+    //         colors: newColors
+    //     });
+    // };
 
-    // Remove color
-    const removeColor = (index) => {
-        const newColors = formData.colors.filter((_, i) => i !== index);
-        setFormData({
-            ...formData,
-            colors: newColors
-        });
-    };// Compress image before upload
+    // const addColor = () => {
+    //     setFormData({
+    //         ...formData,
+    //         colors: [...formData.colors, '']
+    //     });
+    // };
+
+    // const removeColor = (index) => {
+    //     const newColors = formData.colors.filter((_, i) => i !== index);
+    //     setFormData({
+    //         ...formData,
+    //         colors: newColors
+    //     });
+    // };// Compress image before upload
     const compressImage = (file, maxWidth = 800, quality = 0.8) => {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
@@ -408,7 +525,8 @@ const MaintenancePage = () => {
         }
     };    // Reset form
     const resetForm = () => {
-        setFormData({
+        console.log('Resetting form...');
+        const defaultFormData = {
             productname: '',
             productdescription: '',
             productprice: '',
@@ -433,11 +551,16 @@ const MaintenancePage = () => {
                 }
             ],
             sizes: [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }]
-        });
+        };
+        
+        setFormData(defaultFormData);
         setSelectedImages([]);
         setImagePreviews([]);
         setExistingImages([]);
         setEditingProduct(null);        setShowEditModal(false);
+        setMessage('');
+        
+        console.log('Form reset complete, default form data:', defaultFormData);
     };
 
     // Handle form submission
@@ -487,19 +610,20 @@ const MaintenancePage = () => {
                 selectedImages.forEach((image, index) => {
                     formDataToSend.append('images', image);
                 });
-            }
-
-            // Debug: Log what we're sending
-            console.log('=== FRONTEND FORM DATA ===');
+            }            // Debug: Log what we're sending
+            console.log('=== SUBMITTING PRODUCT DATA ===');
             console.log('Product name:', formData.productname);
-            console.log('Size Color Variants:', formData.sizeColorVariants);
+            console.log('Size Color Variants:', JSON.stringify(formData.sizeColorVariants, null, 2));
             console.log('Total Stock:', totalStock);
-            console.log('Selected images count:', selectedImages.length);            for (let pair of formDataToSend.entries()) {
+            console.log('Selected images count:', selectedImages.length);
+            
+            console.log('=== FORM DATA BEING SENT ===');
+            for (let pair of formDataToSend.entries()) {
                 if (pair[0] !== 'images') { // Don't log file objects
                     console.log(pair[0] + ':', pair[1]);
                 }
-            }            const url = editingProduct? `http://localhost:3001/api/enhanced-maintenance/products/${editingProduct.id}`
-                : 'http://localhost:3001/api/enhanced-maintenance/products';
+            }const url = editingProduct? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
+                : 'http://localhost:3001/api/maintenance/products';
             
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -523,55 +647,98 @@ const MaintenancePage = () => {
         } finally {
             setLoading(false);
         }
-    };
-    // Edit product
+    };    // Edit product
     const editProduct = async (product) => {
+        console.log('=== EDITING PRODUCT ===');
+        console.log('Full product data:', product);
+        console.log('Raw sizes field:', product.sizes);
+        console.log('Raw productcolor field:', product.productcolor);
+        console.log('Processed sizeColorVariants:', product.sizeColorVariants);
+        
         setEditingProduct(product);
         
-        // Parse sizes from JSON or create default
+        // Use the processed sizeColorVariants from the product data
+        let sizeColorVariants = [];
+        if (product.sizeColorVariants && Array.isArray(product.sizeColorVariants)) {
+            sizeColorVariants = JSON.parse(JSON.stringify(product.sizeColorVariants)); // Deep copy
+            console.log('Using processed sizeColorVariants:', sizeColorVariants);
+        } else {
+            // Fallback: try to parse from raw sizes field
+            try {
+                if (product.sizes && typeof product.sizes === 'string') {
+                    const parsedSizes = JSON.parse(product.sizes);
+                    console.log('Parsed sizes from raw field:', parsedSizes);
+                    
+                    // Check if it's already in sizeColorVariants format
+                    if (parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                        sizeColorVariants = parsedSizes;
+                        console.log('Found sizeColorVariants in raw sizes field:', sizeColorVariants);
+                    } else {
+                        // Convert old format to new format
+                        const colors = product.productcolor ? product.productcolor.split(',').map(c => c.trim()).filter(c => c) : ['Default'];
+                        sizeColorVariants = parsedSizes.map(sizeItem => ({
+                            size: typeof sizeItem === 'object' ? sizeItem.size : sizeItem,
+                            colorStocks: colors.map(color => ({
+                                color: color,
+                                stock: typeof sizeItem === 'object' ? Math.floor(sizeItem.stock / colors.length) : 0
+                            }))
+                        }));
+                        console.log('Converted old format to sizeColorVariants:', sizeColorVariants);
+                    }
+                }
+            } catch (e) {
+                console.log('Error parsing sizes field:', e);
+            }
+            
+            // Final fallback
+            if (!sizeColorVariants || sizeColorVariants.length === 0) {
+                sizeColorVariants = [
+                    { size: 'S', colorStocks: [{ color: product.productcolor || 'Black', stock: 0 }] },
+                    { size: 'M', colorStocks: [{ color: product.productcolor || 'Black', stock: 0 }] },
+                    { size: 'L', colorStocks: [{ color: product.productcolor || 'Black', stock: 0 }] },
+                    { size: 'XL', colorStocks: [{ color: product.productcolor || 'Black', stock: 0 }] }
+                ];
+                console.log('Using final fallback sizeColorVariants:', sizeColorVariants);
+            }
+        }
+        
+        // Parse legacy sizes for backward compatibility
         let sizes;
         try {
-            sizes = product.sizes ? JSON.parse(product.sizes) : 
-                   [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
+            if (product.sizes && typeof product.sizes === 'string' && product.sizes.startsWith('[')) {
+                sizes = JSON.parse(product.sizes);
+            } else {
+                sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
+            }
         } catch (error) {
             sizes = [{ size: 'S', stock: 0 }, { size: 'M', stock: 0 }, { size: 'L', stock: 0 }, { size: 'XL', stock: 0 }];
-        }        // Parse colors from JSON or use productcolor as fallback
+        }
+        
+        // Parse legacy colors for backward compatibility
         let colors = [];
         try {
-            if (product.colors) {
+            if (product.colors && typeof product.colors === 'string') {
                 colors = JSON.parse(product.colors);
             } else if (product.productcolor) {
                 colors = [product.productcolor];
             }
         } catch (error) {
             colors = product.productcolor ? [product.productcolor] : [];
-        }
-
-        // Convert existing data to new sizeColorVariants structure if needed
-        let sizeColorVariants = [];
-        try {
-            if (product.sizeColorVariants) {
-                sizeColorVariants = JSON.parse(product.sizeColorVariants);
-            } else {
-                // Convert from old format to new format
-                sizeColorVariants = sizes.map(sizeData => ({
-                    size: sizeData.size,
-                    colorStocks: colors.length > 0 
-                        ? colors.map(color => ({ color, stock: Math.floor(sizeData.stock / colors.length) }))
-                        : [{ color: product.productcolor || '', stock: sizeData.stock }]
-                }));
-            }
-        } catch (error) {
-            // Fallback to default structure
-            sizeColorVariants = [
-                { size: 'S', colorStocks: [{ color: '', stock: 0 }] },
-                { size: 'M', colorStocks: [{ color: '', stock: 0 }] },
-                { size: 'L', colorStocks: [{ color: '', stock: 0 }] },
-                { size: 'XL', colorStocks: [{ color: '', stock: 0 }] }
-            ];
-        }
-
-        setFormData({
+        }        setFormData({
+            productname: product.productname || '',
+            productdescription: product.productdescription || '',
+            productprice: product.productprice || '',
+            productcolor: product.productcolor || '',
+            colors: colors,
+            product_type: product.product_type || '',
+            sizes: sizes,
+            sizeColorVariants: sizeColorVariants
+        });
+        
+        console.log('=== FORM DATA SET FOR EDITING ===');
+        console.log('sizeColorVariants being set:', JSON.stringify(sizeColorVariants, null, 2));
+        console.log('product_type being set:', product.product_type);
+        console.log('Form data after setting:', {
             productname: product.productname || '',
             productdescription: product.productdescription || '',
             productprice: product.productprice || '',
@@ -590,8 +757,7 @@ const MaintenancePage = () => {
         setImagePreviews([]);
         setShowEditModal(true);
         setActiveTab('add');
-    };    
-    // Archive product
+    };      // Archive product
     const archiveProduct = async (id) => {
         if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
@@ -608,9 +774,7 @@ const MaintenancePage = () => {
                 setMessage('Error: ' + error.message);
             }
         }
-    };
-
-    // Restore archived product
+    };    // Restore archived product
     const restoreProduct = async (id) => {
         if (window.confirm('Are you sure you want to restore this product?')) {
             try {
@@ -668,26 +832,26 @@ const MaintenancePage = () => {
         }
     };
 
-    // Add the missing deleteProductImage function
-    const deleteProductImage = async (productId, filename) => {
-        if (!window.confirm('Are you sure you want to delete this image?')) return;
-        
-        try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/image/${filename}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                setMessage('Image deleted successfully!');
-                fetchProducts(); // Refresh products
-            } else {
-                setMessage('Error deleting image');
-            }
-        } catch (error) {
-            console.error('Error deleting image:', error);
-            setMessage('Error deleting image');
-        }
-    };
+    // Add the missing deleteProductImage function    // Commented out unused function
+    // const deleteProductImage = async (productId, filename) => {
+    //     if (!window.confirm('Are you sure you want to delete this image?')) return;
+    //     
+    //     try {
+    //         const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/image/${filename}`, {
+    //             method: 'DELETE'
+    //         });
+    //         
+    //         if (response.ok) {
+    //             setMessage('Image deleted successfully!');
+    //             fetchProducts(); // Refresh products
+    //         } else {
+    //             setMessage('Error deleting image');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error deleting image:', error);
+    //         setMessage('Error deleting image');
+    //     }
+    // };
 
     // Add hover effect styles for better interactivity
 const hoverStyles = `
@@ -740,6 +904,132 @@ const hoverStyles = `
 
 .restore-button:hover {
     background-color: #137333 !important;
+}
+
+/* Enhanced Submit Button Styles */
+.maintenance-submit-btn {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #000000 0%, #333333 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.maintenance-submit-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s ease;
+    z-index: 1;
+}
+
+.maintenance-submit-btn:hover::before {
+    left: 100%;
+}
+
+.maintenance-submit-btn:hover {
+    background: linear-gradient(135deg, #333333 0%, #000000 100%) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.maintenance-submit-btn:active {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.maintenance-submit-btn:disabled {
+    background: #cccccc !important;
+    color: #666666 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.maintenance-submit-btn:disabled::before {
+    display: none;
+}
+
+/* Enhanced Cancel Button Styles */
+.maintenance-cancel-btn {
+    background: transparent !important;
+    color: #000000 !important;
+    border: 2px solid #000000 !important;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.maintenance-cancel-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 100%;
+    background: #000000;
+    transition: width 0.3s ease;
+    z-index: -1;
+}
+
+.maintenance-cancel-btn:hover::before {
+    width: 100%;
+}
+
+.maintenance-cancel-btn:hover {
+    color: #ffffff !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.maintenance-cancel-btn:active {
+    transform: translateY(0) !important;
+    box-shadow: none !important;
+}
+
+/* Button Group Animation */
+.maintenance-button-group {
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading state animation */
+.maintenance-submit-btn.loading {
+    position: relative;
+}
+
+.maintenance-submit-btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 `;
 
@@ -975,12 +1265,11 @@ if (typeof document !== 'undefined') {
                                     <div style={styles.variantContainer}>
                                         {formData.sizeColorVariants.map((sizeVariant, sizeIndex) => (
                                             <div key={sizeIndex} style={styles.sizeVariantGroup}>
-                                                <div style={styles.sizeHeader}>
-                                                    <input
+                                                <div style={styles.sizeHeader}>                                                    <input
                                                         type="text"
                                                         placeholder="Size (e.g., S, M, L, XL)"
                                                         value={sizeVariant.size}
-                                                        onChange={(e) => handleSizeColorVariantChange(sizeIndex, 0, 'size', e.target.value)}
+                                                        onChange={(e) => handleSizeVariantChange(sizeIndex, 'size', e.target.value)}
                                                         style={styles.sizeVariantInput}
                                                     />
                                                     {formData.sizeColorVariants.length > 1 && (
@@ -996,19 +1285,18 @@ if (typeof document !== 'undefined') {
                                                 
                                                 <div style={styles.colorStocksContainer}>
                                                     {sizeVariant.colorStocks.map((colorStock, colorIndex) => (
-                                                        <div key={colorIndex} style={styles.colorStockRow}>
-                                                            <input
+                                                        <div key={colorIndex} style={styles.colorStockRow}>                                                            <input
                                                                 type="text"
                                                                 placeholder="Color (e.g., Red, Blue, Black)"
                                                                 value={colorStock.color}
-                                                                onChange={(e) => handleSizeColorVariantChange(sizeIndex, colorIndex, 'color', e.target.value)}
+                                                                onChange={(e) => handleColorStockChange(sizeIndex, colorIndex, 'color', e.target.value)}
                                                                 style={styles.colorVariantInput}
                                                             />
                                                             <input
                                                                 type="number"
                                                                 placeholder="Stock"
                                                                 value={colorStock.stock}
-                                                                onChange={(e) => handleSizeColorVariantChange(sizeIndex, colorIndex, 'stock', e.target.value)}
+                                                                onChange={(e) => handleColorStockChange(sizeIndex, colorIndex, 'stock', e.target.value)}
                                                                 style={styles.stockVariantInput}
                                                                 min="0"
                                                             />
@@ -1066,20 +1354,34 @@ if (typeof document !== 'undefined') {
                                         <option value="sweaters">Sweaters</option>
                                         <option value="t-shirts">T-Shirts</option>
                                     </select>
-                                </div>
-
-                                <div style={styles.buttonGroup}><button 
+                                </div>                                <div style={styles.buttonGroup} className="maintenance-button-group">                                    <button 
                                         type="submit" 
                                         style={styles.submitButton}
-                                        className="maintenance-button"
+                                        className={`maintenance-submit-btn ${loading ? 'loading' : ''}`}
                                         disabled={loading}
                                     >
-                                        {loading ? 'SAVING...' : (editingProduct ? 'UPDATE PRODUCT' : 'ADD PRODUCT')}
+                                        {loading ? (
+                                            <>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px', animation: 'spin 1s linear infinite'}}>
+                                                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                                                </svg>
+                                                SAVING...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}>
+                                                    <path d="M12 5v14"/>
+                                                    <path d="M5 12h14"/>
+                                                </svg>
+                                                {editingProduct ? 'UPDATE PRODUCT' : 'ADD PRODUCT'}
+                                            </>
+                                        )}
                                     </button>
                                     {editingProduct && (
                                         <button 
                                             type="button" 
                                             style={styles.cancelButton}
+                                            className="maintenance-cancel-btn"
                                             onClick={resetForm}
                                         >
                                             CANCEL
@@ -1093,20 +1395,14 @@ if (typeof document !== 'undefined') {
                         <div style={styles.tabContent}>
                             <h2 style={styles.sectionTitle}>Manage Products</h2>
                             
-                            {/* Sub-tabs for Active and Archived */}
+                            {/* Product Summary */}
                             <div style={styles.subTabs}>
-                                <button 
-                                    style={{...styles.subTab, backgroundColor: products.length > 0 ? '#28a745' : '#6c757d'}}
-                                    onClick={() => {/* Show active products */}}
-                                >
-                                    Active Products ({products.length})
-                                </button>
-                                <button 
-                                    style={{...styles.subTab, backgroundColor: archivedProducts.length > 0 ? '#ffc107' : '#6c757d'}}
-                                    onClick={() => {/* Show archived products */}}
-                                >
-                                    Archived Products ({archivedProducts.length})
-                                </button>
+                                <div style={{...styles.subTab, backgroundColor: '#28a745'}}>
+                                    Active Products: {products.filter(p => p.status !== 'archived' && !p.is_archived).length}
+                                </div>
+                                <div style={{...styles.subTab, backgroundColor: archivedProducts.length > 0 ? '#ffc107' : '#6c757d'}}>
+                                    Archived: {archivedProducts.length}
+                                </div>
                             </div>
                             
                             {loading ? (
@@ -1118,205 +1414,274 @@ if (typeof document !== 'undefined') {
                                             <p>No products found in database</p>
                                             <button onClick={fetchProducts}>Refresh</button>
                                         </div>
-                                    ) : (                                        <div style={styles.productsGrid}>                                            {products.map(product => (                                                <div key={product.id} style={styles.productCard} className="maintenance-card">
-                                                    {/* Display all product images */}
-                                                    {product.images && product.images.length > 0 ? (
-                                                        <div style={styles.productImageContainer}>
-                                                            {product.images.map((image, index) => (
-                                                                <img 
-                                                                    key={index}
-                                                                    src={`http://localhost:3001/uploads/${image}`}
-                                                                    alt={`${product.productname} ${index + 1}`}
-                                                                    style={{
-                                                                        ...styles.productImage,
-                                                                        ...(index > 0 ? styles.additionalImage : {})
-                                                                    }}
-                                                                />
-                                                            ))}
-                                                            {product.images.length > 1 && (
-                                                                <div style={styles.imageCount}>
-                                                                    {product.images.length} images
+                                    ) : (
+                                        <div>
+                                            {/* Active Products Section */}
+                                            <div style={styles.sectionContainer}>
+                                                <h3 style={styles.sectionSubTitle}>Active Products</h3>
+                                                <div style={styles.productsGrid}>
+                                                    {products.filter(p => p.status !== 'archived' && !p.is_archived).map(product => (
+                                                        <div key={product.id} style={styles.productCard} className="maintenance-card">
+                                                            {/* Product Image */}
+                                                            {product.images && product.images.length > 0 ? (
+                                                                <div style={styles.productImageContainer}>
+                                                                    <img 
+                                                                        src={`http://localhost:3001/uploads/${product.images[0]}`}
+                                                                        alt={product.productname}
+                                                                        style={styles.productImage}
+                                                                    />
+                                                                    {product.images.length > 1 && (
+                                                                        <div style={styles.imageCount}>
+                                                                            {product.images.length} IMAGES
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : product.productimage ? (
+                                                                <div style={styles.productImageContainer}>
+                                                                    <img 
+                                                                        src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                        alt={product.productname}
+                                                                        style={styles.productImage}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div style={styles.noImagePlaceholder}>
+                                                                    No Image
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                    ) : product.productimage ? (
-                                                        <img 
-                                                            src={`http://localhost:3001/uploads/${product.productimage}`}
-                                                            alt={product.productname}
-                                                            style={styles.productImage}
-                                                        />
-                                                    ) : (
-                                                        <div style={styles.noImagePlaceholder}>
-                                                            No Image
-                                                        </div>
-                                                    )}<div style={styles.productInfo}>
-                                                        <h3 style={styles.productName}>{product.productname}</h3>
-                                                        <p style={styles.productPrice}>₱{product.productprice}</p>                                                        <p style={styles.productStock}>
-                                                            Stock: {product.total_stock || product.productquantity || 0}
-                                                        </p>
-                                                        <div style={styles.productColors}>
-                                                            <span style={styles.productLabel}>Colors: </span>
-                                                            <div style={styles.colorsList}>
-                                                                {getProductColors(product).map((color, index) => (
-                                                                    <span key={index} style={styles.colorTag}>
-                                                                        {color}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Show detailed size-color breakdown if available */}
-                                                        {getSizeColorBreakdown(product).length > 0 && (
-                                                            <div style={styles.sizeColorBreakdown}>
-                                                                <span style={styles.productLabel}>Available: </span>
-                                                                <div style={styles.breakdownList}>
-                                                                    {getSizeColorBreakdown(product).map((sizeVariant, index) => (
-                                                                        <div key={index} style={styles.sizeGroup}>
-                                                                            <span style={styles.sizeLabel}>{sizeVariant.size}:</span>
-                                                                            {sizeVariant.colorStocks
-                                                                                .filter(colorStock => colorStock.stock > 0)
-                                                                                .map((colorStock, colorIndex) => (
-                                                                                    <span key={colorIndex} style={styles.colorStockTag}>
-                                                                                        {colorStock.color} ({colorStock.stock})
-                                                                                    </span>
-                                                                                ))
-                                                                            }
+                                                            
+                                                            {/* Product Info */}
+                                                            <div style={styles.productInfo}>
+                                                                <h3 style={styles.productName}>{product.productname}</h3>
+                                                                <p style={styles.productPrice}>₱{product.productprice}</p>
+                                                                                  <div style={styles.stockSection}>
+                                                                    <p style={styles.productStock}>
+                                                                        Total Stock: {product.total_stock || product.productquantity || 0}
+                                                                    </p>
+                                                                    
+                                                                    {/* Show detailed size-color breakdown if available */}
+                                                                    {getSizeColorBreakdown(product).length > 0 && (
+                                                                        <div style={styles.sizeColorBreakdown}>
+                                                                            <span style={styles.productLabel}>Stock Details: </span>
+                                                                            <div style={styles.breakdownList}>
+                                                                                {getSizeColorBreakdown(product).map((sizeVariant, index) => (
+                                                                                    <div key={index} style={styles.sizeGroup}>
+                                                                                        <span style={styles.sizeLabel}>
+                                                                                            {String(sizeVariant.size || 'Unknown')}:
+                                                                                        </span>
+                                                                                        <div style={styles.colorStockList}>
+                                                                                            {Array.isArray(sizeVariant.colorStocks) && sizeVariant.colorStocks
+                                                                                                .filter(colorStock => colorStock && colorStock.stock > 0)
+                                                                                                .map((colorStock, colorIndex) => (
+                                                                                                    <span key={colorIndex} style={styles.colorStockTag}>
+                                                                                                        {String(colorStock.color || 'Unknown')} ({String(colorStock.stock || 0)})
+                                                                                                    </span>
+                                                                                                ))
+                                                                                            }
+                                                                                            {(!Array.isArray(sizeVariant.colorStocks) || 
+                                                                                              sizeVariant.colorStocks.filter(cs => cs && cs.stock > 0).length === 0) && (
+                                                                                                <span style={styles.noStockText}>No stock</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
                                                                         </div>
-                                                                    ))}
+                                                                    )}
+                                                                </div>
+                                                                
+                                                                <div style={styles.productColors}>
+                                                                    <span style={styles.productLabel}>Color: </span>
+                                                                    <span style={styles.productDetail}>
+                                                                        {getProductColors(product).join(', ')}
+                                                                    </span>
+                                                                </div>
+                                                                
+                                                                <div style={styles.productType}>
+                                                                    <span style={styles.productLabel}>Type: </span>
+                                                                    <span style={styles.productDetail}>
+                                                                        {product.product_type ? product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1) : 'Not specified'}
+                                                                    </span>
+                                                                </div>
+                                                                  <div style={styles.productActions}>
+                                                                    <button 
+                                                                        className="action-button edit-button"
+                                                                        style={styles.editButton}
+                                                                        onClick={() => editProduct(product)}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                                            <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                                        </svg>
+                                                                        EDIT
+                                                                    </button>
+                                                                    <button 
+                                                                        className="action-button archive-button"
+                                                                        style={styles.archiveButton}
+                                                                        onClick={() => archiveProduct(product.id)}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <polyline points="21,8 21,21 3,21 3,8"/>
+                                                                            <rect x="1" y="3" width="22" height="5"/>
+                                                                            <line x1="10" y1="12" x2="14" y2="12"/>
+                                                                        </svg>
+                                                                        ARCHIVE
+                                                                    </button>
+                                                                    <button 
+                                                                        className="action-button delete-button"
+                                                                        style={styles.deleteButton}
+                                                                        onClick={() => deleteProduct(product.id)}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <polyline points="3,6 5,6 21,6"/>
+                                                                            <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                                                            <line x1="10" y1="11" x2="10" y2="17"/>
+                                                                            <line x1="14" y1="11" x2="14" y2="17"/>
+                                                                        </svg>
+                                                                        REMOVE
+                                                                    </button>
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                        
-                                                        <p style={styles.productType}>Type: {product.product_type ? product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1) : 'Not specified'}</p>
-                                                        
-                                                        <div style={styles.productActions}>                                                            <button 
-                                                                className="action-button edit-button"
-                                                                style={styles.editButton}
-                                                                onClick={() => editProduct(product)}
-                                                            >
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                                                    <path d="m18.5 2.5 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                                                </svg>
-                                                                Edit
-                                                            </button>
-                                                            <button 
-                                                                className="action-button archive-button"
-                                                                style={styles.archiveButton}
-                                                                onClick={() => archiveProduct(product.id)}
-                                                            >
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <polyline points="21,8 21,21 3,21 3,8"/>
-                                                                    <rect x="1" y="3" width="22" height="5"/>
-                                                                    <line x1="10" y1="12" x2="14" y2="12"/>
-                                                                </svg>
-                                                                Archive
-                                                            </button>
-                                                            <button 
-                                                                className="action-button delete-button"
-                                                                style={styles.deleteButton}
-                                                                onClick={() => deleteProduct(product.id)}
-                                                            >
-                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <polyline points="3,6 5,6 21,6"/>
-                                                                    <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
-                                                                    <line x1="10" y1="11" x2="10" y2="17"/>
-                                                                    <line x1="14" y1="11" x2="14" y2="17"/>
-                                                                </svg>
-                                                                Remove
-                                                            </button>
                                                         </div>
-                                                    </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    
-                                    {/* Archived Products Section */}
-                                    {archivedProducts.length > 0 && (
-                                        <div style={styles.archivedSection}>
-                                            <h3 style={styles.sectionTitle}>Archived Products</h3>                                            <div style={styles.productsGrid}>
-                                                {archivedProducts.map(product => (                                                    <div key={product.id} style={{...styles.productCard, ...styles.archivedCard}}>                                                        {/* Display all product images */}
-                                                        {product.images && product.images.length > 0 ? (
-                                                            <div style={styles.productImageContainer}>
-                                                                {product.images.map((image, index) => (
-                                                                    <img 
-                                                                        key={index}
-                                                                        src={`http://localhost:3001/uploads/${image}`}
-                                                                        alt={`${product.productname} ${index + 1}`}
-                                                                        style={{
-                                                                            ...styles.productImage,
-                                                                            ...(index > 0 ? styles.additionalImage : {})
-                                                                        }}
-                                                                    />
-                                                                ))}
-                                                                {product.images.length > 1 && (
-                                                                    <div style={styles.imageCount}>
-                                                                        {product.images.length} images
+                                                
+                                                {products.filter(p => p.status !== 'archived' && !p.is_archived).length === 0 && (
+                                                    <div style={styles.emptySection}>
+                                                        <p>No active products found.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Archived Products Section */}
+                                            {archivedProducts.length > 0 && (
+                                                <div style={styles.sectionContainer}>
+                                                    <h3 style={styles.archivedSectionTitle}>Archived Products</h3>
+                                                    <div style={styles.productsGrid}>
+                                                        {archivedProducts.map(product => (
+                                                            <div key={product.id} style={styles.archivedProductCard} className="maintenance-card archived">
+                                                                {/* Product Image */}
+                                                                {product.images && product.images.length > 0 ? (
+                                                                    <div style={styles.productImageContainer}>
+                                                                        <img 
+                                                                            src={`http://localhost:3001/uploads/${product.images[0]}`}
+                                                                            alt={product.productname}
+                                                                            style={styles.archivedProductImage}
+                                                                        />
+                                                                        {product.images.length > 1 && (
+                                                                            <div style={styles.imageCount}>
+                                                                                {product.images.length} IMAGES
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ) : product.productimage ? (
+                                                                    <div style={styles.productImageContainer}>
+                                                                        <img 
+                                                                            src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                            alt={product.productname}
+                                                                            style={styles.archivedProductImage}
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div style={{...styles.noImagePlaceholder, ...styles.archivedNoImage}}>
+                                                                        No Image
                                                                     </div>
                                                                 )}
-                                                            </div>
-                                                        ) : product.productimage ? (
-                                                            <img 
-                                                                src={`http://localhost:3001/uploads/${product.productimage}`}
-                                                                alt={product.productname}
-                                                                style={styles.productImage}
-                                                            />
-                                                        ) : (
-                                                            <div style={styles.noImagePlaceholder}>
-                                                                No Image
-                                                            </div>
-                                                        )}                                                        <div style={styles.productInfo}>
-                                                            <h3 style={styles.productName}>{product.productname}</h3>
-                                                            <p style={styles.productPrice}>₱{product.productprice}</p>
-                                                            <p style={styles.archivedLabel}>ARCHIVED</p>
-                                                            
-                                                            <div style={styles.productColors}>
-                                                                <span style={styles.productLabel}>Colors: </span>
-                                                                <div style={styles.colorsList}>
-                                                                    {getProductColors(product).map((color, index) => (
-                                                                        <span key={index} style={styles.colorTag}>
-                                                                            {color}
+                                                                
+                                                                {/* Product Info */}
+                                                                <div style={styles.productInfo}>
+                                                                    <h3 style={styles.archivedProductName}>{product.productname}</h3>
+                                                                    <p style={styles.archivedProductPrice}>₱{product.productprice}</p>
+                                                                      <div style={styles.archivedLabel}>
+                                                                        ARCHIVED
+                                                                    </div>
+                                                                    
+                                                                    <div style={styles.stockSection}>
+                                                                        <p style={styles.productStock}>
+                                                                            Total Stock: {product.total_stock || product.productquantity || 0}
+                                                                        </p>
+                                                                        
+                                                                        {/* Show detailed size-color breakdown if available */}
+                                                                        {getSizeColorBreakdown(product).length > 0 && (
+                                                                            <div style={styles.sizeColorBreakdown}>
+                                                                                <span style={styles.productLabel}>Stock Details: </span>
+                                                                                <div style={styles.breakdownList}>
+                                                                                    {getSizeColorBreakdown(product).map((sizeVariant, index) => (
+                                                                                        <div key={index} style={styles.sizeGroup}>
+                                                                                            <span style={styles.sizeLabel}>
+                                                                                                {String(sizeVariant.size || 'Unknown')}:
+                                                                                            </span>
+                                                                                            <div style={styles.colorStockList}>
+                                                                                                {Array.isArray(sizeVariant.colorStocks) && sizeVariant.colorStocks
+                                                                                                    .filter(colorStock => colorStock && colorStock.stock > 0)
+                                                                                                    .map((colorStock, colorIndex) => (
+                                                                                                        <span key={colorIndex} style={styles.colorStockTag}>
+                                                                                                            {String(colorStock.color || 'Unknown')} ({String(colorStock.stock || 0)})
+                                                                                                        </span>
+                                                                                                    ))
+                                                                                                }
+                                                                                                {(!Array.isArray(sizeVariant.colorStocks) || 
+                                                                                                  sizeVariant.colorStocks.filter(cs => cs && cs.stock > 0).length === 0) && (
+                                                                                                    <span style={styles.noStockText}>No stock</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    
+                                                                    <div style={styles.productColors}>
+                                                                        <span style={styles.productLabel}>Color: </span>
+                                                                        <span style={styles.productDetail}>
+                                                                            {getProductColors(product).join(', ')}
                                                                         </span>
-                                                                    ))}
+                                                                    </div>
+                                                                    
+                                                                    <div style={styles.productType}>
+                                                                        <span style={styles.productLabel}>Type: </span>
+                                                                        <span style={styles.productDetail}>
+                                                                            {product.product_type ? product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1) : 'Not specified'}
+                                                                        </span>
+                                                                    </div>
+                                                                      <div style={styles.archivedProductActions}>
+                                                                        <button 
+                                                                            className="action-button restore-button"
+                                                                            style={styles.restoreButton}
+                                                                            onClick={() => restoreProduct(product.id)}
+                                                                        >
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <polyline points="23,4 23,10 17,10"/>
+                                                                                <path d="M20.49,15a9,9 0 1,1 -2.12,-9.36L23,10"/>
+                                                                            </svg>
+                                                                            RESTORE
+                                                                        </button>
+                                                                        <button 
+                                                                            className="action-button delete-button"
+                                                                            style={styles.deleteButton}
+                                                                            onClick={() => deleteProduct(product.id)}
+                                                                        >
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                                <polyline points="3,6 5,6 21,6"/>
+                                                                                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                                                                <line x1="10" y1="11" x2="10" y2="17"/>
+                                                                                <line x1="14" y1="11" x2="14" y2="17"/>
+                                                                            </svg>
+                                                                            REMOVE
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                            
-                                                            <div style={styles.productActions}><button 
-                                                                    className="action-button restore-button"
-                                                                    style={styles.restoreButton}
-                                                                    onClick={() => restoreProduct(product.id)}
-                                                                >
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                        <polyline points="23,4 23,10 17,10"/>
-                                                                        <path d="M20.49,15a9,9 0 1,1 -2.12,-9.36L23,10"/>
-                                                                    </svg>
-                                                                    Restore
-                                                                </button>
-                                                                <button 
-                                                                    className="action-button delete-button"
-                                                                    style={styles.deleteButton}
-                                                                    onClick={() => deleteProduct(product.id)}
-                                                                >
-                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                        <polyline points="3,6 5,6 21,6"/>
-                                                                        <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
-                                                                        <line x1="10" y1="11" x2="10" y2="17"/>
-                                                                        <line x1="14" y1="11" x2="14" y2="17"/>
-                                                                    </svg>
-                                                                    Remove
-                                                                </button>
-                                                            </div>
-                                                        </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             )}
-                        </div>
-                    )}
+                        </div>                    )}
 
                     {/* Backup Data Tab */}
                     {activeTab === 'backup' && (
@@ -1331,8 +1696,7 @@ if (typeof document !== 'undefined') {
                                     onClick={backupData}
                                     disabled={loading}
                                 >
-                                    {loading ? 'CREATING BACKUP...' : 'CREATE BACKUP'}
-                                </button>
+                                    {loading ? 'CREATING BACKUP...' : 'CREATE BACKUP'}                                </button>
                             </div>
                         </div>
                     )}
@@ -1402,7 +1766,8 @@ const styles = {
         marginBottom: '2rem',
         color: '#000000',
         letterSpacing: '-0.5px'
-    },    form: {
+    },
+    form: {
         maxWidth: '700px'
     },
     formGroup: {
@@ -1435,11 +1800,7 @@ const styles = {
         transition: 'border-color 0.2s ease',
         backgroundColor: '#ffffff',
         color: '#333333',
-        fontWeight: '300',
-        '&:focus': {
-            outline: 'none',
-            borderColor: '#000000'
-        }
+        fontWeight: '300'
     },
     select: {
         width: '100%',
@@ -1451,11 +1812,7 @@ const styles = {
         backgroundColor: '#ffffff',
         color: '#333333',
         fontWeight: '300',
-        cursor: 'pointer',
-        '&:focus': {
-            outline: 'none',
-            borderColor: '#000000'
-        }
+        cursor: 'pointer'
     },
     textarea: {
         width: '100%',
@@ -1468,12 +1825,8 @@ const styles = {
         transition: 'border-color 0.2s ease',
         backgroundColor: '#ffffff',
         color: '#333333',
-        fontWeight: '300',
-        '&:focus': {
-            outline: 'none',
-            borderColor: '#000000'
-        }    },
-    // Modern Image Upload Styles
+        fontWeight: '300'
+    },
     imageUploadContainer: {
         marginTop: '1rem'
     },
@@ -1484,11 +1837,7 @@ const styles = {
         textAlign: 'center',
         backgroundColor: '#fafafa',
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        '&:hover': {
-            borderColor: '#000000',
-            backgroundColor: '#f5f5f5'
-        }
+        transition: 'all 0.2s ease'
     },
     uploadContent: {
         display: 'flex',
@@ -1555,7 +1904,7 @@ const styles = {
     imageWrapper: {
         position: 'relative',
         width: '100%',
-        paddingBottom: '100%', // 1:1 aspect ratio
+        paddingBottom: '100%',
         overflow: 'hidden'
     },
     imagePreview: {
@@ -1580,10 +1929,7 @@ const styles = {
         alignItems: 'center',
         justifyContent: 'center',
         opacity: 0,
-        transition: 'opacity 0.2s ease',
-        '&:hover': {
-            backgroundColor: '#000000'
-        }
+        transition: 'opacity 0.2s ease'
     },
     thumbnailBadge: {
         position: 'absolute',
@@ -1611,107 +1957,7 @@ const styles = {
         color: '#666666',
         margin: '0.5rem 0',
         fontWeight: '400'
-    },    // Legacy size/color styles (updated for minimalist design)
-    sizeRow: {
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '1rem',
-        alignItems: 'center'
     },
-    sizeInput: {
-        flex: 1,
-        padding: '0.8rem 1rem',
-        border: '1px solid #e0e0e0',
-        fontSize: '0.9rem',
-        fontWeight: '300'
-    },
-    stockInput: {
-        width: '100px',
-        padding: '0.8rem 1rem',
-        border: '1px solid #e0e0e0',
-        fontSize: '0.9rem',
-        fontWeight: '300'
-    },
-    removeSizeButton: {
-        padding: '0.8rem 1rem',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '0.8rem',
-        fontWeight: '400',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-    },
-    addSizeButton: {
-        padding: '0.8rem 1.2rem',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        cursor: 'pointer',
-        marginTop: '1rem',
-        fontSize: '0.85rem',
-        fontWeight: '400',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-    },
-    colorRow: {
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '1rem',
-        alignItems: 'center'
-    },
-    colorInput: {
-        flex: 1,
-        padding: '0.8rem 1rem',
-        border: '1px solid #e0e0e0',
-        fontSize: '0.9rem',
-        fontWeight: '300'
-    },
-    removeColorButton: {
-        padding: '0.8rem 1rem',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '0.8rem',
-        fontWeight: '400',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-    },
-    addColorButton: {
-        padding: '0.8rem 1.2rem',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        cursor: 'pointer',
-        marginTop: '1rem',
-        fontSize: '0.85rem',
-        fontWeight: '400',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
-    },
-    emptyState: {
-        textAlign: 'center',
-        padding: '2.5rem 1.5rem',
-        backgroundColor: '#ffffff',
-        border: '1px solid #f0f0f0'
-    },
-    emptyStateText: {
-        color: '#666666',
-        fontSize: '0.9rem',
-        margin: '0 0 1rem 0',
-        fontWeight: '300'
-    },
-    totalStock: {
-        fontWeight: '500',
-        marginTop: '1rem',
-        padding: '1rem',
-        backgroundColor: '#ffffff',
-        border: '1px solid #e0e0e0',
-        fontSize: '0.9rem',
-        color: '#333333'
-    },    // New styles for merged size-color variants (minimalist design)
     variantContainer: {
         border: '1px solid #e0e0e0',
         padding: '1.5rem',
@@ -1816,7 +2062,8 @@ const styles = {
         padding: '0.8rem 1.5rem',
         backgroundColor: '#ffffff',
         border: '1px solid #000000'
-    },    subTabs: {
+    },
+    subTabs: {
         display: 'flex',
         gap: '1rem',
         marginBottom: '2rem'
@@ -1876,7 +2123,8 @@ const styles = {
         letterSpacing: '0.5px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',        gap: '0.4rem'
+        justifyContent: 'center',
+        gap: '0.4rem'
     },
     archivedSection: {
         marginTop: '3rem',
@@ -1888,341 +2136,379 @@ const styles = {
         opacity: 0.7,
         border: '1px dashed #999999'
     },
-    archivedLabel: {
-        color: '#999999',
-        fontWeight: '500',
-        fontSize: '0.75rem',
-        textTransform: 'uppercase',
-        letterSpacing: '0.8px',
-        marginBottom: '0.8rem'
+    sectionContainer: {
+        marginBottom: '3rem'
     },
-    restoreButton: {
-        padding: '0.6rem 1rem',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '0.75rem',
-        marginRight: '0.5rem',
-        fontWeight: '400',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',        gap: '0.4rem'
-    },
-    productColor: {
-        fontSize: '13px',
-        color: '#6c757d',
-        marginBottom: '6px'
-    },
-    productType: {
-        fontSize: '13px',
-        color: '#6c757d',
-        marginBottom: '12px',
-        fontWeight: '500'
-    },
-    imageCaption: {
-        fontSize: '13px',
-        color: '#6c757d',
-        marginTop: '8px'
-    },
-    buttonGroup: {
-        display: 'flex',
-        gap: '16px',
-        marginTop: '40px'
-    },
-    submitButton: {
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        padding: '16px 32px',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '13px',
+    sectionSubTitle: {
+        fontSize: '1.5rem',
         fontWeight: '600',
-        cursor: 'pointer',
-        flex: 1,
-        textTransform: 'uppercase',
-        letterSpacing: '0.8px',
-        transition: 'transform 0.2s ease'
-    },
-    cancelButton: {
-        backgroundColor: '#f8f9fa',
+        marginBottom: '1.5rem',
         color: '#000000',
-        padding: '16px 32px',
-        border: '1px solid #e9ecef',
-        borderRadius: '8px',
-        fontSize: '13px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        flex: 1,
-        textTransform: 'uppercase',
-        letterSpacing: '0.8px',
-        transition: 'transform 0.2s ease'
+        borderBottom: '2px solid #000000',
+        paddingBottom: '0.5rem'
     },
-    loading: {
+    archivedSectionTitle: {
+        fontSize: '1.5rem',
+        fontWeight: '600',
+        marginBottom: '1.5rem',
+        color: '#666666',
+        borderBottom: '2px solid #ccc',
+        paddingBottom: '0.5rem'
+    },
+    archivedProductCard: {
+        border: '2px dashed #ccc',
+        opacity: 0.6,
+        backgroundColor: '#f8f9fa',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        transition: 'all 0.2s ease'
+    },
+    archivedProductImage: {
+        width: '100%',
+        height: '240px',
+        objectFit: 'cover',
+        filter: 'grayscale(50%)'
+    },
+    archivedNoImage: {
+        backgroundColor: '#e9ecef',
+        color: '#6c757d'
+    },
+    archivedProductName: {
+        fontSize: '18px',
+        fontWeight: '600',
+        marginBottom: '12px',
+        color: '#666666'
+    },
+    archivedProductPrice: {
+        fontSize: '20px',
+        fontWeight: '600',
+        color: '#666666',
+        marginBottom: '8px'
+    },
+    archivedProductActions: {
+        display: 'flex',
+        gap: '0.5rem',
+        marginTop: '1rem'
+    },
+    productDetail: {
+        fontSize: '13px',
+        color: '#333333'
+    },
+    emptySection: {
         textAlign: 'center',
-        padding: '60px',
-        color: '#6c757d',
-        fontSize: '16px',
-        fontWeight: '300'
-    },    productsGrid: {
+        padding: '3rem',
+        color: '#666666',
+        fontSize: '1rem'
+    },
+    productsGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '2rem'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+        gap: '2rem',
+        marginTop: '2rem'
     },
     productCard: {
+        backgroundColor: '#ffffff',
         border: '1px solid #e0e0e0',
         overflow: 'hidden',
-        backgroundColor: '#ffffff',
-        transition: 'box-shadow 0.2s ease'
+        transition: 'all 0.2s ease',
+        position: 'relative',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column'
     },
     productImage: {
         width: '100%',
         height: '240px',
         objectFit: 'cover'
     },
-    noImagePlaceholder: {
-        width: '100%',
-        height: '240px',
-        backgroundColor: '#f8f9fa',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#6c757d',
-        fontSize: '14px',
-        fontWeight: '500'
-    },
     productInfo: {
-        padding: '24px'
+        padding: '1.5rem',
+        flexGrow: 1,
+        display: 'flex',
+        flexDirection: 'column'
     },
     productName: {
-        fontSize: '18px',
+        fontSize: '1.1rem',
         fontWeight: '600',
-        marginBottom: '12px',
-        color: '#000000'
+        marginBottom: '0.5rem',
+        color: '#000000',
+        letterSpacing: '-0.25px'
     },
     productPrice: {
-        fontSize: '20px',
+        fontSize: '1.2rem',
         fontWeight: '600',
         color: '#000000',
-        marginBottom: '8px'
+        marginBottom: '1rem'
     },
-    productDetails: {
-        fontSize: '13px',
-        color: '#6c757d',
-        marginBottom: '8px'
-    },    productStock: {
-        fontSize: '0.9rem',
-        color: '#333333',
-        marginBottom: '0.5rem',
-        fontWeight: '400'
+    productMeta: {
+        flexGrow: 1
     },
-    // New styles for color display
-    productColors: {
-        marginBottom: '0.8rem'
-    },
-    productLabel: {
-        fontSize: '0.8rem',
-        color: '#666666',
+    productStock: {
+        fontSize: '0.85rem',
         fontWeight: '500',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+        color: '#333333',
+        marginBottom: '0.5rem'
     },
-    colorsList: {
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '0.4rem',
-        marginTop: '0.3rem'
-    },
-    colorTag: {
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        padding: '0.3rem 0.6rem',
-        fontSize: '0.75rem',
-        fontWeight: '400',
-        textTransform: 'capitalize'
-    },
-    sizeColorBreakdown: {
-        marginBottom: '0.8rem',
-        padding: '0.8rem',
-        backgroundColor: '#f8f8f8',
-        border: '1px solid #f0f0f0'
-    },
-    breakdownList: {
-        marginTop: '0.5rem'
-    },
-    sizeGroup: {
+    productColors: {
+        fontSize: '0.85rem',
+        marginBottom: '0.5rem',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5rem',
-        marginBottom: '0.4rem',
-        flexWrap: 'wrap'
+        gap: '0.5rem'
     },
-    sizeLabel: {
-        fontSize: '0.8rem',
-        fontWeight: '500',
-        color: '#333333',
-        minWidth: '2rem'
+    productSizes: {
+        fontSize: '0.85rem',
+        marginBottom: '0.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem'
     },
-    colorStockTag: {
-        backgroundColor: '#ffffff',
+    productType: {
+        fontSize: '0.85rem',
+        marginBottom: '1rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem'
+    },
+    productLabel: {
+        fontWeight: '600',
         color: '#000000',
-        border: '1px solid #e0e0e0',
-        padding: '0.2rem 0.5rem',
-        fontSize: '0.7rem',
-        fontWeight: '400'
-    },
-    databaseInfo: {
-        fontSize: '11px',
-        color: '#adb5bd',
-        marginBottom: '16px'
+        textTransform: 'uppercase',
+        fontSize: '0.75rem',
+        letterSpacing: '0.5px',
+        minWidth: 'fit-content'
     },
     productActions: {
         display: 'flex',
-        gap: '8px',
-        marginTop: '16px'
+        gap: '0.5rem',
+        marginTop: 'auto'
+    },
+    restoreButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '0.7rem 1rem',
+        border: 'none',
+        fontSize: '0.75rem',
+        cursor: 'pointer',
+        flex: 1,
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '0.4rem'
+    },
+    archivedLabel: {
+        position: 'absolute',
+        top: '1rem',
+        right: '1rem',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        color: '#ffffff',
+        padding: '0.25rem 0.5rem',
+        fontSize: '0.7rem',
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+    },
+    primaryButton: {
+        backgroundColor: '#000000',
+        color: '#ffffff',
+        padding: '1rem 2rem',
+        border: 'none',
+        fontSize: '0.85rem',
+        cursor: 'pointer',
+        fontWeight: '400',
+        textTransform: 'uppercase',
+        letterSpacing: '0.8px',
+        transition: 'all 0.2s ease',
+        marginRight: '1rem'
+    },
+    // Enhanced Submit Button Styles
+    submitButton: {
+        background: 'linear-gradient(135deg, #000000 0%, #333333 100%)',
+        color: '#ffffff',
+        padding: '1.2rem 3rem',
+        border: 'none',
+        fontSize: '0.9rem',
+        fontWeight: '600',
+        cursor: 'pointer',
+        textTransform: 'uppercase',
+        letterSpacing: '1.2px',
+        borderRadius: '0',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+        minWidth: '200px',
+        '&:hover': {
+            background: 'linear-gradient(135deg, #333333 0%, #000000 100%)',
+            transform: 'translateY(-2px)',
+            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.3)',
+        },
+        '&:active': {
+            transform: 'translateY(0)',
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.2)',
+        },
+        '&:disabled': {
+            background: '#cccccc',
+            color: '#666666',
+            cursor: 'not-allowed',
+            transform: 'none',
+            boxShadow: 'none'
+        },
+        '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+            transition: 'left 0.5s ease',
+        },
+        '&:hover::before': {
+            left: '100%'
+        }
+    },
+    // Button Group Container
+    buttonGroup: {
+        display: 'flex',
+        gap: '1rem',
+        marginTop: '2.5rem',
+        paddingTop: '2rem',
+        borderTop: '1px solid #e0e0e0',
+        justifyContent: 'flex-start',
+        alignItems: 'center'
+    },
+    // Enhanced Cancel Button
+    cancelButton: {
+        background: 'transparent',
+        color: '#000000',
+        padding: '1.2rem 2.5rem',
+        border: '2px solid #000000',
+        fontSize: '0.9rem',
+        fontWeight: '500',
+        cursor: 'pointer',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        borderRadius: '0',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        position: 'relative',
+        overflow: 'hidden',
+        minWidth: '160px',
+        '&:hover': {
+            backgroundColor: '#000000',
+            color: '#ffffff',
+            transform: 'translateY(-1px)',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+        },
+        '&:active': {
+            transform: 'translateY(0)',
+            boxShadow: 'none'
+        }
     },
     backupSection: {
         textAlign: 'center',
-        padding: '60px 40px',
-        border: '1px solid #e9ecef',
-        borderRadius: '12px',
-        backgroundColor: '#f8f9fa'
+        padding: '3rem',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e0e0e0'
     },
     backupDescription: {
-        fontSize: '16px',
-        color: '#6c757d',
-        marginBottom: '32px',
-        fontWeight: '300',
-        lineHeight: '1.6'
+        fontSize: '1rem',
+        color: '#666666',
+        marginBottom: '2rem',
+        fontWeight: '300'
     },
     backupButton: {
         backgroundColor: '#000000',
         color: '#ffffff',
-        padding: '16px 32px',
+        padding: '1rem 2rem',
         border: 'none',
-        borderRadius: '8px',
-        fontSize: '13px',
-        fontWeight: '600',
+        fontSize: '0.85rem',
         cursor: 'pointer',
+        fontWeight: '400',
         textTransform: 'uppercase',
-        letterSpacing: '0.8px',
-        transition: 'transform 0.2s ease'
+        letterSpacing: '0.8px'
     },
-    debugInfo: {
-        backgroundColor: '#f8f9fa',
-        padding: '16px',
-        borderRadius: '8px',
-        marginBottom: '32px',
-        fontSize: '14px',
-        border: '1px solid #e9ecef'
+    sizeColorBreakdown: {
+        fontSize: '0.8rem',
+        marginTop: '0.5rem'
     },
-    refreshButton: {
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        padding: '12px 24px',
-        border: 'none',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        marginTop: '16px',
-        fontSize: '13px',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px'
+    breakdownList: {
+        marginTop: '0.25rem'
     },
-    noProducts: {
-        textAlign: 'center',
-        padding: '60px 40px',
-        backgroundColor: '#f8f9fa',
-        borderRadius: '12px',
-        margin: '32px 0',
-        border: '1px solid #e9ecef'
-    },
-    productId: {
-        fontSize: '11px',
-        color: '#adb5bd',
-        marginBottom: '12px',
-        fontWeight: '500'
-    },
-    simpleList: {
+    sizeGroup: {
+        marginBottom: '0.25rem',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '0.5rem'
     },
-    simpleCard: {
-        border: '1px solid #e9ecef',
-        padding: '24px',
-        borderRadius: '8px',
-        backgroundColor: '#ffffff'
+    sizeLabel: {
+        fontWeight: '600',
+        color: '#000000',
+        minWidth: 'fit-content'
     },
-    imagePreviewGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-        gap: '16px',
-        marginTop: '24px'
+    colorStockList: {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0.25rem'
     },
-    imagePreviewItem: {
-        position: 'relative'
+    colorStockTag: {
+        backgroundColor: '#f0f0f0',
+        color: '#333333',
+        padding: '0.15rem 0.4rem',
+        fontSize: '0.75rem',
+        fontWeight: '400'
     },
-    removePreviewButton: {
-        position: 'absolute',
-        top: '8px',
-        right: '8px',
-        backgroundColor: '#000000',
-        color: '#ffffff',
-        border: 'none',
-        borderRadius: '50%',
-        width: '24px',
-        height: '24px',
-        cursor: 'pointer',
-        fontSize: '12px',
-        fontWeight: 'bold'
+    noStockText: {
+        color: '#999999',
+        fontStyle: 'italic',
+        fontSize: '0.75rem'
     },
-    productImagesContainer: {
-        marginBottom: '24px'
-    },
-    mainImageContainer: {
-        position: 'relative',
-        marginBottom: '16px'
+    noImagePlaceholder: {
+        width: '100%',
+        height: '240px',
+        backgroundColor: '#f0f0f0',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#999999',
+        fontSize: '0.9rem',
+        fontWeight: '400'
     },
     imageCount: {
         position: 'absolute',
-        bottom: '8px',
-        right: '8px',
+        bottom: '0.5rem',
+        right: '0.5rem',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
         color: '#ffffff',
-        padding: '4px 8px',
-        borderRadius: '4px',
-        fontSize: '11px',
+        padding: '0.25rem 0.5rem',
+        fontSize: '0.7rem',
         fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: '0.5px'
-    },    imageManagement: {
-        borderTop: '1px solid #e9ecef',
-        paddingTop: '16px'
     },
-    imageItem: {
-        position: 'relative'
-    },
-    thumbnailImage: {
-        width: '100%',
-        height: '80px',
-        objectFit: 'cover',
-        borderRadius: '6px'
-    },
-    deleteImageButton: {
+    multiImageIndicator: {
         position: 'absolute',
-        top: '4px',
-        right: '4px',
-        backgroundColor: '#000000',
+        top: '0.5rem',
+        left: '0.5rem',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
         color: '#ffffff',
-        border: 'none',
-        borderRadius: '50%',
-        width: '20px',
-        height: '20px',
-        cursor: 'pointer',
-        fontSize: '10px',
+        padding: '0.25rem 0.5rem',
+        fontSize: '0.7rem',
+        fontWeight: '600',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.25rem'
+    },
+    mainImageContainer: {
+        position: 'relative',
+        width: '100%',
+        height: '240px',
+        overflow: 'hidden',
+        backgroundColor: '#fafafa',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -2243,4 +2529,3 @@ const styles = {
 };
 
 export default MaintenancePage;
-

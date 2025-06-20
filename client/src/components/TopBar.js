@@ -16,8 +16,6 @@ import {
   faClipboardList,
   faTruck,
   faSearch,
-  faPalette,
-  faCheck,
   faReceipt
 } from '@fortawesome/free-solid-svg-icons';
 
@@ -414,15 +412,7 @@ const TopBar = () => {
             <FontAwesomeIcon icon={faShoppingBag} style={{ color: 'white' }} />
           </div>
           <span className="nav-text">Products</span>
-        </NavLink>        {/* Show Custom Design for regular users in the Shop section */}
-        {isAuthenticated && currentUser?.role !== 'admin' && (
-          <NavLink to="/custom" className={location.pathname === '/custom' ? 'active' : ''}>
-            <div className="icon-container">
-              <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
-            </div>
-            <span className="nav-text">Custom</span>
-          </NavLink>
-        )}
+        </NavLink>
         
         {/* Cart and Wishlist removed from sidebar - functionality moved to Orders page */}
         
@@ -444,19 +434,12 @@ const TopBar = () => {
               <div className="icon-container">
                 <FontAwesomeIcon icon={faClipboardList} style={{ color: 'white' }} />
               </div>
-              <span className="nav-text">Inventory</span>
-            </NavLink>
+              <span className="nav-text">Inventory</span>            </NavLink>
               <NavLink to="/maintenance" className={location.pathname === '/maintenance' ? 'active' : ''}>
               <div className="icon-container">
                 <FontAwesomeIcon icon={faCog} style={{ color: 'white' }} />
               </div>
               <span className="nav-text">Maintenance</span>
-            </NavLink>
-              <NavLink to="/design-approval" className={location.pathname === '/design-approval' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faCheck} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Design Approval</span>
             </NavLink>
             
             <NavLink to="/transactions" className={location.pathname === '/transactions' ? 'active' : ''}>
@@ -474,16 +457,8 @@ const TopBar = () => {
             
             <NavLink to="/delivery" className={location.pathname === '/delivery' ? 'active' : ''}>
               <div className="icon-container">
-                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />
-              </div>
+                <FontAwesomeIcon icon={faTruck} style={{ color: 'white' }} />              </div>
               <span className="nav-text">Delivery</span>
-            </NavLink>
-            
-            <NavLink to="/admin/custom" className={location.pathname === '/admin/custom' ? 'active' : ''}>
-              <div className="icon-container">
-                <FontAwesomeIcon icon={faPalette} style={{ color: 'white' }} />
-              </div>
-              <span className="nav-text">Custom Design</span>
             </NavLink>
           </>
         )}

@@ -62,12 +62,19 @@ app.use('/api/auth/register', registerLimiter);
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001'],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200
 }));
 
-// Handle preflight requests
-app.options('*', cors());
+// Handle preflight requests explicitly
+app.options('*', cors({
+  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  optionsSuccessStatus: 200
+}));
 
 // Logging
 app.use(morgan('dev'));
@@ -147,7 +154,6 @@ const maintenanceRoutes = require('./routes/maintenance');
 const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const adminRoutes = require('./routes/admin');
 const inventoryRoutes = require('./routes/api/inventory');
-// const customDesignRoutes = require('./routes/customDesigns'); // Temporarily disabled
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -164,7 +170,6 @@ app.use('/api/customizations', customizationRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
-// app.use('/api/custom-designs', customDesignRoutes); // Temporarily disabled
 app.use('/health', healthCheckRoutes);
 
 // Simple test route

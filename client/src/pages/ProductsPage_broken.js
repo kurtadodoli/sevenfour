@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faSearch, faTimes, faFilter, faSort } from '@fortawesome/free-solid-svg-icons';
+import { faShoppingCart, faEye, faSearch, faTimes, faFilter, faSort, faSliders } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 
 // Styled Components
@@ -103,15 +106,12 @@ const SearchSection = styled.div`
 `;
 
 const SearchWithIconsContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 20px;
   margin: 0 auto;
   margin-bottom: 40px;
   
-  @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 16px;
+  @media (min-width: 768px) {
+    flex-wrap: nowrap;
+    gap: 20px;
   }
 `;
 
@@ -286,6 +286,59 @@ const DropdownSortSelect = styled.select`
   }
 `;
 
+const DropdownPriceInputs = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+`;
+
+const DropdownPriceInput = styled.input`
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  
+  &:focus {
+    outline: none;
+    border-color: #333;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const DropdownStockOptions = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+`;
+
+const DropdownStockButton = styled.button`
+  padding: 8px 12px;
+  border: 1px solid ${props => props.active ? '#333' : 'rgba(0, 0, 0, 0.1)'};
+  border-radius: 8px;
+  background: ${props => props.active ? 
+    'linear-gradient(135deg, #333 0%, #555 100%)' : 
+    'rgba(255, 255, 255, 0.8)'
+  };
+  color: ${props => props.active ? '#fff' : '#333'};
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.active ? 
+      'linear-gradient(135deg, #333 0%, #555 100%)' : 
+      'rgba(0, 0, 0, 0.05)'
+    };
+    border-color: #333;
+  }
+`;
+
+
+
 const SearchInput = styled.input`
   width: 100%;
   padding: 26px 30px 26px 68px;
@@ -365,6 +418,7 @@ const ClearButton = styled.button`
   }
 `;
 
+
 const SearchResults = styled.div`
   text-align: center;
   margin: 40px 0 20px 0;
@@ -378,6 +432,8 @@ const SearchResults = styled.div`
   border: 1px solid rgba(0, 0, 0, 0.06);
   letter-spacing: 0.3px;
 `;
+
+
 
 const ClearFiltersButton = styled.button`
   padding: 12px 24px;
@@ -725,6 +781,57 @@ const StockStatus = styled.div`
   }
 `;
 
+const AddToCartButton = styled.button`
+  width: 100%;
+  padding: 18px 24px;
+  background: ${props => props.disabled 
+    ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' 
+    : 'linear-gradient(135deg, #000000 0%, #333333 100%)'};
+  color: ${props => props.disabled ? '#6c757d' : '#ffffff'};
+  border: ${props => props.disabled ? '2px solid #dee2e6' : 'none'};
+  font-size: 15px;
+  font-weight: 600;
+  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  border-radius: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+  }
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  svg {
+    font-size: 16px;
+  }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 100px 20px;
@@ -779,8 +886,7 @@ const FloatingButton = styled.button`
   &:hover {
     transform: ${props => props.visible ? 'translateY(-5px) scale(1.1)' : 'translateY(100px)'};
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-  }
-  
+  }  
   &:active {
     transform: ${props => props.visible ? 'translateY(-2px) scale(1.05)' : 'translateY(100px)'};
   }
@@ -796,303 +902,14 @@ const ProductsPage = () => {
     const [showFloatingButton, setShowFloatingButton] = useState(false);
     const [priceRange, setPriceRange] = useState({ min: '', max: '' });
     const [stockFilter, setStockFilter] = useState('all'); // 'all', 'in-stock', 'low-stock', 'out-of-stock'
-    const [sortOrder, setSortOrder] = useState('default');    // Icon dropdown states
+    const [sortOrder, setSortOrder] = useState('default');
+    
+    // Icon dropdown states
     const [activeDropdown, setActiveDropdown] = useState(null); // 'categories', 'sort', 'price', 'stock'
     const navigate = useNavigate();
+    const { addToCart, loading: cartLoading } = useCart();
+    const { currentUser } = useAuth();
     
-    // Categories for filtering
-    const categories = [
-        { value: 'all', label: 'All Products' },
-        { value: 'bags', label: 'Bags' },
-        { value: 'hats', label: 'Hats' },
-        { value: 'hoodies', label: 'Hoodies' },
-        { value: 'jackets', label: 'Jackets' },
-        { value: 'jerseys', label: 'Jerseys' },
-        { value: 'shorts', label: 'Shorts' },
-        { value: 'sweaters', label: 'Sweaters' },
-        { value: 't-shirts', label: 'T-Shirts' }
-    ];
-
-    // Helper functions
-    const parseSizes = (sizesData) => {
-        try {
-            if (typeof sizesData === 'string') {
-                return JSON.parse(sizesData);
-            }
-            return Array.isArray(sizesData) ? sizesData : [];
-        } catch (error) {
-            return [];
-        }
-    };
-
-    const parseSizeColorVariants = (variantsData) => {
-        if (!variantsData) return [];
-        try {
-            return typeof variantsData === 'string' ? JSON.parse(variantsData) : variantsData;
-        } catch {
-            return [];
-        }
-    };
-
-    // Get total stock for a product
-    const getTotalStock = React.useCallback((product) => {
-        // Use total_stock if it exists
-        if (product.total_stock !== undefined && product.total_stock !== null) {
-            return product.total_stock;
-        }
-          // Use sizeColorVariants if available
-        if (product.sizeColorVariants) {
-            const stockVariants = parseSizeColorVariants(product.sizeColorVariants);
-            return stockVariants.reduce((total, variant) => {
-                return total + variant.colorStocks.reduce((subtotal, cs) => {
-                    return subtotal + (cs.stock || 0);
-                }, 0);
-            }, 0);
-        }
-        
-        // Fallback to old sizes structure
-        const sizes = parseSizes(product.sizes);
-        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
-    }, []);
-
-    const getAvailableSizes = (product) => {
-        const variants = parseSizeColorVariants(product.sizeColorVariants);
-        const sizes = parseSizes(product.sizes);
-        
-        if (variants && variants.length > 0) {
-            return [...new Set(variants.map(v => v.size).filter(Boolean))];
-        }
-        return sizes || [];
-    };
-
-    const getAvailableColors = (product) => {
-        const variants = parseSizeColorVariants(product.sizeColorVariants);
-        
-        if (variants && variants.length > 0) {
-            return [...new Set(variants.flatMap(v => 
-                v.colorStocks?.map(cs => cs.color).filter(Boolean) || []
-            ))];
-        }
-        return [];
-    };
-
-    // Fetch products function
-    const fetchProducts = async () => {
-        try {
-            setLoading(true);
-            setError('');
-            
-            const response = await fetch('http://localhost:3001/api/maintenance/products');
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Product data received:', data.length, 'items');
-                
-                // Process the data similar to MaintenancePage for consistency
-                const processedProducts = data.map(product => {
-                    // Create basic size-color variants from existing data
-                    let sizeColorVariants = [];
-                    
-                    if (product.sizes) {
-                        try {
-                            const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
-                            
-                            // Check if it's the new sizeColorVariants format
-                            if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
-                                sizeColorVariants = parsedSizes;
-                            }
-                            // Otherwise convert old format to new format
-                            else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
-                                // Parse colors from productcolor field
-                                let colorsArray = [];
-                                if (typeof product.productcolor === 'string' && product.productcolor.startsWith('[')) {
-                                    colorsArray = JSON.parse(product.productcolor);
-                                } else if (typeof product.productcolor === 'string' && product.productcolor.includes(',')) {
-                                    colorsArray = product.productcolor.split(',').map(c => c.trim()).filter(c => c);
-                                } else if (typeof product.productcolor === 'string') {
-                                    colorsArray = [product.productcolor];
-                                } else {
-                                    colorsArray = ['Default'];
-                                }
-                                
-                                // Convert old format to new format
-                                sizeColorVariants = parsedSizes.map(sizeItem => {
-                                    const sizeValue = typeof sizeItem === 'object' ? sizeItem.size : sizeItem;
-                                    const stockValue = typeof sizeItem === 'object' ? sizeItem.stock : 0;
-                                    
-                                    return {
-                                        size: sizeValue,
-                                        colorStocks: colorsArray.map(color => ({
-                                            color: color,
-                                            stock: Math.floor(stockValue / colorsArray.length) || 0
-                                        }))
-                                    };
-                                });
-                            }
-                        } catch (e) {
-                            console.log('Error parsing sizes for product:', product.productname, e);
-                        }
-                    }
-                    
-                    // If no variants found, create default ones
-                    if (!sizeColorVariants || sizeColorVariants.length === 0) {
-                        const defaultColor = product.productcolor || 'Default';
-                        sizeColorVariants = [
-                            { size: 'S', colorStocks: [{ color: defaultColor, stock: 0 }] },
-                            { size: 'M', colorStocks: [{ color: defaultColor, stock: 0 }] },
-                            { size: 'L', colorStocks: [{ color: defaultColor, stock: 0 }] },
-                            { size: 'XL', colorStocks: [{ color: defaultColor, stock: 0 }] }
-                        ];
-                    }
-                      
-                    return {
-                        ...product,
-                        sizeColorVariants: sizeColorVariants,
-                        id: product.product_id,
-                        status: product.productstatus || 'active'
-                    };
-                });
-                
-                // Filter only active products for customers
-                const activeProducts = processedProducts.filter(product => 
-                    product.status === 'active' && product.productstatus !== 'archived'
-                );
-                
-                console.log('Active products after filtering:', activeProducts.length);
-                
-                setProducts(activeProducts);
-                setFilteredProducts(activeProducts);
-            } else {
-                setError('Failed to load products');
-            }
-        } catch (error) {
-            console.error('Error fetching products:', error);
-            setError('Failed to load products. Please try again later.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Filter and sort products
-    useEffect(() => {
-        let filtered = products.filter(product => {
-            // Basic search filter
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                
-                if (
-                    product.productname?.toLowerCase().includes(searchLower) ||
-                    product.productdescription?.toLowerCase().includes(searchLower) ||
-                    product.product_type?.toLowerCase().includes(searchLower) ||
-                    product.productcolor?.toLowerCase().includes(searchLower)
-                ) {
-                    // Continue to other filters
-                } else {
-                    // Advanced search in size-color variants
-                    if (product.sizeColorVariants) {
-                        const variants = parseSizeColorVariants(product.sizeColorVariants);
-                        const matchesVariant = variants.some(variant => 
-                            variant.size?.toLowerCase().includes(searchLower) ||
-                            variant.colorStocks?.some(cs => 
-                                cs.color?.toLowerCase().includes(searchLower)
-                            )
-                        );
-                        
-                        if (!matchesVariant) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                }
-            }
-            
-            // Category filter
-            if (selectedCategory !== 'all' && product.product_type !== selectedCategory) {
-                return false;
-            }
-            
-            // Price filter
-            const productPrice = parseFloat(product.productprice || 0);
-            if (priceRange.min !== '' && productPrice < parseFloat(priceRange.min)) {
-                return false;
-            }
-            if (priceRange.max !== '' && productPrice > parseFloat(priceRange.max)) {
-                return false;
-            }
-            
-            // Stock filter
-            if (stockFilter !== 'all') {
-                const totalStock = getTotalStock(product);
-                switch (stockFilter) {
-                    case 'in-stock':
-                        return totalStock > 10;
-                    case 'low-stock':
-                        return totalStock > 0 && totalStock <= 10;
-                    case 'out-of-stock':
-                        return totalStock === 0;
-                    default:
-                        return true;
-                }
-            }
-            
-            return true;
-        });
-
-        // Apply sorting
-        if (sortOrder === 'price-asc') {
-            filtered = filtered.sort((a, b) => parseFloat(a.productprice) - parseFloat(b.productprice));
-        } else if (sortOrder === 'price-desc') {
-            filtered = filtered.sort((a, b) => parseFloat(b.productprice) - parseFloat(a.productprice));
-        } else if (sortOrder === 'name-asc') {
-            filtered = filtered.sort((a, b) => a.productname.localeCompare(b.productname));
-        } else if (sortOrder === 'name-desc') {
-            filtered = filtered.sort((a, b) => b.productname.localeCompare(a.productname));
-        } else if (sortOrder === 'stock-asc') {
-            filtered = filtered.sort((a, b) => getTotalStock(a) - getTotalStock(b));
-        } else if (sortOrder === 'stock-desc') {
-            filtered = filtered.sort((a, b) => getTotalStock(b) - getTotalStock(a));
-        }
-        
-        setFilteredProducts(filtered);
-    }, [products, searchTerm, selectedCategory, priceRange, stockFilter, sortOrder, getTotalStock]);
-
-    // Check if any filters are active
-    const hasActiveFilters = () => {
-        return selectedCategory !== 'all' || 
-               priceRange.min || 
-               priceRange.max || 
-               stockFilter !== 'all' ||
-               sortOrder !== 'default';
-    };    // Clear all filters
-    const clearAllFilters = () => {
-        setSearchTerm('');
-        setSelectedCategory('all');
-        setPriceRange({ min: '', max: '' });
-        setStockFilter('all');
-        setSortOrder('default');
-        setActiveDropdown(null);
-    };
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (activeDropdown && !event.target.closest('.filter-dropdown-container')) {
-                setActiveDropdown(null);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [activeDropdown]);
-
-    // Fetch products on component mount
-    useEffect(() => {
-        fetchProducts();
-    }, []);
-
     // Inject CSS animations
     React.useEffect(() => {
         const style = document.createElement('style');
@@ -1152,6 +969,380 @@ const ProductsPage = () => {
             behavior: 'smooth'
         });
     };
+    
+    // Categories for filtering - aligned with MaintenancePage product types
+    const categories = [
+        { value: 'all', label: 'All Products' },
+        { value: 'bags', label: 'Bags' },
+        { value: 'hats', label: 'Hats' },
+        { value: 'hoodies', label: 'Hoodies' },
+        { value: 'jackets', label: 'Jackets' },
+        { value: 'jerseys', label: 'Jerseys' },
+        { value: 'shorts', label: 'Shorts' },        { value: 'sweaters', label: 'Sweaters' },
+        { value: 't-shirts', label: 'T-Shirts' }
+    ];
+
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            
+            // Using the correct maintenance API endpoint that includes size-color variants
+            const response = await fetch('http://localhost:3001/api/maintenance/products');
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Product data received:', data.length, 'items');
+                
+                // Process the data similar to MaintenancePage for consistency
+                const processedProducts = data.map(product => {
+                    console.log('Processing product:', product.productname, 'Type:', product.product_type, 'Raw sizes:', product.sizes, 'Raw color:', product.productcolor);
+                    
+                    // Create basic size-color variants from existing data
+                    let sizeColorVariants = [];
+                    
+                    // Check if the sizes field contains sizeColorVariants structure
+                    if (product.sizes) {
+                        try {
+                            const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                            
+                            // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
+                            if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                                sizeColorVariants = parsedSizes;
+                            }
+                            // Otherwise it's the old format (array of objects with size and stock, or just strings)
+                            else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
+                                // Parse colors from productcolor field
+                                let colorsArray = [];
+                                if (typeof product.productcolor === 'string' && product.productcolor.startsWith('[')) {
+                                    colorsArray = JSON.parse(product.productcolor);
+                                } else if (typeof product.productcolor === 'string' && product.productcolor.includes(',')) {
+                                    colorsArray = product.productcolor.split(',').map(c => c.trim()).filter(c => c);
+                                } else if (typeof product.productcolor === 'string') {
+                                    colorsArray = [product.productcolor];
+                                } else {
+                                    colorsArray = ['Default'];
+                                }
+                                
+                                // Convert old format to new format
+                                sizeColorVariants = parsedSizes.map(sizeItem => {
+                                    const sizeValue = typeof sizeItem === 'object' ? sizeItem.size : sizeItem;
+                                    const stockValue = typeof sizeItem === 'object' ? sizeItem.stock : 0;
+                                    
+                                    return {
+                                        size: sizeValue,
+                                        colorStocks: colorsArray.map(color => ({
+                                            color: color,
+                                            stock: Math.floor(stockValue / colorsArray.length) || 0
+                                        }))
+                                    };
+                                });
+                            }
+                        } catch (e) {
+                            console.log('Error parsing sizes for product:', product.productname, e);
+                        }
+                    }
+                    
+                    // If no variants found, create default ones
+                    if (!sizeColorVariants || sizeColorVariants.length === 0) {
+                        const defaultColor = product.productcolor || 'Default';
+                        sizeColorVariants = [
+                            { size: 'S', colorStocks: [{ color: defaultColor, stock: 0 }] },
+                            { size: 'M', colorStocks: [{ color: defaultColor, stock: 0 }] },
+                            { size: 'L', colorStocks: [{ color: defaultColor, stock: 0 }] },
+                            { size: 'XL', colorStocks: [{ color: defaultColor, stock: 0 }] }
+                        ];
+                    }
+                      return {
+                        ...product,
+                        sizeColorVariants: sizeColorVariants,
+                        // Ensure product_id is used as id for consistent navigation
+                        id: product.product_id,
+                        // Filter only active products for customers
+                        status: product.productstatus || 'active'
+                    };
+                });
+                
+                console.log('Processed products:', processedProducts.length);
+                console.log('Sample processed product:', processedProducts[0]);
+                
+                // Filter only active products for customers
+                const activeProducts = processedProducts.filter(product => 
+                    product.status === 'active' && product.productstatus !== 'archived'
+                );
+                
+                console.log('Active products after filtering:', activeProducts.length);
+                
+                setProducts(activeProducts);
+                setFilteredProducts(activeProducts);
+            } else {
+                setError('Failed to load products');
+            }
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            setError('Failed to load products. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    // Parse sizes data
+    const parseSizes = (sizesData) => {
+        try {
+            if (typeof sizesData === 'string') {
+                return JSON.parse(sizesData);
+            }
+            return Array.isArray(sizesData) ? sizesData : [];
+        } catch (error) {
+            return [];
+        }
+    };
+
+    // Get total stock for a product
+    const getTotalStock = React.useCallback((product) => {
+        // Use total_stock if it exists
+        if (product.total_stock !== undefined && product.total_stock !== null) {
+            return product.total_stock;
+        }
+        
+        // Use sizeColorVariants if available
+        if (product.sizeColorVariants) {
+            const variants = parseSizeColorVariants(product.sizeColorVariants);
+            return variants.reduce((total, variant) => {
+                return total + variant.colorStocks.reduce((subtotal, cs) => {
+                    return subtotal + (cs.stock || 0);
+                }, 0);
+            }, 0);
+        }
+        
+        // Fallback to old sizes structure
+        const sizes = parseSizes(product.sizes);
+        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+    }, []);
+
+    // Filter products based on search term, category, price range, and stock status
+    useEffect(() => {
+        let filtered = products.filter(product => {
+            // Basic search filter
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                
+                // Basic product properties search
+                if (
+                    product.productname?.toLowerCase().includes(searchLower) ||
+                    product.productdescription?.toLowerCase().includes(searchLower) ||
+                    product.product_type?.toLowerCase().includes(searchLower) ||
+                    product.productcolor?.toLowerCase().includes(searchLower)
+                ) {
+                    // Continue to other filters
+                } else {
+                    // Advanced search in size-color variants
+                    if (product.sizeColorVariants) {
+                        const variants = parseSizeColorVariants(product.sizeColorVariants);
+                        const matchesVariant = variants.some(variant => 
+                            variant.size?.toLowerCase().includes(searchLower) ||
+                            variant.colorStocks?.some(cs => 
+                                cs.color?.toLowerCase().includes(searchLower)
+                            )
+                        );
+                        
+                        if (!matchesVariant) {
+                            // Legacy search in sizes and colors
+                            const sizes = parseSizes(product.sizes);
+                            if (!sizes.some(size => size.size?.toLowerCase().includes(searchLower))) {
+                                return false;
+                            }
+                        }
+                    } else {
+                        // Legacy search in sizes and colors
+                        const sizes = parseSizes(product.sizes);
+                        if (!sizes.some(size => size.size?.toLowerCase().includes(searchLower))) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            
+            // Category filter
+            if (selectedCategory !== 'all' && product.product_type !== selectedCategory) {
+                return false;
+            }
+            
+            // Price filter
+            const productPrice = parseFloat(product.productprice || 0);
+            if (priceRange.min !== '' && productPrice < parseFloat(priceRange.min)) {
+                return false;
+            }
+            if (priceRange.max !== '' && productPrice > parseFloat(priceRange.max)) {
+                return false;
+            }
+            
+            // Stock filter
+            if (stockFilter !== 'all') {
+                const totalStock = getTotalStock(product);
+                switch (stockFilter) {
+                    case 'in-stock':
+                        return totalStock > 10;
+                    case 'low-stock':
+                        return totalStock > 0 && totalStock <= 10;
+                    case 'out-of-stock':
+                        return totalStock === 0;
+                    default:
+                        return true;
+                }
+            }
+            
+            return true;        });
+
+        // Apply sorting
+        if (sortOrder === 'price-asc') {
+            filtered = filtered.sort((a, b) => parseFloat(a.productprice) - parseFloat(b.productprice));
+        } else if (sortOrder === 'price-desc') {
+            filtered = filtered.sort((a, b) => parseFloat(b.productprice) - parseFloat(a.productprice));
+        } else if (sortOrder === 'name-asc') {
+            filtered = filtered.sort((a, b) => a.productname.localeCompare(b.productname));
+        } else if (sortOrder === 'name-desc') {
+            filtered = filtered.sort((a, b) => b.productname.localeCompare(a.productname));
+        } else if (sortOrder === 'stock-asc') {
+            filtered = filtered.sort((a, b) => getTotalStock(a) - getTotalStock(b));
+        } else if (sortOrder === 'stock-desc') {
+            filtered = filtered.sort((a, b) => getTotalStock(b) - getTotalStock(a));
+        }
+        
+        setFilteredProducts(filtered);
+    }, [products, searchTerm, selectedCategory, priceRange, stockFilter, sortOrder, getTotalStock]);
+
+    // Handle search input change
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+    };
+    
+    // Clear search    const clearSearch = () => {
+        setSearchTerm('');
+    };
+
+    // Dropdown management functions
+    const toggleDropdown = (dropdownType) => {
+        setActiveDropdown(activeDropdown === dropdownType ? null : dropdownType);
+    };
+
+    const closeDropdown = () => {
+        setActiveDropdown(null);
+    };
+
+    const handleDropdownCategoryChange = (category) => {
+        setSelectedCategory(category);
+        closeDropdown();
+    };
+
+    const handleDropdownSortChange = (e) => {
+        setSortOrder(e.target.value);
+        closeDropdown();
+    };
+
+    const handleDropdownPriceChange = (field, value) => {
+        setPriceRange(prev => ({
+            ...prev,
+            [field]: value
+        }));
+    };
+
+    const handleDropdownStockChange = (filterType) => {
+        setStockFilter(filterType);
+        closeDropdown();
+    };
+
+    // Check if any filters are active
+    const hasActiveFilters = () => {
+        return selectedCategory !== 'all' || 
+               priceRange.min || 
+               priceRange.max || 
+               stockFilter !== 'all' ||
+               sortOrder !== 'default';    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (activeDropdown && !event.target.closest('.filter-dropdown-container')) {
+                closeDropdown();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [activeDropdown]);
+
+    // Parse size-color variants
+    const parseSizeColorVariants = (variantsData) => {
+        if (!variantsData) return [];
+        try {
+            return typeof variantsData === 'string' ? JSON.parse(variantsData) : variantsData;
+        } catch {
+            return [];
+        }
+    };
+
+    const getAvailableSizes = (product) => {
+        const variants = parseSizeColorVariants(product.sizeColorVariants);
+        const sizes = parseSizes(product.sizes);
+        
+        if (variants && variants.length > 0) {
+            return [...new Set(variants.map(v => v.size).filter(Boolean))];
+        }
+        return sizes || [];
+    };    const getAvailableColors = (product) => {
+        const variants = parseSizeColorVariants(product.sizeColorVariants);
+        
+        if (variants && variants.length > 0) {
+            return [...new Set(variants.map(v => v.color).filter(Boolean))];
+        }
+        return [];
+    };
+
+    // Clear all filters
+    const clearAllFilters = () => {
+        setSearchTerm('');
+        setSelectedCategory('all');
+        setPriceRange({ min: '', max: '' });
+        setStockFilter('all');
+        setSortOrder('default');
+        closeDropdown();
+    };
+
+    // Handle add to cart
+    const handleAddToCart = async (e, product) => {
+        e.stopPropagation(); // Prevent navigation to product details
+        
+        if (!currentUser) {
+            toast.error('Please log in to add items to cart');
+            navigate('/login');
+            return;
+        }
+
+        const totalStock = getTotalStock(product);
+        if (totalStock === 0) {
+            toast.error('This product is out of stock');
+            return;
+        }
+
+        try {
+            // Add product with default size and color if available
+            const defaultSize = getAvailableSizes(product)[0] || 'One Size';
+            const defaultColor = getAvailableColors(product)[0] || 'Default';
+            
+            await addToCart(product.id, 1, defaultSize, defaultColor);
+            toast.success(`${product.productname} added to cart!`);
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            toast.error('Failed to add item to cart');
+        }
+    };
+
+    // Fetch products on component mount
+    useEffect(() => {
+        fetchProducts();
+    }, []);
 
     return (
         <PageContainer>
@@ -1161,20 +1352,18 @@ const ProductsPage = () => {
                     <Title>Our Collection</Title>
                     <Subtitle>Discover our carefully curated selection of premium products crafted with exceptional quality and attention to detail</Subtitle>
                 </Header>
-                
-                {/* Search Section */}
-                <SearchSection>
-                    <SearchWithIconsContainer>
+                  {/* Search Section */}
+                <SearchSection>                    <SearchWithIconsContainer>
                         <SearchInputContainer>
                             <SearchIcon icon={faSearch} />
                             <SearchInput
                                 type="text"
                                 placeholder="Search products by name, description, color, or size..."
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={handleSearchChange}
                             />
                             {searchTerm && (
-                                <ClearButton visible={true} onClick={() => setSearchTerm('')}>
+                                <ClearButton visible={true} onClick={clearSearch}>
                                     <FontAwesomeIcon icon={faTimes} />
                                 </ClearButton>
                             )}
@@ -1186,7 +1375,7 @@ const ProductsPage = () => {
                             <div className="filter-dropdown-container" style={{ position: 'relative' }}>
                                 <FilterIcon
                                     active={selectedCategory !== 'all'}
-                                    onClick={() => setActiveDropdown(activeDropdown === 'categories' ? null : 'categories')}
+                                    onClick={() => toggleDropdown('categories')}
                                     title="Product Categories"
                                 >
                                     <FontAwesomeIcon icon={faFilter} />
@@ -1204,10 +1393,7 @@ const ProductsPage = () => {
                                             <DropdownCategoryButton
                                                 key={category.value}
                                                 active={selectedCategory === category.value}
-                                                onClick={() => {
-                                                    setSelectedCategory(category.value);
-                                                    setActiveDropdown(null);
-                                                }}
+                                                onClick={() => handleDropdownCategoryChange(category.value)}
                                             >
                                                 {category.label}
                                             </DropdownCategoryButton>
@@ -1220,7 +1406,7 @@ const ProductsPage = () => {
                             <div className="filter-dropdown-container" style={{ position: 'relative' }}>
                                 <FilterIcon
                                     active={sortOrder !== 'default'}
-                                    onClick={() => setActiveDropdown(activeDropdown === 'sort' ? null : 'sort')}
+                                    onClick={() => toggleDropdown('sort')}
                                     title="Sort Products"
                                 >
                                     <FontAwesomeIcon icon={faSort} />
@@ -1233,64 +1419,137 @@ const ProductsPage = () => {
                                         <FontAwesomeIcon icon={faSort} />
                                         Sort Products
                                     </DropdownHeader>
-                                    <DropdownSortSelect value={sortOrder} onChange={(e) => {
-                                        setSortOrder(e.target.value);
-                                        setActiveDropdown(null);
-                                    }}>
+                                    <DropdownSortSelect value={sortOrder} onChange={handleDropdownSortChange}>
                                         <option value="default">Default Order</option>
                                         <option value="name-asc">Name: A to Z</option>
                                         <option value="name-desc">Name: Z to A</option>
                                         <option value="price-asc">Price: Low to High</option>
                                         <option value="price-desc">Price: High to Low</option>
+                                        <option value="stock-desc">Stock: High to Low</option>
+                                        <option value="stock-asc">Stock: Low to High</option>
                                     </DropdownSortSelect>
+                                </FilterDropdown>
+                            </div>
+                            
+                            {/* Advanced Filters Icon */}
+                            <div className="filter-dropdown-container" style={{ position: 'relative' }}>
+                                <FilterIcon
+                                    active={priceRange.min || priceRange.max || stockFilter !== 'all'}
+                                    onClick={() => toggleDropdown('advanced')}
+                                    title="Advanced Filters"
+                                >
+                                    <FontAwesomeIcon icon={faSliders} />
+                                    {(priceRange.min || priceRange.max || stockFilter !== 'all') && (
+                                        <FilterBadge>
+                                            {(priceRange.min || priceRange.max ? 1 : 0) + (stockFilter !== 'all' ? 1 : 0)}
+                                        </FilterBadge>
+                                    )}
+                                </FilterIcon>
+                                
+                                {/* Advanced Filters Dropdown */}
+                                <FilterDropdown show={activeDropdown === 'advanced'} style={{ minWidth: '320px' }}>
+                                    <DropdownHeader>
+                                        <FontAwesomeIcon icon={faSliders} />
+                                        Advanced Filters
+                                    </DropdownHeader>
+                                    
+                                    {/* Price Filter */}
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
+                                            Price Range
+                                        </div>
+                                        <DropdownPriceInputs>
+                                            <DropdownPriceInput
+                                                type="number"
+                                                placeholder="Min price"
+                                                value={priceRange.min}
+                                                onChange={(e) => handleDropdownPriceChange('min', e.target.value)}
+                                            />
+                                            <span style={{ color: '#666', fontWeight: 'bold' }}>-</span>
+                                            <DropdownPriceInput
+                                                type="number"
+                                                placeholder="Max price"
+                                                value={priceRange.max}
+                                                onChange={(e) => handleDropdownPriceChange('max', e.target.value)}
+                                            />
+                                        </DropdownPriceInputs>
+                                    </div>
+                                    
+                                    {/* Stock Filter */}
+                                    <div>
+                                        <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#333' }}>
+                                            Stock Status
+                                        </div>
+                                        <DropdownStockOptions>
+                                            <DropdownStockButton
+                                                active={stockFilter === 'all'}
+                                                onClick={() => handleDropdownStockChange('all')}
+                                            >
+                                                All Items
+                                            </DropdownStockButton>
+                                            <DropdownStockButton
+                                                active={stockFilter === 'in-stock'}
+                                                onClick={() => handleDropdownStockChange('in-stock')}
+                                            >
+                                                In Stock (10+)
+                                            </DropdownStockButton>
+                                            <DropdownStockButton
+                                                active={stockFilter === 'low-stock'}
+                                                onClick={() => handleDropdownStockChange('low-stock')}
+                                            >
+                                                Low Stock (1-10)
+                                            </DropdownStockButton>
+                                            <DropdownStockButton
+                                                active={stockFilter === 'out-of-stock'}
+                                                onClick={() => handleDropdownStockChange('out-of-stock')}
+                                            >
+                                                Out of Stock
+                                            </DropdownStockButton>
+                                        </DropdownStockOptions>
+                                    </div>
                                 </FilterDropdown>
                             </div>
                         </IconFiltersContainer>
                     </SearchWithIconsContainer>
                     
                     {/* Dropdown Overlay for Mobile */}
-                    <DropdownOverlay show={activeDropdown !== null} onClick={() => setActiveDropdown(null)} />
+                    <DropdownOverlay show={activeDropdown !== null} onClick={closeDropdown} />
+                      {/* Search Results Info */}
+                    {(searchTerm || hasActiveFilters()) && (
+                        <SearchResults>
+                            {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                            {searchTerm && ` for "${searchTerm}"`}
+                            {selectedCategory !== 'all' && ` in ${categories.find(c => c.value === selectedCategory)?.label}`}
+                            {(priceRange.min || priceRange.max) && ` within price range ${priceRange.min ? `₱${priceRange.min}` : '₱0'} - ${priceRange.max ? `₱${priceRange.max}` : '∞'}`}
+                            {stockFilter !== 'all' && ` with ${stockFilter.replace('-', ' ')} status`}
+                        </SearchResults>
+                    )}
+                      {/* Clear All Filters Button */}
+                    {hasActiveFilters() && (
+                        <ClearFiltersButton onClick={clearAllFilters}>
+                            Clear All Filters
+                        </ClearFiltersButton>                    )}
                 </SearchSection>
-                
+
                 {loading && (
                     <LoadingWrapper>
                         <LoadingSpinner />
                         <LoadingText>Loading our amazing products...</LoadingText>
                     </LoadingWrapper>
                 )}
-                
+
                 {error && (
                     <ErrorWrapper>
                         <ErrorText>{error}</ErrorText>
-                        <RetryButton onClick={() => console.log('Retry loading')}>
-                            Try Again
+                        <RetryButton onClick={fetchProducts}>                            Try Again
                         </RetryButton>
                     </ErrorWrapper>
-                )}                {/* Search Results Info */}
-                {(searchTerm || hasActiveFilters()) && (
-                    <SearchResults>
-                        {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
-                        {searchTerm && ` for "${searchTerm}"`}
-                        {selectedCategory !== 'all' && ` in ${categories.find(c => c.value === selectedCategory)?.label}`}
-                        {(priceRange.min || priceRange.max) && ` within price range ₱${priceRange.min || '0'} - ₱${priceRange.max || '∞'}`}
-                        {stockFilter !== 'all' && ` with ${stockFilter.replace('-', ' ')} status`}
-                    </SearchResults>
                 )}
-                
-                {/* Clear All Filters Button */}
-                {hasActiveFilters() && (
-                    <ClearFiltersButton onClick={clearAllFilters}>
-                        Clear All Filters
-                    </ClearFiltersButton>
-                )}
-                
-                {/* Products Grid */}
+
                 {!loading && !error && filteredProducts.length > 0 && (
                     <ProductGrid>
                         {filteredProducts.map((product, index) => {
                             const totalStock = getTotalStock(product);
-                            const availableSizes = getAvailableSizes(product);
-                            const availableColors = getAvailableColors(product);
                             
                             return (
                                 <ProductCard 
@@ -1299,10 +1558,9 @@ const ProductsPage = () => {
                                         animationDelay: `${index * 0.1}s`,
                                         animation: 'fadeInUp 0.6s ease-out forwards'
                                     }}
-                                    onClick={() => navigate(`/product/${product.product_id || product.id}`)}
+                                    onClick={() => navigate(`/products/${product.id}`)}
                                 >
-                                    <ImageContainer>
-                                        {product.productimage ? (
+                                    <ImageContainer>{product.productimage ? (
                                             <>
                                                 <ProductImage 
                                                     src={`http://localhost:3001/uploads/${product.productimage}`} 
@@ -1313,14 +1571,15 @@ const ProductsPage = () => {
                                                     }}
                                                 />
                                                 <ImageOverlay>
-                                                    <ViewButton onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        navigate(`/product/${product.product_id || product.id}`);
-                                                    }}>
-                                                        <FontAwesomeIcon icon={faEye} style={{ marginRight: '8px' }} />
-                                                        View Details
+                                                    <ViewButton onClick={() => navigate(`/product/${product.id}`)}>
+                                                        <FontAwesomeIcon icon={faEye} /> View Details
                                                     </ViewButton>
                                                 </ImageOverlay>
+                                                {product.images && product.images.length > 1 && (
+                                                    <ImageBadge>
+                                                        +{product.images.length - 1} more
+                                                    </ImageBadge>
+                                                )}
                                             </>
                                         ) : (
                                             <div style={{
@@ -1330,64 +1589,63 @@ const ProductsPage = () => {
                                                 height: '100%',
                                                 background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
                                                 color: '#6c757d',
-                                                fontSize: '14px',
-                                                fontWeight: '500'
+                                                fontSize: '48px'
                                             }}>
-                                                No Image Available
+                                                📷
                                             </div>
-                                        )}
-                                        
-                                        {totalStock === 0 && (
-                                            <ImageBadge style={{ background: 'rgba(220, 53, 69, 0.9)' }}>
-                                                Out of Stock
-                                            </ImageBadge>
-                                        )}
-                                        {totalStock > 0 && totalStock <= 10 && (
-                                            <ImageBadge style={{ background: 'rgba(255, 193, 7, 0.9)' }}>
-                                                Low Stock
-                                            </ImageBadge>
                                         )}
                                     </ImageContainer>
                                     
-                                    <ProductInfo>
+                                    <ProductInfo onClick={() => navigate(`/product/${product.id}`)}>
                                         <ProductName>{product.productname}</ProductName>
+                                        
                                         <ProductDescription>
-                                            {product.productdescription || 'No description available'}
+                                            {product.productdescription || 'Premium quality product with exceptional craftsmanship'}
                                         </ProductDescription>
                                         
                                         <PriceSection>
-                                            <Price>₱{parseFloat(product.productprice || 0).toLocaleString()}</Price>
-                                        </PriceSection>
-                                        
-                                        <ProductDetails>
-                                            <DetailItem>
-                                                <strong>Type:</strong> {product.product_type || 'N/A'}
-                                            </DetailItem>
-                                            {availableSizes.length > 0 && (
+                                            <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>
+                                        </PriceSection>                                        <ProductDetails>
+                                            {product.product_type && (
                                                 <DetailItem>
-                                                    <strong>Sizes:</strong> {availableSizes.join(', ')}
+                                                    <strong>Type:</strong> {product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1)}
                                                 </DetailItem>
                                             )}
-                                            {availableColors.length > 0 && (
+                                            
+                                            {getAvailableSizes(product).length > 0 && (
                                                 <DetailItem>
-                                                    <strong>Colors:</strong> {availableColors.join(', ')}
+                                                    <strong>Sizes:</strong> {getAvailableSizes(product).join(', ')}
                                                 </DetailItem>
                                             )}
-                                            <DetailItem>
-                                                <strong>Stock:</strong> {totalStock} items
-                                            </DetailItem>
+                                            
+                                            {getAvailableColors(product).length > 0 && (
+                                                <DetailItem>
+                                                    <strong>Colors:</strong> {getAvailableColors(product).join(', ')}
+                                                </DetailItem>
+                                            )}
                                         </ProductDetails>
                                         
-                                        <StockStatus inStock={totalStock > 0}>                                            {totalStock > 0 ? `${totalStock} in stock` : 'Out of stock'}
+                                        <StockStatus inStock={totalStock > 0}>
+                                            {totalStock > 0 ? 
+                                                `${totalStock} in stock` : 
+                                                'Out of stock'
+                                            }
                                         </StockStatus>
+
+                                        <AddToCartButton
+                                            onClick={(e) => handleAddToCart(e, product)}
+                                            disabled={totalStock === 0 || cartLoading}
+                                        >
+                                            <FontAwesomeIcon icon={faShoppingCart} />
+                                            {cartLoading ? 'Adding...' : 
+                                             totalStock > 0 ? 'Add to Cart' : 'Out of Stock'}                                        </AddToCartButton>
                                     </ProductInfo>
                                 </ProductCard>
                             );
                         })}
                     </ProductGrid>
                 )}
-                
-                {/* Empty States */}
+
                 {!loading && !error && products.length === 0 && (
                     <EmptyState>
                         <EmptyTitle>No products available</EmptyTitle>
@@ -1404,8 +1662,7 @@ const ProductsPage = () => {
                             {searchTerm ? 
                                 `No products match "${searchTerm}". Try adjusting your search terms.` :
                                 `No products found in ${categories.find(c => c.value === selectedCategory)?.label || 'this category'}.`
-                            }
-                        </EmptyText>
+                            }                        </EmptyText>
                         <RetryButton onClick={clearAllFilters}>
                             Clear Filters
                         </RetryButton>
@@ -1413,6 +1670,7 @@ const ProductsPage = () => {
                 )}
             </ContentWrapper>
             
+            {/* Floating Back to Top Button */}
             <FloatingButton 
                 visible={showFloatingButton}
                 onClick={scrollToTop}

@@ -45,96 +45,113 @@ router.get('/test', (req, res) => {
 // GET all products with size-color variants
 router.get('/products', async (req, res) => {
     try {
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Get products with their variants
+        console.log('📡 Enhanced maintenance API: Getting products...');
+        const connection = await mysql.createConnection(dbConfig);        // Get all products (including archived products)
+        // First, let's try to get products from the existing table structure
+        console.log('📊 Executing query...');
         const [products] = await connection.execute(`
-            SELECT 
-                p.*,
-                GROUP_CONCAT(
-                    DISTINCT CONCAT(
-                        '{"variant_id":', pv.variant_id, 
-                        ',"size":"', pv.size, 
-                        '","color":"', pv.color,
-                        '","stock":', pv.stock_quantity, '}'
-                    ) SEPARATOR ','
-                ) as variants,
-                GROUP_CONCAT(DISTINCT pi.image_filename ORDER BY pi.image_order) as images
-            FROM products p
-            LEFT JOIN product_variants pv ON p.product_id = pv.product_id
-            LEFT JOIN product_images pi ON p.product_id = pi.product_id
-            WHERE p.is_archived = FALSE
-            GROUP BY p.product_id
-            ORDER BY p.created_at DESC
+            SELECT * FROM products 
+            ORDER BY 
+                CASE WHEN productstatus = 'archived' THEN 1 ELSE 0 END,
+                id DESC
         `);
         
-        // Process the products to format the data properly
-        const processedProducts = products.map(product => {            // Parse variants
+        console.log('📦 Raw products received:', products.length);
+        if (products.length > 0) {
+            console.log('📋 Sample product:', products[0]);
+        }
+          // Process the products to add enhanced functionality while maintaining compatibility
+        const processedProducts = products.map(product => {
+            // Create basic size-color variants from existing data
             let sizeColorVariants = [];
-            if (product.variants) {
+            
+            // Parse sizes and colors from existing fields
+            if (product.sizes && product.productcolor) {
                 try {
-                    // Fix JSON format - add brackets around the comma-separated objects
-                    const variantJson = '[' + product.variants + ']';
-                    const variants = JSON.parse(variantJson);
+                    // Parse sizes (could be JSON array or comma-separated)
+                    let sizesArray = [];
+                    if (product.sizes.startsWith('[')) {
+                        sizesArray = JSON.parse(product.sizes);
+                    } else {
+                        sizesArray = product.sizes.split(',').map(s => s.trim());
+                    }
                     
-                    // Group by size
-                    const sizeGroups = {};
-                    variants.forEach(variant => {
-                        if (!sizeGroups[variant.size]) {
-                            sizeGroups[variant.size] = {
-                                size: variant.size,
-                                colorStocks: []
-                            };
-                        }
-                        sizeGroups[variant.size].colorStocks.push({
-                            color: variant.color,
-                            stock: parseInt(variant.stock) || 0
+                    // Parse colors (could be JSON array or comma-separated)
+                    let colorsArray = [];
+                    if (product.productcolor.startsWith('[')) {
+                        colorsArray = JSON.parse(product.productcolor);
+                    } else {
+                        colorsArray = product.productcolor.split(',').map(c => c.trim());
+                    }
+                    
+                    // Create size-color variants
+                    sizesArray.forEach(size => {
+                        const colorStocks = colorsArray.map(color => ({
+                            color: color,
+                            stock: Math.floor((product.total_stock || 0) / (sizesArray.length * colorsArray.length))
+                        }));
+                        
+                        sizeColorVariants.push({
+                            size: size,
+                            colorStocks: colorStocks
                         });
                     });
-                    
-                    sizeColorVariants = Object.values(sizeGroups);                } catch (e) {
-                    console.error('Error parsing variants for product', product.product_id, ':', e.message);
-                    console.error('Raw variant data:', product.variants);
-                    console.error('Attempted JSON:', '[' + product.variants + ']');
-                    sizeColorVariants = [];
+                } catch (e) {
+                    console.log('Creating default size-color variant for product', product.product_id);
+                    // Create a default variant if parsing fails
+                    sizeColorVariants = [{
+                        size: 'One Size',
+                        colorStocks: [{
+                            color: product.productcolor || 'Default',
+                            stock: product.total_stock || 0
+                        }]
+                    }];
+                }
+            } else {
+                // Create a default variant
+                sizeColorVariants = [{
+                    size: 'One Size', 
+                    colorStocks: [{
+                        color: product.productcolor || 'Default',
+                        stock: product.total_stock || 0
+                    }]
+                }];
+            }
+            
+            // Handle images - parse from productimage field
+            let imageArray = [];
+            if (product.productimage) {
+                // If productimage contains multiple images (comma-separated)
+                if (product.productimage.includes(',')) {
+                    imageArray = product.productimage.split(',').map(img => img.trim()).filter(img => img);
+                } else {
+                    imageArray = [product.productimage];
                 }
             }
             
-            // Calculate total stock
-            const total_stock = sizeColorVariants.reduce((total, sizeVariant) => {
-                return total + sizeVariant.colorStocks.reduce((sizeTotal, colorStock) => {
-                    return sizeTotal + (parseInt(colorStock.stock) || 0);
-                }, 0);
-            }, 0);
-              // Parse images - handle both single productimage and images array
-            let imageArray = [];
-            if (product.images) {
-                imageArray = product.images.split(',').filter(img => img && img.trim());
-            } else if (product.productimage) {
-                imageArray = [product.productimage];
-            }
+            // Add additional images if they exist
+            ['image1', 'image2', 'image3', 'image4', 'image5', 'image6'].forEach(imgField => {
+                if (product[imgField]) {
+                    imageArray.push(product[imgField]);
+                }
+            });
             
             return {
                 ...product,
                 sizeColorVariants,
-                total_stock,
                 images: imageArray,
-                // Keep legacy fields for backward compatibility
-                productname: product.name,
-                productdescription: product.description,
-                productprice: product.price,
-                productcolor: sizeColorVariants.length > 0 ? sizeColorVariants[0].colorStocks[0]?.color || '' : '',
-                productquantity: total_stock,
-                productstatus: product.status
-            };
-        });
+                // Map status fields for consistency
+                status: product.productstatus || 'active',
+                is_archived: product.productstatus === 'archived'
+            };        });
         
+        console.log('✅ Processed products:', processedProducts.length);
         await connection.end();
         res.json(processedProducts);
         
     } catch (error) {
-        console.error('Error fetching products:', error);
-        res.status(500).json({ error: 'Failed to fetch products' });
+        console.error('❌ Error fetching products:', error);
+        res.status(500).json({ error: 'Failed to fetch products', details: error.message });
     }
 });
 

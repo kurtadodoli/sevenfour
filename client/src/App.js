@@ -41,8 +41,7 @@ import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
 import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
 import SearchPage from './pages/SearchPage'; // Import SearchPage
-import CustomPage from './pages/CustomPage'; // Import CustomPage
-import DesignApprovalPage from './pages/DesignApprovalPage'; // Import DesignApprovalPage
+
 import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
 
 // Components
@@ -105,10 +104,8 @@ function App() {
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/status" element={<StatusPage />} /> {/* New diagnostic page */}
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
-                    <Route path="/unauthorized" element={<UnauthorizedPage />} />                    {/* Protected Routes - Customer */}                  <Route element={<PrivateRoute />}>                    <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/cart" element={<CartPage />} />
+                    <Route path="/unauthorized" element={<UnauthorizedPage />} />                    {/* Protected Routes - Customer */}                  <Route element={<PrivateRoute />}>                    <Route path="/profile" element={<ProfilePage />} />                    <Route path="/cart" element={<CartPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
-                    <Route path="/custom" element={<CustomPage />} />
                     <Route path="/delivery" element={<DeliveryPage />} />
                     <Route path="/orders" element={<OrderPage />} />
                   </Route>
@@ -122,12 +119,9 @@ function App() {
                       <Route path="/admin" element={<DashboardPage />} />
                       <Route path="/admin/users" element={<UsersPage />} />
                       <Route path="/admin/reports" element={<ReportsPage />} />
-                      <Route path="/admin/settings" element={<SettingsPage />} />                      <Route path="/admin/products" element={<MaintenancePage />} />
-                      <Route path="/maintenance" element={<MaintenancePage />} />
+                      <Route path="/admin/settings" element={<SettingsPage />} />                      <Route path="/admin/products" element={<MaintenancePage />} />                      <Route path="/maintenance" element={<MaintenancePage />} />
                       <Route path="/transactions" element={<TransactionPage />} />
                       <Route path="/search" element={<SearchPage />} />
-                      <Route path="/design-approval" element={<DesignApprovalPage />} />
-                      <Route path="/admin/custom" element={<CustomPage />} />
                     </Route>
                       {/* Additional Routes */}
                     <Route path="/help" element={<HelpPage />} />
