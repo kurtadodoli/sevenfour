@@ -41,8 +41,10 @@ import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
 import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
 import SearchPage from './pages/SearchPage'; // Import SearchPage
+import CustomPage from './pages/CustomPage'; // Import CustomPage
 
 import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
+import DebugTransactionPage from './pages/DebugTransactionPage'; // Import DebugTransactionPage
 
 // Components
 import Footer from './components/Footer';
@@ -59,7 +61,19 @@ const AppWrapper = styled.div`
   min-height: 100vh;
   width: 100vw;
   margin: 0;
-  padding: 0;  overflow-x: hidden;
+  padding: 0;
+  overflow-x: hidden;
+`;
+
+const MainContent = styled.main`
+  position: fixed;
+  top: 60px; // Account for TopBar height
+  left: 0; // Full width - sidebar will overlay
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff; // White background to match page content
 `;
 
 const Layout = () => {  
@@ -68,19 +82,18 @@ const Layout = () => {
       <Sidebar />
       <TopBar />
       <MainContent>
-        <Routes>
-          {/* Public Routes */}
+        <Routes>          {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/custom" element={<CustomPage />} />
           <Route path="/product/:id" element={<ProductDetailsPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/status" element={<StatusPage />} /> {/* New diagnostic page */}
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            {/* Protected Routes - Customer */}
-          <Route element={<PrivateRoute />}>
+            {/* Protected Routes - Customer */}          <Route element={<PrivateRoute />}>
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/delivery" element={<DeliveryPage />} />
@@ -101,8 +114,8 @@ const Layout = () => {
             <Route path="/admin/reports" element={<ReportsPage />} />
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/products" element={<MaintenancePage />} />
-            <Route path="/maintenance" element={<MaintenancePage />} />
-            <Route path="/transactions" element={<TransactionPage />} />
+            <Route path="/maintenance" element={<MaintenancePage />} />            <Route path="/transactions" element={<TransactionPage />} />
+            <Route path="/debug-transactions" element={<DebugTransactionPage />} />
             <Route path="/search" element={<SearchPage />} />
           </Route>
           
@@ -110,24 +123,12 @@ const Layout = () => {
           <Route path="/help" element={<HelpPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
-          <Route path="/shipping" element={<ShippingPage />} />
-        </Routes>
+          <Route path="/shipping" element={<ShippingPage />} />        </Routes>
       </MainContent>
       <Footer />
     </>
   );
 };
-
-const MainContent = styled.main`
-  position: fixed;
-  top: 60px; // Account for TopBar height
-  left: 0; // Full width - sidebar will overlay
-  right: 0;
-  bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #ffffff; // White background to match page content
-`;
 
 function App() {
   // Function to set favicon and title dynamically

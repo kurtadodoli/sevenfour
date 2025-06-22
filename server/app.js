@@ -135,8 +135,12 @@ async function testDbConnection() {
   }
 }
 
-// Test database connection
-testConnection();
+// Test database connection (optional - don't fail if DB is down)
+try {
+    testConnection();
+} catch (error) {
+    console.log('⚠️  Database connection optional for testing');
+}
 
 // API routes
 const authRoutes = require('./routes/auth');
@@ -154,6 +158,7 @@ const maintenanceRoutes = require('./routes/maintenance');
 const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const adminRoutes = require('./routes/admin');
 const inventoryRoutes = require('./routes/api/inventory');
+const customOrdersRoutes = require('./routes/custom-orders');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -170,11 +175,22 @@ app.use('/api/customizations', customizationRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/custom-orders', customOrdersRoutes);
 app.use('/health', healthCheckRoutes);
 
 // Simple test route
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working!' });
+});
+
+// Test custom orders endpoint without auth
+app.post('/api/custom-orders/test', (req, res) => {
+  console.log('Test custom orders endpoint hit');
+  res.json({ 
+    success: true, 
+    message: 'Custom orders endpoint is working!',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Error handling middleware

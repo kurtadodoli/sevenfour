@@ -195,8 +195,8 @@ const TransactionsTable = styled.div`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 220px 140px 120px 120px 140px 180px;
-  gap: 24px;
+  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
+  gap: 16px;
   padding: 24px;
   background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
@@ -207,16 +207,17 @@ const TableHeader = styled.div`
   letter-spacing: 1px;
   
   @media (max-width: 1200px) {
-    grid-template-columns: 120px 160px 180px 120px 100px 100px 120px 160px;
-    gap: 16px;
+    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
+    gap: 12px;
     padding: 20px;
+    font-size: 11px;
   }
 `;
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 220px 140px 120px 120px 140px 180px;
-  gap: 24px;
+  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
+  gap: 16px;
   padding: 24px;
   border-bottom: 1px solid #f8f8f8;
   align-items: center;
@@ -231,8 +232,8 @@ const TableRow = styled.div`
   }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 120px 160px 180px 120px 100px 100px 120px 160px;
-    gap: 16px;
+    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
+    gap: 12px;
     padding: 20px;
   }
 `;
@@ -497,19 +498,85 @@ const TransactionPage = () => {
     approved: 0,
     rejected: 0,
     totalAmount: 0
-  });
-  // Fetch transactions
+  });  // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get('/admin/transactions');
+      console.log('🔄 TransactionPage: Fetching ALL confirmed orders from database...');
+      
+      // Use the confirmed orders endpoint to get ALL confirmed orders from ALL users
+      const endpoint = '/orders/confirmed';
+      console.log('Using endpoint:', endpoint);
+      
+      const response = await api.get(endpoint);
+      
+      console.log('API response:', response);
+      console.log('Response data:', response.data);
+      
       if (response.data.success) {
-        setTransactions(response.data.data);
-        calculateStats(response.data.data);
+        console.log('✅ ALL confirmed orders fetched successfully:', response.data);
+        let ordersData = response.data.data || [];
+        
+        // Debug: Check if orders have items
+        console.log('📦 Sample order with items:', ordersData[0]);
+        if (ordersData.length > 0) {
+          console.log('📦 Items in first order:', ordersData[0].items);
+        }
+        
+        // Map ALL confirmed orders from ALL users for display
+        const processedOrders = ordersData.map(order => {
+          // Create full customer name from user data with fallback
+          const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
+                         order.customer_name || 
+                         'Unknown Customer';
+          
+          // Debug: Log items for each order
+          console.log(`📦 Order ${order.order_number} items:`, order.items);
+          
+          return {
+            id: order.id,
+            order_number: order.order_number,
+            transaction_id: order.transaction_id,
+            customer_name: fullName,
+            customer_email: order.user_email || order.customer_email,
+            user_email: order.user_email,
+            first_name: order.first_name,
+            last_name: order.last_name,
+            amount: order.total_amount,
+            total_amount: order.total_amount,
+            invoice_total: order.invoice_total,
+            payment_method: order.payment_method || 'Cash on Delivery',
+            order_status: order.status,
+            transaction_status: order.transaction_status || order.status,
+            status: order.status,
+            order_date: order.order_date,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            shipping_address: order.shipping_address,
+            contact_phone: order.contact_phone,
+            notes: order.notes,
+            items: order.items || order.order_items || []
+          };
+        });
+        
+        console.log(`📊 Found ${processedOrders.length} confirmed orders from ALL users`);
+        console.log('Orders from users:', processedOrders.map(o => ({ 
+          order: o.order_number, 
+          customer: o.customer_name, 
+          email: o.customer_email 
+        })));
+        
+        setTransactions(processedOrders);
+        calculateStats(processedOrders);
+      } else {
+        console.error('❌ Failed to fetch orders:', response.data);
+        toast.error('Failed to fetch confirmed orders');
       }
     } catch (error) {
-      console.error('Error fetching transactions:', error);
-      toast.error('Failed to fetch transactions');
+      console.error('❌ Error fetching confirmed orders:', error);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error details:', error.response?.data?.message || error.message);
+      toast.error('Failed to fetch confirmed orders');
     } finally {
       setLoading(false);
     }
@@ -607,9 +674,8 @@ const TransactionPage = () => {
           <Title>
             <FontAwesomeIcon icon={faReceipt} />
             Transaction Management
-          </Title>
-          <Subtitle>
-            Approve or reject customer orders and manage transaction status
+          </Title>          <Subtitle>
+            View all confirmed orders from all customers
           </Subtitle>
         </Header>        {/* Statistics */}
         <StatsContainer>
@@ -662,11 +728,11 @@ const TransactionPage = () => {
         </ControlsSection>
 
         {/* Transactions Table */}
-        <TransactionsTable>
-          <TableHeader>
+        <TransactionsTable>          <TableHeader>
             <div>Order #</div>
             <div>Date</div>
             <div>Customer</div>
+            <div>Products</div>
             <div>Amount</div>
             <div>Payment</div>
             <div>Status</div>
@@ -685,8 +751,7 @@ const TransactionPage = () => {
               <h3>No transactions found</h3>
               <p>No transactions match your current filters.</p>
             </EmptyState>
-          ) : (
-            filteredTransactions.map((transaction) => (
+          ) : (            filteredTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <OrderNumber>
                   {transaction.order_number}
@@ -700,6 +765,69 @@ const TransactionPage = () => {
                   <div className="name">{transaction.customer_name || 'N/A'}</div>
                   <div className="email">{transaction.customer_email || 'N/A'}</div>
                 </CustomerInfo>
+                  {/* Products Summary */}
+                <div style={{ 
+                  fontSize: '14px',
+                  maxWidth: '200px',
+                  overflow: 'hidden'
+                }}>
+                  {transaction.items && transaction.items.length > 0 ? (
+                    <div>
+                      <div style={{ fontWeight: '600', marginBottom: '4px', color: '#000000' }}>
+                        {transaction.items.length} item{transaction.items.length > 1 ? 's' : ''}
+                      </div>
+                      {transaction.items.slice(0, 2).map((item, index) => (
+                        <div key={index} style={{ 
+                          fontSize: '11px',
+                          color: '#666666',
+                          marginBottom: '4px',
+                          lineHeight: '1.3',
+                          padding: '4px',
+                          border: '1px solid #f0f0f0',
+                          borderRadius: '4px',
+                          backgroundColor: '#fafafa'
+                        }}>
+                          <div style={{ fontWeight: '600', color: '#000000', marginBottom: '2px' }}>
+                            {item.productname || 'Unknown Product'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#666666', marginBottom: '2px' }}>
+                            <strong>ID:</strong> {item.product_id || 'N/A'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#888888' }}>
+                            {item.productcolor && (
+                              <span><strong>Color:</strong> {item.productcolor} • </span>
+                            )}
+                            {item.product_type && (
+                              <span><strong>Type:</strong> {item.product_type} • </span>
+                            )}
+                            <span><strong>Qty:</strong> {item.quantity || 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {transaction.items.length > 2 && (
+                        <div style={{ 
+                          fontSize: '11px',
+                          color: '#999999',
+                          fontStyle: 'italic',
+                          marginTop: '4px',
+                          textAlign: 'center'
+                        }}>
+                          +{transaction.items.length - 2} more item{transaction.items.length - 2 > 1 ? 's' : ''}...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      color: '#999999', 
+                      fontSize: '12px',
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                      padding: '8px'
+                    }}>
+                      No items found
+                    </div>
+                  )}
+                </div>
                 
                 <OrderDetails>
                   <div className="amount">{formatCurrency(transaction.total_amount)}</div>
@@ -761,14 +889,96 @@ const TransactionPage = () => {
                 </CloseButton>
               </ModalHeader>
               
-              <ModalContent>
-                <div style={{ marginBottom: '24px' }}>
+              <ModalContent>                <div style={{ marginBottom: '24px' }}>
                   <h3>Order Information</h3>
                   <p><strong>Order Number:</strong> {selectedTransaction.order_number}</p>
                   <p><strong>Status:</strong> <StatusBadge status={selectedTransaction.status}>{selectedTransaction.status}</StatusBadge></p>
                   <p><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.total_amount)}</p>
                   <p><strong>Payment Method:</strong> {selectedTransaction.payment_method || 'Cash on Delivery'}</p>
                 </div>
+
+                {/* Product Details Section */}
+                {selectedTransaction.items && selectedTransaction.items.length > 0 && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3>Order Items</h3>
+                    <div style={{ 
+                      background: '#f8f9fa', 
+                      border: '1px solid #e9ecef', 
+                      borderRadius: '8px', 
+                      padding: '16px',
+                      maxHeight: '300px',
+                      overflowY: 'auto'
+                    }}>
+                      {selectedTransaction.items.map((item, index) => (
+                        <div key={`${item.product_id || item.id}-${index}`} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '12px 0',
+                          borderBottom: index < selectedTransaction.items.length - 1 ? '1px solid #dee2e6' : 'none',
+                          gap: '16px'
+                        }}>
+                          {/* Product Image */}
+                          {item.productimage && (
+                            <img 
+                              src={`http://localhost:3001/uploads/${item.productimage}`}
+                              alt={item.productname || 'Product'}
+                              style={{
+                                width: '60px',
+                                height: '60px',
+                                objectFit: 'cover',
+                                borderRadius: '8px',
+                                border: '1px solid #dee2e6'
+                              }}
+                              onError={(e) => {
+                                e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                              }}
+                            />
+                          )}
+                          
+                          {/* Product Details */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              fontWeight: '600', 
+                              marginBottom: '4px',
+                              color: '#000000'
+                            }}>
+                              {item.productname || 'Unknown Product'}
+                            </div>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              color: '#666666',
+                              marginBottom: '4px'
+                            }}>
+                              <strong>Product ID:</strong> {item.product_id || item.id || 'N/A'}
+                              {item.productcolor && (
+                                <span style={{ marginLeft: '16px' }}>
+                                  <strong>Color:</strong> {item.productcolor}
+                                </span>
+                              )}
+                              {item.product_type && (
+                                <span style={{ marginLeft: '16px' }}>
+                                  <strong>Type:</strong> {item.product_type}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              color: '#666666'
+                            }}>
+                              <strong>Quantity:</strong> {item.quantity || 1}
+                              <span style={{ marginLeft: '16px' }}>
+                                <strong>Unit Price:</strong> {formatCurrency(item.price || item.unit_price || 0)}
+                              </span>
+                              <span style={{ marginLeft: '16px' }}>
+                                <strong>Subtotal:</strong> {formatCurrency((item.price || item.unit_price || 0) * (item.quantity || 1))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div style={{ marginBottom: '24px' }}>
                   <h3>Customer Information</h3>

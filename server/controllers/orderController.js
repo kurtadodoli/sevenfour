@@ -587,8 +587,7 @@ exports.getAllTransactions = async (req, res) => {
             const searchTerm = `%${search}%`;
             queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
         }
-        
-        // Get transactions with order and user details
+          // Get transactions with order and user details
         const [transactions] = await connection.execute(`
             SELECT 
                 st.*,
@@ -610,13 +609,12 @@ exports.getAllTransactions = async (req, res) => {
                 SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
             )
             LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
-            LEFT JOIN users u ON st.user_id = u.id
+            LEFT JOIN users u ON st.user_id = u.user_id
             WHERE ${whereClause}
             ORDER BY st.created_at DESC
-            LIMIT ? OFFSET ?
-        `, [...queryParams, parseInt(limit), parseInt(offset)]);
-        
-        // Get total count for pagination
+            LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
+        `, queryParams);
+          // Get total count for pagination
         const [countResult] = await connection.execute(`
             SELECT COUNT(*) as total
             FROM sales_transactions st
@@ -624,7 +622,7 @@ exports.getAllTransactions = async (req, res) => {
                 SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
             )
             LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
-            LEFT JOIN users u ON st.user_id = u.id
+            LEFT JOIN users u ON st.user_id = u.user_id
             WHERE ${whereClause}
         `, queryParams);
         
@@ -652,6 +650,147 @@ exports.getAllTransactions = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to fetch transactions' 
+        });
+    }
+};
+
+// Get confirmed orders for admin transaction page
+exports.getConfirmedOrders = async (req, res) => {
+    try {
+        console.log('=== GET CONFIRMED ORDERS ===');
+        console.log('User role:', req.user.role);
+        
+        // Only allow admin/staff to view all confirmed orders
+        if (!['admin', 'staff'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin/staff only' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const { page = 1, limit = 20, search = '' } = req.query;
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 20;
+        const offset = (pageNum - 1) * limitNum;
+        
+        let whereClause = "o.status = 'confirmed'";
+        let queryParams = [];
+        
+        // Add search filter
+        if (search) {
+            whereClause += ` AND (
+                o.order_number LIKE ? OR 
+                u.first_name LIKE ? OR 
+                u.last_name LIKE ? OR
+                u.email LIKE ? OR
+                oi.customer_name LIKE ? OR
+                oi.customer_email LIKE ?
+            )`;
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+        }
+        
+        // Get confirmed orders with user and invoice details
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                u.first_name,
+                u.last_name,
+                u.email as user_email,
+                oi.customer_name,
+                oi.customer_email,
+                oi.total_amount as invoice_total,
+                st.transaction_id,
+                st.payment_method,
+                st.transaction_status
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            WHERE ${whereClause}
+            ORDER BY o.created_at DESC
+            LIMIT ${limitNum} OFFSET ${offset}
+        `, queryParams);
+        
+        // Get order items for each order with product details
+        for (let order of orders) {
+            const [items] = await connection.execute(`
+                SELECT 
+                    oit.*,
+                    p.productname,
+                    p.productcolor,
+                    p.product_type,
+                    p.productimage,
+                    p.productprice as product_original_price,
+                    oit.product_price as price,
+                    oit.quantity,
+                    oit.product_id,
+                    oit.product_name as productname_from_order,
+                    oit.color as productcolor_from_order,
+                    oit.size as product_size
+                FROM order_items oit
+                LEFT JOIN products p ON oit.product_id = p.product_id
+                WHERE oit.order_id = ?
+                ORDER BY oit.id
+            `, [order.id]);
+            
+            // Process items to ensure all product details are available
+            order.items = items.map(item => ({
+                id: item.id,
+                product_id: item.product_id,
+                productname: item.productname || item.productname_from_order || item.product_name || 'Unknown Product',
+                productcolor: item.productcolor || item.productcolor_from_order || item.color || null,
+                product_type: item.product_type || null,
+                productimage: item.productimage || null,
+                quantity: item.quantity || 1,
+                price: item.price || item.product_price || 0,
+                unit_price: item.price || item.product_price || 0,
+                subtotal: item.subtotal || (item.quantity * (item.price || item.product_price || 0)),
+                size: item.product_size || item.size || null
+            }));
+            
+            console.log(`📦 Order ${order.order_number} has ${order.items.length} items:`, 
+                order.items.map(item => ({
+                    name: item.productname,
+                    color: item.productcolor,
+                    type: item.product_type,
+                    qty: item.quantity,
+                    id: item.product_id
+                }))
+            );
+        }
+        
+        // Get total count for pagination
+        const [countResult] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            WHERE ${whereClause}
+        `, queryParams);
+        
+        await connection.end();
+        
+        console.log(`✅ Found ${orders.length} confirmed orders with items (total: ${countResult[0].total})`);
+        
+        res.json({
+            success: true,
+            data: orders,
+            pagination: {
+                total: countResult[0].total,
+                page: pageNum,
+                limit: limitNum,
+                pages: Math.ceil(countResult[0].total / limitNum)
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching confirmed orders:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch confirmed orders' 
         });
     }
 };

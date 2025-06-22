@@ -10,13 +10,17 @@ export const AuthProvider = ({ children }) => {
     const [error, setError] = useState(null);
     
     // API base URL (using the imported api instance now)
-    const API_BASE_URL = 'http://localhost:3001';
-
-    const logout = useCallback(() => {
+    const API_BASE_URL = 'http://localhost:3001';    const logout = useCallback(() => {
+        console.log('AuthContext: Logout initiated, clearing all user data');
         localStorage.removeItem('token');
         setCurrentUser(null);
         setError(null);
-    }, []);    const verifyAndSetUser = useCallback(async (token) => {
+        
+        // Force a small delay to ensure all contexts get the update
+        setTimeout(() => {
+            console.log('AuthContext: Logout completed');
+        }, 100);
+    }, []);const verifyAndSetUser = useCallback(async (token) => {
         try {
             if (!token) {
                 console.log('No token provided for verification');
@@ -132,10 +136,12 @@ export const AuthProvider = ({ children }) => {
         };
         
         checkAuth();
-    }, [verifyAndSetUser]);const login = useCallback(async (credentials) => {
+    }, [verifyAndSetUser]);    const login = useCallback(async (credentials) => {
         try {
             setError(null);
             setLoading(true);
+
+            console.log('AuthContext: Login attempt for user:', credentials.email);
 
             // Create a clean axios instance for login without interceptors
             // This prevents automatic logout on 401 during login attempts
@@ -153,18 +159,23 @@ export const AuthProvider = ({ children }) => {
             if (loginResponse.data?.success && loginResponse.data?.data) {
                 const { user, token } = loginResponse.data.data;
                 
-                // Store token before making any other API calls
+                console.log('AuthContext: Login successful for user:', user.email, 'ID:', user.id);
+                
+                // Clear any existing token first
+                localStorage.removeItem('token');
+                
+                // Store new token
                 localStorage.setItem('token', token);
                 
                 // Immediately set the user data from login
                 setCurrentUser(user);
                 
-                console.log('Login successful, token stored, user set in context');
+                console.log('AuthContext: Token stored, user set in context');
                 
                 // Use a timeout to avoid race conditions
                 setTimeout(async () => {
                     try {
-                        console.log('Fetching full profile after login');
+                        console.log('AuthContext: Fetching full profile after login');
                         // Create a new request with the token
                         const authHeader = { headers: { Authorization: `Bearer ${token}` } };
                         const profileResponse = await axios.get(
@@ -173,11 +184,11 @@ export const AuthProvider = ({ children }) => {
                         );
                         
                         if (profileResponse.data?.success && profileResponse.data?.data?.user) {
-                            console.log('Full profile fetched successfully');
+                            console.log('AuthContext: Full profile fetched successfully');
                             setCurrentUser(profileResponse.data.data.user);
                         }
                     } catch (profileError) {
-                        console.warn('Could not fetch full profile after login:', profileError);
+                        console.warn('AuthContext: Could not fetch full profile after login:', profileError);
                         // Continue with basic user data if profile fetch fails
                     }
                 }, 500);
@@ -187,13 +198,13 @@ export const AuthProvider = ({ children }) => {
                 throw new Error('Invalid response from server');
             }
         } catch (error) {
-            console.error('Login failed:', error);
+            console.error('AuthContext: Login failed:', error);
             const errorMessage = error.response?.data?.message || error.message || 'Login failed. Please try again.';
             setError(errorMessage);
             throw new Error(errorMessage);
         } finally {
             setLoading(false);
-        }    }, [API_BASE_URL]);
+        }}, [API_BASE_URL]);
     
     // Register function - using multiple approaches to ensure reliability
     const register = useCallback(async (userData) => {

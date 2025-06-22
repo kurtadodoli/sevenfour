@@ -1,0 +1,5 @@
+<!-- Simple SVG placeholder -->
+<svg width="50" height="50" xmlns="http://www.w3.org/2000/svg">
+  <rect width="50" height="50" fill="#f0f0f0" stroke="#ddd" stroke-width="1"/>
+  <text x="25" y="25" text-anchor="middle" dominant-baseline="middle" font-family="Arial, sans-serif" font-size="8" fill="#999">No Image</text>
+</svg>

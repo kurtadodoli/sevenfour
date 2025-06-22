@@ -9,9 +9,7 @@ import {
   faShoppingBag, 
   faUser, 
   faPhone, 
-  faMapMarkerAlt, 
   faMoneyBillWave,
-  faDownload,
   faCheck,
   faSpinner,
   faEye,
@@ -22,6 +20,43 @@ import {
   faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
+
+// Philippine address data
+const philippineAddressData = {
+  "Metro Manila": [
+    "Manila", "Quezon City", "Makati", "Pasig", "Taguig", "Muntinlupa", 
+    "Parañaque", "Las Piñas", "Marikina", "Pasay", "Caloocan", "Malabon", 
+    "Navotas", "Valenzuela", "San Juan", "Mandaluyong", "Pateros"
+  ],
+  "Cebu": [
+    "Cebu City", "Lapu-Lapu", "Mandaue", "Talisay", "Toledo", "Danao", 
+    "Carcar", "Bogo", "Naga"
+  ],
+  "Davao del Sur": [
+    "Davao City", "Digos", "Samal", "Santa Cruz", "Hagonoy", "Kiblawan", 
+    "Magsaysay", "Matanao"
+  ],
+  "Laguna": [
+    "Santa Rosa", "Biñan", "San Pedro", "Calamba", "Los Baños", "Sta. Cruz", 
+    "Pagsanjan", "Lumban", "Bay"
+  ],
+  "Cavite": [
+    "Bacoor", "Dasmariñas", "Imus", "General Trias", "Kawit", "Noveleta", 
+    "Rosario", "Cavite City", "Trece Martires"
+  ],
+  "Rizal": [
+    "Antipolo", "Cainta", "Taytay", "Angono", "Binangonan", "Rodriguez", 
+    "San Mateo", "Morong", "Baras"
+  ],
+  "Bulacan": [
+    "Malolos", "Meycauayan", "San Jose del Monte", "Marilao", "Bocaue", 
+    "Guiguinto", "Balagtas", "Bulakan", "Hagonoy"
+  ],
+  "Pampanga": [
+    "San Fernando", "Angeles", "Mabalacat", "Porac", "Floridablanca", 
+    "Guagua", "Lubao", "Sasmuan", "Macabebe"
+  ]
+};
 
 // Styled Components with Glassmorphic Design
 const PageContainer = styled.div`
@@ -183,203 +218,6 @@ const SectionTitle = styled.h2`
   gap: 12px;  
   svg {
     color: #666666;
-  }
-`;
-
-const CartItem = styled.div`
-  display: grid;
-  grid-template-columns: 80px 1fr auto auto;
-  gap: 16px;
-  padding: 20px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
-  align-items: center;
-  
-  &:last-child {
-    border-bottom: none;
-  }
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.02);
-    border-radius: 8px;
-    padding: 20px 16px;
-    margin: 0 -16px;
-  }
-`;
-
-const ItemImage = styled.img`
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-`;
-
-const ItemDetails = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-`;
-
-const ItemName = styled.h3`
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: #000000;
-  margin: 0;
-  line-height: 1.3;
-  word-wrap: break-word;
-`;
-
-const ItemSpecs = styled.div`
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-`;
-
-const ItemBadge = styled.span`
-  background: rgba(0, 0, 0, 0.05);
-  color: #666666;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: capitalize;
-`;
-
-const ItemPrice = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-`;
-
-const Price = styled.span`
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #000000;
-`;
-
-const QuantityControls = styled.div`
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-top: 8px;
-  width: fit-content;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  }
-`;
-
-const QuantityButton = styled.button`
-  width: 32px;
-  height: 32px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666666;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #000000;
-  }
-  
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-`;
-
-const QuantityDisplay = styled.span`
-  padding: 0 12px;
-  font-weight: 500;
-  color: #000000;
-  min-width: 30px;
-  text-align: center;
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
-  font-size: 14px;
-`;
-
-const FormGroup = styled.div`
-  margin-bottom: 24px;
-`;
-
-const Label = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-weight: 500;
-  color: #000000;
-  font-size: 14px;
-  
-  svg {
-    color: #666666;
-  }
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  font-size: 14px;
-  color: #000000;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(0, 0, 0, 0.2);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  &::placeholder {
-    color: #999999;
-  }
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  font-size: 14px;
-  color: #000000;
-  min-height: 100px;
-  resize: vertical;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  font-family: inherit;
-  
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.95);
-    border-color: rgba(0, 0, 0, 0.2);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  &::placeholder {
-    color: #999999;
   }
 `;
 
@@ -796,17 +634,240 @@ const OrderItemPrice = styled.div`
   min-width: 80px;
 `;
 
+const ShippingSection = styled.div`
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
+const AddressGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+  
+  .full-width {
+    grid-column: 1 / -1;
+  }
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+`;
+
+const Label = styled.label`
+  margin-bottom: 0.5rem;
+  color: #555;
+  font-weight: 500;
+  font-size: 0.9rem;
+`;
+
+const Select = styled.select`
+  padding: 0.75rem;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+  
+  &:disabled {
+    background: rgba(240, 240, 240, 0.9);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  option {
+    padding: 0.5rem;
+  }
+`;
+
+const Input = styled.input`
+  padding: 0.75rem;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999;
+  }
+`;
+
+// Cart Item Components
+const CartItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ItemImage = styled.img`
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+`;
+
+const ItemDetails = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const ItemName = styled.h3`
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #000000;
+`;
+
+const ItemSpecs = styled.div`
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+`;
+
+const ItemBadge = styled.span`
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666666;
+`;
+
+const QuantityControls = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+`;
+
+const QuantityButton = styled.button`
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  
+  &:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const QuantityDisplay = styled.span`
+  min-width: 40px;
+  text-align: center;
+  font-weight: 600;
+  color: #000000;
+`;
+
+const ItemPrice = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+`;
+
+const Price = styled.span`
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #000000;
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 80px;
+  padding: 12px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  }
+  
+  &::placeholder {
+    color: #999;
+  }
+`;
+
 const OrderPage = () => {
   const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
+  const [customOrders, setCustomOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [customOrdersLoading, setCustomOrdersLoading] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({
     customer_name: '',
     customer_email: '',
-    contact_phone: '',
-    shipping_address: '',
+    customer_phone: '',
+    province: '',
+    city: '',
+    street_address: '',
+    postal_code: '',
+    payment_method: 'cash_on_delivery',
     notes: ''
   });
+  
+  // Add state for managing city options
+  const [availableCities, setAvailableCities] = useState([]);
   
   // Invoice modal state
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -819,7 +880,7 @@ const OrderPage = () => {
   const [cancelReason, setCancelReason] = useState('');
   
   const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
-  const { user } = useAuth();  // Fetch user orders
+  const { user } = useAuth();// Fetch user orders
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
@@ -840,14 +901,33 @@ const OrderPage = () => {
       toast.error('Failed to fetch orders');
     } finally {
       setLoading(false);
+    }  }, [user?.role]);
+
+  // Fetch custom orders
+  const fetchCustomOrders = useCallback(async () => {
+    try {
+      setCustomOrdersLoading(true);
+      const endpoint = user?.role === 'admin' ? '/custom-orders' : '/custom-orders/me';
+      const response = await api.get(endpoint);
+      
+      if (response.data.success) {
+        setCustomOrders(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching custom orders:', error);
+      toast.error('Failed to fetch custom orders');
+    } finally {
+      setCustomOrdersLoading(false);
     }
   }, [user?.role]);
+
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
+    } else if (activeTab === 'custom-orders') {
+      fetchCustomOrders();
     }
-  }, [activeTab, fetchOrders]);
-
+  }, [activeTab, fetchOrders, fetchCustomOrders]);
   useEffect(() => {
     if (user) {
       setCheckoutForm(prev => ({
@@ -865,24 +945,55 @@ const OrderPage = () => {
       await updateCartItem(itemId, newQuantity);
     }
   };
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCheckoutForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name === 'province') {
+      // Reset city when province changes and update available cities
+      setCheckoutForm(prev => ({
+        ...prev,
+        [name]: value,
+        city: '' // Reset city selection
+      }));
+      setAvailableCities(philippineAddressData[value] || []);
+    } else {
+      setCheckoutForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
-
   const handleCheckout = async () => {
     try {
-      if (!checkoutForm.contact_phone || !checkoutForm.shipping_address) {
-        toast.error('Please fill in contact phone and shipping address');
+      // Validate required address fields
+      if (!checkoutForm.customer_phone || !checkoutForm.province || !checkoutForm.city || !checkoutForm.street_address) {
+        toast.error('Please fill in all required fields including complete address');
         return;
       }
 
       setLoading(true);
-      const response = await api.post('/orders', checkoutForm);
+      
+      // Combine address fields into shipping_address for backend compatibility
+      const combinedAddress = [
+        checkoutForm.street_address,
+        checkoutForm.city,
+        checkoutForm.province,
+        checkoutForm.postal_code
+      ].filter(Boolean).join(', ');
+      
+      const orderData = {
+        ...checkoutForm,
+        shipping_address: combinedAddress,
+        contact_phone: checkoutForm.customer_phone,
+        address_details: {
+          province: checkoutForm.province,
+          city: checkoutForm.city,
+          street_address: checkoutForm.street_address,
+          postal_code: checkoutForm.postal_code
+        }
+      };
+      
+      const response = await api.post('/orders', orderData);
       
       if (response.data.success) {
         toast.success('Order created successfully!');
@@ -890,10 +1001,15 @@ const OrderPage = () => {
         setCheckoutForm({
           customer_name: user?.username || '',
           customer_email: user?.email || '',
-          contact_phone: '',
-          shipping_address: '',
+          customer_phone: '',
+          province: '',
+          city: '',
+          street_address: '',
+          postal_code: '',
+          payment_method: 'cash_on_delivery',
           notes: ''
         });
+        setAvailableCities([]); // Reset cities
         fetchOrders();
       }
     } catch (error) {
@@ -1080,29 +1196,87 @@ const OrderPage = () => {
               placeholder="Enter your full name"
             />
           </FormGroup>
-          
-          <FormGroup>
+            <FormGroup>
             <Label><FontAwesomeIcon icon={faPhone} /> Contact Phone</Label>
             <Input
               type="tel"
-              name="contact_phone"
-              value={checkoutForm.contact_phone}
+              name="customer_phone"
+              value={checkoutForm.customer_phone}
               onChange={handleInputChange}
               placeholder="Enter your phone number"
               required
             />
           </FormGroup>
           
-          <FormGroup>
-            <Label><FontAwesomeIcon icon={faMapMarkerAlt} /> Shipping Address</Label>
-            <TextArea
-              name="shipping_address"
-              value={checkoutForm.shipping_address}
-              onChange={handleInputChange}
-              placeholder="Enter your complete shipping address"
-              required
-            />
-          </FormGroup>
+          <ShippingSection>
+            <SectionTitle>📍 Shipping Address</SectionTitle>
+            
+            <AddressGrid>
+              <FormGroup>
+                <Label htmlFor="province">Province *</Label>
+                <Select
+                  id="province"
+                  name="province"
+                  value={checkoutForm.province}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select Province</option>
+                  {Object.keys(philippineAddressData).map(province => (
+                    <option key={province} value={province}>
+                      {province}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup>
+                <Label htmlFor="city">City/Municipality *</Label>
+                <Select
+                  id="city"
+                  name="city"
+                  value={checkoutForm.city}
+                  onChange={handleInputChange}
+                  required
+                  disabled={!checkoutForm.province}
+                >
+                  <option value="">Select City</option>
+                  {availableCities.map(city => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
+
+              <FormGroup className="full-width">
+                <Label htmlFor="street_address">Street Address / House Number *</Label>
+                <Input
+                  type="text"
+                  id="street_address"
+                  name="street_address"
+                  value={checkoutForm.street_address}
+                  onChange={handleInputChange}
+                  placeholder="Enter complete street address, house/building number"
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label htmlFor="postal_code">Postal Code</Label>
+                <Input
+                  type="text"
+                  id="postal_code"
+                  name="postal_code"
+                  value={checkoutForm.postal_code}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 1234"
+                  maxLength="4"
+                  pattern="[0-9]{4}"
+                />
+              </FormGroup>
+            </AddressGrid>
+          </ShippingSection>
           
           <FormGroup>
             <Label>Order Notes (Optional)</Label>
@@ -1276,8 +1450,161 @@ const OrderPage = () => {
           ))}
         </OrderList>
       )}
+    </div>  );
+  // Custom Orders Tab Render Function
+  const renderCustomOrdersTab = () => (
+    <div>
+      <SectionTitle>
+        <FontAwesomeIcon icon={faClipboardList} />
+        Custom Orders {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
+      </SectionTitle>
+      {customOrdersLoading ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '3rem',
+          background: 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <FontAwesomeIcon icon={faSpinner} spin size="2x" color="#666" />
+          <p style={{ marginTop: '1rem', color: '#666', fontSize: '14px' }}>Loading custom orders...</p>
+        </div>
+      ) : customOrders.length === 0 ? (
+        <EmptyState>
+          <FontAwesomeIcon icon={faClipboardList} size="3x" />
+          <h3>No Custom Orders</h3>
+          <p>You haven't submitted any custom design requests yet.</p>
+          <button 
+            onClick={() => window.location.href = '/custom'}
+            style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #000000 0%, #333333 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginTop: '20px'
+            }}
+          >
+            Create Custom Design
+          </button>
+        </EmptyState>
+      ) : (
+        <OrderList>
+          {customOrders.map((order) => (
+            <OrderCard key={order.id} status={order.status}>
+              <OrderHeader>
+                <OrderInfo>
+                  <OrderNumber>Custom Order #{order.custom_order_id}</OrderNumber>
+                  <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
+                    {new Date(order.created_at).toLocaleDateString()}
+                  </div>
+                </OrderInfo>
+                <OrderStatus status={order.status}>
+                  {order.status.replace('_', ' ').toUpperCase()}
+                </OrderStatus>
+              </OrderHeader>
+              
+              <OrderDetails>
+                <OrderInfo>
+                  <strong>Product:</strong> {order.product_type.replace('-', ' ').toUpperCase()}
+                </OrderInfo>
+                <OrderInfo>
+                  <strong>Size:</strong> {order.size} | <strong>Color:</strong> {order.color} | <strong>Quantity:</strong> {order.quantity}
+                </OrderInfo>
+                <OrderInfo>
+                  <strong>Customer:</strong> {order.customer_name} ({order.customer_email})
+                </OrderInfo>
+                <OrderInfo>
+                  <strong>Shipping:</strong> {order.street_number}, {order.municipality}, {order.province}
+                </OrderInfo>
+                <OrderInfo>
+                  <strong>Urgency:</strong> {order.urgency.replace('_', ' ').toUpperCase()}
+                </OrderInfo>
+                {order.special_instructions && (
+                  <OrderInfo>
+                    <strong>Special Instructions:</strong> {order.special_instructions}
+                  </OrderInfo>
+                )}
+                <OrderInfo>
+                  <strong>Estimated Price:</strong> ₱{order.estimated_price?.toFixed(2) || '0.00'}
+                  {order.final_price > 0 && (
+                    <span> | <strong>Final Price:</strong> ₱{order.final_price.toFixed(2)}</span>
+                  )}
+                </OrderInfo>
+                {order.admin_notes && (
+                  <OrderInfo>
+                    <strong>Admin Notes:</strong> {order.admin_notes}
+                  </OrderInfo>
+                )}
+                {order.images && order.images.length > 0 && (
+                  <OrderInfo>
+                    <strong>Design Images:</strong> {order.images.length} uploaded
+                  </OrderInfo>
+                )}
+              </OrderDetails>
+              
+              <OrderActions>
+                <ActionButton 
+                  onClick={() => viewCustomOrderDetails(order)}
+                  disabled={customOrdersLoading}
+                >
+                  <FontAwesomeIcon icon={faEye} />
+                  View Details
+                </ActionButton>
+                
+                {order.status === 'pending' && (
+                  <ActionButton
+                    onClick={() => cancelCustomOrder(order.custom_order_id)}
+                    disabled={customOrdersLoading}
+                    style={{ 
+                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)', 
+                      color: 'white'
+                    }}
+                  >
+                    <FontAwesomeIcon icon={faTimes} />
+                    Cancel Request
+                  </ActionButton>
+                )}
+              </OrderActions>
+            </OrderCard>
+          ))}
+        </OrderList>
+      )}
     </div>
   );
+
+  // Custom order action functions
+  const viewCustomOrderDetails = (order) => {
+    // Implementation for viewing custom order details
+    console.log('Viewing custom order details:', order);
+    // You can implement a modal or redirect to a details page
+    alert(`Custom Order Details:\n\nOrder ID: ${order.custom_order_id}\nProduct: ${order.product_type}\nStatus: ${order.status}\nEstimated Price: ₱${order.estimated_price}`);
+  };
+
+  const cancelCustomOrder = async (customOrderId) => {
+    if (!window.confirm('Are you sure you want to cancel this custom order request?')) {
+      return;
+    }
+    
+    try {
+      setCustomOrdersLoading(true);
+      // Implementation for canceling custom order
+      // You would need to add this endpoint to your API
+      await api.put(`/custom-orders/${customOrderId}/status`, {
+        status: 'cancelled'
+      });
+      
+      toast.success('Custom order cancelled successfully');
+      fetchCustomOrders(); // Refresh the list
+    } catch (error) {
+      console.error('Error cancelling custom order:', error);
+      toast.error('Failed to cancel custom order');
+    } finally {
+      setCustomOrdersLoading(false);
+    }
+  };
   return (
     <PageContainer>
       <ContentWrapper>
@@ -1287,8 +1614,7 @@ const OrderPage = () => {
             Order Management
           </Title>
         </Header>
-        
-        <TabContainer>
+          <TabContainer>
           <Tab 
             active={activeTab === 'cart'} 
             onClick={() => setActiveTab('cart')}
@@ -1301,9 +1627,17 @@ const OrderPage = () => {
           >
             Order History
           </Tab>
+          <Tab 
+            active={activeTab === 'custom-orders'} 
+            onClick={() => setActiveTab('custom-orders')}
+          >
+            Custom Orders
+          </Tab>
         </TabContainer>
         
-        {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
+        {activeTab === 'cart' ? renderCartTab() : 
+         activeTab === 'orders' ? renderOrdersTab() : 
+         renderCustomOrdersTab()}
           {/* Invoice Modal */}
         <InvoiceModal
           isOpen={showInvoiceModal}

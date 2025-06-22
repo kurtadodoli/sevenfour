@@ -4,12 +4,28 @@ import { useAuth } from '../context/AuthContext';
 import styled from 'styled-components';
 
 const ProfilePage = () => {
+    // Philippines provinces and cities data
+    const philippinesData = {
+        'Metro Manila': ['Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong', 'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque', 'Pasay', 'Pasig', 'Pateros', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'],
+        'Cebu': ['Alcantara', 'Alcoy', 'Alegria', 'Aloguinsan', 'Argao', 'Asturias', 'Badian', 'Balamban', 'Bantayan', 'Barili', 'Bogo', 'Boljoon', 'Borbon', 'Carcar', 'Carmen', 'Catmon', 'Cebu City', 'Compostela', 'Consolacion', 'Cordova', 'Daanbantayan', 'Dalaguete', 'Danao', 'Dumanjug', 'Ginatilan', 'Lapu-Lapu', 'Liloan', 'Madridejos', 'Malabuyoc', 'Mandaue', 'Medellin', 'Minglanilla', 'Moalboal', 'Naga', 'Oslob', 'Pilar', 'Pinamungajan', 'Poro', 'Ronda', 'Samboan', 'San Fernando', 'San Francisco', 'San Remigio', 'Santa Fe', 'Santander', 'Sibonga', 'Sogod', 'Tabogon', 'Tabuelan', 'Talisay', 'Toledo', 'Tuburan', 'Tudela'],
+        'Davao del Sur': ['Bansalan', 'Davao City', 'Digos', 'Hagonoy', 'Kiblawan', 'Magsaysay', 'Malalag', 'Matanao', 'Padada', 'Santa Cruz', 'Sulop'],
+        'Laguna': ['Alaminos', 'Bay', 'Biñan', 'Cabuyao', 'Calamba', 'Calauan', 'Cavinti', 'Famy', 'Kalayaan', 'Liliw', 'Los Baños', 'Luisiana', 'Lumban', 'Mabitac', 'Magdalena', 'Majayjay', 'Nagcarlan', 'Paete', 'Pagsanjan', 'Pakil', 'Pangil', 'Pila', 'Rizal', 'San Pablo', 'San Pedro', 'Santa Cruz', 'Santa Maria', 'Santa Rosa', 'Siniloan', 'Victoria'],
+        'Cavite': ['Alfonso', 'Amadeo', 'Bacoor', 'Carmona', 'Cavite City', 'Dasmariñas', 'General Emilio Aguinaldo', 'General Mariano Alvarez', 'General Trias', 'Imus', 'Indang', 'Kawit', 'Magallanes', 'Maragondon', 'Mendez', 'Naic', 'Noveleta', 'Rosario', 'Silang', 'Tagaytay', 'Tanza', 'Ternate', 'Trece Martires'],
+        'Bulacan': ['Angat', 'Balagtas', 'Baliuag', 'Bocaue', 'Bulakan', 'Bustos', 'Calumpit', 'Doña Remedios Trinidad', 'Guiguinto', 'Hagonoy', 'Marilao', 'Meycauayan', 'Norzagaray', 'Obando', 'Pandi', 'Paombong', 'Plaridel', 'Pulilan', 'San Ildefonso', 'San Jose del Monte', 'San Miguel', 'San Rafael', 'Santa Maria'],
+        'Rizal': ['Angono', 'Antipolo', 'Baras', 'Binangonan', 'Cainta', 'Cardona', 'Jala-Jala', 'Morong', 'Pililla', 'Rodriguez', 'San Mateo', 'Tanay', 'Taytay', 'Teresa']
+    };
+
     const [profile, setProfile] = useState({
         first_name: '',
         last_name: '',
         email: '',
         gender: '',
-        birthday: ''
+        birthday: '',
+        province: '',
+        city: '',
+        address: '',
+        postal_code: '',
+        phone: ''
     });
     const [editMode, setEditMode] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -24,13 +40,17 @@ const ProfilePage = () => {
         const loadProfile = async () => {
             if (currentUser) {
                 try {
-                    const profileData = await getProfile();
-                    setProfile({
+                    const profileData = await getProfile();                    setProfile({
                         first_name: profileData.first_name || '',
                         last_name: profileData.last_name || '',
                         email: profileData.email || '',
                         gender: profileData.gender || '',
-                        birthday: profileData.birthday ? profileData.birthday.split('T')[0] : ''
+                        birthday: profileData.birthday ? profileData.birthday.split('T')[0] : '',
+                        province: profileData.province || '',
+                        city: profileData.city || '',
+                        address: profileData.address || '',
+                        postal_code: profileData.postal_code || '',
+                        phone: profileData.phone || ''
                     });
                 } catch (error) {
                     console.error('Failed to load profile:', error);
@@ -40,13 +60,13 @@ const ProfilePage = () => {
         };
 
         loadProfile();
-    }, [currentUser, getProfile]);
-
-    const handleInputChange = (e) => {
+    }, [currentUser, getProfile]);    const handleInputChange = (e) => {
         const { name, value } = e.target;
         setProfile(prev => ({
             ...prev,
-            [name]: value
+            [name]: value,
+            // Reset city when province changes
+            ...(name === 'province' && { city: '' })
         }));
         // Clear error when user starts typing
         if (error) setError('');
@@ -192,6 +212,78 @@ const ProfilePage = () => {
                                 </FormGroup>
                             </FormRow>
 
+                            <FormRow>
+                                <FormGroup>
+                                    <Label>Province</Label>
+                                    <Select
+                                        name="province"
+                                        value={profile.province}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    >
+                                        <option value="">Select Province</option>
+                                        {Object.keys(philippinesData).map(province => (
+                                            <option key={province} value={province}>{province}</option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label>City</Label>
+                                    <Select
+                                        name="city"
+                                        value={profile.city}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading || !profile.province}
+                                    >
+                                        <option value="">Select City</option>
+                                        {profile.province && philippinesData[profile.province].map(city => (
+                                            <option key={city} value={city}>{city}</option>
+                                        ))}
+                                    </Select>
+                                </FormGroup>
+                            </FormRow>
+
+                            <FormGroup>
+                                <Label>Address</Label>
+                                <Input
+                                    type="text"
+                                    name="address"
+                                    value={profile.address}
+                                    onChange={handleInputChange}
+                                    required
+                                    disabled={loading}
+                                />
+                            </FormGroup>
+
+                            <FormRow>
+                                <FormGroup>
+                                    <Label>Postal Code</Label>
+                                    <Input
+                                        type="text"
+                                        name="postal_code"
+                                        value={profile.postal_code}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label>Phone Number</Label>
+                                    <Input
+                                        type="text"
+                                        name="phone"
+                                        value={profile.phone}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={loading}
+                                    />
+                                </FormGroup>
+                            </FormRow>
+
                             <ButtonGroup>
                                 <ActionButton type="submit" disabled={loading}>
                                     {loading ? 'Updating...' : 'Save Changes'}
@@ -231,6 +323,26 @@ const ProfilePage = () => {
                             <InfoRow>
                                 <InfoLabel>Account Type:</InfoLabel>
                                 <InfoValue>{formatRole(currentUser?.role)}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Province:</InfoLabel>
+                                <InfoValue>{profile.province || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>City:</InfoLabel>
+                                <InfoValue>{profile.city || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Address:</InfoLabel>
+                                <InfoValue>{profile.address || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Postal Code:</InfoLabel>
+                                <InfoValue>{profile.postal_code || 'Not provided'}</InfoValue>
+                            </InfoRow>
+                            <InfoRow>
+                                <InfoLabel>Phone Number:</InfoLabel>
+                                <InfoValue>{profile.phone || 'Not provided'}</InfoValue>
                             </InfoRow>
                         </ProfileView>
                     )}

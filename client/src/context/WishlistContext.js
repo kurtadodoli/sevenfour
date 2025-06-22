@@ -1,6 +1,6 @@
 // src/context/WishlistContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../utils/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
 const WishlistContext = createContext();
 
@@ -15,24 +15,77 @@ export const useWishlist = () => {
 export const WishlistProvider = ({ children }) => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  
+  // Get auth context
+  const { currentUser } = useAuth();
 
-  // Load wishlist from localStorage on mount
-  useEffect(() => {
-    const savedWishlist = localStorage.getItem('wishlist');
-    if (savedWishlist) {
-      try {
-        setWishlistItems(JSON.parse(savedWishlist));
-      } catch (error) {
-        console.error('Error parsing wishlist from localStorage:', error);
-        setWishlistItems([]);
-      }
-    }
+  // Clear wishlist state (for user switches)
+  const clearWishlistState = useCallback(() => {
+    console.log('WishlistContext: Clearing wishlist state');
+    setWishlistItems([]);
   }, []);
 
-  // Save wishlist to localStorage whenever it changes
+  // Get user-specific localStorage key
+  const getUserWishlistKey = useCallback((userId) => {
+    return userId ? `wishlist_user_${userId}` : 'wishlist';
+  }, []);
+
+  // Load wishlist for specific user
+  const loadUserWishlist = useCallback((userId) => {
+    if (!userId) {
+      setWishlistItems([]);
+      return;
+    }
+
+    const wishlistKey = getUserWishlistKey(userId);
+    const savedWishlist = localStorage.getItem(wishlistKey);
+    
+    if (savedWishlist) {
+      try {
+        const items = JSON.parse(savedWishlist);
+        console.log(`WishlistContext: Loaded ${items.length} items for user ${userId}`);
+        setWishlistItems(items);
+      } catch (error) {
+        console.error('WishlistContext: Error parsing wishlist from localStorage:', error);
+        setWishlistItems([]);
+      }
+    } else {
+      console.log(`WishlistContext: No saved wishlist for user ${userId}`);
+      setWishlistItems([]);
+    }
+  }, [getUserWishlistKey]);
+
+  // Handle user authentication changes
   useEffect(() => {
-    localStorage.setItem('wishlist', JSON.stringify(wishlistItems));
-  }, [wishlistItems]);
+    const newUserId = currentUser?.id;
+    
+    console.log('WishlistContext: User changed. Previous:', currentUserId, 'New:', newUserId);
+    
+    // If user changed (login/logout/switch account)
+    if (currentUserId !== newUserId) {
+      // Save current wishlist for previous user (if any)
+      if (currentUserId && wishlistItems.length > 0) {
+        const prevWishlistKey = getUserWishlistKey(currentUserId);
+        localStorage.setItem(prevWishlistKey, JSON.stringify(wishlistItems));
+        console.log(`WishlistContext: Saved ${wishlistItems.length} items for previous user ${currentUserId}`);
+      }
+      
+      // Update current user tracking
+      setCurrentUserId(newUserId);
+      
+      // Load wishlist for new user
+      loadUserWishlist(newUserId);
+    }
+  }, [currentUser?.id, currentUserId, wishlistItems, getUserWishlistKey, loadUserWishlist]);
+
+  // Save wishlist to localStorage whenever it changes (for current user)
+  useEffect(() => {
+    if (currentUserId) {
+      const wishlistKey = getUserWishlistKey(currentUserId);
+      localStorage.setItem(wishlistKey, JSON.stringify(wishlistItems));
+    }
+  }, [wishlistItems, currentUserId, getUserWishlistKey]);
 
   const addToWishlist = async (productId) => {
     if (wishlistItems.includes(productId)) {
@@ -76,7 +129,6 @@ export const WishlistProvider = ({ children }) => {
   const clearWishlist = () => {
     setWishlistItems([]);
   };
-
   const value = {
     wishlistItems,
     loading,
@@ -84,6 +136,7 @@ export const WishlistProvider = ({ children }) => {
     removeFromWishlist,
     isInWishlist,
     clearWishlist,
+    clearWishlistState,
     wishlistCount: wishlistItems.length
   };
 

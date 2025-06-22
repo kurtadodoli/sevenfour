@@ -13,6 +13,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
+import { useAuth } from '../context/AuthContext';
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -195,8 +196,8 @@ const TransactionsTable = styled.div`
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 220px 140px 120px 120px 140px 180px;
-  gap: 24px;
+  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
+  gap: 16px;
   padding: 24px;
   background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
@@ -207,16 +208,17 @@ const TableHeader = styled.div`
   letter-spacing: 1px;
   
   @media (max-width: 1200px) {
-    grid-template-columns: 120px 160px 180px 120px 100px 100px 120px 160px;
-    gap: 16px;
+    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
+    gap: 12px;
     padding: 20px;
+    font-size: 11px;
   }
 `;
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 220px 140px 120px 120px 140px 180px;
-  gap: 24px;
+  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
+  gap: 16px;
   padding: 24px;
   border-bottom: 1px solid #f8f8f8;
   align-items: center;
@@ -231,8 +233,8 @@ const TableRow = styled.div`
   }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 120px 160px 180px 120px 100px 100px 120px 160px;
-    gap: 16px;
+    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
+    gap: 12px;
     padding: 20px;
   }
 `;
@@ -286,8 +288,7 @@ const StatusBadge = styled.span`
   text-transform: uppercase;
   letter-spacing: 1px;
   border: 1px solid;
-  
-  ${props => {
+    ${props => {
     switch (props.status?.toLowerCase()) {
       case 'pending':
         return `
@@ -301,6 +302,24 @@ const StatusBadge = styled.span`
           background: #ffffff;
           color: #27ae60;
           border-color: #27ae60;
+        `;
+      case 'processing':
+        return `
+          background: #ffffff;
+          color: #3498db;
+          border-color: #3498db;
+        `;
+      case 'shipped':
+        return `
+          background: #ffffff;
+          color: #9b59b6;
+          border-color: #9b59b6;
+        `;
+      case 'delivered':
+        return `
+          background: #000000;
+          color: #ffffff;
+          border-color: #000000;
         `;
       case 'cancelled':
       case 'rejected':
@@ -647,7 +666,28 @@ const ProcessingModalContent = styled.div`
   }
 `;
 
+// Helper function to display status with custom labels
+const getDisplayStatus = (status) => {
+  const normalizedStatus = status?.toLowerCase();
+  if (normalizedStatus === 'confirmed') {
+    return 'Ready For Delivery';
+  }
+  if (normalizedStatus === 'delivered') {
+    return 'Delivered';
+  }
+  if (normalizedStatus === 'processing') {
+    return 'Processing';
+  }
+  if (normalizedStatus === 'shipped') {
+    return 'Shipped';
+  }
+  return status;
+};
+
 const TransactionPage = () => {
+  // NOTE: This page displays ALL confirmed orders from ALL users in the database
+  // It does NOT filter by current user - it shows transactions from every customer
+  const { user } = useAuth(); // Remove authLoading for now to match OrderPage pattern
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -668,79 +708,98 @@ const TransactionPage = () => {
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [processingRequest, setProcessingRequest] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
-  const [showProcessingModal, setShowProcessingModal] = useState(false);// Fetch transactions
+  const [showProcessingModal, setShowProcessingModal] = useState(false);  // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
-      setLoading(true);
-      console.log('🔄 Fetching confirmed orders...');
+      setLoading(true);      console.log('🔄 TransactionPage: Fetching ALL confirmed orders from database...');
+      console.log('User:', user);
       
-      // Use the same endpoint logic as OrderPage.js
-      const endpoint = '/orders/me-with-items'; // Get user's orders with items
+      // ALWAYS use the confirmed orders endpoint to get ALL confirmed orders from ALL users
+      const endpoint = '/orders/confirmed';
+      console.log('Using endpoint:', endpoint);
+      
       const response = await api.get(endpoint);
       
-      if (response.data.success) {
-        console.log('✅ Orders fetched successfully:', response.data);
-        const ordersData = response.data.data || [];        // Filter for only confirmed orders and map the data structure
-        const confirmedOrders = ordersData
-          .filter(order => order.status === 'confirmed')
-          .map(order => {
-            // Create full customer name from user data and order invoice data
-            const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
-                           order.customer_name || 
-                           'Unknown Customer';
-            
-            return {
-              // Map order data to transaction-like structure
-              id: order.id,
-              order_number: order.order_number,
-              transaction_id: order.transaction_id,
-              customer_name: fullName,
-              customer_email: order.user_email || order.customer_email,
-              user_email: order.user_email,
-              first_name: order.first_name,
-              last_name: order.last_name,
-              amount: order.total_amount,
-              total_amount: order.total_amount,
-              invoice_total: order.invoice_total,
-              payment_method: order.payment_method || 'Cash on Delivery',
-              order_status: order.status,
-              transaction_status: order.transaction_status || order.status,
-              status: order.status,
-              order_date: order.order_date,
-              created_at: order.created_at,
-              updated_at: order.updated_at,
-              shipping_address: order.shipping_address,
-              contact_phone: order.contact_phone,
-              notes: order.notes,
-              items: order.items || []
-            };
-          });
+      console.log('API response:', response);
+      console.log('Response data:', response.data);
+        if (response.data.success) {        console.log('✅ ALL confirmed orders fetched successfully:', response.data);
+        let ordersData = response.data.data || [];
         
-        console.log(`Found ${confirmedOrders.length} confirmed orders out of ${ordersData.length} total orders`);
-        setTransactions(confirmedOrders);
-        calculateStats(confirmedOrders);
+        // Debug: Check if orders have items
+        console.log('📦 Sample order with items:', ordersData[0]);
+        if (ordersData.length > 0) {
+          console.log('📦 Items in first order:', ordersData[0].items);
+        }
+        
+        // Map ALL confirmed orders from ALL users for display
+        const processedOrders = ordersData.map(order => {
+          // Create full customer name from user data with fallback
+          const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
+                         order.customer_name || 
+                         'Unknown Customer';
+          
+          // Debug: Log items for each order
+          console.log(`📦 Order ${order.order_number} items:`, order.items);
+          
+          return {
+            id: order.id,
+            order_number: order.order_number,
+            transaction_id: order.transaction_id,
+            customer_name: fullName,
+            customer_email: order.user_email || order.customer_email,
+            user_email: order.user_email,
+            first_name: order.first_name,
+            last_name: order.last_name,
+            amount: order.total_amount,
+            total_amount: order.total_amount,
+            invoice_total: order.invoice_total,
+            payment_method: order.payment_method || 'Cash on Delivery',
+            order_status: order.status,
+            transaction_status: order.transaction_status || order.status,
+            status: order.status,
+            order_date: order.order_date,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            shipping_address: order.shipping_address,
+            contact_phone: order.contact_phone,
+            notes: order.notes,
+            items: order.items || order.order_items || []
+          };
+        });
+        
+        console.log(`📊 Found ${processedOrders.length} confirmed orders from ALL users`);
+        console.log('Orders from users:', processedOrders.map(o => ({ 
+          order: o.order_number, 
+          customer: o.customer_name, 
+          email: o.customer_email 
+        })));
+        
+        setTransactions(processedOrders);
+        calculateStats(processedOrders);
       } else {
         console.error('❌ Failed to fetch orders:', response.data);
-        toast.error('Failed to fetch orders');
+        toast.error('Failed to fetch confirmed orders');
       }
     } catch (error) {
       console.error('❌ Error fetching confirmed orders:', error);
       console.error('❌ Error status:', error.response?.status);
       console.error('❌ Error details:', error.response?.data?.message || error.message);
-      toast.error('Failed to fetch confirmed orders');
-    } finally {
-      setLoading(false);
-    }
-  }, []);  // Calculate statistics
+      toast.error('Failed to fetch confirmed orders');    } finally {
+      setLoading(false);    }  }, [user]);  // Match OrderPage pattern
+  
   const calculateStats = (data) => {
     const stats = {
       total: data.length,
       pending: data.filter(t => t.status === 'pending').length,
       approved: data.filter(t => t.status === 'confirmed').length,
+      processing: data.filter(t => t.status === 'processing').length,
+      shipped: data.filter(t => t.status === 'shipped').length,
+      delivered: data.filter(t => t.status === 'delivered').length,
       rejected: data.filter(t => t.status === 'cancelled').length,
       totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || t.amount || 0), 0)
     };
-    setStats(stats);  };
+    setStats(stats);
+  };
 
   // View transaction details
   const viewTransaction = (transaction) => {
@@ -834,35 +893,39 @@ const TransactionPage = () => {
     setShowProcessingModal(false);
     setProcessingRequest(null);
     setAdminNotes('');
-  };
-  
-  useEffect(() => {
-    fetchTransactions();
+  };    useEffect(() => {
+    console.log('🔄 TransactionPage useEffect triggered');
+    console.log('User:', user);
+    console.log('User role:', user?.role);
+    console.log('Active tab:', activeTab);
+    
+    // Match OrderPage pattern - call fetchTransactions for orders tab
+    if (activeTab === 'orders') {
+      fetchTransactions();
+    }
     if (activeTab === 'cancellations') {
       fetchCancellationRequests();
     }
-  }, [fetchTransactions, fetchCancellationRequests, activeTab]);
+  }, [activeTab, fetchTransactions, fetchCancellationRequests, user]);
   return (
     <PageContainer>
-      <ContentWrapper>
-        <Header>
+      <ContentWrapper>        <Header>
           <Title>
             <FontAwesomeIcon icon={faReceipt} />
-            Admin Dashboard
+            Transaction Management
           </Title>
           <Subtitle>
-            Manage confirmed orders and cancellation requests
+            View all confirmed orders from all customers
           </Subtitle>
         </Header>
         
         {/* Tabs */}
-        <TabsContainer>
-          <Tab 
+        <TabsContainer>          <Tab 
             active={activeTab === 'orders'} 
             onClick={() => setActiveTab('orders')}
           >
-            Confirmed Orders
-          </Tab>          <Tab 
+            All Confirmed Orders
+          </Tab><Tab 
             active={activeTab === 'cancellations'} 
             onClick={() => setActiveTab('cancellations')}
           >
@@ -889,8 +952,9 @@ const TransactionPage = () => {
               <StatCard color="#3498db">
                 <h3>{stats.total > 0 ? (stats.totalAmount / stats.total).toFixed(0) : 0}</h3>
                 <p>Avg Order Value</p>
-              </StatCard>
-            </StatsContainer>
+              </StatCard>            </StatsContainer>
+
+            {/* Debug Info - Shows ALL users */}
 
             {/* Controls */}
             <ControlsSection>
@@ -906,9 +970,8 @@ const TransactionPage = () => {
             </SearchContainer>            <FilterSelect
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Confirmed Orders</option>
-              <option value="confirmed">Confirmed</option>
+            >              <option value="all">All Confirmed Orders</option>
+              <option value="confirmed">Ready For Delivery</option>
               <option value="processing">Processing</option>
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
@@ -921,11 +984,11 @@ const TransactionPage = () => {
         </ControlsSection>
 
         {/* Transactions Table */}
-        <TransactionsTable>
-          <TableHeader>
+        <TransactionsTable>          <TableHeader>
             <div>Order #</div>
             <div>Date</div>
             <div>Customer</div>
+            <div>Products</div>
             <div>Amount</div>
             <div>Payment</div>
             <div>Status</div>
@@ -956,16 +1019,107 @@ const TransactionPage = () => {
                 <CustomerInfo>
                   <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
                   <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
-                </CustomerInfo>
+                </CustomerInfo>                  {/* Products Summary */}
+                <div style={{ 
+                  fontSize: '14px',
+                  maxWidth: '200px',
+                  overflow: 'hidden'
+                }}>
+                  {transaction.items && transaction.items.length > 0 ? (
+                    <div>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: '4px' 
+                      }}>
+                        <div style={{ fontWeight: '600', color: '#000000' }}>
+                          {transaction.items.length} item{transaction.items.length > 1 ? 's' : ''}
+                        </div>
+                        {transaction.items.length > 2 && (
+                          <button
+                            style={{
+                              background: '#000000',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                              fontSize: '9px',
+                              cursor: 'pointer',
+                              fontWeight: '500',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewTransaction(transaction);
+                            }}
+                            onMouseOver={(e) => e.target.style.background = '#333333'}
+                            onMouseOut={(e) => e.target.style.background = '#000000'}
+                          >
+                            View All
+                          </button>
+                        )}
+                      </div>
+                      {transaction.items.slice(0, 2).map((item, index) => (
+                        <div key={index} style={{ 
+                          fontSize: '11px',
+                          color: '#666666',
+                          marginBottom: '4px',
+                          lineHeight: '1.3',
+                          padding: '4px',
+                          border: '1px solid #f0f0f0',
+                          borderRadius: '4px',
+                          backgroundColor: '#fafafa'
+                        }}>
+                          <div style={{ fontWeight: '600', color: '#000000', marginBottom: '2px' }}>
+                            {item.productname || 'Unknown Product'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#666666', marginBottom: '2px' }}>
+                            <strong>ID:</strong> {item.product_id || 'N/A'}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#888888' }}>
+                            {item.productcolor && (
+                              <span><strong>Color:</strong> {item.productcolor} • </span>
+                            )}
+                            {item.product_type && (
+                              <span><strong>Type:</strong> {item.product_type} • </span>
+                            )}
+                            <span><strong>Qty:</strong> {item.quantity || 1}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {transaction.items.length > 2 && (
+                        <div style={{ 
+                          fontSize: '11px',
+                          color: '#999999',
+                          fontStyle: 'italic',
+                          marginTop: '4px',
+                          textAlign: 'center'
+                        }}>
+                          +{transaction.items.length - 2} more item{transaction.items.length - 2 > 1 ? 's' : ''}...
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      color: '#999999', 
+                      fontSize: '12px',
+                      fontStyle: 'italic',
+                      textAlign: 'center',
+                      padding: '8px'
+                    }}>
+                      No items found
+                    </div>
+                  )}
+                </div>
                 
                 <OrderDetails>
                   <div className="amount">{formatCurrency(transaction.amount || transaction.total_amount || transaction.invoice_total)}</div>
                 </OrderDetails>
                 
                 <div>{transaction.payment_method || 'COD'}</div>
-                
-                <StatusBadge status={transaction.transaction_status || transaction.order_status}>
-                  {transaction.transaction_status || transaction.order_status}
+                  <StatusBadge status={transaction.transaction_status || transaction.order_status}>
+                  {getDisplayStatus(transaction.transaction_status || transaction.order_status)}
                 </StatusBadge>
                 
                 <DateInfo>
@@ -993,17 +1147,98 @@ const TransactionPage = () => {
                 <CloseButton onClick={() => setShowModal(false)}>
                   <FontAwesomeIcon icon={faTimes} />
                 </CloseButton>
-              </ModalHeader>
-                <ModalContent>
+              </ModalHeader>                <ModalContent>
                 <div style={{ marginBottom: '24px' }}>
                   <h3>Order Information</h3>
                   <p><strong>Order Number:</strong> {selectedTransaction.order_number}</p>
-                  <p><strong>Transaction ID:</strong> {selectedTransaction.transaction_id}</p>
-                  <p><strong>Order Status:</strong> <StatusBadge status={selectedTransaction.order_status}>{selectedTransaction.order_status}</StatusBadge></p>
-                  <p><strong>Transaction Status:</strong> <StatusBadge status={selectedTransaction.transaction_status}>{selectedTransaction.transaction_status}</StatusBadge></p>
+                  <p><strong>Transaction ID:</strong> {selectedTransaction.transaction_id}</p>                  <p><strong>Order Status:</strong> <StatusBadge status={selectedTransaction.order_status}>{getDisplayStatus(selectedTransaction.order_status)}</StatusBadge></p>
+                  <p><strong>Transaction Status:</strong> <StatusBadge status={selectedTransaction.transaction_status}>{getDisplayStatus(selectedTransaction.transaction_status)}</StatusBadge></p>
                   <p><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.amount || selectedTransaction.total_amount || selectedTransaction.invoice_total)}</p>
                   <p><strong>Payment Method:</strong> {selectedTransaction.payment_method || 'Cash on Delivery'}</p>
                 </div>
+
+                {/* Product Details Section */}
+                {selectedTransaction.items && selectedTransaction.items.length > 0 && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3>Order Items</h3>
+                    <div style={{ 
+                      background: '#f8f9fa', 
+                      border: '1px solid #e9ecef', 
+                      borderRadius: '8px', 
+                      padding: '16px',
+                      maxHeight: '300px',
+                      overflowY: 'auto'
+                    }}>
+                      {selectedTransaction.items.map((item, index) => (
+                        <div key={`${item.product_id || item.id}-${index}`} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '12px 0',
+                          borderBottom: index < selectedTransaction.items.length - 1 ? '1px solid #dee2e6' : 'none',
+                          gap: '16px'
+                        }}>
+                          {/* Product Image */}
+                          {item.productimage && (
+                            <img 
+                              src={`http://localhost:3001/uploads/${item.productimage}`}
+                              alt={item.productname || 'Product'}
+                              style={{
+                                width: '60px',
+                                height: '60px',
+                                objectFit: 'cover',
+                                borderRadius: '8px',
+                                border: '1px solid #dee2e6'
+                              }}
+                              onError={(e) => {
+                                e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                              }}
+                            />
+                          )}
+                          
+                          {/* Product Details */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              fontWeight: '600', 
+                              marginBottom: '4px',
+                              color: '#000000'
+                            }}>
+                              {item.productname || 'Unknown Product'}
+                            </div>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              color: '#666666',
+                              marginBottom: '4px'
+                            }}>
+                              <strong>Product ID:</strong> {item.product_id || item.id || 'N/A'}
+                              {item.productcolor && (
+                                <span style={{ marginLeft: '16px' }}>
+                                  <strong>Color:</strong> {item.productcolor}
+                                </span>
+                              )}
+                              {item.product_type && (
+                                <span style={{ marginLeft: '16px' }}>
+                                  <strong>Type:</strong> {item.product_type}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ 
+                              fontSize: '14px', 
+                              color: '#666666'
+                            }}>
+                              <strong>Quantity:</strong> {item.quantity || 1}
+                              <span style={{ marginLeft: '16px' }}>
+                                <strong>Unit Price:</strong> {formatCurrency(item.price || item.unit_price || 0)}
+                              </span>
+                              <span style={{ marginLeft: '16px' }}>
+                                <strong>Subtotal:</strong> {formatCurrency((item.price || item.unit_price || 0) * (item.quantity || 1))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div style={{ marginBottom: '24px' }}>
                   <h3>Customer Information</h3>
@@ -1026,7 +1261,7 @@ const TransactionPage = () => {
                   <p><strong>Created:</strong> {formatDate(selectedTransaction.created_at)}</p>
                   <p><strong>Last Updated:</strong> {formatDate(selectedTransaction.updated_at)}</p>
                 </div>
-              </ModalContent>            </Modal>
+              </ModalContent></Modal>
           </ModalOverlay>
         )}
           </>
@@ -1102,9 +1337,8 @@ const TransactionPage = () => {
                             <strong>Submitted:</strong> {formatDate(request.created_at)}
                           </div>
                         </div>
-                      </RequestInfo>
-                      <StatusBadge status={request.status}>
-                        {request.status}
+                      </RequestInfo>                      <StatusBadge status={request.status}>
+                        {getDisplayStatus(request.status)}
                       </StatusBadge>
                     </RequestHeader>
                     

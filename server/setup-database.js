@@ -173,6 +173,96 @@ async function setupDatabase() {
     `);
     console.log('✅ custom_design_requests table created successfully');
 
+    // Create orders table
+    console.log('Creating orders table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        user_id BIGINT NOT NULL,
+        invoice_id VARCHAR(50) NOT NULL,
+        transaction_id VARCHAR(50) NOT NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        shipping_address TEXT NOT NULL,
+        contact_phone VARCHAR(20) NOT NULL,
+        notes TEXT,
+        status ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_order_number (order_number),
+        INDEX idx_status (status),
+        INDEX idx_order_date (order_date),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+      )
+    `);
+    
+    // Create order_invoices table
+    console.log('Creating order_invoices table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_invoices (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        invoice_id VARCHAR(50) UNIQUE NOT NULL,
+        user_id BIGINT NOT NULL,
+        total_amount DECIMAL(10, 2) NOT NULL,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255) NOT NULL,
+        customer_phone VARCHAR(20) NOT NULL,
+        delivery_address TEXT NOT NULL,
+        notes TEXT,
+        invoice_status ENUM('pending', 'paid', 'cancelled') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_invoice_id (invoice_id),
+        INDEX idx_status (invoice_status),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+      )
+    `);
+    
+    // Create sales_transactions table
+    console.log('Creating sales_transactions table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS sales_transactions (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        transaction_id VARCHAR(50) UNIQUE NOT NULL,
+        invoice_id VARCHAR(50) NOT NULL,
+        user_id BIGINT NOT NULL,
+        amount DECIMAL(10, 2) NOT NULL,
+        payment_method ENUM('cash_on_delivery', 'credit_card', 'paypal', 'bank_transfer') DEFAULT 'cash_on_delivery',
+        transaction_status ENUM('pending', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_transaction_id (transaction_id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (transaction_status),
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+      )
+    `);
+    
+    // Create order_items table  
+    console.log('Creating order_items table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id BIGINT PRIMARY KEY AUTO_INCREMENT,
+        order_id BIGINT,
+        invoice_id VARCHAR(50) NOT NULL,
+        product_id BIGINT NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        product_price DECIMAL(10, 2) NOT NULL,
+        quantity INT NOT NULL DEFAULT 1,
+        color VARCHAR(100),
+        size VARCHAR(50),
+        subtotal DECIMAL(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_order_id (order_id),
+        INDEX idx_invoice_id (invoice_id),
+        INDEX idx_product_id (product_id),
+        FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+      )
+    `);
+
     // Verify tables were created
     console.log('Verifying tables...');
     const [tables] = await pool.query('SHOW TABLES');

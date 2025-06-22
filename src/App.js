@@ -95,12 +95,12 @@ function App() {
             <ToastProvider>              <AppWrapper>
                 <TopBar />
                 <MainContent>
-                  <Routes>
-                    {/* Public Routes */}
+                  <Routes>                    {/* Public Routes */}
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/products" element={<ProductsPage />} />
+                    <Route path="/custom" element={<CustomPage />} />
                     <Route path="/product/:id" element={<ProductDetailsPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/status" element={<StatusPage />} /> {/* New diagnostic page */}
@@ -108,7 +108,6 @@ function App() {
                     <Route path="/unauthorized" element={<UnauthorizedPage />} />                    {/* Protected Routes - Customer */}                  <Route element={<PrivateRoute />}>                    <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/cart" element={<CartPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
-                    <Route path="/custom" element={<CustomPage />} />
                     <Route path="/delivery" element={<DeliveryPage />} />
                     <Route path="/orders" element={<OrderPage />} />
                   </Route>

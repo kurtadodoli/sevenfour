@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTimes, 
-  faDownload, 
-  faPrint,
+  faDownload,
   faEye 
 } from '@fortawesome/free-solid-svg-icons';
 import Invoice from './Invoice';
@@ -125,27 +124,44 @@ const InvoiceModal = ({
   isOpen, 
   onClose, 
   order, 
-  orderItems = [],
-  onDownloadPDF 
+  orderItems = []
 }) => {
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const handleDownloadPDF = async () => {
-    if (onDownloadPDF) {
-      setIsGeneratingPDF(true);
-      try {
-        await onDownloadPDF(order.invoice_id || order.id);
-      } catch (error) {
-        console.error('Error downloading PDF:', error);
-      } finally {
-        setIsGeneratingPDF(false);
+  if (!isOpen) return null;  const handleDownloadPDF = async () => {
+    try {
+      const invoiceId = order?.invoice_id || order?.id;
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        console.error('No authentication token found');
+        return;
       }
+      
+      // Make authenticated request to get PDF
+      const response = await fetch(`http://localhost:3001/api/orders/invoice/${invoiceId}/pdf`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `invoice-${invoiceId}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Cleanup
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error('Failed to download PDF:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
     }
   };
 
@@ -164,23 +180,10 @@ const InvoiceModal = ({
               <FontAwesomeIcon icon={faEye} />
               Invoice #{order?.invoice_id || order?.id}
             </ModalTitle>
-            
-            <ModalActions>
-              <ActionButton onClick={handlePrint}>
-                <FontAwesomeIcon icon={faPrint} />
-                Print
+              <ModalActions>              <ActionButton onClick={handleDownloadPDF}>
+                <FontAwesomeIcon icon={faDownload} />
+                PDF
               </ActionButton>
-              
-              {onDownloadPDF && (
-                <ActionButton 
-                  primary 
-                  onClick={handleDownloadPDF}
-                  disabled={isGeneratingPDF}
-                >
-                  <FontAwesomeIcon icon={faDownload} />
-                  {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
-                </ActionButton>
-              )}
               
               <CloseButton onClick={onClose}>
                 <FontAwesomeIcon icon={faTimes} />
