@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// API configuration
+// API configuration - server is running on port 3001
 const API_URL = 'http://localhost:3001';
 const API_TIMEOUT = 15000;
 
