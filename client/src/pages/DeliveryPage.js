@@ -9,7 +9,10 @@ import {
   faChevronRight,
   faTruck,
   faExpand,
-  faTimes
+  faTimes,
+  faPalette,
+  faShoppingBag,
+  faCheck
 } from '@fortawesome/free-solid-svg-icons';
 
 // Styled Components - Modern Minimalist Black & White Design
@@ -597,12 +600,124 @@ const CloseFullCalendar = styled.button`
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
-  
-  &:hover {
+    &:hover {
     background: #f8f9fa;
     color: #000000;
     border-color: #000000;
     transform: scale(1.05);
+  }
+`;
+
+// Simple Order Details Modal Components
+const SimpleOrderModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 20px;
+`;
+
+const SimpleOrderContent = styled.div`
+  background: #ffffff;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+`;
+
+const SimpleOrderHeader = styled.div`
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const SimpleOrderTitle = styled.h3`
+  margin: 0;
+  color: #000000;
+  font-size: 1.3rem;
+  font-weight: 500;
+`;
+
+const SimpleOrderBody = styled.div`
+  padding: 24px;
+`;
+
+const QuickDetailRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const QuickDetailLabel = styled.span`
+  color: #666666;
+  font-weight: 500;
+`;
+
+const QuickDetailValue = styled.span`
+  color: #000000;
+  font-weight: 400;
+`;
+
+const OrderSummary = styled.div`
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 6px;
+  margin: 16px 0;
+`;
+
+const SummaryTitle = styled.h4`
+  margin: 0 0 12px 0;
+  color: #000000;
+  font-size: 1.1rem;
+`;
+
+const ItemSummary = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+`;
+
+const TotalAmount = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #000000;
+  padding-top: 12px;
+  border-top: 2px solid #000000;
+  margin-top: 12px;
+`;
+
+const SimpleCloseButton = styled.button`
+  background: none;
+  border: none;
+  color: #666666;
+  cursor: pointer;
+  padding: 8px;
+  font-size: 18px;
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: #000000;
   }
 `;
 
@@ -642,12 +757,210 @@ const OrderNumber = styled.div`
   font-weight: 500;
   color: #000000;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const OrderTypeIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  
+  &.custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  &.regular {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+  }
 `;
 
 const OrderDetails = styled.div`
   font-size: 0.9rem;
   color: #666666;
   line-height: 1.4;
+`;
+
+const ProductionStatusBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #ffd700, #ffed4a);
+  color: #8b5a00;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 8px 0;
+  border-left: 4px solid #ff9500;
+  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
+  
+  .icon {
+    font-size: 0.9rem;
+  }
+  
+  .message {
+    flex: 1;
+  }
+  
+  .days {
+    background: rgba(139, 90, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  
+  &.ready {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-left-color: #155724;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+    
+    .days {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+  }
+`;
+
+const ProductionTimelineContainer = styled.div`
+  width: 100%;
+  margin: 12px 0 16px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #fff9e6, #fffbf0);
+  border: 1px solid #ffd700;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.1);
+`;
+
+const TimelineHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  
+  .title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #b8860b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .dates {
+    font-size: 0.8rem;
+    color: #8b5a00;
+    font-weight: 500;
+  }
+`;
+
+const TimelineTrack = styled.div`
+  position: relative;
+  height: 12px;
+  background: #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+`;
+
+const TimelineProgress = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: ${props => props.isComplete ? 
+    'linear-gradient(90deg, #28a745, #20c997)' : 
+    'linear-gradient(90deg, #ffd700, #ffed4a)'};
+  border-radius: 6px;
+  transition: width 0.3s ease;
+  width: ${props => props.progress}%;
+`;
+
+const TimelineMarkers = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #666;
+`;
+
+const TimelineMarker = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: ${props => props.active ? '#ffd700' : '#ddd'};
+    border: 2px solid ${props => props.active ? '#ffb300' : '#ccc'};
+    margin-bottom: 4px;
+    box-shadow: ${props => props.active ? '0 2px 4px rgba(255, 215, 0, 0.3)' : 'none'};
+  }
+  
+  .label {
+    font-size: 0.7rem;
+    color: ${props => props.active ? '#8b5a00' : '#999'};
+    font-weight: ${props => props.active ? '600' : '400'};
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  &.complete .dot {
+    background: #28a745;
+    border-color: #20c997;
+  }
+  
+  &.complete .label {
+    color: #155724;
+  }
+`;
+
+const ProductionStatusIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 8px;
+  
+  .status-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    background: ${props => props.isComplete ? '#28a745' : '#ffd700'};
+    color: white;
+  }
+  
+  .status-text {
+    color: ${props => props.isComplete ? '#155724' : '#8b5a00'};
+  }
+  
+  .status-days {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    background: ${props => props.isComplete ? 
+      'rgba(40, 167, 69, 0.1)' : 
+      'rgba(184, 134, 11, 0.1)'};
+    color: ${props => props.isComplete ? '#155724' : '#8b5a00'};
+    font-weight: 700;
+  }
 `;
 
 const OrderActions = styled.div`
@@ -1189,14 +1502,16 @@ const DeliveryPage = () => {
     });
     
     return dominantStatus;
-  };
-  const [orders, setOrders] = useState([]);
-  const [deliverySchedules, setDeliverySchedules] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);  const [selectedDate, setSelectedDate] = useState(null);
-  const [productionStatuses, setProductionStatuses] = useState({});
+  };  const [orders, setOrders] = useState([]);
+  const [deliverySchedules, setDeliverySchedules] = useState([]);  const [currentDate, setCurrentDate] = useState(new Date());  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);  const [selectedDate, setSelectedDate] = useState(null);  const [productionStatuses, setProductionStatuses] = useState({});
+  const [customOrderProductionDates, setCustomOrderProductionDates] = useState({}); // Admin-controlled production completion dates
+  const [customOrderProductionStartDates, setCustomOrderProductionStartDates] = useState({}); // Admin-controlled production start dates
+  const [selectedOrderForProductionStart, setSelectedOrderForProductionStart] = useState(null); // Track which order is being selected for production start
   const [showFullCalendar, setShowFullCalendar] = useState(false);
   const [selectedOrderForScheduling, setSelectedOrderForScheduling] = useState(null);  const [showProductModal, setShowProductModal] = useState(false);
+  const [showSimpleOrderModal, setShowSimpleOrderModal] = useState(false);
+  const [selectedCalendarOrder, setSelectedCalendarOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState({ show: false, title: '', message: '', type: 'info' });
   const [unavailableDates, setUnavailableDates] = useState(new Set()); // User-controlled unavailable dates
@@ -1218,8 +1533,7 @@ const DeliveryPage = () => {
     const delayed = orders.filter(o => o.delivery_status === 'delayed').length;
 
     setStats({ total, pending, scheduled, inTransit, delivered, delayed });
-  }, [orders]);
-  // Priority Algorithm Implementation - Sort by creation date and amount
+  }, [orders]);  // Priority Algorithm Implementation - Sort by creation date and amount
   const calculatePriority = (order) => {
     const now = new Date();
     const orderDate = new Date(order.created_at);
@@ -1227,6 +1541,89 @@ const DeliveryPage = () => {
     
     // Higher priority for older orders and higher amounts
     return daysSinceOrder * 10 + (order.total_amount / 100);
+  };
+  // Custom Order Production Timeline - Admin-controlled production completion dates
+  const getCustomOrderProductionStatus = (order) => {
+    if (order.order_type !== 'custom') {
+      return null; // Not a custom order
+    }
+
+    const now = new Date();
+    const orderDate = new Date(order.created_at);
+    
+    // Check if admin has set a custom production completion date
+    const adminSetCompletionDate = customOrderProductionDates[order.id];
+    
+    let completionDate;
+    if (adminSetCompletionDate) {
+      completionDate = new Date(adminSetCompletionDate);
+    } else {
+      // Default to 10 days if admin hasn't set a date
+      const defaultProductionDays = 10;
+      completionDate = new Date(orderDate.getTime() + (defaultProductionDays * 24 * 60 * 60 * 1000));
+    }
+    
+    const isComplete = now >= completionDate;
+    const daysSinceOrder = Math.floor((now - orderDate) / (24 * 60 * 60 * 1000));
+    const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
+    
+    if (!isComplete) {
+      return {
+        status: 'production',
+        remainingDays: Math.max(0, daysUntilCompletion),
+        completionDate: completionDate,
+        isReady: false,
+        adminControlled: !!adminSetCompletionDate,
+        message: `Production in progress - ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}`
+      };
+    } else {
+      return {
+        status: 'ready',
+        remainingDays: 0,
+        completionDate: completionDate,
+        isReady: true,
+        adminControlled: !!adminSetCompletionDate,
+        message: `Production completed - Ready for delivery${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}`
+      };
+    }
+  };
+  // Function to set production completion date for custom orders
+  const setCustomOrderProductionDate = (orderId, completionDate) => {
+    setCustomOrderProductionDates(prev => ({
+      ...prev,
+      [orderId]: completionDate
+    }));
+    
+    showPopup(
+      'Production Date Set',
+      `Production completion date has been set. The order will be available for delivery scheduling after this date.`,
+      'success'
+    );
+  };
+
+  // Function to set production start date for custom orders
+  const setCustomOrderProductionStartDate = (orderId, startDate) => {
+    setCustomOrderProductionStartDates(prev => ({
+      ...prev,
+      [orderId]: startDate
+    }));
+    
+    // Auto-calculate completion date as start date + 10 days
+    const completionDate = new Date(startDate);
+    completionDate.setDate(completionDate.getDate() + 10);
+    
+    setCustomOrderProductionDate(orderId, completionDate.toISOString().split('T')[0]);
+    
+    // Clear the production start selection
+    setSelectedOrderForProductionStart(null);
+    
+    showPopup(
+      '✅ Production Start Date Set',
+      `Production start date set to: ${new Date(startDate).toLocaleDateString()}\n` +
+      `Production completion date auto-calculated to: ${completionDate.toLocaleDateString()}\n\n` +
+      `The order will now follow the admin-controlled production timeline.`,
+      'success'
+    );
   };
 
   const prioritizedOrders = useMemo(() => {
@@ -1244,13 +1641,17 @@ const DeliveryPage = () => {
     });
   }, [orders]);
   // Fetch confirmed orders from TransactionPage database
-  useEffect(() => {
-    const fetchData = async () => {
+  useEffect(() => {    const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('🔄 DeliveryPage: Fetching orders...');
-          // Fetch confirmed orders
-        const ordersResponse = await api.get('/orders/confirmed');        if (ordersResponse.data.success) {
+        console.log('🔄 DeliveryPage: Fetching ALL orders (regular + approved custom)...');
+        
+        let allOrders = [];
+        
+        // Fetch regular confirmed orders
+        console.log('📦 DeliveryPage: Fetching regular confirmed orders...');
+        const ordersResponse = await api.get('/orders/confirmed');
+        if (ordersResponse.data.success) {
           console.log('✅ DeliveryPage: Raw orders data:', ordersResponse.data.data);
           
           const ordersData = ordersResponse.data.data.map(order => {
@@ -1261,12 +1662,80 @@ const DeliveryPage = () => {
               ...order,
               priority: calculatePriority(order),
               customerName: `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
-              items: order.items || order.order_items || []
+              items: order.items || order.order_items || [],
+              order_type: 'regular'
             };
           });
-          setOrders(ordersData);
-          console.log('✅ DeliveryPage: Orders loaded successfully with items');
-        }// Fetch delivery schedules
+          allOrders = [...ordersData];
+          console.log(`✅ DeliveryPage: ${ordersData.length} regular orders loaded`);
+        }
+        
+        // Fetch approved custom orders
+        console.log('🎨 DeliveryPage: Fetching approved custom orders...');
+        try {
+          const customOrdersResponse = await api.get('/custom-orders/admin/all');
+          if (customOrdersResponse.data.success) {
+            const customOrdersData = customOrdersResponse.data.data || [];
+            
+            // Filter only approved custom orders
+            const approvedCustomOrders = customOrdersData.filter(order => order.status === 'approved');
+            
+            const processedCustomOrders = approvedCustomOrders.map(order => {
+              const fullName = order.customer_name || 
+                             [order.first_name, order.last_name].filter(Boolean).join(' ') || 
+                             'Unknown Customer';
+              
+              const customOrderForDelivery = {
+                id: `custom-${order.id}`, // Prefix to avoid ID conflicts
+                order_number: order.custom_order_id,
+                customerName: fullName,
+                first_name: order.first_name,
+                last_name: order.last_name,
+                user_email: order.customer_email || order.user_email,
+                total_amount: order.estimated_price || order.final_price || 0,
+                status: 'confirmed', // Show as confirmed for delivery management
+                created_at: order.created_at,
+                updated_at: order.updated_at,
+                shipping_address: `${order.street_number || ''} ${order.barangay || ''}, ${order.municipality || ''}, ${order.province || ''}`.trim(),
+                contact_phone: order.customer_phone,
+                priority: calculatePriority({
+                  created_at: order.created_at,
+                  total_amount: order.estimated_price || order.final_price || 0
+                }),
+                items: [{
+                  id: 1,
+                  product_id: `custom-${order.id}`,
+                  productname: `Custom ${order.product_type} - ${order.product_name || 'Custom Design'}`,
+                  productcolor: order.color,
+                  product_type: order.product_type,
+                  quantity: order.quantity || 1,
+                  price: order.estimated_price || order.final_price || 0
+                }],
+                order_type: 'custom',
+                custom_order_data: order
+              };
+              
+              return customOrderForDelivery;
+            });
+            
+            allOrders = [...allOrders, ...processedCustomOrders];
+            console.log(`🎨 DeliveryPage: Added ${processedCustomOrders.length} approved custom orders`);
+          }
+        } catch (customError) {
+          console.log('⚠️ DeliveryPage: Could not fetch custom orders:', customError.message);
+        }
+        
+        // Sort all orders by priority (highest first) then by creation date
+        allOrders.sort((a, b) => {
+          if (b.priority !== a.priority) {
+            return b.priority - a.priority;
+          }
+          return new Date(b.created_at) - new Date(a.created_at);        });
+        
+        setOrders(allOrders);
+        console.log(`✅ DeliveryPage: Total ${allOrders.length} orders loaded (${allOrders.filter(o => o.order_type === 'regular').length} regular + ${allOrders.filter(o => o.order_type === 'custom').length} custom)`);
+        
+        // Fetch delivery schedules
         try {
           const schedulesResponse = await api.get('/deliveries/schedules');
           if (schedulesResponse.data.success) {
@@ -1286,7 +1755,8 @@ const DeliveryPage = () => {
               statusMap[item.order_id] = item.status;
             });
             setProductionStatuses(statusMap);
-          }        } catch (prodError) {
+          }
+        } catch (prodError) {
           console.log('⚠️ DeliveryPage: Production status endpoint not available');
           // Set default production statuses - will be updated when orders are set
           setProductionStatuses({});
@@ -1457,18 +1927,58 @@ const DeliveryPage = () => {
     }
     
     return suggestions;
-  };
-
-  const handleScheduleDelivery = async (order, scheduleData) => {
-    try {
-      // Check production status first
+  };  const handleScheduleDelivery = async (order, scheduleData) => {
+    try {      // Custom Order Production Timeline Validation (Admin-Controlled Dates)
+      if (order.order_type === 'custom') {        const now = new Date();
+        const orderDate = new Date(order.created_at);
+        const scheduledDate = new Date(scheduleData.date);
+        
+        // Get admin-controlled production completion date or default
+        const adminSetCompletionDate = customOrderProductionDates[order.id];
+        let completionDate;
+        
+        if (adminSetCompletionDate) {
+          completionDate = new Date(adminSetCompletionDate);
+        } else {
+          // Default to 10 days if admin hasn't set a date
+          completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        }
+        
+        const isProductionComplete = now >= completionDate;
+        
+        console.log(`📋 Custom order ${order.order_number} validation:`);
+        console.log(`   - Order Created: ${orderDate.toLocaleDateString()}`);
+        console.log(`   - Production Completion: ${completionDate.toLocaleDateString()} ${adminSetCompletionDate ? '(Admin Set)' : '(Default)'}`);
+        console.log(`   - Scheduled Date: ${scheduledDate.toLocaleDateString()}`);
+        console.log(`   - Production Complete: ${isProductionComplete}`);
+        
+        // Enforce production completion date for custom orders
+        if (scheduledDate < completionDate) {
+          showPopup(
+            '🎨 Custom Order Production Schedule',
+            `Production Timeline Restriction\n\n` +
+            `Order Created: ${orderDate.toLocaleDateString()}\n` +
+            `Production Completion: ${completionDate.toLocaleDateString()}${adminSetCompletionDate ? ' (Admin Set)' : ' (Default 10 days)'}\n` +
+            `Requested Delivery: ${scheduledDate.toLocaleDateString()}\n\n` +
+            `⚠️ SCHEDULING RESTRICTION:\n` +
+            `Custom orders cannot be scheduled for delivery before production completion.\n` +
+            `This order cannot be scheduled for delivery before ${completionDate.toLocaleDateString()}.\n\n` +
+            `${!adminSetCompletionDate ? 'Admin can set a custom production completion date if needed.' : 'Production date was set by admin.'}`,
+            'warning'
+          );
+          return; // Block scheduling if before production completion
+        }
+        
+        // Production complete - allow scheduling
+        console.log(`✅ Custom order ${order.order_number} ready for delivery scheduling`);
+      }// Check production status and provide information
       const productionStatus = productionStatuses[order.id];
-      if (productionStatus && productionStatus !== 'completed') {
+      if (productionStatus && productionStatus !== 'completed' && order.order_type !== 'custom') {
         const proceed = window.confirm(
-          `Warning: This order's production status is "${productionStatus}". Only completed orders should be scheduled for delivery. Do you want to proceed anyway?`
+          `Information: This order's production status is "${productionStatus}". While orders can be scheduled at any time, please note the current production status. Do you want to proceed with scheduling?`
         );
         if (!proceed) return;
-      }      // Check for conflicts
+      }// Check for conflicts
       const conflicts = checkScheduleConflicts(scheduleData);
       if (conflicts.length > 0) {
         // Check if the conflict is due to capacity limit
@@ -1718,8 +2228,7 @@ const DeliveryPage = () => {
         return scheduleDate.getFullYear() === calendarDate.getFullYear() &&
                scheduleDate.getMonth() === calendarDate.getMonth() &&
                scheduleDate.getDate() === calendarDate.getDate();
-      });
-        // Find orders scheduled for this date
+      });      // Find orders scheduled for this date
       const dayOrders = orders.filter(order => {
         if (!order.scheduled_delivery_date) return false;
         const orderDate = new Date(order.scheduled_delivery_date);
@@ -1729,6 +2238,43 @@ const DeliveryPage = () => {
         return orderDate.getFullYear() === calendarDate.getFullYear() &&
                orderDate.getMonth() === calendarDate.getMonth() &&
                orderDate.getDate() === calendarDate.getDate();
+      });
+      
+      // Find custom orders with production timeline for this date
+      const productionInfo = orders.filter(order => {
+        if (order.order_type !== 'custom') return false;
+        
+        const adminSetStartDate = customOrderProductionStartDates[order.id];
+        if (!adminSetStartDate) return false;
+        
+        const productionStartDate = new Date(adminSetStartDate);
+        const completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        const calendarDate = new Date(date);
+        
+        // Check if this date is within the production timeline
+        return calendarDate >= productionStartDate && calendarDate <= completionDate;
+      }).map(order => {
+        const adminSetStartDate = customOrderProductionStartDates[order.id];
+        const productionStartDate = new Date(adminSetStartDate);
+        const completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        const calendarDate = new Date(date);
+        
+        // Calculate production progress for this date
+        const totalDuration = completionDate - productionStartDate;
+        const elapsed = calendarDate - productionStartDate;
+        const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+        
+        const isStart = calendarDate.toDateString() === productionStartDate.toDateString();
+        const isEnd = calendarDate.toDateString() === completionDate.toDateString();
+        
+        return {
+          ...order,
+          productionProgress: progress,
+          isProductionStart: isStart,
+          isProductionEnd: isEnd,
+          productionStartDate,
+          productionCompletionDate: completionDate
+        };
       });
 
       // Filter out deliveries that correspond to orders to avoid double counting
@@ -1753,8 +2299,7 @@ const DeliveryPage = () => {
           availabilityStatus = 'partial'; // 2 deliveries = partially booked
         }
         // 0-1 deliveries = available (default)
-      }
-        days.push({
+      }      days.push({
         date: date,
         dayNumber: date.getDate(),
         isCurrentMonth: date.getMonth() === month,
@@ -1762,7 +2307,8 @@ const DeliveryPage = () => {
         deliveries: standaloneDeliveries,
         orders: dayOrders,
         availabilityStatus: availabilityStatus,
-        bookingCount: currentBookings
+        bookingCount: currentBookings,
+        productionOrders: productionInfo // Add production timeline info
       });
     }
     
@@ -1779,11 +2325,15 @@ const DeliveryPage = () => {
     }
     return 'pending';
   };
-
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     setSelectedDate(null);
     setShowScheduleModal(true);
+  };
+
+  const handleCalendarOrderClick = (order) => {
+    setSelectedCalendarOrder(order);
+    setShowSimpleOrderModal(true);
   };
 
   const handleDeliveryClick = (delivery) => {
@@ -1801,6 +2351,21 @@ const DeliveryPage = () => {
     console.log('📅 Day object:', day);
     
     setSelectedDate(day.date);
+    
+    // Check if we're selecting a production start date for a custom order
+    if (selectedOrderForProductionStart) {
+      const selectedDate = new Date(day.date);
+      const today = new Date();
+      
+      // Ensure the selected date is not in the past
+      if (selectedDate < today.setHours(0, 0, 0, 0)) {
+        showPopup('Invalid Date', 'Production start date cannot be in the past. Please select a future date.', 'warning');
+        return;
+      }
+      
+      setCustomOrderProductionStartDate(selectedOrderForProductionStart.id, day.date);
+      return;
+    }
     
     // Check if we have a selected order for scheduling
     if (selectedOrderForScheduling) {
@@ -1921,6 +2486,14 @@ const DeliveryPage = () => {
                     onClick={() => handleCalendarDayClick(day)}
                     isToday={day.isToday}
                     availabilityStatus={day.availabilityStatus}
+                    style={{
+                      ...(selectedOrderForProductionStart && day.isCurrentMonth && 
+                          day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable' && {
+                        boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
+                        borderColor: '#667eea',
+                        cursor: 'pointer'
+                      })
+                    }}
                   >
                     <DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
                       {day.dayNumber}
@@ -1939,7 +2512,7 @@ const DeliveryPage = () => {
                       }}
                     >
                       {day.bookingCount > 0 ? day.bookingCount : ''}
-                    </AvailabilityIndicator>{/* Delivery truck icon */}
+                    </AvailabilityIndicator>                    {/* Delivery truck icon */}
                     {(day.orders.length > 0 || day.deliveries.length > 0) && (
                       <DeliveryIcon 
                         status={dominantStatus || 'default'}
@@ -1948,6 +2521,103 @@ const DeliveryPage = () => {
                         <FontAwesomeIcon icon={faTruck} style={{ color: '#000000' }} />
                       </DeliveryIcon>
                     )}
+                      {/* Production start selection indicator */}
+                    {selectedOrderForProductionStart && day.isCurrentMonth && 
+                     day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable' && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '2px',
+                        left: '2px',
+                        width: '12px',
+                        height: '12px',
+                        backgroundColor: '#667eea',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '8px',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        zIndex: 10
+                      }}>
+                        🎯
+                      </div>
+                    )}
+                    
+                    {/* Production timeline indicators */}
+                    {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
+                      <div key={`production-${prodOrder.id}-${idx}`}>
+                        {/* Production start marker */}
+                        {prodOrder.isProductionStart && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '2px',
+                            right: '2px',
+                            width: '14px',
+                            height: '14px',
+                            backgroundColor: '#28a745',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '8px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            zIndex: 15,
+                            border: '2px solid white',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}
+                          title={`Production Start: ${prodOrder.order_number}`}
+                          >
+                            🏁
+                          </div>
+                        )}
+                        
+                        {/* Production end marker */}
+                        {prodOrder.isProductionEnd && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '2px',
+                            right: '2px',
+                            width: '14px',
+                            height: '14px',
+                            backgroundColor: '#ffc107',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '8px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            zIndex: 15,
+                            border: '2px solid white',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                          }}
+                          title={`Production Complete: ${prodOrder.order_number}`}
+                          >
+                            ✅
+                          </div>
+                        )}
+                        
+                        {/* Production progress line */}
+                        {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '4px',
+                            left: '4px',
+                            right: '4px',
+                            height: '3px',
+                            backgroundColor: '#ffd700',
+                            borderRadius: '2px',
+                            zIndex: 12,
+                            opacity: 0.8,
+                            background: `linear-gradient(90deg, #28a745 0%, #ffc107 ${prodOrder.productionProgress}%, #e9ecef ${prodOrder.productionProgress}%, #e9ecef 100%)`
+                          }}
+                          title={`Production Progress: ${Math.round(prodOrder.productionProgress)}% - ${prodOrder.order_number}`}
+                          />
+                        )}
+                      </div>
+                    ))}
                   </CalendarDay>
                 );
               })}</CalendarGrid>            <CalendarLegend>
@@ -1972,26 +2642,69 @@ const DeliveryPage = () => {
                   </LegendItem>
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
                 <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
                   📅 Calendar Availability
                 </div>                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                   <LegendItem>
                     <LegendColor color="linear-gradient(135deg, #28a745, #20c997)" />
-                    <span>Available (0-1 deliveries) - Green</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #ffc107, #fd7e14)" />
-                    <span>Partially Booked (2 deliveries) - Yellow</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #dc3545, #e74c3c)" />
-                    <span>Fully Booked (3+ deliveries) - Red</span>
+                    <span>Available - Green</span>
                   </LegendItem>
                   <LegendItem>
                     <LegendColor color="linear-gradient(135deg, #6c757d, #495057)" />
                     <span>Unavailable (User Defined) - Gray</span>
+                  </LegendItem>                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+                <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                  🎨 Custom Order Production Timeline
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                  <LegendItem>
+                    <div style={{
+                      width: '14px',
+                      height: '14px',
+                      backgroundColor: '#28a745',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '8px',
+                      color: 'white',
+                      border: '2px solid white',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}>
+                      🏁
+                    </div>
+                    <span>Production Start</span>
+                  </LegendItem>
+                  <LegendItem>
+                    <div style={{
+                      width: '14px',
+                      height: '14px',
+                      backgroundColor: '#ffc107',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '8px',
+                      color: 'white',
+                      border: '2px solid white',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}>
+                      ✅
+                    </div>
+                    <span>Production Complete</span>
+                  </LegendItem>
+                  <LegendItem>
+                    <div style={{
+                      width: '20px',
+                      height: '3px',
+                      background: 'linear-gradient(90deg, #28a745 0%, #ffc107 60%, #e9ecef 60%, #e9ecef 100%)',
+                      borderRadius: '2px'
+                    }} />
+                    <span>Production Progress</span>
                   </LegendItem>
                 </div>
               </div>
@@ -2015,9 +2728,111 @@ const DeliveryPage = () => {
                   <OrderItem 
                     key={order.id}
                     isSelected={selectedOrderForScheduling && selectedOrderForScheduling.id === order.id}
-                  >
-                    <OrderInfo>
-                      <OrderNumber>{order.order_number}</OrderNumber>                      <OrderDetails>                        <div><strong>Customer:</strong> {order.customerName}</div>
+                  >                    <OrderInfo>
+                      <OrderNumber>
+                        <OrderTypeIcon className={order.order_type || 'regular'}>
+                          <FontAwesomeIcon 
+                            icon={order.order_type === 'custom' ? faPalette : faShoppingBag} 
+                          />
+                        </OrderTypeIcon>
+                        {order.order_number}
+                      </OrderNumber>                      {/* Custom Order Production Timeline (Admin-Controlled) */}
+                      {order.order_type === 'custom' && (() => {
+                        const now = new Date();
+                        const orderDate = new Date(order.created_at);
+                        
+                        // Get admin-controlled production start date
+                        const adminSetStartDate = customOrderProductionStartDates[order.id];
+                        const productionStartDate = adminSetStartDate ? new Date(adminSetStartDate) : orderDate;
+                        
+                        // Get admin-controlled production completion date or default
+                        const adminSetCompletionDate = customOrderProductionDates[order.id];
+                        let completionDate;
+                        
+                        if (adminSetCompletionDate) {
+                          completionDate = new Date(adminSetCompletionDate);
+                        } else {
+                          // Default to 10 days from production start date
+                          completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+                        }
+                        
+                        // Calculate progress based on production start date
+                        const totalDuration = completionDate - productionStartDate;
+                        const elapsed = Math.min(now - productionStartDate, totalDuration);
+                        const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+                        
+                        const isComplete = now >= completionDate;
+                        const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
+                          // Calculate milestone dates based on production timeline
+                        const midPoint = new Date(productionStartDate.getTime() + (totalDuration / 2));
+                        const midPointReached = now >= midPoint;
+                        
+                        return (
+                          <ProductionTimelineContainer>                            <TimelineHeader>
+                              <div className="title">
+                                <FontAwesomeIcon icon={isComplete ? faCheck : faBox} />
+                                Production Timeline {adminSetStartDate || adminSetCompletionDate ? '(Admin Set)' : '(Default)'}
+                              </div>
+                              <div className="dates">
+                                {adminSetStartDate ? (
+                                  <>Production: {productionStartDate.toLocaleDateString()} → {completionDate.toLocaleDateString()}</>
+                                ) : (
+                                  <>Order: {orderDate.toLocaleDateString()} → {completionDate.toLocaleDateString()}</>
+                                )}
+                              </div>
+                            </TimelineHeader>
+                            
+                            <TimelineTrack>
+                              <TimelineProgress 
+                                progress={progress} 
+                                isComplete={isComplete}
+                              />
+                            </TimelineTrack>
+                              <TimelineMarkers>
+                              <TimelineMarker active={true} className="complete">
+                                <div className="dot"></div>
+                                <div className="label">
+                                  {adminSetStartDate ? 'Production Start' : 'Order Placed'}
+                                  <br/>{adminSetStartDate ? productionStartDate.toLocaleDateString() : orderDate.toLocaleDateString()}
+                                </div>
+                              </TimelineMarker>
+                              
+                              <TimelineMarker active={midPointReached} className={midPointReached ? 'complete' : ''}>
+                                <div className="dot"></div>
+                                <div className="label">Mid-Production<br/>{midPoint.toLocaleDateString()}</div>
+                              </TimelineMarker>
+                              
+                              <TimelineMarker active={isComplete} className={isComplete ? 'complete' : ''}>
+                                <div className="dot"></div>
+                                <div className="label">Complete<br/>{completionDate.toLocaleDateString()}</div>
+                              </TimelineMarker>
+                            </TimelineMarkers>
+                              <ProductionStatusIndicator isComplete={isComplete}>
+                              <div className="status-icon">
+                                {isComplete ? '✓' : Math.max(0, daysUntilCompletion)}
+                              </div>
+                              <div className="status-text">
+                                {isComplete ? 'Production Complete - Ready for Delivery' : 'Production in Progress'}
+                                {(adminSetStartDate || adminSetCompletionDate) && (
+                                  <span style={{ fontSize: '0.8em', color: '#666' }}> (Admin Controlled)</span>
+                                )}
+                              </div>
+                              {!isComplete && (
+                                <div className="status-days">
+                                  {Math.max(0, daysUntilCompletion)} day{Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining
+                                  {adminSetStartDate && (
+                                    <span style={{ fontSize: '0.85em', display: 'block', marginTop: '2px' }}>
+                                      Started: {productionStartDate.toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </ProductionStatusIndicator>
+                          </ProductionTimelineContainer>
+                        );
+                      })()}
+
+                      <OrderDetails><div><strong>Customer:</strong> {order.customerName}</div>
                         <div><strong>Amount:</strong> ₱{parseFloat(order.total_amount).toFixed(2)}</div>
                         <div><strong>Order Date:</strong> {new Date(order.created_at).toLocaleDateString()}</div>
                         <div><strong>Address:</strong> {order.shipping_address}</div>
@@ -2105,8 +2920,7 @@ const DeliveryPage = () => {
                         <StatusBadge status={order.delivery_status || 'pending'}>
                           {order.delivery_status || 'pending'}
                         </StatusBadge>
-                      </StatusRow>
-                        <ButtonRow>
+                      </StatusRow>                        <ButtonRow>
                         {/* Buttons for pending orders */}
                         {!order.delivery_status && (
                           selectedOrderForScheduling && selectedOrderForScheduling.id === order.id ? (
@@ -2118,12 +2932,134 @@ const DeliveryPage = () => {
                             </ActionButton>
                           ) : (
                             <ActionButton 
-                              primary 
-                              onClick={() => setSelectedOrderForScheduling(order)}
-                            >
-                              Select
-                            </ActionButton>
-                          )
+                              primary                              onClick={() => {
+                                // Enhanced Custom Order Production Check (Admin-Controlled)
+                                if (order.order_type === 'custom') {
+                                  const now = new Date();
+                                  const orderDate = new Date(order.created_at);
+                                  
+                                  // Get admin-controlled production completion date or default
+                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
+                                  let completionDate;
+                                  
+                                  if (adminSetCompletionDate) {
+                                    completionDate = new Date(adminSetCompletionDate);
+                                  } else {
+                                    // Default to 10 days if admin hasn't set a date
+                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+                                  }
+                                  
+                                  const isProductionComplete = now >= completionDate;
+                                  const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
+                                  
+                                  if (!isProductionComplete) {
+                                    showPopup(
+                                      '🎨 Custom Order Production Timeline',
+                                      `Production Status: IN PROGRESS\n\n` +
+                                      `Order Created: ${orderDate.toLocaleDateString()}\n` +
+                                      `Production Completion: ${completionDate.toLocaleDateString()}${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}\n` +
+                                      `Days Remaining: ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''}\n\n` +
+                                      `⚠️ SELECTION RESTRICTION:\n` +
+                                      `Custom orders require production completion before they can be selected for delivery scheduling.\n\n` +
+                                      `This order will be available for scheduling on: ${completionDate.toLocaleDateString()}\n\n` +
+                                      `${!adminSetCompletionDate ? 'Admin can set a custom production start date using the "Select Production Start" button to control the production timeline.' : 'Production date was set by admin.'}`,
+                                      'warning'
+                                    );
+                                    return;
+                                  }
+                                }
+                                setSelectedOrderForScheduling(order);
+                              }}                              disabled={(() => {
+                                if (order.order_type === 'custom') {
+                                  const now = new Date();
+                                  const orderDate = new Date(order.created_at);
+                                  
+                                  // Get admin-controlled production completion date or default
+                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
+                                  let completionDate;
+                                  
+                                  if (adminSetCompletionDate) {
+                                    completionDate = new Date(adminSetCompletionDate);
+                                  } else {
+                                    // Default to 10 days if admin hasn't set a date
+                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+                                  }
+                                  
+                                  return now < completionDate;
+                                }
+                                return false;
+                              })()}                            >
+                              {(() => {
+                                if (order.order_type === 'custom') {
+                                  const now = new Date();
+                                  const orderDate = new Date(order.created_at);
+                                  
+                                  // Get admin-controlled production completion date or default
+                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
+                                  let completionDate;
+                                  
+                                  if (adminSetCompletionDate) {
+                                    completionDate = new Date(adminSetCompletionDate);
+                                  } else {
+                                    // Default to 10 days if admin hasn't set a date
+                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+                                  }
+                                  
+                                  const isComplete = now >= completionDate;
+                                  const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
+                                  
+                                  if (!isComplete) {
+                                    return `Production: ${Math.max(0, daysUntilCompletion)}d left${adminSetCompletionDate ? ' (Admin)' : ''}`;
+                                  } else {
+                                    return `Select (Ready)${adminSetCompletionDate ? ' ✓' : ''}`;
+                                  }
+                                }
+                                return 'Select';
+                              })()}
+                            </ActionButton>                          )                        )}
+                        
+                        {/* Production Start Date Selection for Custom Orders */}
+                        {order.order_type === 'custom' && !customOrderProductionStartDates[order.id] && (
+                          <ActionButton 
+                            onClick={() => {
+                              if (selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id) {
+                                // Cancel selection
+                                setSelectedOrderForProductionStart(null);
+                                showPopup('Selection Cancelled', 'Production start date selection cancelled.', 'info');
+                              } else {
+                                // Select this order for production start date
+                                setSelectedOrderForProductionStart(order);
+                                showPopup(
+                                  '📅 Select Production Start Date', 
+                                  `Click on a calendar date to set the production start date for Order #${order.order_number}.\n\n` +
+                                  `The production completion date will be automatically calculated as start date + 10 days.`, 
+                                  'info'
+                                );
+                              }
+                            }}
+                            variant={selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id ? "danger" : "warning"}
+                            style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                          >
+                            {selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id ? 
+                              '❌ Cancel Selection' : 
+                              '🎯 Select Production Start'
+                            }
+                          </ActionButton>
+                        )}
+                        
+                        {/* Show production start date if set */}
+                        {order.order_type === 'custom' && customOrderProductionStartDates[order.id] && (
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#666', 
+                            padding: '4px 8px',
+                            background: '#f0f8ff',
+                            borderRadius: '4px',
+                            border: '1px solid #d0e7ff',
+                            margin: '4px 0'
+                          }}>
+                            🎯 Production starts: {new Date(customOrderProductionStartDates[order.id]).toLocaleDateString()}
+                          </div>
                         )}
                         
                         {/* Buttons for scheduled orders */}
@@ -2206,7 +3142,7 @@ const DeliveryPage = () => {
                 <p><strong>Standard Delivery:</strong> 1-3 business days</p>
                 <p><strong>Daily Capacity:</strong> 3 deliveries maximum</p>
                 <p><strong>Priority Algorithm:</strong> Order date and amount based</p>
-                <p><strong>Production Tracking:</strong> Only completed orders should be scheduled</p>
+                <p><strong>Production Tracking:</strong> Custom orders require admin-set production completion date before scheduling</p>
                 <p><strong>Conflict Resolution:</strong> Automatic detection and prevention</p>
                 <p><strong>Calendar Features:</strong> Click days to schedule, click green box to toggle availability</p>
               </div>
@@ -2218,6 +3154,7 @@ const DeliveryPage = () => {
         <ScheduleModal 
           order={selectedOrder}
           preSelectedDate={selectedDate}
+          customOrderProductionDates={customOrderProductionDates}
           onClose={() => {
             setShowScheduleModal(false);
             setSelectedOrder(null);
@@ -2225,7 +3162,7 @@ const DeliveryPage = () => {
           }}
           onSchedule={handleScheduleDelivery}
         />
-      )}      {/* Product Modal */}
+      )}{/* Product Modal */}
       {showProductModal && selectedOrder && (
         <ProductModal 
           order={selectedOrder}
@@ -2234,6 +3171,114 @@ const DeliveryPage = () => {
             setSelectedOrder(null);
           }}
         />
+      )}      {/* Simple Order Details Modal for Calendar */}
+      {showSimpleOrderModal && selectedCalendarOrder && (
+        <SimpleOrderModal onClick={(e) => {
+          e.stopPropagation();
+          setShowSimpleOrderModal(false);
+        }}>
+          <SimpleOrderContent onClick={(e) => e.stopPropagation()}>
+            <SimpleOrderHeader>
+              <SimpleOrderTitle>All Products - Order {selectedCalendarOrder.order_number}</SimpleOrderTitle>
+              <SimpleCloseButton onClick={() => setShowSimpleOrderModal(false)}>
+                <FontAwesomeIcon icon={faTimes} />
+              </SimpleCloseButton>
+            </SimpleOrderHeader>
+            
+            <SimpleOrderBody>
+              {/* Customer Details */}
+              <QuickDetailRow>
+                <QuickDetailLabel>Customer:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.customerName}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Email:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.customer_email || 'N/A'}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Phone:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.customer_phone || 'N/A'}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Address:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.customer_address || 'N/A'}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Order Date:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.order_date ? new Date(selectedCalendarOrder.order_date).toLocaleDateString() : 'N/A'}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Status:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.status || 'Pending'}</QuickDetailValue>
+              </QuickDetailRow>              {/* Product Details Section */}
+              {selectedCalendarOrder.items && selectedCalendarOrder.items.length > 0 && (
+                <div style={{ margin: '16px 0' }}>
+                  <QuickDetailLabel style={{ 
+                    display: 'block', 
+                    marginBottom: '12px',
+                    color: '#000000',
+                    fontWeight: '600',
+                    fontSize: '1rem'
+                  }}>
+                    🏷️ {selectedCalendarOrder.items.length} Product{selectedCalendarOrder.items.length > 1 ? 's' : ''}
+                  </QuickDetailLabel>
+                  <div style={{ 
+                    background: '#f8f9fa', 
+                    border: '1px solid #e9ecef', 
+                    borderRadius: '8px', 
+                    padding: '12px',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {selectedCalendarOrder.items.map((item, index) => (
+                      <div key={`${item.product_id || item.id}-${index}`} style={{
+                        padding: '12px 0',
+                        borderBottom: index < selectedCalendarOrder.items.length - 1 ? '1px solid #dee2e6' : 'none'
+                      }}>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          marginBottom: '4px',
+                          color: '#000000',
+                          fontSize: '0.9rem'
+                        }}>
+                          {item.productname || 'Unknown Product'}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '2px' }}>
+                          <strong>Product ID:</strong> {item.product_id || 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#888888' }}>
+                          {item.productcolor && (
+                            <span><strong>Color:</strong> {item.productcolor} • </span>
+                          )}
+                          {item.product_type && (
+                            <span><strong>Type:</strong> {item.product_type} • </span>
+                          )}
+                          <span><strong>Qty:</strong> {item.quantity || 1}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Total Amount */}
+              <TotalAmount>
+                <span>Total Amount:</span>
+                <span>₱{parseFloat(selectedCalendarOrder.total_amount || 0).toFixed(2)}</span>
+              </TotalAmount>
+
+              {/* Payment Info */}
+              <QuickDetailRow>
+                <QuickDetailLabel>Payment Method:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.payment_method || 'N/A'}</QuickDetailValue>
+              </QuickDetailRow>
+              <QuickDetailRow>
+                <QuickDetailLabel>Payment Status:</QuickDetailLabel>
+                <QuickDetailValue>{selectedCalendarOrder.payment_status || 'Pending'}</QuickDetailValue>
+              </QuickDetailRow>
+            </SimpleOrderBody>
+          </SimpleOrderContent>
+        </SimpleOrderModal>
       )}
 
       {/* Custom Popup Modal */}
@@ -2327,18 +3372,32 @@ const DeliveryPage = () => {
                     </AvailabilityIndicator>
                     
                     <div>
-                      {day.orders.map((order, i) => (
-                        <FullOrderBlock 
+                      {day.orders.map((order, i) => (                        <FullOrderBlock 
                           key={`order-${i}`} 
                           status={getOrderDeliveryStatus(order)}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOrderClick(order);
-                            setShowFullCalendar(false);
+                            handleCalendarOrderClick(order);
                           }}
                           title={`${order.order_number} - ${order.customerName} - ${order.scheduled_delivery_time || 'No time set'}`}
-                        >
-                          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                        >                          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              fontSize: '8px',
+                              background: order.order_type === 'custom' 
+                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                                : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                              color: 'white'
+                            }}>
+                              <FontAwesomeIcon 
+                                icon={order.order_type === 'custom' ? faPalette : faShoppingBag} 
+                              />
+                            </div>
                             {order.order_number}
                           </div>
                           <div style={{ fontSize: '0.7rem', opacity: '0.9' }}>
@@ -2400,15 +3459,13 @@ const DeliveryPage = () => {
                 );
               })}
             </FullCalendarGrid>
-          </FullCalendarContent>
-        </FullCalendarModal>
-      )}
+          </FullCalendarContent>        </FullCalendarModal>      )}
     </PageContainer>
   );
 };
 
 // Schedule Modal Component
-const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate }) => {
+const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrderProductionDates }) => {
   const [scheduleData, setScheduleData] = useState({
     date: preSelectedDate ? 
       `${preSelectedDate.getFullYear()}-${String(preSelectedDate.getMonth() + 1).padStart(2, '0')}-${String(preSelectedDate.getDate()).padStart(2, '0')}` : 
@@ -2416,6 +3473,51 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate }) => {
     time: '',
     notes: ''
   });
+
+  // Calculate minimum date for custom orders (admin-controlled production dates)
+  const getMinDate = () => {
+    if (order.order_type === 'custom') {
+      const orderDate = new Date(order.created_at);
+      
+      // Check if admin has set a custom production completion date
+      const adminSetCompletionDate = customOrderProductionDates[order.id];
+      let completionDate;
+      
+      if (adminSetCompletionDate) {
+        completionDate = new Date(adminSetCompletionDate);
+      } else {
+        // Default to 10 days if admin hasn't set a date
+        completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+      }
+      
+      const today = new Date();
+      
+      // Use the later of today or production completion date
+      const minDate = completionDate > today ? completionDate : today;
+      return minDate.toISOString().split('T')[0];
+    } else {
+      // Regular orders can be scheduled from today
+      return new Date().toISOString().split('T')[0];
+    }
+  };
+
+  // Get production status message for custom orders
+  const getProductionStatusMessage = () => {
+    if (order.order_type === 'custom') {
+      const orderDate = new Date(order.created_at);
+      const adminSetCompletionDate = customOrderProductionDates[order.id];
+      let completionDate;
+      
+      if (adminSetCompletionDate) {
+        completionDate = new Date(adminSetCompletionDate);
+        return `Custom order production completion date set by admin: ${completionDate.toLocaleDateString()}`;
+      } else {
+        completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        return `Custom order default production period: 10 days (completion: ${completionDate.toLocaleDateString()})`;
+      }
+    }
+    return '';
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -2485,17 +3587,25 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate }) => {
                 ))}
               </div>
             </FormGroup>
-          )}
-
-          <FormGroup>
+          )}          <FormGroup>
             <Label>Delivery Date</Label>
             <Input
               type="date"
               value={scheduleData.date}
               onChange={(e) => setScheduleData({...scheduleData, date: e.target.value})}
-              min={new Date().toISOString().split('T')[0]}
+              min={getMinDate()}
               required
             />
+            {order.order_type === 'custom' && (
+              <div style={{ 
+                fontSize: '0.8rem', 
+                color: '#666666', 
+                marginTop: '4px',
+                fontStyle: 'italic'
+              }}>
+                ℹ️ {getProductionStatusMessage()}
+              </div>
+            )}
           </FormGroup>
 
           <FormGroup>
@@ -2643,5 +3753,37 @@ const ProductModal = ({ order, onClose }) => {
     </Modal>
   );
 };
+
+const ProductionTimelineBar = styled.div`
+  width: 100%;
+  margin: 10px 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const TimelineLine = styled.div`
+  flex: 1;
+  height: 8px;
+  background: linear-gradient(90deg, #ffe066 0%, #ffd700 100%);
+  border-radius: 4px;
+  position: relative;
+  overflow: visible;
+`;
+
+const TimelineDot = styled.div`
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffd700;
+  border: 2px solid #ffb300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(255, 215, 0, 0.15);
+`;
 
 export default DeliveryPage;

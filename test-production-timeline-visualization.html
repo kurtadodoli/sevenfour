@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Order Production Timeline Visualization Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .test-section {
+            margin: 25px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin-bottom: 15px;
+        }
+        .calendar-demo {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            max-width: 400px;
+            margin: 20px 0;
+        }
+        .calendar-day {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .production-start {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            background-color: #28a745;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .production-end {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 14px;
+            height: 14px;
+            background-color: #ffc107;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: white;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .production-progress {
+            position: absolute;
+            bottom: 4px;
+            left: 4px;
+            right: 4px;
+            height: 3px;
+            border-radius: 2px;
+            opacity: 0.8;
+        }
+        .progress-20 { background: linear-gradient(90deg, #28a745 0%, #ffc107 20%, #e9ecef 20%, #e9ecef 100%); }
+        .progress-40 { background: linear-gradient(90deg, #28a745 0%, #ffc107 40%, #e9ecef 40%, #e9ecef 100%); }
+        .progress-60 { background: linear-gradient(90deg, #28a745 0%, #ffc107 60%, #e9ecef 60%, #e9ecef 100%); }
+        .progress-80 { background: linear-gradient(90deg, #28a745 0%, #ffc107 80%, #e9ecef 80%, #e9ecef 100%); }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        .instructions {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #17a2b8;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #c3e6cb;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ffeaa7;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="header">🎨 Custom Order Production Timeline Visualization Test</h1>
+        
+        <div class="instructions">
+            <h3>📋 Test Instructions</h3>
+            <p><strong>This test verifies the visual production timeline indicators on the calendar for custom orders.</strong></p>
+            <ol>
+                <li>Open the DeliveryPage in the admin panel</li>
+                <li>Look for custom orders in the order list</li>
+                <li>Use the yellow "Select Production Start" button to set a production start date</li>
+                <li>Check the calendar for visual timeline indicators</li>
+                <li>Verify the legend shows the production timeline indicators</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📅 Production Timeline Visual Indicators</div>
+            <p>When a custom order has a production start date set, the calendar should show:</p>
+            
+            <div class="legend">
+                <div class="legend-item">
+                    <div style="width: 14px; height: 14px; background-color: #28a745; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">🏁</div>
+                    <span>Production Start Date</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 14px; height: 14px; background-color: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">✅</div>
+                    <span>Production Complete Date</span>
+                </div>
+                <div class="legend-item">
+                    <div style="width: 20px; height: 3px; background: linear-gradient(90deg, #28a745 0%, #ffc107 60%, #e9ecef 60%, #e9ecef 100%); border-radius: 2px;"></div>
+                    <span>Production Progress Line</span>
+                </div>
+            </div>
+
+            <p><strong>Example Calendar Days with Production Timeline:</strong></p>
+            <div class="calendar-demo">
+                <!-- Week header -->
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">S</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">M</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">T</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">W</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">T</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">F</div>
+                <div style="font-weight: bold; text-align: center; background: #f8f8f8; border: none;">S</div>
+                
+                <!-- Sample week -->
+                <div class="calendar-day">1</div>
+                <div class="calendar-day">2</div>
+                <div class="calendar-day">
+                    3
+                    <div class="production-start">🏁</div>
+                </div>
+                <div class="calendar-day">
+                    4
+                    <div class="production-progress progress-20"></div>
+                </div>
+                <div class="calendar-day">
+                    5
+                    <div class="production-progress progress-40"></div>
+                </div>
+                <div class="calendar-day">
+                    6
+                    <div class="production-progress progress-60"></div>
+                </div>
+                <div class="calendar-day">
+                    7
+                    <div class="production-progress progress-80"></div>
+                </div>
+
+                <!-- Second week -->
+                <div class="calendar-day">8</div>
+                <div class="calendar-day">9</div>
+                <div class="calendar-day">10</div>
+                <div class="calendar-day">11</div>
+                <div class="calendar-day">12</div>
+                <div class="calendar-day">
+                    13
+                    <div class="production-end">✅</div>
+                </div>
+                <div class="calendar-day">14</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔍 Manual Verification Steps</div>
+            <ol>
+                <li><strong>Access Admin Panel:</strong> Navigate to the delivery page as an admin</li>
+                <li><strong>Find Custom Order:</strong> Look for orders with the palette icon (🎨) in the order list</li>
+                <li><strong>Set Production Start:</strong> Click the yellow "Select Production Start" button</li>
+                <li><strong>Choose Date:</strong> Click on an available date in the calendar</li>
+                <li><strong>Verify Timeline:</strong> Check that the calendar shows:
+                    <ul>
+                        <li>🏁 Green circle on the production start date</li>
+                        <li>✅ Yellow circle on the completion date (10 days later)</li>
+                        <li>Yellow progress lines on days in between</li>
+                    </ul>
+                </li>
+                <li><strong>Check Legend:</strong> Verify the legend section shows production timeline indicators</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">✅ Expected Results</div>
+            <div class="success">
+                <strong>✓ Visual Timeline Indicators:</strong> Calendar days show production start (🏁), progress lines, and completion (✅) markers
+            </div>
+            <div class="success">
+                <strong>✓ Legend Updated:</strong> Calendar legend includes section for "Custom Order Production Timeline"
+            </div>
+            <div class="success">
+                <strong>✓ Hover Information:</strong> Hovering over indicators shows tooltips with order details
+            </div>
+            <div class="success">
+                <strong>✓ Multiple Orders:</strong> Multiple custom orders can have overlapping production timelines
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">⚠️ Things to Note</div>
+            <div class="warning">
+                <strong>Production Timeline Only Shows:</strong> When admin has set a production start date using "Select Production Start"
+            </div>
+            <div class="warning">
+                <strong>10-Day Duration:</strong> Production timeline always spans 10 days from start to completion
+            </div>
+            <div class="warning">
+                <strong>Visual Positioning:</strong> Start marker (top-right), end marker (bottom-right), progress line (bottom)
+            </div>
+        </div>
+
+        <div class="success">
+            <h3>🎯 Test Completion</h3>
+            <p><strong>The production timeline visualization feature is fully implemented and ready for testing!</strong></p>
+            <p>The calendar now provides clear visual feedback showing the production process for custom orders from start to completion.</p>
+        </div>
+    </div>
+</body>
+</html>

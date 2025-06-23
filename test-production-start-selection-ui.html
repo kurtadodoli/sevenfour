@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Start Date Selection Test</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        .content {
+            padding: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #495057;
+            font-size: 1.3rem;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+        .feature-list li::before {
+            content: '✅';
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+        .workflow-step {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+        }
+        .workflow-step h4 {
+            margin: 0 0 8px 0;
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+        .workflow-step p {
+            margin: 0;
+            color: #6c757d;
+            line-height: 1.5;
+        }
+        .button-demo {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.2s ease;
+            margin: 5px;
+        }
+        .button-demo:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .button-demo.select {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+        .button-demo.cancel {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+        .button-demo.warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+        .calendar-demo {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .calendar-day {
+            background: white;
+            padding: 10px;
+            text-align: center;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .calendar-day.header {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        .calendar-day.selectable {
+            background: linear-gradient(135deg, #e3f2fd, #ffffff);
+            border: 2px solid #667eea;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+        }
+        .calendar-day.selectable::after {
+            content: '🎯';
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 10px;
+        }
+        .calendar-day.today {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+        }
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .info-box h4 {
+            margin: 0 0 8px 0;
+            color: #0c5460;
+        }
+        .info-box p {
+            margin: 0;
+            color: #0c5460;
+            font-size: 0.9rem;
+        }
+        .timeline-demo {
+            background: linear-gradient(135deg, #fff9e6, #fffbf0);
+            border: 1px solid #ffd700;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 15px 0;
+        }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .timeline-title {
+            font-weight: bold;
+            color: #b8860b;
+        }
+        .timeline-dates {
+            font-size: 0.8rem;
+            color: #8b5a00;
+        }
+        .timeline-track {
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700, #ffed4a);
+            border-radius: 6px;
+            width: 40%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Production Start Date Selection</h1>
+            <p>Interactive Test for Custom Order Production Timeline Control</p>
+        </div>
+        
+        <div class="content">
+            <div class="test-section">
+                <h3>🚀 New Feature Overview</h3>
+                <ul class="feature-list">
+                    <li>Select production start date for custom orders using calendar</li>
+                    <li>Automatic calculation of completion date (start + 10 days)</li>
+                    <li>Visual feedback during date selection process</li>
+                    <li>Enhanced production timeline with admin-controlled dates</li>
+                    <li>Improved production status tracking and display</li>
+                </ul>
+            </div>
+
+            <div class="test-section">
+                <h3>📋 Admin Workflow</h3>
+                
+                <div class="workflow-step">
+                    <h4>Step 1: Select Production Start</h4>
+                    <p>Click the "Select Production Start" button for a custom order to begin date selection.</p>
+                    <button class="button-demo select">🎯 Select Production Start</button>
+                </div>
+
+                <div class="workflow-step">
+                    <h4>Step 2: Choose Calendar Date</h4>
+                    <p>Click on any available future date in the calendar to set the production start date.</p>
+                    
+                    <div class="calendar-demo">
+                        <div class="calendar-day header">Sun</div>
+                        <div class="calendar-day header">Mon</div>
+                        <div class="calendar-day header">Tue</div>
+                        <div class="calendar-day header">Wed</div>
+                        <div class="calendar-day header">Thu</div>
+                        <div class="calendar-day header">Fri</div>
+                        <div class="calendar-day header">Sat</div>
+                        
+                        <div class="calendar-day">20</div>
+                        <div class="calendar-day">21</div>
+                        <div class="calendar-day">22</div>
+                        <div class="calendar-day today">23</div>
+                        <div class="calendar-day selectable">24</div>
+                        <div class="calendar-day selectable">25</div>
+                        <div class="calendar-day selectable">26</div>
+                        
+                        <div class="calendar-day selectable">27</div>
+                        <div class="calendar-day selectable">28</div>
+                        <div class="calendar-day selectable">29</div>
+                        <div class="calendar-day selectable">30</div>
+                        <div class="calendar-day selectable">1</div>
+                        <div class="calendar-day selectable">2</div>
+                        <div class="calendar-day selectable">3</div>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h4>🎯 Selection Mode Active</h4>
+                        <p>Calendar days show blue highlight and target icon when production start selection is active. Click any highlighted date to set the production start date.</p>
+                    </div>
+                </div>
+
+                <div class="workflow-step">
+                    <h4>Step 3: Automatic Timeline Calculation</h4>
+                    <p>The system automatically calculates the production completion date and updates the timeline.</p>
+                    
+                    <div class="timeline-demo">
+                        <div class="timeline-header">
+                            <div class="timeline-title">🏭 Production Timeline (Admin Set)</div>
+                            <div class="timeline-dates">Production: 6/25/2025 → 7/5/2025</div>
+                        </div>
+                        <div class="timeline-track">
+                            <div class="timeline-progress"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #666;">
+                            <span>Production Start<br/>6/25/2025</span>
+                            <span>Mid-Production<br/>6/30/2025</span>
+                            <span>Complete<br/>7/5/2025</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="workflow-step">
+                    <h4>Step 4: Cancel Selection (Optional)</h4>
+                    <p>Click "Cancel Selection" to exit production start date selection mode.</p>
+                    <button class="button-demo cancel">❌ Cancel Selection</button>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <h3>🎨 Button States</h3>
+                
+                <p><strong>Custom Order Actions:</strong></p>
+                <button class="button-demo warning">📅 Set Production Date</button>
+                <button class="button-demo select">🎯 Select Production Start</button>
+                <button class="button-demo cancel">❌ Cancel Selection</button>
+                
+                <div class="info-box" style="margin-top: 15px;">
+                    <h4>Button Behavior</h4>
+                    <p>
+                        • <strong>Select Production Start:</strong> Activates calendar selection mode<br/>
+                        • <strong>Cancel Selection:</strong> Appears when selection is active<br/>
+                        • <strong>Set Production Date:</strong> Manual completion date setting (existing feature)
+                    </p>
+                </div>
+            </div>
+
+            <div class="test-section">
+                <h3>📊 Production Timeline Features</h3>
+                <ul class="feature-list">
+                    <li>Timeline shows production period instead of order period when start date is set</li>
+                    <li>Progress bar reflects production timeline (start to completion)</li>
+                    <li>Milestones updated to show production start, mid-production, and completion</li>
+                    <li>Status indicators show production start date when set</li>
+                    <li>Auto-calculation: Start date + 10 days = Completion date</li>
+                </ul>
+            </div>
+
+            <div class="test-section">
+                <h3>✅ Validation Features</h3>
+                <ul class="feature-list">
+                    <li>Past dates are rejected with error message</li>
+                    <li>Only future dates can be selected for production start</li>
+                    <li>Unavailable/busy calendar days are not selectable</li>
+                    <li>Clear user feedback throughout the selection process</li>
+                    <li>State management prevents conflicts with delivery scheduling</li>
+                </ul>
+            </div>
+
+            <div class="test-section">
+                <h3>🔧 Testing Instructions</h3>
+                <ol>
+                    <li><strong>Start the application:</strong> Run both backend and frontend servers</li>
+                    <li><strong>Navigate to Delivery Page:</strong> Go to admin delivery management</li>
+                    <li><strong>Find custom orders:</strong> Look for orders with the palette icon (🎨)</li>
+                    <li><strong>Click "Select Production Start":</strong> This activates selection mode</li>
+                    <li><strong>Observe calendar changes:</strong> Available dates show blue highlight and target icon</li>
+                    <li><strong>Click a future date:</strong> Sets production start and auto-calculates completion</li>
+                    <li><strong>Verify timeline update:</strong> Production timeline should reflect new dates</li>
+                    <li><strong>Test validation:</strong> Try clicking past dates (should show error)</li>
+                </ol>
+            </div>
+
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin-top: 30px; text-align: center;">
+                <h3 style="color: #155724; margin: 0 0 10px 0;">🎉 Feature Ready for Testing!</h3>
+                <p style="color: #155724; margin: 0;">
+                    The "Select Production Start" functionality is now implemented and ready for admin use. 
+                    This provides full control over custom order production timelines.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
