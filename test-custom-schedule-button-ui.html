@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Order Schedule Button Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .order-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 15px 0;
+            position: relative;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .order-number {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .order-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .custom-order {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .regular-order {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .order-details {
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .production-timeline {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        .timeline-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 8px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd32a 0%, #ff9500 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .schedule-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .schedule-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 500px;
+            margin: 50px auto;
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .info-text {
+            font-size: 0.8em;
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        .result {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Custom Order Schedule Button Test</h1>
+    
+    <div class="test-container">
+        <h2 class="test-title">📋 Implementation Overview</h2>
+        <p>This test demonstrates that:</p>
+        <ul>
+            <li><strong>Custom orders have the same Schedule button as regular orders</strong></li>
+            <li><strong>Date picker enforces 10-day minimum production period</strong></li>
+            <li><strong>Clear validation prevents early scheduling with helpful messages</strong></li>
+            <li><strong>Production timeline is displayed for user awareness</strong></li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-title">🧪 Interactive Test</h2>
+        
+        <!-- Custom Order Example -->
+        <div class="order-card">
+            <div class="order-header">
+                <span class="order-number">Order #CUST001</span>
+                <span class="order-type custom-order">🎨 Custom Order</span>
+            </div>
+            <div class="order-details">
+                <strong>Customer:</strong> John Doe<br>
+                <strong>Product:</strong> Custom T-Shirt Design<br>
+                <strong>Created:</strong> <span id="custom-order-date"></span>
+            </div>
+            <div class="production-timeline">
+                <strong>Production Timeline (10 days required)</strong>
+                <div class="timeline-bar">
+                    <div class="timeline-progress" id="custom-progress" style="width: 20%"></div>
+                </div>
+                <div style="font-size: 0.8em; color: #666;">
+                    <span id="custom-status">Day 2 of 10 - In Progress</span> |
+                    <span id="custom-completion">Completion: <span id="completion-date"></span></span>
+                </div>
+            </div>
+            <button class="schedule-btn" onclick="openScheduleModal('custom')">
+                📅 Schedule Delivery
+            </button>
+            <div id="custom-result" class="result"></div>
+        </div>
+
+        <!-- Regular Order Example (for comparison) -->
+        <div class="order-card">
+            <div class="order-header">
+                <span class="order-number">Order #REG002</span>
+                <span class="order-type regular-order">🛍️ Regular Order</span>
+            </div>
+            <div class="order-details">
+                <strong>Customer:</strong> Jane Smith<br>
+                <strong>Product:</strong> Standard T-Shirt<br>
+                <strong>Created:</strong> <span id="regular-order-date"></span>
+            </div>
+            <div style="padding: 12px; background: #e8f5e8; border-radius: 4px; margin: 10px 0;">
+                <strong>Status:</strong> Ready for delivery (no production period required)
+            </div>
+            <button class="schedule-btn" onclick="openScheduleModal('regular')">
+                📅 Schedule Delivery
+            </button>
+            <div id="regular-result" class="result"></div>
+        </div>
+    </div>
+
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 id="modal-title">Schedule Delivery</h3>
+            
+            <div class="form-group">
+                <label>Customer Information</label>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-size: 0.9em;">
+                    <div id="customer-info"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="delivery-date">Delivery Date</label>
+                <input type="date" id="delivery-date" onchange="validateDate()">
+                <div id="date-info" class="info-text"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="delivery-time">Delivery Time</label>
+                <select id="delivery-time">
+                    <option value="">Select Time</option>
+                    <option value="09:00">9:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="14:00">2:00 PM</option>
+                    <option value="16:00">4:00 PM</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                <button onclick="closeModal()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Cancel
+                </button>
+                <button onclick="submitSchedule()" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Schedule Delivery
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentOrderType = '';
+        let customOrderDate, regularOrderDate, completionDate;
+
+        function initializeDates() {
+            // Custom order created 2 days ago
+            customOrderDate = new Date();
+            customOrderDate.setDate(customOrderDate.getDate() - 2);
+            
+            // Regular order created yesterday
+            regularOrderDate = new Date();
+            regularOrderDate.setDate(regularOrderDate.getDate() - 1);
+            
+            // Custom order completion date (10 days from creation)
+            completionDate = new Date(customOrderDate);
+            completionDate.setDate(completionDate.getDate() + 10);
+            
+            // Update display
+            document.getElementById('custom-order-date').textContent = customOrderDate.toLocaleDateString();
+            document.getElementById('regular-order-date').textContent = regularOrderDate.toLocaleDateString();
+            document.getElementById('completion-date').textContent = completionDate.toLocaleDateString();
+        }
+
+        function openScheduleModal(orderType) {
+            currentOrderType = orderType;
+            const modal = document.getElementById('scheduleModal');
+            const title = document.getElementById('modal-title');
+            const customerInfo = document.getElementById('customer-info');
+            const dateInput = document.getElementById('delivery-date');
+            const dateInfo = document.getElementById('date-info');
+            
+            if (orderType === 'custom') {
+                title.textContent = 'Schedule Delivery - Order #CUST001';
+                customerInfo.innerHTML = '<strong>Customer:</strong> John Doe<br><strong>Product:</strong> Custom T-Shirt Design';
+                
+                // Set minimum date to completion date for custom orders
+                dateInput.min = completionDate.toISOString().split('T')[0];
+                dateInfo.textContent = 'ℹ️ Custom orders require a 10-day production period before delivery';
+                dateInfo.style.color = '#856404';
+                
+            } else {
+                title.textContent = 'Schedule Delivery - Order #REG002';
+                customerInfo.innerHTML = '<strong>Customer:</strong> Jane Smith<br><strong>Product:</strong> Standard T-Shirt';
+                
+                // Set minimum date to today for regular orders
+                dateInput.min = new Date().toISOString().split('T')[0];
+                dateInfo.textContent = 'ℹ️ Regular orders can be scheduled from today';
+                dateInfo.style.color = '#155724';
+            }
+            
+            // Clear previous values
+            dateInput.value = '';
+            document.getElementById('delivery-time').value = '';
+            
+            modal.style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+        }
+
+        function validateDate() {
+            const dateInput = document.getElementById('delivery-date');
+            const selectedDate = new Date(dateInput.value);
+            const today = new Date();
+            
+            if (currentOrderType === 'custom') {
+                if (selectedDate < completionDate) {
+                    alert(
+                        '🎨 Custom Order Production Schedule\n\n' +
+                        'Production Timeline Restriction\n\n' +
+                        `Order Created: ${customOrderDate.toLocaleDateString()}\n` +
+                        `Production Completion: ${completionDate.toLocaleDateString()}\n` +
+                        `Requested Delivery: ${selectedDate.toLocaleDateString()}\n\n` +
+                        '⚠️ SCHEDULING RESTRICTION:\n' +
+                        'Custom orders require a minimum 10-day production period.\n' +
+                        `This order cannot be scheduled for delivery before ${completionDate.toLocaleDateString()}.\n\n` +
+                        'Please select a delivery date on or after the production completion date.'
+                    );
+                    dateInput.value = '';
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function submitSchedule() {
+            const dateInput = document.getElementById('delivery-date');
+            const timeInput = document.getElementById('delivery-time');
+            
+            if (!dateInput.value || !timeInput.value) {
+                alert('Please fill in all required fields.');
+                return;
+            }
+            
+            if (!validateDate()) {
+                return;
+            }
+            
+            const resultDiv = document.getElementById(currentOrderType + '-result');
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = `
+                <strong>✅ Delivery Scheduled Successfully!</strong><br>
+                Order: ${currentOrderType === 'custom' ? '#CUST001' : '#REG002'}<br>
+                Date: ${new Date(dateInput.value).toLocaleDateString()}<br>
+                Time: ${timeInput.value}<br>
+                Customer notification sent.
+            `;
+            resultDiv.style.display = 'block';
+            
+            closeModal();
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initializeDates();
+        };
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('scheduleModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        };
+    </script>
+</body>
+</html>

@@ -45,6 +45,7 @@ import CustomPage from './pages/CustomPage'; // Import CustomPage
 
 import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
 import DebugTransactionPage from './pages/DebugTransactionPage'; // Import DebugTransactionPage
+import RegistrationPage from './pages/RegistrationPage'; // Import RegistrationPage
 
 // Components
 import Footer from './components/Footer';
@@ -112,9 +113,10 @@ const Layout = () => {
             <Route path="/admin" element={<DashboardPage />} />
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/reports" element={<ReportsPage />} />
-            <Route path="/admin/settings" element={<SettingsPage />} />
-            <Route path="/admin/products" element={<MaintenancePage />} />
-            <Route path="/maintenance" element={<MaintenancePage />} />            <Route path="/transactions" element={<TransactionPage />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />            <Route path="/admin/products" element={<MaintenancePage />} />
+            <Route path="/maintenance" element={<MaintenancePage />} />
+            <Route path="/registration" element={<RegistrationPage />} />
+            <Route path="/transactions" element={<TransactionPage />} />
             <Route path="/debug-transactions" element={<DebugTransactionPage />} />
             <Route path="/search" element={<SearchPage />} />
           </Route>

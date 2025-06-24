@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 const DebugTransactionPage = () => {
-  const { user } = useAuth();
+  const { currentUser: user } = useAuth(); // Get current user (renamed for consistency)
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

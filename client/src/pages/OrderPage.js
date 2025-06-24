@@ -21,40 +21,12 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 
-// Philippine address data
+// Philippine address data - Metro Manila only
 const philippineAddressData = {
   "Metro Manila": [
     "Manila", "Quezon City", "Makati", "Pasig", "Taguig", "Muntinlupa", 
     "Parañaque", "Las Piñas", "Marikina", "Pasay", "Caloocan", "Malabon", 
     "Navotas", "Valenzuela", "San Juan", "Mandaluyong", "Pateros"
-  ],
-  "Cebu": [
-    "Cebu City", "Lapu-Lapu", "Mandaue", "Talisay", "Toledo", "Danao", 
-    "Carcar", "Bogo", "Naga"
-  ],
-  "Davao del Sur": [
-    "Davao City", "Digos", "Samal", "Santa Cruz", "Hagonoy", "Kiblawan", 
-    "Magsaysay", "Matanao"
-  ],
-  "Laguna": [
-    "Santa Rosa", "Biñan", "San Pedro", "Calamba", "Los Baños", "Sta. Cruz", 
-    "Pagsanjan", "Lumban", "Bay"
-  ],
-  "Cavite": [
-    "Bacoor", "Dasmariñas", "Imus", "General Trias", "Kawit", "Noveleta", 
-    "Rosario", "Cavite City", "Trece Martires"
-  ],
-  "Rizal": [
-    "Antipolo", "Cainta", "Taytay", "Angono", "Binangonan", "Rodriguez", 
-    "San Mateo", "Morong", "Baras"
-  ],
-  "Bulacan": [
-    "Malolos", "Meycauayan", "San Jose del Monte", "Marilao", "Bocaue", 
-    "Guiguinto", "Balagtas", "Bulakan", "Hagonoy"
-  ],
-  "Pampanga": [
-    "San Fernando", "Angeles", "Mabalacat", "Porac", "Floridablanca", 
-    "Guagua", "Lubao", "Sasmuan", "Macabebe"
   ]
 };
 
@@ -141,7 +113,9 @@ const TabContainer = styled.div`
   width: fit-content;
 `;
 
-const Tab = styled.button`
+const Tab = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   padding: 12px 24px;
   border: none;
   background: ${props => props.active ? 
@@ -408,7 +382,9 @@ const OrderActions = styled.div`
   flex-wrap: wrap;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'primary',
+})`
   padding: 8px 16px;
   border: 1px solid ${props => props.primary ? 'transparent' : 'rgba(0, 0, 0, 0.2)'};
   background: ${props => props.primary ? 
@@ -848,12 +824,9 @@ const TextArea = styled.textarea`
   }
 `;
 
-const OrderPage = () => {
-  const [activeTab, setActiveTab] = useState('cart');
+const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
-  const [customOrders, setCustomOrders] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [customOrdersLoading, setCustomOrdersLoading] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState({
     customer_name: '',
     customer_email: '',
@@ -878,22 +851,20 @@ const OrderPage = () => {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderData, setCancelOrderData] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
+    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
+  const { currentUser: user } = useAuth(); // Get current user
   
-  const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
-  const { user } = useAuth();// Fetch user orders
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // If user is admin, show all orders, otherwise show user's orders with items
-      const endpoint = user?.role === 'admin' ? '/orders' : '/orders/me-with-items';
+      // Always show user's own orders for order history, regardless of role
+      // Admin panel should have a separate page for viewing all orders
+      const endpoint = '/orders/me-with-items';
       const response = await api.get(endpoint);
       
       if (response.data.success) {
-        // Handle different response formats
-        const ordersData = user?.role === 'admin' 
-          ? response.data.data.orders || response.data.data || []
-          : response.data.data || [];
+        const ordersData = response.data.data || [];
         setOrders(ordersData);
       }
     } catch (error) {
@@ -901,33 +872,15 @@ const OrderPage = () => {
       toast.error('Failed to fetch orders');
     } finally {
       setLoading(false);
-    }  }, [user?.role]);
-
-  // Fetch custom orders
-  const fetchCustomOrders = useCallback(async () => {
-    try {
-      setCustomOrdersLoading(true);
-      const endpoint = user?.role === 'admin' ? '/custom-orders' : '/custom-orders/me';
-      const response = await api.get(endpoint);
-      
-      if (response.data.success) {
-        setCustomOrders(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching custom orders:', error);
-      toast.error('Failed to fetch custom orders');
-    } finally {
-      setCustomOrdersLoading(false);
     }
-  }, [user?.role]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'orders') {
       fetchOrders();
-    } else if (activeTab === 'custom-orders') {
-      fetchCustomOrders();
     }
-  }, [activeTab, fetchOrders, fetchCustomOrders]);
+  }, [activeTab, fetchOrders, user]);
+
   useEffect(() => {
     if (user) {
       setCheckoutForm(prev => ({
@@ -937,6 +890,15 @@ const OrderPage = () => {
       }));
     }
   }, [user]);
+
+  // Auto-select Metro Manila and load cities on component mount
+  useEffect(() => {
+    setCheckoutForm(prev => ({
+      ...prev,
+      province: 'Metro Manila'
+    }));
+    setAvailableCities(philippineAddressData['Metro Manila'] || []);
+  }, []);
 
   const handleQuantityChange = async (itemId, newQuantity) => {
     if (newQuantity < 1) {
@@ -1206,13 +1168,21 @@ const OrderPage = () => {
               placeholder="Enter your phone number"
               required
             />
-          </FormGroup>
-          
-          <ShippingSection>
-            <SectionTitle>📍 Shipping Address</SectionTitle>
+          </FormGroup>          <ShippingSection>
+            <SectionTitle>📍 Shipping Address (Metro Manila Only)</SectionTitle>
+            <div style={{ 
+              background: '#e3f2fd', 
+              border: '1px solid #2196f3', 
+              borderRadius: '8px', 
+              padding: '12px', 
+              marginBottom: '20px',
+              fontSize: '14px',
+              color: '#1976d2'
+            }}>
+              <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
+            </div>
             
-            <AddressGrid>
-              <FormGroup>
+            <AddressGrid>              <FormGroup>
                 <Label htmlFor="province">Province *</Label>
                 <Select
                   id="province"
@@ -1220,13 +1190,9 @@ const OrderPage = () => {
                   value={checkoutForm.province}
                   onChange={handleInputChange}
                   required
+                  disabled
                 >
-                  <option value="">Select Province</option>
-                  {Object.keys(philippineAddressData).map(province => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
+                  <option value="Metro Manila">Metro Manila</option>
                 </Select>
               </FormGroup>
 
@@ -1317,7 +1283,9 @@ const OrderPage = () => {
         </CheckoutSection>
       )}
     </Content>
-  );  const renderOrdersTab = () => (
+  );
+  
+  const renderOrdersTab = () => (
     <div>
       <SectionTitle>
         <FontAwesomeIcon icon={faClipboardList} />
@@ -1413,9 +1381,21 @@ const OrderPage = () => {
                     Confirm Order
                   </ActionButton>
                 )}
-                
-                {/* Cancel button for cancellable orders */}
-                {['pending', 'confirmed', 'processing'].includes(order.status) && (
+                  {/* Cancel button for cancellable orders */}
+                {order.cancellation_status === 'pending' ? (
+                  <div style={{
+                    padding: '10px 16px',
+                    background: 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)',
+                    color: '#000',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    border: '1px solid rgba(255, 193, 7, 0.3)'
+                  }}>
+                    Cancellation Requested
+                  </div>
+                ) : ['pending', 'confirmed', 'processing'].includes(order.status) && (
                   <ActionButton 
                     onClick={() => cancelOrder(order.id, order.order_number)}
                     disabled={loading}
@@ -1435,8 +1415,7 @@ const OrderPage = () => {
                 )}
                 
                 {/* Show View Invoice only for confirmed and later status orders */}
-                {['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status) && (
-                  <ActionButton onClick={() => viewInvoice(order)} disabled={loading}>
+                {['confirmed', 'processing', 'shipped', 'delivered'].includes(order.status) && (                  <ActionButton onClick={() => viewInvoice(order)} disabled={loading}>
                     {loading ? (
                       <FontAwesomeIcon icon={faSpinner} spin />
                     ) : (
@@ -1447,164 +1426,13 @@ const OrderPage = () => {
                 )}
               </OrderActions>
             </OrderCard>
-          ))}
-        </OrderList>
-      )}
-    </div>  );
-  // Custom Orders Tab Render Function
-  const renderCustomOrdersTab = () => (
-    <div>
-      <SectionTitle>
-        <FontAwesomeIcon icon={faClipboardList} />
-        Custom Orders {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
-      </SectionTitle>
-      {customOrdersLoading ? (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '3rem',
-          background: 'rgba(255, 255, 255, 0.5)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <FontAwesomeIcon icon={faSpinner} spin size="2x" color="#666" />
-          <p style={{ marginTop: '1rem', color: '#666', fontSize: '14px' }}>Loading custom orders...</p>
-        </div>
-      ) : customOrders.length === 0 ? (
-        <EmptyState>
-          <FontAwesomeIcon icon={faClipboardList} size="3x" />
-          <h3>No Custom Orders</h3>
-          <p>You haven't submitted any custom design requests yet.</p>
-          <button 
-            onClick={() => window.location.href = '/custom'}
-            style={{
-              padding: '12px 24px',
-              background: 'linear-gradient(135deg, #000000 0%, #333333 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              marginTop: '20px'
-            }}
-          >
-            Create Custom Design
-          </button>
-        </EmptyState>
-      ) : (
-        <OrderList>
-          {customOrders.map((order) => (
-            <OrderCard key={order.id} status={order.status}>
-              <OrderHeader>
-                <OrderInfo>
-                  <OrderNumber>Custom Order #{order.custom_order_id}</OrderNumber>
-                  <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
-                    {new Date(order.created_at).toLocaleDateString()}
-                  </div>
-                </OrderInfo>
-                <OrderStatus status={order.status}>
-                  {order.status.replace('_', ' ').toUpperCase()}
-                </OrderStatus>
-              </OrderHeader>
-              
-              <OrderDetails>
-                <OrderInfo>
-                  <strong>Product:</strong> {order.product_type.replace('-', ' ').toUpperCase()}
-                </OrderInfo>
-                <OrderInfo>
-                  <strong>Size:</strong> {order.size} | <strong>Color:</strong> {order.color} | <strong>Quantity:</strong> {order.quantity}
-                </OrderInfo>
-                <OrderInfo>
-                  <strong>Customer:</strong> {order.customer_name} ({order.customer_email})
-                </OrderInfo>
-                <OrderInfo>
-                  <strong>Shipping:</strong> {order.street_number}, {order.municipality}, {order.province}
-                </OrderInfo>
-                <OrderInfo>
-                  <strong>Urgency:</strong> {order.urgency.replace('_', ' ').toUpperCase()}
-                </OrderInfo>
-                {order.special_instructions && (
-                  <OrderInfo>
-                    <strong>Special Instructions:</strong> {order.special_instructions}
-                  </OrderInfo>
-                )}
-                <OrderInfo>
-                  <strong>Estimated Price:</strong> ₱{order.estimated_price?.toFixed(2) || '0.00'}
-                  {order.final_price > 0 && (
-                    <span> | <strong>Final Price:</strong> ₱{order.final_price.toFixed(2)}</span>
-                  )}
-                </OrderInfo>
-                {order.admin_notes && (
-                  <OrderInfo>
-                    <strong>Admin Notes:</strong> {order.admin_notes}
-                  </OrderInfo>
-                )}
-                {order.images && order.images.length > 0 && (
-                  <OrderInfo>
-                    <strong>Design Images:</strong> {order.images.length} uploaded
-                  </OrderInfo>
-                )}
-              </OrderDetails>
-              
-              <OrderActions>
-                <ActionButton 
-                  onClick={() => viewCustomOrderDetails(order)}
-                  disabled={customOrdersLoading}
-                >
-                  <FontAwesomeIcon icon={faEye} />
-                  View Details
-                </ActionButton>
-                
-                {order.status === 'pending' && (
-                  <ActionButton
-                    onClick={() => cancelCustomOrder(order.custom_order_id)}
-                    disabled={customOrdersLoading}
-                    style={{ 
-                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)', 
-                      color: 'white'
-                    }}
-                  >
-                    <FontAwesomeIcon icon={faTimes} />
-                    Cancel Request
-                  </ActionButton>
-                )}
-              </OrderActions>
-            </OrderCard>
-          ))}
-        </OrderList>
+          ))}        </OrderList>
       )}
     </div>
   );
 
-  // Custom order action functions
-  const viewCustomOrderDetails = (order) => {
-    // Implementation for viewing custom order details
-    console.log('Viewing custom order details:', order);
-    // You can implement a modal or redirect to a details page
-    alert(`Custom Order Details:\n\nOrder ID: ${order.custom_order_id}\nProduct: ${order.product_type}\nStatus: ${order.status}\nEstimated Price: ₱${order.estimated_price}`);
-  };
 
-  const cancelCustomOrder = async (customOrderId) => {
-    if (!window.confirm('Are you sure you want to cancel this custom order request?')) {
-      return;
-    }
-    
-    try {
-      setCustomOrdersLoading(true);
-      // Implementation for canceling custom order
-      // You would need to add this endpoint to your API
-      await api.put(`/custom-orders/${customOrderId}/status`, {
-        status: 'cancelled'
-      });
-      
-      toast.success('Custom order cancelled successfully');
-      fetchCustomOrders(); // Refresh the list
-    } catch (error) {
-      console.error('Error cancelling custom order:', error);
-      toast.error('Failed to cancel custom order');
-    } finally {
-      setCustomOrdersLoading(false);
-    }
-  };
+
   return (
     <PageContainer>
       <ContentWrapper>
@@ -1613,8 +1441,7 @@ const OrderPage = () => {
             <FontAwesomeIcon icon={faShoppingBag} />
             Order Management
           </Title>
-        </Header>
-          <TabContainer>
+        </Header>          <TabContainer>
           <Tab 
             active={activeTab === 'cart'} 
             onClick={() => setActiveTab('cart')}
@@ -1627,17 +1454,9 @@ const OrderPage = () => {
           >
             Order History
           </Tab>
-          <Tab 
-            active={activeTab === 'custom-orders'} 
-            onClick={() => setActiveTab('custom-orders')}
-          >
-            Custom Orders
-          </Tab>
         </TabContainer>
         
-        {activeTab === 'cart' ? renderCartTab() : 
-         activeTab === 'orders' ? renderOrdersTab() : 
-         renderCustomOrdersTab()}
+        {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
           {/* Invoice Modal */}
         <InvoiceModal
           isOpen={showInvoiceModal}
@@ -1687,8 +1506,7 @@ const OrderPage = () => {
                 </ModalActions>
               </ModalContent>
             </Modal>
-          </ModalOverlay>
-        )}
+          </ModalOverlay>        )}
       </ContentWrapper>
     </PageContainer>
   );

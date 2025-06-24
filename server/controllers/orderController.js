@@ -57,17 +57,20 @@ exports.getUserOrders = async (req, res) => {
         console.log('User role:', req.user.role);
         
         const connection = await mysql.createConnection(dbConfig);
-        
-        const [orders] = await connection.execute(`
+          const [orders] = await connection.execute(`
             SELECT 
                 o.*,
                 oi.total_amount as invoice_total,
                 oi.invoice_status,
                 st.transaction_status,
-                st.payment_method
+                st.payment_method,
+                cr.status as cancellation_status,
+                cr.reason as cancellation_reason,
+                cr.created_at as cancellation_requested_at
             FROM orders o
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            LEFT JOIN cancellation_requests cr ON o.id = cr.order_id AND cr.status = 'pending'
             WHERE o.user_id = ?
             ORDER BY o.order_date DESC
         `, [req.user.id]);
@@ -279,6 +282,7 @@ exports.confirmOrder = async (req, res) => {
         console.log('typeof req.user.id:', typeof req.user?.id);
         
         if (!req.user || !req.user.id) {
+            console.log('❌ Authentication failed - no user or user.id');
             return res.status(401).json({
                 success: false,
                 message: 'User authentication required'
@@ -293,44 +297,157 @@ exports.confirmOrder = async (req, res) => {
         
         const connection = await mysql.createConnection(dbConfig);
         
-        // Update order status
-        console.log('Executing order update query...');
-        await connection.execute(`
-            UPDATE orders 
-            SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP 
-            WHERE id = ? AND user_id = ?
-        `, [orderId, userId]);
-        
-        console.log('Order update successful');
-        
-        // Update transaction status
-        console.log('Executing transaction update query...');
-        await connection.execute(`
-            UPDATE sales_transactions st
-            JOIN orders o ON st.transaction_id = o.transaction_id
-            SET st.transaction_status = 'confirmed'
-            WHERE o.id = ? AND o.user_id = ?
-        `, [orderId, userId]);
-        
-        console.log('Transaction update successful');
-        
-        // Update invoice status
-        console.log('Executing invoice update query...');
-        await connection.execute(`
-            UPDATE order_invoices oi
-            JOIN orders o ON oi.invoice_id = o.invoice_id
-            SET oi.invoice_status = 'sent'
-            WHERE o.id = ? AND o.user_id = ?
-        `, [orderId, userId]);
-        
-        console.log('Invoice update successful');
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            message: 'Order confirmed successfully'
-        });
+        try {
+            await connection.beginTransaction();
+            
+            // First, check if the order exists and belongs to the user
+            console.log('Checking if order exists and belongs to user...');
+            const [orderCheck] = await connection.execute(`
+                SELECT id, status, user_id, invoice_id 
+                FROM orders 
+                WHERE id = ? AND user_id = ?
+            `, [orderId, userId]);
+            
+            if (orderCheck.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ Order not found or access denied');
+                return res.status(400).json({
+                    success: false,
+                    message: 'Order not found or access denied'
+                });
+            }
+            
+            const order = orderCheck[0];
+            console.log('✅ Order found:', order);
+            
+            if (order.status !== 'pending') {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ Order status is not pending:', order.status);
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot confirm order with status: ${order.status}`
+                });
+            }
+            
+            // Get the order items to update inventory
+            console.log('Getting order items for inventory update...');
+            const [orderItems] = await connection.execute(`
+                SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock
+                FROM order_items oi
+                JOIN orders o ON oi.invoice_id = o.invoice_id
+                JOIN products p ON oi.product_id = p.product_id
+                WHERE o.id = ? AND o.user_id = ?
+            `, [orderId, userId]);
+            
+            console.log(`Found ${orderItems.length} items in order`);
+            
+            if (orderItems.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ No order items found');
+                return res.status(400).json({
+                    success: false,
+                    message: 'No order items found'
+                });
+            }
+            
+            // Check if we have enough stock for all items
+            const insufficientStock = [];
+            for (const item of orderItems) {
+                console.log(`Checking stock for ${item.productname}: ordered=${item.quantity}, available=${item.total_available_stock}`);
+                if (item.total_available_stock < item.quantity) {
+                    insufficientStock.push({
+                        product: item.productname,
+                        requested: item.quantity,
+                        available: item.total_available_stock
+                    });
+                }
+            }
+            
+            if (insufficientStock.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ Insufficient stock:', insufficientStock);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient stock for some items',
+                    insufficientStock
+                });
+            }
+            
+            console.log('✅ All items have sufficient stock');
+            
+            // Update inventory - subtract ordered quantities from available stock
+            console.log('Updating inventory for confirmed order...');
+            for (const item of orderItems) {
+                await connection.execute(`
+                    UPDATE products 
+                    SET total_available_stock = total_available_stock - ?,
+                        total_reserved_stock = COALESCE(total_reserved_stock, 0) + ?,
+                        last_stock_update = CURRENT_TIMESTAMP,
+                        stock_status = CASE 
+                            WHEN (total_available_stock - ?) <= 0 THEN 'out_of_stock'
+                            WHEN (total_available_stock - ?) <= 5 THEN 'critical_stock'
+                            WHEN (total_available_stock - ?) <= 15 THEN 'low_stock'
+                            ELSE 'in_stock'
+                        END
+                    WHERE product_id = ?
+                `, [item.quantity, item.quantity, item.quantity, item.quantity, item.quantity, item.product_id]);
+                
+                console.log(`Updated stock for ${item.productname}: -${item.quantity} units`);
+            }
+
+            // Update order status
+            console.log('Executing order update query...');
+            await connection.execute(`
+                UPDATE orders 
+                SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ? AND user_id = ?
+            `, [orderId, userId]);
+            
+            console.log('Order update successful');
+            
+            // Update transaction status
+            console.log('Executing transaction update query...');
+            await connection.execute(`
+                UPDATE sales_transactions st
+                JOIN orders o ON st.transaction_id = o.transaction_id
+                SET st.transaction_status = 'confirmed'
+                WHERE o.id = ? AND o.user_id = ?
+            `, [orderId, userId]);
+            
+            console.log('Transaction update successful');
+            
+            // Update invoice status
+            console.log('Executing invoice update query...');
+            await connection.execute(`
+                UPDATE order_invoices oi
+                JOIN orders o ON oi.invoice_id = o.invoice_id
+                SET oi.invoice_status = 'sent'
+                WHERE o.id = ? AND o.user_id = ?
+            `, [orderId, userId]);
+            
+            console.log('Invoice update successful');
+            
+            await connection.commit();
+            await connection.end();
+            
+            res.json({
+                success: true,
+                message: 'Order confirmed successfully and inventory updated',
+                inventoryUpdated: orderItems.map(item => ({
+                    product: item.productname,
+                    quantityReserved: item.quantity
+                }))
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            await connection.end();
+            throw error;
+        }
         
     } catch (error) {
         console.error('Error confirming order:', error);
@@ -1147,11 +1264,15 @@ exports.getUserOrdersWithItems = async (req, res) => {
                 st.payment_method,
                 u.first_name,
                 u.last_name,
-                u.email as user_email
+                u.email as user_email,
+                cr.status as cancellation_status,
+                cr.reason as cancellation_reason,
+                cr.created_at as cancellation_requested_at
             FROM orders o
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
             LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN cancellation_requests cr ON o.id = cr.order_id AND cr.status = 'pending'
             WHERE o.user_id = ?
             ORDER BY o.order_date DESC
         `, [req.user.id]);
@@ -1335,6 +1456,38 @@ exports.processCancellationRequest = async (req, res) => {
             
             // If approved, update the order status to cancelled
             if (action === 'approve') {
+                // First, get the order items to restore inventory
+                console.log('Getting order items for inventory restoration...');
+                const [orderItems] = await connection.execute(`
+                    SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock, p.total_reserved_stock
+                    FROM order_items oi
+                    JOIN orders o ON oi.invoice_id = o.invoice_id
+                    JOIN products p ON oi.product_id = p.product_id
+                    WHERE o.id = ?
+                `, [request.order_id]);
+                
+                console.log(`Found ${orderItems.length} items in cancelled order`);
+                
+                // Restore inventory - add back cancelled quantities to available stock
+                console.log('Restoring inventory for cancelled order...');
+                for (const item of orderItems) {
+                    await connection.execute(`
+                        UPDATE products 
+                        SET total_available_stock = total_available_stock + ?,
+                            total_reserved_stock = GREATEST(0, COALESCE(total_reserved_stock, 0) - ?),
+                            last_stock_update = CURRENT_TIMESTAMP,
+                            stock_status = CASE 
+                                WHEN (total_available_stock + ?) <= 0 THEN 'out_of_stock'
+                                WHEN (total_available_stock + ?) <= 5 THEN 'critical_stock'
+                                WHEN (total_available_stock + ?) <= 15 THEN 'low_stock'
+                                ELSE 'in_stock'
+                            END
+                        WHERE product_id = ?
+                    `, [item.quantity, item.quantity, item.quantity, item.quantity, item.quantity, item.product_id]);
+                    
+                    console.log(`Restored stock for ${item.productname}: +${item.quantity} units`);
+                }
+                
                 await connection.execute(`
                     UPDATE orders 
                     SET status = 'cancelled', updated_at = NOW()
@@ -1354,6 +1507,8 @@ exports.processCancellationRequest = async (req, res) => {
                     SET transaction_status = 'cancelled', updated_at = NOW()
                     WHERE transaction_id = (SELECT transaction_id FROM orders WHERE id = ?)
                 `, [request.order_id]);
+                
+                console.log('Order cancelled and inventory restored successfully');
             }
             
             await connection.commit();

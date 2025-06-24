@@ -9,7 +9,9 @@ import {
   faRefresh,
   faInfoCircle,
   faExclamationTriangle,
-  faCheck
+  faCheck,
+  faPalette,
+  faShoppingBag
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -192,37 +194,50 @@ const TransactionsTable = styled.div`
   background: #ffffff;
   border: 1px solid #f0f0f0;
   overflow: hidden;
+  overflow-x: auto;
+  min-width: 100%;
 `;
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
-  gap: 16px;
-  padding: 24px;
+  grid-template-columns: 140px 180px 280px 220px 140px 120px 140px 140px 120px;
+  gap: 20px;
+  padding: 28px 24px;
   background: #fafafa;
   border-bottom: 1px solid #f0f0f0;
-  font-weight: 500;
-  font-size: 12px;
-  color: #666666;
+  font-weight: 600;
+  font-size: 13px;
+  color: #555555;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
+  min-width: 1380px;
+  
+  @media (max-width: 1400px) {
+    grid-template-columns: 130px 160px 250px 200px 120px 100px 120px 120px 100px;
+    gap: 16px;
+    padding: 24px 20px;
+    font-size: 12px;
+    min-width: 1200px;
+  }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
-    gap: 12px;
-    padding: 20px;
+    grid-template-columns: 120px 140px 220px 180px 110px 90px 110px 110px 90px;
+    gap: 14px;
+    padding: 20px 16px;
     font-size: 11px;
+    min-width: 1080px;
   }
 `;
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 120px 140px 200px 180px 120px 100px 100px 120px 120px;
-  gap: 16px;
-  padding: 24px;
+  grid-template-columns: 140px 180px 280px 220px 140px 120px 140px 140px 120px;
+  gap: 20px;
+  padding: 32px 24px;
   border-bottom: 1px solid #f8f8f8;
   align-items: center;
   transition: all 0.2s ease;
+  min-width: 1380px;
   
   &:hover {
     background: #fafafa;
@@ -232,62 +247,103 @@ const TableRow = styled.div`
     border-bottom: none;
   }
   
+  @media (max-width: 1400px) {
+    grid-template-columns: 130px 160px 250px 200px 120px 100px 120px 120px 100px;
+    gap: 16px;
+    padding: 28px 20px;
+    min-width: 1200px;
+  }
+  
   @media (max-width: 1200px) {
-    grid-template-columns: 100px 120px 160px 150px 100px 80px 80px 100px 100px;
-    gap: 12px;
-    padding: 20px;
+    grid-template-columns: 120px 140px 220px 180px 110px 90px 110px 110px 90px;
+    gap: 14px;
+    padding: 24px 16px;
+    min-width: 1080px;
   }
 `;
 
 const OrderNumber = styled.div`
-  font-weight: 500;
+  font-weight: 600;
   color: #000000;
-  font-size: 13px;
+  font-size: 14px;
   font-family: 'Monaco', 'Menlo', monospace;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const OrderTypeIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  
+  &.custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  &.regular {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+  }
 `;
 
 const CustomerInfo = styled.div`
   .name {
-    font-weight: 500;
+    font-weight: 600;
     color: #000000;
-    font-size: 14px;
-    margin-bottom: 4px;
+    font-size: 15px;
+    margin-bottom: 6px;
+    line-height: 1.3;
   }
   
   .email {
-    color: #999999;
-    font-size: 12px;
-    font-weight: 300;
+    color: #666666;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.2;
+    word-break: break-word;
   }
 `;
 
 const OrderDetails = styled.div`
   .amount {
-    font-weight: 500;
+    font-weight: 600;
     color: #000000;
-    font-size: 14px;
-    margin-bottom: 4px;
+    font-size: 15px;
+    margin-bottom: 6px;
   }
   
   .address {
-    color: #999999;
-    font-size: 12px;
-    white-space: nowrap;
+    color: #666666;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 400;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 200px;
-    font-weight: 300;
+    max-width: 100%;
   }
 `;
 
 const StatusBadge = styled.span`
-  padding: 6px 12px;
-  border-radius: 0;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   border: 1px solid;
+  display: inline-block;
+  text-align: center;
+  min-width: 90px;
+  transition: all 0.2s ease;
     ${props => {
     switch (props.status?.toLowerCase()) {
       case 'pending':
@@ -345,9 +401,10 @@ const StatusBadge = styled.span`
 `;
 
 const DateInfo = styled.div`
-  color: #999999;
-  font-size: 12px;
-  font-weight: 300;
+  color: #666666;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
 `;
 
 const ActionsContainer = styled.div`
@@ -357,59 +414,126 @@ const ActionsContainer = styled.div`
 `;
 
 const ActionButton = styled.button`
-  width: 36px;
-  height: 36px;
+  min-width: ${props => props.compact ? '40px' : '120px'};
+  height: ${props => props.compact ? '40px' : '44px'};
   border: 1px solid;
-  border-radius: 0;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: ${props => props.compact ? '16px' : '14px'};
+  font-weight: ${props => props.compact ? '400' : '600'};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  gap: ${props => props.compact ? '0' : '8px'};
+  padding: ${props => props.compact ? '0' : '0 16px'};
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #ffffff;
+  position: relative;
+  overflow: hidden;
   
   &:disabled {
-    opacity: 0.3;
+    opacity: 0.5;
     cursor: not-allowed;
+    transform: none !important;
   }
+  
+  &:not(:disabled):active {
+    transform: translateY(1px);
+  }
+  
+  // Loading spinner
+  ${props => props.loading && `
+    pointer-events: none;
+    
+    &:before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  `}
   
   ${props => {
     switch (props.variant) {
       case 'approve':
         return `
-          color: #27ae60;
+          color: #ffffff;
+          background: linear-gradient(135deg, #27ae60, #2ecc71);
           border-color: #27ae60;
+          box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+          
           &:hover:not(:disabled) {
-            background: #27ae60;
-            color: #ffffff;
+            background: linear-gradient(135deg, #229954, #27ae60);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+            transform: translateY(-2px);
+          }
+          
+          &:focus:not(:disabled) {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.3);
           }
         `;
       case 'reject':
         return `
-          color: #e74c3c;
+          color: #ffffff;
+          background: linear-gradient(135deg, #e74c3c, #c0392b);
           border-color: #e74c3c;
+          box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+          
           &:hover:not(:disabled) {
-            background: #e74c3c;
-            color: #ffffff;
+            background: linear-gradient(135deg, #c0392b, #a93226);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+            transform: translateY(-2px);
+          }
+          
+          &:focus:not(:disabled) {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3);
           }
         `;
       case 'view':
         return `
-          color: #000000;
-          border-color: #000000;
+          color: #ffffff;
+          background: linear-gradient(135deg, #34495e, #2c3e50);
+          border-color: #34495e;
+          box-shadow: 0 2px 8px rgba(52, 73, 94, 0.3);
+          
           &:hover:not(:disabled) {
-            background: #000000;
-            color: #ffffff;
+            background: linear-gradient(135deg, #2c3e50, #1b2631);
+            box-shadow: 0 4px 12px rgba(52, 73, 94, 0.4);
+            transform: translateY(-2px);
+          }
+          
+          &:focus:not(:disabled) {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.3);
           }
         `;
       default:
         return `
-          color: #999999;
-          border-color: #cccccc;
+          color: #6c757d;
+          background: #ffffff;
+          border-color: #dee2e6;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          
           &:hover:not(:disabled) {
-            background: #999999;
-            color: #ffffff;
+            background: #f8f9fa;
+            border-color: #adb5bd;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+          }
+          
+          &:focus:not(:disabled) {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(108, 117, 125, 0.25);
           }
         `;
     }
@@ -599,8 +723,12 @@ const ReasonBox = styled.div`
 
 const RequestActions = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
 `;
 
 const AdminNotesTextarea = styled.textarea`
@@ -625,44 +753,78 @@ const ProcessingModal = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 `;
 
 const ProcessingModalContent = styled.div`
   background: #ffffff;
-  border-radius: 4px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 32px;
   max-width: 500px;
   width: 90%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s ease-out;
+  
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   
   h3 {
-    margin: 0 0 16px 0;
-    font-size: 18px;
+    margin: 0 0 20px 0;
+    font-size: 20px;
     font-weight: 600;
-    color: #000000;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   
   .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     
     label {
       display: block;
       margin-bottom: 8px;
       font-size: 14px;
       font-weight: 500;
-      color: #000000;
-    }
+      color: #2c3e50;    }
   }
   
   .actions {
     display: flex;
-    gap: 12px;
+    gap: 16px;
     justify-content: flex-end;
-    margin-top: 24px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e9ecef;
+  }
+  
+  p {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+    line-height: 1.6;
+    color: #495057;
+    border-left: 4px solid #007bff;
   }
 `;
 
@@ -687,7 +849,7 @@ const getDisplayStatus = (status) => {
 const TransactionPage = () => {
   // NOTE: This page displays ALL confirmed orders from ALL users in the database
   // It does NOT filter by current user - it shows transactions from every customer
-  const { user } = useAuth(); // Remove authLoading for now to match OrderPage pattern
+  const { currentUser: user } = useAuth(); // Get current user (renamed for consistency)
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -703,43 +865,48 @@ const TransactionPage = () => {
   });
   
   // Cancellation requests state
-  const [activeTab, setActiveTab] = useState('orders');
-  const [cancellationRequests, setCancellationRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('orders');  const [cancellationRequests, setCancellationRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [processingRequest, setProcessingRequest] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
-  const [showProcessingModal, setShowProcessingModal] = useState(false);  // Fetch transactions
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
+  
+  // Custom design requests state
+  const [customDesignRequests, setCustomDesignRequests] = useState([]);
+  const [designRequestsLoading, setDesignRequestsLoading] = useState(false);
+  const [processingDesignRequest, setProcessingDesignRequest] = useState(null);
+  const [designAdminNotes, setDesignAdminNotes] = useState('');
+  const [showDesignProcessingModal, setShowDesignProcessingModal] = useState(false);
+  const [buttonLoading, setButtonLoading] = useState({}); // Track loading state for individual buttons
+  // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
-      setLoading(true);      console.log('🔄 TransactionPage: Fetching ALL confirmed orders from database...');
+      setLoading(true);
+      console.log('🔄 TransactionPage: Fetching ALL confirmed orders and approved custom orders...');
       console.log('User:', user);
       
-      // ALWAYS use the confirmed orders endpoint to get ALL confirmed orders from ALL users
-      const endpoint = '/orders/confirmed';
-      console.log('Using endpoint:', endpoint);
+      // Fetch regular confirmed orders
+      console.log('📦 Fetching regular confirmed orders...');
+      const ordersResponse = await api.get('/orders/confirmed');
       
-      const response = await api.get(endpoint);
+      // Fetch approved custom orders
+      console.log('🎨 Fetching approved custom orders...');
+      const customOrdersResponse = await api.get('/custom-orders/admin/all');
       
-      console.log('API response:', response);
-      console.log('Response data:', response.data);
-        if (response.data.success) {        console.log('✅ ALL confirmed orders fetched successfully:', response.data);
-        let ordersData = response.data.data || [];
+      console.log('Regular orders response:', ordersResponse.data);
+      console.log('Custom orders response:', customOrdersResponse.data);
+      
+      let allTransactions = [];
+      
+      // Process regular confirmed orders
+      if (ordersResponse.data.success) {
+        console.log('✅ Regular confirmed orders fetched successfully');
+        const ordersData = ordersResponse.data.data || [];
         
-        // Debug: Check if orders have items
-        console.log('📦 Sample order with items:', ordersData[0]);
-        if (ordersData.length > 0) {
-          console.log('📦 Items in first order:', ordersData[0].items);
-        }
-        
-        // Map ALL confirmed orders from ALL users for display
         const processedOrders = ordersData.map(order => {
-          // Create full customer name from user data with fallback
           const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
                          order.customer_name || 
                          'Unknown Customer';
-          
-          // Debug: Log items for each order
-          console.log(`📦 Order ${order.order_number} items:`, order.items);
           
           return {
             id: order.id,
@@ -763,29 +930,85 @@ const TransactionPage = () => {
             shipping_address: order.shipping_address,
             contact_phone: order.contact_phone,
             notes: order.notes,
-            items: order.items || order.order_items || []
+            items: order.items || order.order_items || [],
+            order_type: 'regular' // Mark as regular order
           };
         });
         
-        console.log(`📊 Found ${processedOrders.length} confirmed orders from ALL users`);
-        console.log('Orders from users:', processedOrders.map(o => ({ 
-          order: o.order_number, 
-          customer: o.customer_name, 
-          email: o.customer_email 
-        })));
-        
-        setTransactions(processedOrders);
-        calculateStats(processedOrders);
-      } else {
-        console.error('❌ Failed to fetch orders:', response.data);
-        toast.error('Failed to fetch confirmed orders');
+        allTransactions = [...processedOrders];
+        console.log(`📦 Added ${processedOrders.length} regular orders`);
       }
+      
+      // Process approved custom orders
+      if (customOrdersResponse.data.success) {
+        console.log('✅ Custom orders fetched successfully');
+        const customOrdersData = customOrdersResponse.data.data || [];
+        
+        // Filter only approved custom orders
+        const approvedCustomOrders = customOrdersData.filter(order => order.status === 'approved');
+        
+        const processedCustomOrders = approvedCustomOrders.map(order => {
+          const fullName = order.customer_name || 
+                         [order.first_name, order.last_name].filter(Boolean).join(' ') || 
+                         'Unknown Customer';
+          
+          return {
+            id: `custom-${order.id}`, // Prefix to avoid ID conflicts
+            order_number: order.custom_order_id,
+            transaction_id: null,
+            customer_name: fullName,
+            customer_email: order.customer_email || order.user_email,
+            user_email: order.user_email,
+            first_name: order.first_name,
+            last_name: order.last_name,
+            amount: order.estimated_price || order.final_price || 0,
+            total_amount: order.estimated_price || order.final_price || 0,
+            invoice_total: order.estimated_price || order.final_price || 0,
+            payment_method: order.payment_method || 'Cash on Delivery',
+            order_status: 'approved', // Custom orders have different status
+            transaction_status: 'confirmed', // Show as confirmed in transaction view
+            status: 'confirmed', // Show as confirmed for consistency
+            order_date: order.created_at,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            shipping_address: `${order.street_number || ''} ${order.barangay || ''}, ${order.municipality || ''}, ${order.province || ''}`.trim(),
+            contact_phone: order.customer_phone,
+            notes: `Custom Order: ${order.product_type} | Size: ${order.size} | Color: ${order.color} | Qty: ${order.quantity}${order.special_instructions ? ' | Notes: ' + order.special_instructions : ''}`,
+            items: [{
+              id: 1,
+              product_name: `Custom ${order.product_type} - ${order.product_name || 'Custom Design'}`,
+              quantity: order.quantity || 1,
+              price: order.estimated_price || order.final_price || 0,
+              color: order.color,
+              size: order.size,
+              subtotal: (order.estimated_price || order.final_price || 0) * (order.quantity || 1)
+            }],
+            order_type: 'custom', // Mark as custom order
+            custom_order_data: order // Keep original custom order data
+          };
+        });
+        
+        allTransactions = [...allTransactions, ...processedCustomOrders];
+        console.log(`🎨 Added ${processedCustomOrders.length} approved custom orders`);
+      }
+      
+      // Sort all transactions by date (newest first)
+      allTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      console.log(`📊 Total transactions: ${allTransactions.length} (${allTransactions.filter(t => t.order_type === 'regular').length} regular + ${allTransactions.filter(t => t.order_type === 'custom').length} custom)`);
+      
+      setTransactions(allTransactions);
+      calculateStats(allTransactions);
+      
     } catch (error) {
-      console.error('❌ Error fetching confirmed orders:', error);
+      console.error('❌ Error fetching transactions:', error);
       console.error('❌ Error status:', error.response?.status);
       console.error('❌ Error details:', error.response?.data?.message || error.message);
-      toast.error('Failed to fetch confirmed orders');    } finally {
-      setLoading(false);    }  }, [user]);  // Match OrderPage pattern
+      toast.error('Failed to fetch transactions');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);// Match OrderPage pattern
   
   const calculateStats = (data) => {
     const stats = {
@@ -893,7 +1116,90 @@ const TransactionPage = () => {
     setShowProcessingModal(false);
     setProcessingRequest(null);
     setAdminNotes('');
-  };    useEffect(() => {
+  };  
+  // Fetch custom design requests
+  const fetchCustomDesignRequests = useCallback(async () => {
+    try {
+      setDesignRequestsLoading(true);
+      console.log('🔄 Fetching custom design requests...');
+      
+      const response = await api.get('/custom-orders/admin/all');
+      
+      if (response.data.success) {
+        console.log('✅ Custom design requests fetched:', response.data);
+        setCustomDesignRequests(response.data.data || []);
+      } else {
+        console.error('❌ Failed to fetch custom design requests:', response.data);
+        toast.error('Failed to fetch custom design requests');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching custom design requests:', error);
+      toast.error('Failed to fetch custom design requests');
+    } finally {
+      setDesignRequestsLoading(false);
+    }
+  }, []);
+  // Process custom design request
+  const processDesignRequest = async (customOrderId, status) => {
+    const loadingKey = `${customOrderId}-${status}`;
+    try {
+      console.log(`🔄 ${status === 'approved' ? 'Approving' : 'Rejecting'} design request ${customOrderId}...`);
+      
+      // Set loading state
+      setButtonLoading(prev => ({ ...prev, [loadingKey]: true }));
+      
+      const response = await api.put(`/custom-orders/${customOrderId}/status`, {
+        status,
+        admin_notes: designAdminNotes.trim() || undefined
+      });
+        if (response.data.success) {
+        const successMessage = status === 'approved' 
+          ? 'Design request approved! Order moved to delivery queue.' 
+          : 'Design request rejected successfully.';
+          
+        toast.success(
+          successMessage,
+          {
+            icon: status === 'approved' ? '✅' : '❌',
+            duration: 5000,
+            style: {
+              background: status === 'approved' ? '#d4edda' : '#f8d7da',
+              color: status === 'approved' ? '#155724' : '#721c24',
+              border: `1px solid ${status === 'approved' ? '#c3e6cb' : '#f5c6cb'}`,
+            },
+          }
+        );
+        setShowDesignProcessingModal(false);
+        setProcessingDesignRequest(null);
+        setDesignAdminNotes('');
+        // Refresh the list
+        fetchCustomDesignRequests();
+      } else {
+        toast.error(response.data.message || 'Failed to process request');
+      }
+    } catch (error) {
+      console.error(`❌ Error processing design request:`, error);
+      toast.error('Failed to process design request');
+    } finally {
+      // Clear loading state
+      setButtonLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  // Open design processing modal
+  const openDesignProcessingModal = (request, status) => {
+    setProcessingDesignRequest({ ...request, status });
+    setDesignAdminNotes('');
+    setShowDesignProcessingModal(true);
+  };
+  // Close design processing modal
+  const closeDesignProcessingModal = () => {
+    setShowDesignProcessingModal(false);
+    setProcessingDesignRequest(null);
+    setDesignAdminNotes('');
+  };
+  
+  useEffect(() => {
     console.log('🔄 TransactionPage useEffect triggered');
     console.log('User:', user);
     console.log('User role:', user?.role);
@@ -906,10 +1212,14 @@ const TransactionPage = () => {
     if (activeTab === 'cancellations') {
       fetchCancellationRequests();
     }
-  }, [activeTab, fetchTransactions, fetchCancellationRequests, user]);
+    if (activeTab === 'design-requests') {
+      fetchCustomDesignRequests();
+    }
+  }, [activeTab, fetchTransactions, fetchCancellationRequests, fetchCustomDesignRequests, user]);
   return (
     <PageContainer>
-      <ContentWrapper>        <Header>
+      <ContentWrapper>
+        <Header>
           <Title>
             <FontAwesomeIcon icon={faReceipt} />
             Transaction Management
@@ -918,18 +1228,25 @@ const TransactionPage = () => {
             View all confirmed orders from all customers
           </Subtitle>
         </Header>
-        
-        {/* Tabs */}
-        <TabsContainer>          <Tab 
+          {/* Tabs */}
+        <TabsContainer>
+          <Tab 
             active={activeTab === 'orders'} 
             onClick={() => setActiveTab('orders')}
           >
             All Confirmed Orders
-          </Tab><Tab 
+          </Tab>
+          <Tab 
             active={activeTab === 'cancellations'} 
             onClick={() => setActiveTab('cancellations')}
           >
             Cancellation Requests
+          </Tab>
+          <Tab 
+            active={activeTab === 'design-requests'} 
+            onClick={() => setActiveTab('design-requests')}
+          >
+            Custom Design Requests
           </Tab>
         </TabsContainer>
         
@@ -981,10 +1298,15 @@ const TransactionPage = () => {
               Refresh
             </RefreshButton>
           </ControlsGrid>
-        </ControlsSection>
-
-        {/* Transactions Table */}
-        <TransactionsTable>          <TableHeader>
+        </ControlsSection>        {/* Transactions Table */}
+        <div style={{ 
+          overflowX: 'auto',
+          backgroundColor: '#ffffff',
+          border: '1px solid #f0f0f0',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          <TransactionsTable><TableHeader>
             <div>Order #</div>
             <div>Date</div>
             <div>Customer</div>
@@ -1006,9 +1328,13 @@ const TransactionPage = () => {
               <h3>No confirmed orders found</h3>
               <p>No confirmed orders match your current filters.</p>
             </EmptyState>
-          ) : (            filteredTransactions.map((transaction) => (
-              <TableRow key={transaction.transaction_id || transaction.id}>
+          ) : (            filteredTransactions.map((transaction) => (              <TableRow key={transaction.transaction_id || transaction.id}>
                 <OrderNumber>
+                  <OrderTypeIcon className={transaction.order_type || 'regular'}>
+                    <FontAwesomeIcon 
+                      icon={transaction.order_type === 'custom' ? faPalette : faShoppingBag} 
+                    />
+                  </OrderTypeIcon>
                   {transaction.order_number}
                 </OrderNumber>
                 
@@ -1019,10 +1345,10 @@ const TransactionPage = () => {
                 <CustomerInfo>
                   <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
                   <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
-                </CustomerInfo>                  {/* Products Summary */}
+                </CustomerInfo>                {/* Products Summary */}
                 <div style={{ 
                   fontSize: '14px',
-                  maxWidth: '200px',
+                  maxWidth: '100%',
                   overflow: 'hidden'
                 }}>
                   {transaction.items && transaction.items.length > 0 ? (
@@ -1031,9 +1357,17 @@ const TransactionPage = () => {
                         display: 'flex', 
                         justifyContent: 'space-between', 
                         alignItems: 'center',
-                        marginBottom: '4px' 
+                        marginBottom: '8px',
+                        padding: '6px 8px',
+                        backgroundColor: '#f8f9fa',
+                        borderRadius: '6px',
+                        border: '1px solid #e9ecef'
                       }}>
-                        <div style={{ fontWeight: '600', color: '#000000' }}>
+                        <div style={{ 
+                          fontWeight: '600', 
+                          color: '#000000',
+                          fontSize: '13px'
+                        }}>
                           {transaction.items.length} item{transaction.items.length > 1 ? 's' : ''}
                         </div>
                         {transaction.items.length > 2 && (
@@ -1043,11 +1377,13 @@ const TransactionPage = () => {
                               color: '#ffffff',
                               border: 'none',
                               borderRadius: '4px',
-                              padding: '2px 6px',
-                              fontSize: '9px',
+                              padding: '4px 8px',
+                              fontSize: '10px',
                               cursor: 'pointer',
                               fontWeight: '500',
-                              transition: 'all 0.2s ease'
+                              transition: 'all 0.2s ease',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1060,43 +1396,83 @@ const TransactionPage = () => {
                           </button>
                         )}
                       </div>
-                      {transaction.items.slice(0, 2).map((item, index) => (
-                        <div key={index} style={{ 
-                          fontSize: '11px',
-                          color: '#666666',
-                          marginBottom: '4px',
-                          lineHeight: '1.3',
-                          padding: '4px',
-                          border: '1px solid #f0f0f0',
-                          borderRadius: '4px',
-                          backgroundColor: '#fafafa'
-                        }}>
-                          <div style={{ fontWeight: '600', color: '#000000', marginBottom: '2px' }}>
-                            {item.productname || 'Unknown Product'}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {transaction.items.slice(0, 2).map((item, index) => (
+                          <div key={index} style={{ 
+                            fontSize: '12px',
+                            color: '#555555',
+                            lineHeight: '1.4',
+                            padding: '8px 10px',
+                            border: '1px solid #e9ecef',
+                            borderRadius: '6px',
+                            backgroundColor: '#ffffff',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start'
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontWeight: '600', 
+                                color: '#000000',
+                                marginBottom: '3px',
+                                fontSize: '13px'
+                              }}>
+                                {item.productname || 'Unknown Product'}
+                              </div>
+                              {(item.productcolor || item.product_type) && (
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  color: '#666666',
+                                  display: 'flex',
+                                  gap: '8px',
+                                  flexWrap: 'wrap'
+                                }}>
+                                  {item.productcolor && (
+                                    <span style={{ 
+                                      backgroundColor: '#f1f3f4', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '3px',
+                                      fontWeight: '500'
+                                    }}>
+                                      {item.productcolor}
+                                    </span>
+                                  )}
+                                  {item.product_type && (
+                                    <span style={{ 
+                                      backgroundColor: '#e8f0fe', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '3px',
+                                      fontWeight: '500'
+                                    }}>
+                                      {item.product_type}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ 
+                              fontSize: '11px', 
+                              fontWeight: '600',
+                              color: '#000000',
+                              backgroundColor: '#f8f9fa',
+                              padding: '3px 6px',
+                              borderRadius: '3px',
+                              marginLeft: '8px'
+                            }}>
+                              ×{item.quantity}
+                            </div>
                           </div>
-                          <div style={{ fontSize: '10px', color: '#666666', marginBottom: '2px' }}>
-                            <strong>ID:</strong> {item.product_id || 'N/A'}
-                          </div>
-                          <div style={{ fontSize: '10px', color: '#888888' }}>
-                            {item.productcolor && (
-                              <span><strong>Color:</strong> {item.productcolor} • </span>
-                            )}
-                            {item.product_type && (
-                              <span><strong>Type:</strong> {item.product_type} • </span>
-                            )}
-                            <span><strong>Qty:</strong> {item.quantity || 1}</span>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                       {transaction.items.length > 2 && (
                         <div style={{ 
-                          fontSize: '11px',
-                          color: '#999999',
+                          fontSize: '11px', 
+                          color: '#666666',
                           fontStyle: 'italic',
-                          marginTop: '4px',
-                          textAlign: 'center'
-                        }}>
-                          +{transaction.items.length - 2} more item{transaction.items.length - 2 > 1 ? 's' : ''}...
+                          textAlign: 'center',
+                          marginTop: '6px',
+                          padding: '4px'
+                        }}>                          +{transaction.items.length - 2} more item{transaction.items.length - 2 > 1 ? 's' : ''}
                         </div>
                       )}
                     </div>
@@ -1134,9 +1510,9 @@ const TransactionPage = () => {
                   </ActionButton>
                 </ActionsContainer>
               </TableRow>
-            ))
-          )}
+            ))          )}
         </TransactionsTable>
+        </div>
 
         {/* Transaction Details Modal */}
         {showModal && selectedTransaction && (
@@ -1261,8 +1637,7 @@ const TransactionPage = () => {
                   <p><strong>Created:</strong> {formatDate(selectedTransaction.created_at)}</p>
                   <p><strong>Last Updated:</strong> {formatDate(selectedTransaction.updated_at)}</p>
                 </div>
-              </ModalContent></Modal>
-          </ModalOverlay>
+              </ModalContent></Modal>          </ModalOverlay>
         )}
           </>
         )}
@@ -1381,6 +1756,199 @@ const TransactionPage = () => {
           </>
         )}
         
+        {activeTab === 'design-requests' && (
+          <>
+            {/* Design Request Statistics */}
+            <StatsContainer>
+              <StatCard color="#000000">
+                <h3>{customDesignRequests.length}</h3>
+                <p>Total Requests</p>
+              </StatCard>
+              <StatCard color="#f39c12">
+                <h3>{customDesignRequests.filter(req => req.status === 'pending').length}</h3>
+                <p>Pending Review</p>
+              </StatCard>
+              <StatCard color="#27ae60">
+                <h3>{customDesignRequests.filter(req => req.status === 'approved').length}</h3>
+                <p>Approved</p>
+              </StatCard>
+              <StatCard color="#e74c3c">
+                <h3>{customDesignRequests.filter(req => req.status === 'rejected').length}</h3>
+                <p>Rejected</p>
+              </StatCard>
+            </StatsContainer>
+
+            {/* Design Request Controls */}
+            <ControlsSection>
+              <ControlsGrid>
+                <div>
+                  <RefreshButton onClick={fetchCustomDesignRequests} disabled={designRequestsLoading}>
+                    <FontAwesomeIcon icon={faRefresh} />
+                    {designRequestsLoading ? 'Loading...' : 'Refresh'}
+                  </RefreshButton>
+                </div>
+              </ControlsGrid>
+            </ControlsSection>
+
+            {/* Design Requests List */}
+            {designRequestsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <p>Loading custom design requests...</p>
+              </div>
+            ) : customDesignRequests.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <FontAwesomeIcon icon={faInfoCircle} size="3x" style={{ color: '#ddd', marginBottom: '16px' }} />
+                <p>No custom design requests found.</p>
+              </div>
+            ) : (
+              customDesignRequests.map(request => (
+                <CancellationRequestCard key={request.custom_order_id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div>
+                      <h3>Order #{request.custom_order_id}</h3>
+                      <p style={{ margin: '4px 0', color: '#666' }}>
+                        <strong>Product:</strong> {request.product_display_name}
+                      </p>
+                      <p style={{ margin: '4px 0', color: '#666' }}>
+                        <strong>Customer:</strong> {request.customer_name} ({request.customer_email})
+                      </p>
+                      <p style={{ margin: '4px 0', color: '#666' }}>
+                        <strong>Submitted:</strong> {new Date(request.created_at).toLocaleDateString()}
+                      </p>
+                      <p style={{ margin: '4px 0', color: '#666' }}>
+                        <strong>Size:</strong> {request.size} | <strong>Color:</strong> {request.color} | <strong>Quantity:</strong> {request.quantity}
+                      </p>
+                      <p style={{ margin: '4px 0', color: '#666' }}>
+                        <strong>Estimated Price:</strong> ₱{parseFloat(request.estimated_price || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ 
+                        background: request.status === 'pending' ? '#f39c12' : 
+                                   request.status === 'approved' ? '#27ae60' : 
+                                   request.status === 'rejected' ? '#e74c3c' : '#95a5a6',
+                        color: 'white',
+                        padding: '4px 12px',
+                        borderRadius: '2px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}>
+                        {request.status_display}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {request.days_since_order} day(s) ago
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Design Images */}
+                  {request.images && request.images.length > 0 && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Design Images ({request.images.length})</h4>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {request.images.map((image, idx) => (
+                          <div key={idx} style={{ 
+                            width: '100px', 
+                            height: '100px', 
+                            border: '1px solid #ddd',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            background: '#f5f5f5',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <img 
+                              src={`/uploads/custom-orders/${image.filename}`}
+                              alt={image.original_filename}
+                              style={{ 
+                                maxWidth: '100%', 
+                                maxHeight: '100%', 
+                                objectFit: 'cover' 
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                            <div style={{ display: 'none', fontSize: '12px', color: '#666', textAlign: 'center' }}>
+                              Image not found
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Special Instructions */}
+                  {request.special_instructions && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Special Instructions</h4>
+                      <div style={{ 
+                        background: '#f8f9fa', 
+                        padding: '12px', 
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        lineHeight: '1.4'
+                      }}>
+                        {request.special_instructions}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Admin Notes (if any) */}
+                  {request.admin_notes && (
+                    <ReasonBox>
+                      <h4>Admin Notes</h4>
+                      <p>{request.admin_notes}</p>
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                        Last updated: {new Date(request.updated_at).toLocaleDateString()}
+                      </div>
+                    </ReasonBox>
+                  )}
+                    {/* Action Buttons - only show for pending requests */}
+                  {request.status === 'pending' && (
+                    <RequestActions>
+                      <ActionButton
+                        variant="approve"
+                        loading={buttonLoading[`${request.custom_order_id}-approved`]}
+                        disabled={buttonLoading[`${request.custom_order_id}-approved`] || buttonLoading[`${request.custom_order_id}-rejected`]}
+                        onClick={() => openDesignProcessingModal(request, 'approved')}
+                        title="Approve this design request"
+                      >
+                        {buttonLoading[`${request.custom_order_id}-approved`] ? (
+                          <>Processing...</>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faCheck} />
+                            Approve Design
+                          </>
+                        )}
+                      </ActionButton>
+                      <ActionButton
+                        variant="reject"
+                        loading={buttonLoading[`${request.custom_order_id}-rejected`]}
+                        disabled={buttonLoading[`${request.custom_order_id}-approved`] || buttonLoading[`${request.custom_order_id}-rejected`]}
+                        onClick={() => openDesignProcessingModal(request, 'rejected')}
+                        title="Reject this design request"
+                      >
+                        {buttonLoading[`${request.custom_order_id}-rejected`] ? (
+                          <>Processing...</>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faTimes} />
+                            Reject Design
+                          </>
+                        )}
+                      </ActionButton>
+                    </RequestActions>
+                  )}</CancellationRequestCard>
+              ))
+            )}
+          </>
+        )}
+        
         {/* Processing Modal */}
         {showProcessingModal && processingRequest && (
           <ProcessingModal>
@@ -1412,6 +1980,69 @@ const TransactionPage = () => {
                   onClick={() => processCancellationRequest(processingRequest.id, processingRequest.action)}
                 >
                   {processingRequest.action === 'approve' ? 'Approve Request' : 'Deny Request'}
+                </ActionButton>
+              </div>
+            </ProcessingModalContent>
+          </ProcessingModal>
+        )}
+          {/* Processing Modal for Custom Design Request */}
+        {showDesignProcessingModal && processingDesignRequest && (
+          <ProcessingModal>
+            <ProcessingModalContent>
+              <h3>
+                <FontAwesomeIcon 
+                  icon={processingDesignRequest.action === 'approve' ? faCheck : faTimes}
+                  style={{ 
+                    color: processingDesignRequest.action === 'approve' ? '#27ae60' : '#e74c3c'
+                  }}
+                />
+                {processingDesignRequest.action === 'approve' ? 'Approve' : 'Reject'} Design Request
+              </h3>
+              <p>
+                <strong>Order ID:</strong> #{processingDesignRequest.custom_order_id}<br />
+                <strong>Customer:</strong> {processingDesignRequest.customer_name}<br />
+                <strong>Product:</strong> {processingDesignRequest.product_display_name}<br />
+                <strong>Email:</strong> {processingDesignRequest.customer_email}<br />
+                {processingDesignRequest.quantity && <><strong>Quantity:</strong> {processingDesignRequest.quantity}<br /></>}
+                {processingDesignRequest.size && <><strong>Size:</strong> {processingDesignRequest.size}<br /></>}
+                {processingDesignRequest.color && <><strong>Color:</strong> {processingDesignRequest.color}</>}
+              </p>
+              
+              <div className="form-group">
+                <label>
+                  Admin Notes {processingDesignRequest.action === 'approve' ? '(Optional)' : '(Recommended for rejections)'}
+                </label>
+                <AdminNotesTextarea
+                  value={designAdminNotes}
+                  onChange={(e) => setDesignAdminNotes(e.target.value)}
+                  placeholder={
+                    processingDesignRequest.action === 'approve' 
+                      ? "Add any notes about pricing, timeline, or special considerations..."
+                      : "Please provide a reason for rejection to help the customer understand..."
+                  }
+                />
+              </div>
+                <div className="actions">
+                <ActionButton 
+                  onClick={closeDesignProcessingModal}
+                  disabled={buttonLoading[`${processingDesignRequest.custom_order_id}-${processingDesignRequest.status}`]}
+                >
+                  Cancel
+                </ActionButton>
+                <ActionButton
+                  variant={processingDesignRequest.status === 'approved' ? 'approve' : 'reject'}
+                  loading={buttonLoading[`${processingDesignRequest.custom_order_id}-${processingDesignRequest.status}`]}
+                  disabled={buttonLoading[`${processingDesignRequest.custom_order_id}-${processingDesignRequest.status}`]}
+                  onClick={() => processDesignRequest(processingDesignRequest.custom_order_id, processingDesignRequest.status)}
+                >
+                  {buttonLoading[`${processingDesignRequest.custom_order_id}-${processingDesignRequest.status}`] ? (
+                    <>Processing...</>
+                  ) : (
+                    <>
+                      <FontAwesomeIcon icon={processingDesignRequest.status === 'approved' ? faCheck : faTimes} />
+                      {processingDesignRequest.status === 'approved' ? 'Approve Design' : 'Reject Design'}
+                    </>
+                  )}
                 </ActionButton>
               </div>
             </ProcessingModalContent>

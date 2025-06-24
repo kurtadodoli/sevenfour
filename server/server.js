@@ -6,6 +6,10 @@ const maintenanceRoutes = require('./routes/maintenance');
 const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const cartRoutes = require('./routes/api/cart');
 const orderRoutes = require('./routes/api/orders');
+const deliveryRoutes = require('./routes/api/delivery');
+const customOrderRoutes = require('./routes/custom-orders');
+const customDesignRoutes = require('./routes/custom-designs');
+const searchRoutes = require('./routes/api/search');
 require('dotenv').config();
 
 const app = express();
@@ -47,6 +51,10 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/custom-orders', customOrderRoutes);
+app.use('/api/custom-designs', customDesignRoutes);
+app.use('/api/search', searchRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('../uploads'));

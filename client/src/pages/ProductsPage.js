@@ -144,17 +144,17 @@ const FilterIcon = styled.button`
   justify-content: center;
   width: 44px;
   height: 44px;
-  border: 2px solid ${props => props.active ? '#333' : 'rgba(0, 0, 0, 0.1)'};
+  border: 2px solid ${props => props.$active ? '#333' : 'rgba(0, 0, 0, 0.1)'};
   border-radius: 12px;
-  background: ${props => props.active ? 
+  background: ${props => props.$active ? 
     'linear-gradient(135deg, #333 0%, #555 100%)' : 
     'rgba(255, 255, 255, 0.95)'
   };
-  color: ${props => props.active ? '#fff' : '#333'};
+  color: ${props => props.$active ? '#fff' : '#333'};
   cursor: pointer;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  box-shadow: ${props => props.active ? 
+  box-shadow: ${props => props.$active ? 
     '0 4px 20px rgba(0, 0, 0, 0.15)' : 
     '0 2px 10px rgba(0, 0, 0, 0.08)'
   };
@@ -191,7 +191,9 @@ const FilterBadge = styled.span`
   box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
 `;
 
-const FilterDropdown = styled.div`
+const FilterDropdown = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'show',
+})`
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
@@ -232,7 +234,9 @@ const DropdownHeader = styled.h4`
   }
 `;
 
-const DropdownOverlay = styled.div`
+const DropdownOverlay = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'show',
+})`
   position: fixed;
   top: 0;
   left: 0;
@@ -258,20 +262,20 @@ const DropdownCategoryGrid = styled.div`
 
 const DropdownCategoryButton = styled.button`
   padding: 8px 12px;
-  border: 1px solid ${props => props.active ? '#333' : 'rgba(0, 0, 0, 0.1)'};
+  border: 1px solid ${props => props.$active ? '#333' : 'rgba(0, 0, 0, 0.1)'};
   border-radius: 8px;
-  background: ${props => props.active ? 
+  background: ${props => props.$active ? 
     'linear-gradient(135deg, #333 0%, #555 100%)' : 
     'rgba(255, 255, 255, 0.8)'
   };
-  color: ${props => props.active ? '#fff' : '#333'};
+  color: ${props => props.$active ? '#fff' : '#333'};
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   
   &:hover {
-    background: ${props => props.active ? 
+    background: ${props => props.$active ? 
       'linear-gradient(135deg, #333 0%, #555 100%)' : 
       'rgba(0, 0, 0, 0.05)'
     };
@@ -348,7 +352,9 @@ const SearchIcon = styled(FontAwesomeIcon)`
   }
 `;
 
-const ClearButton = styled.button`
+const ClearButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'visible',
+})`
   position: absolute;
   right: 24px;
   top: 50%;
@@ -717,7 +723,9 @@ const DetailItem = styled.div`
   }
 `;
 
-const StockStatus = styled.div`
+const StockStatus = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'inStock',
+})`
   font-size: 14px;
   font-weight: 600;
   color: ${props => props.inStock ? '#28a745' : '#dc3545'};
@@ -765,7 +773,9 @@ const EmptyText = styled.p`
   margin: 0 auto;
 `;
 
-const FloatingButton = styled.button`
+const FloatingButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'visible',
+})`
   position: fixed;
   bottom: 30px;
   right: 30px;
@@ -1195,7 +1205,7 @@ const ProductsPage = () => {
                             {/* Categories Filter Icon */}
                             <div className="filter-dropdown-container" style={{ position: 'relative' }}>
                                 <FilterIcon
-                                    active={selectedCategory !== 'all'}
+                                    $active={selectedCategory !== 'all'}
                                     onClick={() => setActiveDropdown(activeDropdown === 'categories' ? null : 'categories')}
                                     title="Product Categories"
                                 >
@@ -1213,7 +1223,7 @@ const ProductsPage = () => {
                                         {categories.map((category) => (
                                             <DropdownCategoryButton
                                                 key={category.value}
-                                                active={selectedCategory === category.value}
+                                                $active={selectedCategory === category.value}
                                                 onClick={() => {
                                                     setSelectedCategory(category.value);
                                                     setActiveDropdown(null);
@@ -1229,7 +1239,7 @@ const ProductsPage = () => {
                             {/* Sort Filter Icon */}
                             <div className="filter-dropdown-container" style={{ position: 'relative' }}>
                                 <FilterIcon
-                                    active={sortOrder !== 'default'}
+                                    $active={sortOrder !== 'default'}
                                     onClick={() => setActiveDropdown(activeDropdown === 'sort' ? null : 'sort')}
                                     title="Sort Products"
                                 >

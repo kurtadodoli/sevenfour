@@ -5,14 +5,14 @@ import {
   faBoxes, 
   faExclamationTriangle, 
   faSearch,
-  faEdit,
   faPlus,
   faChartLine,
   faRefresh,
   faWarning,
   faEye,
   faSortAmountDown,
-  faSortAmountUp
+  faSortAmountUp,
+  faXmark
 } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 
@@ -55,7 +55,9 @@ const StatsGrid = styled.div`
   margin-bottom: 40px;
 `;
 
-const StatCard = styled.div`
+const StatCard = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['critical', 'lowStock'].includes(prop),
+})`
   background: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -71,6 +73,11 @@ const StatCard = styled.div`
     border-color: #000000;
     background: #fafafa;
   `}
+  
+  ${props => props.lowStock && `
+    border-color: #f57c00;
+    background: #fffdf7;
+  `}
 `;
 
 const StatHeader = styled.div`
@@ -80,11 +87,19 @@ const StatHeader = styled.div`
   margin-bottom: 16px;
 `;
 
-const StatIcon = styled.div`
+const StatIcon = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['critical', 'lowStock'].includes(prop),
+})`
   width: 48px;
   height: 48px;
-  background: ${props => props.critical ? '#000000' : '#f5f5f5'};
-  color: ${props => props.critical ? '#ffffff' : '#666666'};
+  background: ${props => 
+    props.critical ? '#000000' : 
+    props.lowStock ? '#f57c00' : 
+    '#f5f5f5'
+  };
+  color: ${props => 
+    props.critical || props.lowStock ? '#ffffff' : '#666666'
+  };
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -92,10 +107,16 @@ const StatIcon = styled.div`
   font-size: 20px;
 `;
 
-const StatValue = styled.div`
+const StatValue = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['critical', 'lowStock'].includes(prop),
+})`
   font-size: 28px;
   font-weight: 700;
-  color: ${props => props.critical ? '#000000' : '#333333'};
+  color: ${props => 
+    props.critical ? '#000000' : 
+    props.lowStock ? '#f57c00' : 
+    '#333333'
+  };
   margin-bottom: 4px;
 `;
 
@@ -109,6 +130,17 @@ const StatLabel = styled.div`
 
 const CriticalBadge = styled.div`
   background: #000000;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const LowStockBadge = styled.div`
+  background: #f57c00;
   color: #ffffff;
   padding: 4px 8px;
   border-radius: 4px;
@@ -321,12 +353,16 @@ const StockNumber = styled.div`
 `;
 
 const StockStatus = styled.div`
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
   background: ${props => {
     if (props.level === 'critical') return '#ffebee';
     if (props.level === 'low') return '#fff3e0';
@@ -336,6 +372,11 @@ const StockStatus = styled.div`
     if (props.level === 'critical') return '#d32f2f';
     if (props.level === 'low') return '#f57c00';
     return '#388e3c';
+  }};
+  border: 1px solid ${props => {
+    if (props.level === 'critical') return '#ffcdd2';
+    if (props.level === 'low') return '#ffe0b2';
+    return '#c8e6c9';
   }};
 `;
 
@@ -385,6 +426,165 @@ const EmptyState = styled.div`
   }
 `;
 
+// Modal Components
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 12px;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+`;
+
+const ModalHeader = styled.div`
+  padding: 24px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 24px;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  flex: 1;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #f5f5f5;
+    color: #000000;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 0 24px 24px;
+`;
+
+const ProductDetailsInfo = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+`;
+
+const InfoCard = styled.div`
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+`;
+
+const InfoLabel = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+`;
+
+const InfoValue = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+`;
+
+const StockSection = styled.div`
+  margin-top: 32px;
+`;
+
+const SectionTitle = styled.h3`
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0 0 20px 0;
+`;
+
+const StockGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+`;
+
+const SizeStockCard = styled.div`
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  
+  ${props => props.stock === 0 && `
+    border-color: #dc3545;
+    background: #fff5f5;
+  `}
+  
+  ${props => props.stock > 0 && props.stock <= 5 && `
+    border-color: #f57c00;
+    background: #fffdf7;
+  `}
+  
+  ${props => props.stock > 5 && `
+    border-color: #28a745;
+    background: #f8fff8;
+  `}
+`;
+
+const SizeLabel = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 8px;
+`;
+
+const StockAmount = styled.div`
+  font-size: 24px;
+  font-weight: 700;
+  color: ${props => 
+    props.stock === 0 ? '#dc3545' :
+    props.stock <= 5 ? '#f57c00' : 
+    '#28a745'
+  };
+  margin-bottom: 4px;
+`;
+
+const StockLabel = styled.div`
+  font-size: 12px;
+  color: #666666;
+  font-weight: 500;
+`;
+
 const InventoryPage = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -394,34 +594,131 @@ const InventoryPage = () => {
   const [sortField, setSortField] = useState('productname');
   const [sortDirection, setSortDirection] = useState('asc');
   const [lastUpdated, setLastUpdated] = useState(null);
-  // Fetch products with stock information
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);  // Fetch products with stock information from inventory API with product_stock data
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-        const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/inventory/overview-test', {
+        console.log('🔄 Fetching products from maintenance API...');
+      const response = await fetch('http://localhost:3001/api/maintenance/products', {
+        method: 'GET',
         headers: {
+          'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setProducts(result.data);
-          setLastUpdated(new Date());
-        } else {
-          throw new Error(result.message || 'Failed to fetch products');
-        }
-      } else if (response.status === 401) {
-        setError('You need to be logged in to view inventory data');
+      });      if (response.ok) {
+        const products = await response.json();
+        console.log('✅ Received products from maintenance API:', products.length);        // Process products to match inventory page format (using same logic as MaintenancePage)
+        const processedProducts = products
+          .filter(product => product.status === 'active' || product.productstatus === 'active') // Only show active products
+          .map(product => {
+            // Calculate total stock from size-color variants (same as MaintenancePage)
+            let totalStock = 0;
+            let sizesData = [];
+            
+            // Parse size-color variants from the product
+            let sizeColorVariants = [];
+            
+            if (product.sizes) {
+              try {
+                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
+                
+                // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
+                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
+                  sizeColorVariants = parsedSizes;
+                }
+                // Otherwise it's the old format (array of objects with size and stock, or just strings)
+                else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
+                  // Parse colors from productcolor field
+                  let colorsArray = [];
+                  if (typeof product.productcolor === 'string' && product.productcolor.startsWith('[')) {
+                    colorsArray = JSON.parse(product.productcolor);
+                  } else if (typeof product.productcolor === 'string' && product.productcolor.includes(',')) {
+                    colorsArray = product.productcolor.split(',').map(c => c.trim()).filter(c => c);
+                  } else if (typeof product.productcolor === 'string') {
+                    colorsArray = [product.productcolor];
+                  } else {
+                    colorsArray = ['Default'];
+                  }
+                  
+                  // Convert old format to new format
+                  parsedSizes.forEach(sizeItem => {
+                    const sizeName = typeof sizeItem === 'object' && sizeItem.size ? sizeItem.size : String(sizeItem);
+                    const stock = typeof sizeItem === 'object' && sizeItem.stock ? sizeItem.stock : 0;
+                    
+                    const colorStocks = colorsArray.map(color => ({
+                      color: color,
+                      stock: Math.floor(stock / colorsArray.length)
+                    }));
+                    
+                    sizeColorVariants.push({
+                      size: sizeName,
+                      colorStocks: colorStocks
+                    });
+                  });
+                }
+              } catch (e) {
+                console.log('Error parsing sizes for', product.productname, e);
+              }
+            }
+            
+            // Final fallback: create a default variant
+            if (!sizeColorVariants || sizeColorVariants.length === 0) {
+              sizeColorVariants = [{
+                size: 'One Size', 
+                colorStocks: [{
+                  color: product.productcolor || 'Default',
+                  stock: product.total_stock || product.productquantity || 0
+                }]
+              }];
+            }
+            
+            // Calculate total stock and create sizes data for display
+            sizeColorVariants.forEach(variant => {
+              let sizeStock = 0;
+              variant.colorStocks.forEach(colorStock => {
+                sizeStock += colorStock.stock || 0;
+              });
+              totalStock += sizeStock;
+              
+              sizesData.push({
+                size: variant.size,
+                stock: sizeStock
+              });
+            });
+            
+            // Determine stock level based on total stock
+            let stockLevel = 'normal';
+            if (totalStock === 0) {
+              stockLevel = 'critical';
+            } else if (totalStock <= 10) {
+              stockLevel = 'low';
+            }
+            
+            return {
+              product_id: product.product_id || product.id,
+              productname: product.productname,
+              productcolor: product.productcolor,
+              productprice: product.productprice,
+              product_type: product.product_type,
+              status: product.status || product.productstatus,
+              totalStock: totalStock,
+              stockLevel: stockLevel,
+              sizes: JSON.stringify(sizesData), // For compatibility with existing display logic
+              sizeColorVariants: sizeColorVariants, // Store the full variant data
+              rawProduct: product // Keep original data for modal
+            };
+          });
+          
+        console.log('✅ Processed products for inventory:', processedProducts.length);
+        setProducts(processedProducts);
+        setLastUpdated(new Date());
       } else {
-        throw new Error('Failed to fetch products');
+        throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
       }
     } catch (err) {
-      console.error('Error fetching products:', err);
-      setError('Failed to load inventory data');
+      console.error('Error fetching products:', err);        setError('Failed to load inventory data from maintenance API');
     } finally {
       setLoading(false);
     }
@@ -440,24 +737,54 @@ const InventoryPage = () => {
       return [];
     }
   };
-
-  const getTotalStock = (sizesString) => {
-    const sizes = parseSizes(sizesString);
-    return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+  const getTotalStock = (product) => {
+    // Use the new total_available_stock field if available
+    if (typeof product.total_available_stock === 'number') {
+      return product.total_available_stock;
+    }
+    
+    // Fallback to parsing sizes JSON for compatibility
+    if (product.sizes) {
+      try {
+        const sizes = JSON.parse(product.sizes);
+        return sizes.reduce((total, size) => total + (size.stock || 0), 0);
+      } catch (error) {
+        console.error('Error parsing sizes for product:', product.product_id, error);
+        return 0;
+      }
+    }
+    
+    return product.totalStock || 0;
   };
-
-  const getStockLevel = (currentStock, criticalLevel = 10) => {
+  
+  const getStockLevel = (product) => {
+    // Use the new stock_status field if available
+    if (product.stock_status) {
+      switch (product.stock_status) {
+        case 'out_of_stock':
+        case 'critical_stock':
+          return 'critical';
+        case 'low_stock':
+          return 'low';
+        case 'in_stock':
+        default:
+          return 'normal';
+      }
+    }
+    
+    // Fallback to old calculation
+    const currentStock = getTotalStock(product);
     if (currentStock === 0) return 'critical';
-    if (currentStock <= criticalLevel) return 'low';
+    if (currentStock <= 10) return 'critical';
+    if (currentStock <= 25) return 'low';
     return 'normal';
   };
-
   // Filter and sort products
   const processedProducts = products
     .map(product => ({
       ...product,
-      totalStock: getTotalStock(product.sizes),
-      stockLevel: getStockLevel(getTotalStock(product.sizes))
+      totalStock: getTotalStock(product),
+      stockLevel: getStockLevel(product)
     }))
     .filter(product => {
       const matchesSearch = 
@@ -499,11 +826,10 @@ const InventoryPage = () => {
         return aValue < bValue ? 1 : -1;
       }
     });
-
   // Calculate statistics
   const stats = {
     totalProducts: products.length,
-    totalStock: products.reduce((sum, product) => sum + getTotalStock(product.sizes), 0),
+    totalStock: products.reduce((sum, product) => sum + getTotalStock(product), 0),
     criticalProducts: processedProducts.filter(p => p.stockLevel === 'critical').length,
     lowStockProducts: processedProducts.filter(p => p.stockLevel === 'low').length
   };
@@ -519,6 +845,16 @@ const InventoryPage = () => {
 
   const handleRefresh = () => {
     fetchProducts();
+  };
+
+  const handleOpenModal = (product) => {
+    setSelectedProduct(product);
+    setShowProductModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedProduct(null);
+    setShowProductModal(false);
   };
 
   if (loading) {
@@ -603,15 +939,16 @@ const InventoryPage = () => {
             </StatHeader>
             <StatValue critical={stats.criticalProducts > 0}>{stats.criticalProducts}</StatValue>
             <StatLabel>Critical Stock</StatLabel>
-          </StatCard>
-
-          <StatCard>
+          </StatCard>          <StatCard lowStock={stats.lowStockProducts > 0}>
             <StatHeader>
-              <StatIcon>
+              <StatIcon lowStock={stats.lowStockProducts > 0}>
                 <FontAwesomeIcon icon={faWarning} />
               </StatIcon>
+              {stats.lowStockProducts > 0 && (
+                <LowStockBadge>Warning</LowStockBadge>
+              )}
             </StatHeader>
-            <StatValue>{stats.lowStockProducts}</StatValue>
+            <StatValue lowStock={stats.lowStockProducts > 0}>{stats.lowStockProducts}</StatValue>
             <StatLabel>Low Stock Items</StatLabel>
           </StatCard>
         </StatsGrid>
@@ -756,21 +1093,30 @@ const InventoryPage = () => {
                       <TableCell>
                         <strong>₱{parseFloat(product.productprice || 0).toLocaleString()}</strong>
                       </TableCell>
-                      
-                      <TableCell>
+                        <TableCell>
                         <div style={{ fontSize: '12px' }}>
                           {parseSizes(product.sizes).map((size, index) => (
                             <div key={index} style={{ 
                               marginBottom: '4px', 
                               display: 'flex', 
                               justifyContent: 'space-between',
-                              padding: '2px 8px',
-                              background: size.stock === 0 ? '#ffebee' : size.stock <= 5 ? '#fff3e0' : '#f5f5f5',
-                              borderRadius: '4px',
-                              color: size.stock === 0 ? '#d32f2f' : size.stock <= 5 ? '#f57c00' : '#333333'
+                              alignItems: 'center',
+                              padding: '4px 8px',
+                              background: size.stock === 0 ? '#ffebee' : size.stock <= 5 ? '#fff3e0' : size.stock <= 15 ? '#fff8e1' : '#f5f5f5',
+                              borderRadius: '6px',
+                              border: `1px solid ${size.stock === 0 ? '#ffcdd2' : size.stock <= 5 ? '#ffe0b2' : size.stock <= 15 ? '#fff3c4' : '#e0e0e0'}`,
+                              color: size.stock === 0 ? '#d32f2f' : size.stock <= 5 ? '#f57c00' : size.stock <= 15 ? '#ff8f00' : '#333333'
                             }}>
-                              <span>{size.size}:</span>
-                              <span style={{ fontWeight: '600' }}>{size.stock}</span>
+                              <span style={{ fontWeight: '500' }}>{size.size}:</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span style={{ fontWeight: '600' }}>{size.stock}</span>
+                                {size.stock === 0 && (
+                                  <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '10px', color: '#d32f2f' }} />
+                                )}
+                                {size.stock > 0 && size.stock <= 5 && (
+                                  <FontAwesomeIcon icon={faWarning} style={{ fontSize: '10px', color: '#f57c00' }} />
+                                )}
+                              </div>
                             </div>
                           ))}
                           {parseSizes(product.sizes).length === 0 && (
@@ -778,30 +1124,30 @@ const InventoryPage = () => {
                           )}
                         </div>
                       </TableCell>
-                      
-                      <TableCell>
+                        <TableCell>
                         <StockStatus level={product.stockLevel}>
-                          {product.stockLevel === 'critical' && 'Critical'}
+                          <FontAwesomeIcon 
+                            icon={
+                              product.stockLevel === 'critical' ? faExclamationTriangle :
+                              product.stockLevel === 'low' ? faWarning :
+                              faChartLine
+                            } 
+                          />
+                          {product.stockLevel === 'critical' && (
+                            product.totalStock === 0 ? 'Out of Stock' : 'Critical Stock'
+                          )}
                           {product.stockLevel === 'low' && 'Low Stock'}
                           {product.stockLevel === 'normal' && 'In Stock'}
                         </StockStatus>
                       </TableCell>
-                      
-                      <TableCell>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <ActionButton 
-                            style={{ padding: '8px 12px', fontSize: '12px' }}
-                            title="View Details"
-                          >
-                            <FontAwesomeIcon icon={faEye} />
-                          </ActionButton>
-                          <ActionButton 
-                            style={{ padding: '8px 12px', fontSize: '12px' }}
-                            title="Edit Product"
-                          >
-                            <FontAwesomeIcon icon={faEdit} />
-                          </ActionButton>
-                        </div>
+                        <TableCell>
+                        <ActionButton 
+                          style={{ padding: '8px 12px', fontSize: '12px' }}
+                          title="View Product Details & Stock"
+                          onClick={() => handleOpenModal(product)}
+                        >
+                          <FontAwesomeIcon icon={faEye} />
+                        </ActionButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -810,6 +1156,75 @@ const InventoryPage = () => {
             </Table>
           </TableWrapper>
         </TableContainer>
+
+        {/* Product Details Modal */}
+        {showProductModal && (
+          <ModalOverlay>
+            <ModalContent>
+              <ModalHeader>
+                <ModalTitle>Product Details</ModalTitle>                <CloseButton onClick={handleCloseModal}>
+                  <FontAwesomeIcon icon={faXmark} />
+                </CloseButton>
+              </ModalHeader>
+              
+              <ModalBody>                {selectedProduct && (
+                  <div>
+                    <ProductDetailsInfo>
+                      <InfoCard>
+                        <InfoLabel>Product Name</InfoLabel>
+                        <InfoValue>{selectedProduct.productname}</InfoValue>
+                      </InfoCard>
+                      
+                      <InfoCard>
+                        <InfoLabel>Product ID</InfoLabel>
+                        <InfoValue>{selectedProduct.product_id}</InfoValue>
+                      </InfoCard>
+                      
+                      <InfoCard>
+                        <InfoLabel>Color</InfoLabel>
+                        <InfoValue>{selectedProduct.productcolor || 'N/A'}</InfoValue>
+                      </InfoCard>
+                      
+                      <InfoCard>
+                        <InfoLabel>Price</InfoLabel>
+                        <InfoValue>₱{parseFloat(selectedProduct.productprice).toLocaleString()}</InfoValue>
+                      </InfoCard>
+                    </ProductDetailsInfo>                    <StockSection>
+                      <SectionTitle>Stock Information</SectionTitle>
+                      <StockGrid>
+                        {parseSizes(selectedProduct.sizes).map((size, index) => (
+                          <SizeStockCard key={index} stock={size.stock}>
+                            <SizeLabel>{size.size}</SizeLabel>
+                            <StockAmount stock={size.stock}>{size.stock}</StockAmount>
+                            <StockLabel>
+                              {size.stock === 0 && 'Out of Stock'}
+                              {size.stock > 0 && size.stock <= 5 && 'Low Stock'}
+                              {size.stock > 5 && 'In Stock'}
+                            </StockLabel>
+                          </SizeStockCard>
+                        ))}
+                        {parseSizes(selectedProduct.sizes).length === 0 && (
+                          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#666' }}>
+                            No size information available
+                          </div>
+                        )}
+                      </StockGrid>
+                      
+                      <div style={{ marginTop: '20px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: '#666', marginBottom: '8px' }}>
+                          TOTAL STOCK
+                        </div>
+                        <div style={{ fontSize: '24px', fontWeight: '700', color: '#000' }}>
+                          {selectedProduct.totalStock} units
+                        </div>
+                      </div>
+                    </StockSection>
+                  </div>
+                )}
+              </ModalBody>
+            </ModalContent>
+          </ModalOverlay>
+        )}
       </ContentWrapper>
     </PageContainer>
   );

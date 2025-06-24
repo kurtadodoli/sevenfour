@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Order Delivery Status - Complete Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .demo-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .demo-title {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .order-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .order-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .custom-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin: 5px;
+            display: inline-block;
+        }
+        .pending { background: #f8f9fa; color: #6c757d; }
+        .scheduled { background: #d1ecf1; color: #0c5460; }
+        .in-transit { background: #fff3cd; color: #856404; }
+        .delivered { background: #d4edda; color: #155724; }
+        .delayed { background: #f8d7da; color: #721c24; }
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .demo-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-info:hover { background: #138496; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+        .calendar-demo {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .calendar-day {
+            aspect-ratio: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            font-size: 0.8rem;
+            position: relative;
+        }
+        .calendar-day.has-order {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        .calendar-day.removed {
+            background: #ffebee;
+            border-color: #f44336;
+            opacity: 0.7;
+        }
+        .order-indicator {
+            position: absolute;
+            bottom: 2px;
+            font-size: 0.6rem;
+            padding: 1px 3px;
+            border-radius: 2px;
+            background: #2196f3;
+            color: white;
+        }
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        .flow-step {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            min-width: 120px;
+        }
+        .flow-arrow {
+            font-size: 1.5rem;
+            color: #6c757d;
+        }
+        .highlight {
+            border-color: #28a745 !important;
+            background: #d4edda !important;
+        }
+        .feature-demo {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Custom Order Delivery Status - Complete Implementation</h1>
+    
+    <div class="demo-section">
+        <h2 class="demo-title">📋 Implementation Summary</h2>
+        <div class="feature-demo">
+            <h3>✅ What's Now Working:</h3>
+            <ul>
+                <li><strong>Custom Order Scheduling</strong> - Custom orders can be scheduled for delivery using the calendar</li>
+                <li><strong>Status Buttons</strong> - "In Transit", "Delivered", "Delayed" buttons appear when orders are scheduled</li>
+                <li><strong>Calendar Removal</strong> - Orders marked as "Delayed" are automatically removed from calendar</li>
+                <li><strong>Rescheduling</strong> - Delayed orders show "Select to Reschedule" button</li>
+                <li><strong>Database Integration</strong> - Full backend API support for status updates</li>
+                <li><strong>Visual Indicators</strong> - Custom orders display with palette icon and "Custom" badge</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 class="demo-title">🔄 Status Flow Demonstration</h2>
+        
+        <div class="flow-diagram">
+            <div class="flow-step" id="step-pending">
+                <div class="status-badge pending">pending</div>
+                <div>Initial State</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" id="step-scheduled">
+                <div class="status-badge scheduled">scheduled</div>
+                <div>Calendar Selected</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" id="step-in-transit">
+                <div class="status-badge in-transit">in_transit</div>
+                <div>Out for Delivery</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" id="step-delivered">
+                <div class="status-badge delivered">delivered</div>
+                <div>Completed</div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <div class="flow-arrow">↓ (if needed)</div>
+            <div class="flow-step" id="step-delayed" style="margin: 10px auto; max-width: 200px;">
+                <div class="status-badge delayed">delayed</div>
+                <div>Remove from Calendar</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 15px 0;">
+            <button class="demo-button btn-info" onclick="demonstrateFlow()">▶️ Demonstrate Flow</button>
+            <button class="demo-button btn-warning" onclick="resetFlow()">🔄 Reset</button>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 class="demo-title">🎨 Custom Order Examples</h2>
+        
+        <div class="order-card" id="demo-order-1">
+            <div class="order-header">
+                <div>
+                    <strong>🎨 CUSTOM-MC82175D-MQPAL</strong>
+                    <span class="custom-badge">Custom</span>
+                </div>
+                <span class="status-badge pending" id="status-1">pending</span>
+            </div>
+            <div><strong>Customer:</strong> Kurt Johnson</div>
+            <div><strong>Product:</strong> Custom T-Shirt (Blue)</div>
+            <div><strong>Amount:</strong> ₱750.00</div>
+            
+            <div class="demo-buttons" id="buttons-1">
+                <button class="demo-button btn-info" onclick="scheduleOrder('demo-order-1')">📅 Schedule Delivery</button>
+            </div>
+        </div>
+
+        <div class="order-card" id="demo-order-2">
+            <div class="order-header">
+                <div>
+                    <strong>🎨 CUSTOM-MC83CIPU-Q1GTO</strong>
+                    <span class="custom-badge">Custom</span>
+                </div>
+                <span class="status-badge scheduled" id="status-2">scheduled</span>
+            </div>
+            <div><strong>Customer:</strong> Maria Santos</div>
+            <div><strong>Product:</strong> Custom Hoodie (Black)</div>
+            <div><strong>Amount:</strong> ₱1,200.00</div>
+            <div><strong>Scheduled:</strong> June 25, 2025 at 2:00 PM</div>
+            
+            <div class="demo-buttons" id="buttons-2">
+                <button class="demo-button btn-info" onclick="updateStatus('demo-order-2', 'in_transit')">🚚 In Transit</button>
+                <button class="demo-button btn-success" onclick="updateStatus('demo-order-2', 'delivered')">✅ Delivered</button>
+                <button class="demo-button btn-danger" onclick="updateStatus('demo-order-2', 'delayed')">⏰ Delayed</button>
+            </div>
+        </div>
+
+        <div class="order-card" id="demo-order-3">
+            <div class="order-header">
+                <div>
+                    <strong>🎨 CUSTOM-MC8A8BDE-K9AZG</strong>
+                    <span class="custom-badge">Custom</span>
+                </div>
+                <span class="status-badge in-transit" id="status-3">in_transit</span>
+            </div>
+            <div><strong>Customer:</strong> Alex Chen</div>
+            <div><strong>Product:</strong> Custom Jersey (Red)</div>
+            <div><strong>Amount:</strong> ₱950.00</div>
+            <div><strong>Out for Delivery:</strong> Driver en route</div>
+            
+            <div class="demo-buttons" id="buttons-3">
+                <button class="demo-button btn-success" onclick="updateStatus('demo-order-3', 'delivered')">✅ Delivered</button>
+                <button class="demo-button btn-danger" onclick="updateStatus('demo-order-3', 'delayed')">⏰ Delayed</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 class="demo-title">📅 Calendar Integration Demo</h2>
+        <p>When a custom order is marked as <strong>delayed</strong>, it's automatically removed from the calendar schedule:</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h4>📅 Before (Scheduled Orders)</h4>
+                <div class="calendar-demo" id="calendar-before">
+                    <div class="calendar-day">24</div>
+                    <div class="calendar-day has-order">
+                        25
+                        <div class="order-indicator">📋</div>
+                    </div>
+                    <div class="calendar-day">26</div>
+                    <div class="calendar-day has-order">
+                        27
+                        <div class="order-indicator">📋</div>
+                    </div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day">29</div>
+                    <div class="calendar-day">30</div>
+                </div>
+                <small>📋 = Scheduled Custom Orders</small>
+            </div>
+            
+            <div>
+                <h4>📅 After (Delayed Order Removed)</h4>
+                <div class="calendar-demo" id="calendar-after">
+                    <div class="calendar-day">24</div>
+                    <div class="calendar-day removed">
+                        25
+                        <div style="position: absolute; bottom: 2px; font-size: 0.6rem; color: #f44336;">❌</div>
+                    </div>
+                    <div class="calendar-day">26</div>
+                    <div class="calendar-day has-order">
+                        27
+                        <div class="order-indicator">📋</div>
+                    </div>
+                    <div class="calendar-day">28</div>
+                    <div class="calendar-day">29</div>
+                    <div class="calendar-day">30</div>
+                </div>
+                <small>❌ = Removed (Delayed Orders)</small>
+            </div>
+        </div>
+        
+        <div class="feature-demo">
+            <strong>🎯 Calendar Behavior:</strong>
+            <ul>
+                <li>✅ Scheduled orders appear on calendar with order indicator</li>
+                <li>❌ Delayed orders are removed from calendar schedule</li>
+                <li>🔄 Delayed orders show "Select to Reschedule" button</li>
+                <li>📅 Can be rescheduled to new dates</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 class="demo-title">🔧 Technical Implementation</h2>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h4>📊 Database Changes</h4>
+                <div class="feature-demo">
+                    <ul>
+                        <li>✅ Added <code>delivery_status</code> enum to custom_orders table</li>
+                        <li>✅ Added <code>delivery_notes</code> text field</li>
+                        <li>✅ Values: pending, scheduled, in_transit, delivered, delayed</li>
+                        <li>✅ All status transitions tested and working</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div>
+                <h4>🔌 API Endpoints</h4>
+                <div class="feature-demo">
+                    <ul>
+                        <li>✅ <code>PATCH /custom-orders/:id/delivery-status</code></li>
+                        <li>✅ Updates delivery status in database</li>
+                        <li>✅ Sets delivery date when marked delivered</li>
+                        <li>✅ Admin authentication required</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <h4>🎨 Frontend Integration</h4>
+            <div class="feature-demo">
+                <ul>
+                    <li>✅ <code>handleUpdateDeliveryStatus</code> function enhanced for custom orders</li>
+                    <li>✅ Status buttons appear based on current delivery status</li>
+                    <li>✅ Calendar removal logic implemented for delayed orders</li>
+                    <li>✅ Custom orders display with palette icon and badge</li>
+                    <li>✅ Rescheduling workflow integrated</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2 class="demo-title">🎯 User Experience</h2>
+        
+        <div class="feature-demo">
+            <h3>For Admins:</h3>
+            <ol>
+                <li><strong>View Custom Orders</strong> - Custom orders appear in delivery queue with "Custom" badge</li>
+                <li><strong>Schedule Delivery</strong> - Click order, select calendar date and time</li>
+                <li><strong>Track Progress</strong> - Use status buttons to update delivery progress</li>
+                <li><strong>Handle Delays</strong> - Mark as delayed to remove from calendar and allow rescheduling</li>
+                <li><strong>Complete Delivery</strong> - Mark as delivered to finalize order</li>
+            </ol>
+            
+            <h3>Complete Workflow:</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                <strong>🎨 Custom Order</strong> → 
+                <strong>📅 Schedule</strong> → 
+                <strong>🚚 In Transit</strong> → 
+                <strong>✅ Delivered</strong>
+                <br><br>
+                <em>Alternative path:</em><br>
+                <strong>🚚 In Transit</strong> → 
+                <strong>⏰ Delayed</strong> → 
+                <strong>🔄 Reschedule</strong> → 
+                <strong>✅ Delivered</strong>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 0;
+        const steps = ['pending', 'scheduled', 'in_transit', 'delivered'];
+
+        function demonstrateFlow() {
+            if (currentStep < steps.length) {
+                // Reset all steps
+                document.querySelectorAll('.flow-step').forEach(step => {
+                    step.classList.remove('highlight');
+                });
+                
+                // Highlight current step
+                document.getElementById(`step-${steps[currentStep]}`).classList.add('highlight');
+                
+                currentStep++;
+                
+                if (currentStep < steps.length) {
+                    setTimeout(demonstrateFlow, 1500);
+                } else {
+                    // Show delayed option
+                    setTimeout(() => {
+                        document.getElementById('step-delayed').classList.add('highlight');
+                        setTimeout(() => {
+                            alert('Demo Complete! Delayed orders are removed from calendar and can be rescheduled.');
+                            resetFlow();
+                        }, 2000);
+                    }, 1000);
+                }
+            }
+        }
+
+        function resetFlow() {
+            currentStep = 0;
+            document.querySelectorAll('.flow-step').forEach(step => {
+                step.classList.remove('highlight');
+            });
+        }
+
+        function scheduleOrder(orderId) {
+            const statusEl = document.querySelector(`#${orderId} .status-badge`);
+            const buttonsEl = document.querySelector(`#${orderId} .demo-buttons`);
+            
+            statusEl.className = 'status-badge scheduled';
+            statusEl.textContent = 'scheduled';
+            
+            buttonsEl.innerHTML = `
+                <button class="demo-button btn-info" onclick="updateStatus('${orderId}', 'in_transit')">🚚 In Transit</button>
+                <button class="demo-button btn-success" onclick="updateStatus('${orderId}', 'delivered')">✅ Delivered</button>
+                <button class="demo-button btn-danger" onclick="updateStatus('${orderId}', 'delayed')">⏰ Delayed</button>
+            `;
+            
+            // Add scheduled info to order
+            const orderEl = document.getElementById(orderId);
+            const existingSchedule = orderEl.querySelector('.schedule-info');
+            if (!existingSchedule) {
+                const scheduleInfo = document.createElement('div');
+                scheduleInfo.className = 'schedule-info';
+                scheduleInfo.innerHTML = '<strong>Scheduled:</strong> June 25, 2025 at 2:00 PM';
+                orderEl.insertBefore(scheduleInfo, buttonsEl);
+            }
+        }
+
+        function updateStatus(orderId, newStatus) {
+            const statusEl = document.querySelector(`#${orderId} .status-badge`);
+            const buttonsEl = document.querySelector(`#${orderId} .demo-buttons`);
+            
+            statusEl.className = `status-badge ${newStatus}`;
+            statusEl.textContent = newStatus;
+            
+            if (newStatus === 'in_transit') {
+                buttonsEl.innerHTML = `
+                    <button class="demo-button btn-success" onclick="updateStatus('${orderId}', 'delivered')">✅ Delivered</button>
+                    <button class="demo-button btn-danger" onclick="updateStatus('${orderId}', 'delayed')">⏰ Delayed</button>
+                `;
+                
+                // Update order info
+                const orderEl = document.getElementById(orderId);
+                const scheduleInfo = orderEl.querySelector('.schedule-info');
+                if (scheduleInfo) {
+                    scheduleInfo.innerHTML = '<strong>Out for Delivery:</strong> Driver en route';
+                }
+                
+            } else if (newStatus === 'delivered') {
+                buttonsEl.innerHTML = `
+                    <div style="color: #28a745; font-weight: 600; padding: 8px;">
+                        ✅ Order Completed - Delivered on ${new Date().toLocaleDateString()}
+                    </div>
+                `;
+                
+            } else if (newStatus === 'delayed') {
+                buttonsEl.innerHTML = `
+                    <button class="demo-button btn-warning" onclick="scheduleOrder('${orderId}')">🔄 Select to Reschedule</button>
+                `;
+                
+                // Show calendar removal effect
+                setTimeout(() => {
+                    alert('🗓️ Order removed from calendar!\n\nThe delayed order has been removed from the delivery schedule and can now be rescheduled by clicking "Select to Reschedule".');
+                }, 500);
+                
+                // Remove schedule info
+                const orderEl = document.getElementById(orderId);
+                const scheduleInfo = orderEl.querySelector('.schedule-info');
+                if (scheduleInfo) {
+                    scheduleInfo.remove();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

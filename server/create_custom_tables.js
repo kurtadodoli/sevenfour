@@ -22,11 +22,10 @@ async function createCustomOrdersTables() {
     
     // Create custom_orders table
     console.log('Creating custom_orders table...');
-    await connection.execute(`
-      CREATE TABLE custom_orders (
+    await connection.execute(`      CREATE TABLE custom_orders (
         id INT AUTO_INCREMENT PRIMARY KEY,
         custom_order_id VARCHAR(50) UNIQUE NOT NULL,
-        user_id BIGINT NOT NULL,
+        user_id BIGINT NULL,  -- Allow NULL for guests
         product_type ENUM('t-shirts', 'shorts', 'hoodies', 'jackets', 'sweaters', 'jerseys') NOT NULL,
         
         -- Product customization details
@@ -65,9 +64,8 @@ async function createCustomOrdersTables() {
         -- Timestamps
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        
-        -- Foreign key constraints
-        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+          -- Foreign key constraints (user_id can be NULL for guest orders)
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
         
         -- Indexes for better performance
         INDEX idx_custom_order_id (custom_order_id),

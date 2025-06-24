@@ -1,7 +1,0 @@
-price: 629
-
-size: L, XXL
-
-color: light blue, dark green
-
-

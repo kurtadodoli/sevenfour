@@ -442,3 +442,82 @@ exports.getProductCategories = async (req, res) => {
     });
   }
 };
+
+// Get inventory overview with stock data
+exports.getInventoryOverview = async (req, res) => {
+  try {
+    console.log('🔍 Getting inventory overview with stock data...');
+    
+    const inventoryQuery = `
+      SELECT 
+        p.product_id,
+        p.productname,
+        p.productcolor,
+        p.productprice,
+        p.product_type,
+        p.status,
+        p.total_available_stock,
+        p.total_reserved_stock,
+        p.stock_status,
+        p.last_stock_update,
+        GROUP_CONCAT(
+          CONCAT('{"size":"', ps.size, '","stock":', ps.stock_quantity, ',"reserved":', ps.reserved_quantity, '}')
+          ORDER BY 
+            CASE ps.size
+              WHEN 'XS' THEN 1
+              WHEN 'S' THEN 2
+              WHEN 'M' THEN 3
+              WHEN 'L' THEN 4
+              WHEN 'XL' THEN 5
+              WHEN 'XXL' THEN 6
+              WHEN 'One Size' THEN 7
+              ELSE 8
+            END
+          SEPARATOR ',')
+      FROM products p
+      LEFT JOIN product_stock ps ON p.product_id = ps.product_id
+      WHERE p.status = 'active'
+      GROUP BY p.product_id, p.productname, p.productcolor, p.productprice, p.product_type, p.status, p.total_available_stock, p.total_reserved_stock, p.stock_status, p.last_stock_update
+      ORDER BY p.productname
+    `;
+    
+    const [rows] = await pool.execute(inventoryQuery);
+    
+    // Process the results to format sizes properly
+    const products = rows.map(product => {
+      let sizes = [];
+      if (product.sizes) {
+        try {
+          // Parse the concatenated JSON objects
+          const sizeArray = `[${product.sizes}]`;
+          sizes = JSON.parse(sizeArray);
+        } catch (error) {
+          console.error('Error parsing sizes for product', product.product_id, error);
+          sizes = [];
+        }
+      }
+      
+      return {
+        ...product,
+        sizes: JSON.stringify(sizes), // Keep as JSON string for frontend compatibility
+        totalStock: product.total_available_stock || 0
+      };
+    });
+    
+    console.log(`✅ Retrieved ${products.length} products with stock data`);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Inventory overview retrieved successfully',
+      data: products
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting inventory overview:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve inventory overview',
+      error: error.message
+    });
+  }
+};

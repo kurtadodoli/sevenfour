@@ -15,6 +15,7 @@ router.use(auth);
 
 // Admin-only routes - add adminCheck middleware
 router.get('/admin/all', adminCheck, productController.getAllProducts);
+router.get('/admin/inventory', adminCheck, productController.getInventoryOverview);
 
 // This route must come after more specific routes
 router.get('/:id', productController.getProduct);

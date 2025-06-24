@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Test - Custom Orders Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-card h2 {
+            color: #333;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        .test-result {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-approved { background: #28a745; color: white; }
+        .status-pending { background: #ffc107; color: black; }
+        .status-confirmed { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Manual Test: Custom Orders Integration</h1>
+    <p><strong>Purpose:</strong> Verify that approved custom orders appear in both TransactionPage and DeliveryPage</p>
+    
+    <div class="test-card">
+        <h2>📋 Test Checklist</h2>
+        <div class="test-result info">
+<strong>Expected Results:</strong>
+✅ TransactionPage should show approved custom orders in the "Orders" tab
+✅ DeliveryPage should show approved custom orders alongside regular orders  
+✅ Custom orders should have proper formatting and display correct information
+✅ No JavaScript errors in console
+
+<strong>Test Steps:</strong>
+1. Open TransactionPage.js (http://localhost:3000/admin/transactions)
+2. Login as admin user
+3. Check "Orders" tab - should see approved custom orders
+4. Open DeliveryPage.js (http://localhost:3000/admin/delivery)  
+5. Verify approved custom orders appear in delivery queue
+6. Check browser console for any errors
+        </div>
+    </div>
+
+    <div class="test-card">
+        <h2>🎨 Current Approved Custom Orders in Database</h2>
+        <div id="customOrdersResult" class="test-result info">Loading...</div>
+        <button onclick="fetchCustomOrders()">🔄 Refresh Custom Orders</button>
+    </div>
+
+    <div class="test-card">
+        <h2>📦 API Endpoints Test</h2>
+        <div id="apiTestResult" class="test-result info">Click buttons to test API endpoints</div>
+        <button onclick="testCustomOrdersAPI()">Test Custom Orders API</button>
+        <button onclick="testConfirmedOrdersAPI()">Test Confirmed Orders API</button>
+    </div>
+
+    <div class="test-card">
+        <h2>🔗 Quick Navigation</h2>
+        <button onclick="window.open('http://localhost:3000/admin/transactions', '_blank')">Open TransactionPage</button>
+        <button onclick="window.open('http://localhost:3000/admin/delivery', '_blank')">Open DeliveryPage</button>
+        <button onclick="window.open('http://localhost:3000/admin/login', '_blank')">Admin Login</button>
+    </div>
+
+    <script>
+        async function fetchCustomOrders() {
+            const resultDiv = document.getElementById('customOrdersResult');
+            resultDiv.textContent = 'Loading custom orders...';
+            
+            try {
+                const response = await fetch('/api/custom-orders/admin/all');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const approvedOrders = data.data.filter(order => order.status === 'approved');
+                    
+                    let result = `Found ${data.data.length} total custom orders, ${approvedOrders.length} approved\n\n`;
+                    
+                    approvedOrders.forEach((order, index) => {
+                        result += `${index + 1}. ${order.custom_order_id}\n`;
+                        result += `   Product: ${order.product_name} (${order.product_type})\n`;
+                        result += `   Customer: ${order.customer_name}\n`;
+                        result += `   Price: $${order.estimated_price || order.final_price || 0}\n`;
+                        result += `   Status: ${order.status}\n`;
+                        result += `   Created: ${new Date(order.created_at).toLocaleString()}\n\n`;
+                    });
+                    
+                    resultDiv.textContent = result;
+                    resultDiv.className = 'test-result success';
+                } else {
+                    throw new Error('No data received or API error');
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error fetching custom orders: ${error.message}`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function testCustomOrdersAPI() {
+            const resultDiv = document.getElementById('apiTestResult');
+            resultDiv.textContent = 'Testing custom orders API...';
+            
+            try {
+                const response = await fetch('/api/custom-orders/admin/all');
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Custom Orders API: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+                resultDiv.className = 'test-result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Custom Orders API Error: ${error.message}`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        async function testConfirmedOrdersAPI() {
+            const resultDiv = document.getElementById('apiTestResult');
+            resultDiv.textContent = 'Testing confirmed orders API...';
+            
+            try {
+                const response = await fetch('/api/orders/confirmed');
+                const data = await response.json();
+                
+                resultDiv.textContent = `✅ Confirmed Orders API: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+                resultDiv.className = 'test-result success';
+            } catch (error) {
+                resultDiv.textContent = `❌ Confirmed Orders API Error: ${error.message}`;
+                resultDiv.className = 'test-result error';
+            }
+        }
+
+        // Auto-load custom orders on page load
+        document.addEventListener('DOMContentLoaded', fetchCustomOrders);
+    </script>
+</body>
+</html>

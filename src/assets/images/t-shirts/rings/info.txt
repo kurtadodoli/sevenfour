@@ -1,5 +1,0 @@
-price: 699
-
-color: black
-
-size: S, M, L, XL, XXL, XXXL

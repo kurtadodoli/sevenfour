@@ -1,7 +1,0 @@
-price:  719
-
-color: black, acid wash
-
-size: S, M, L, XL, XXL, XXXL
-
-description: “Bad grades don’t define you. Your real potential shines when you find what you’re meant to do.”

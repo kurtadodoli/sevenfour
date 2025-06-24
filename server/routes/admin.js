@@ -198,11 +198,162 @@ router.get('/user-logs', requireAdmin, async (req, res) => {
         `);
         
         await connection.end();
-        
-        res.json(users);
+          res.json(users);
     } catch (error) {
         console.error('Error fetching user logs:', error);
         res.status(500).json({ error: 'Failed to fetch user logs' });    }
+});
+
+// Delete User Account (Admin Only)
+router.delete('/users/:userId', requireAdmin, async (req, res) => {
+    let connection;
+    try {
+        const { userId } = req.params;
+        connection = await mysql.createConnection(dbConfig);
+        
+        console.log(`🗑️ Admin attempting to delete user ID: ${userId}`);
+        
+        // First check if user exists
+        const [userCheck] = await connection.execute(
+            'SELECT user_id, email, role FROM users WHERE user_id = ?',
+            [userId]
+        );
+        
+        if (userCheck.length === 0) {
+            await connection.end();
+            return res.status(404).json({ 
+                success: false, 
+                message: 'User not found' 
+            });
+        }
+        
+        const userToDelete = userCheck[0];
+        console.log(`📋 Found user to delete: ${userToDelete.email} (Role: ${userToDelete.role})`);
+        
+        // Prevent deletion of admin users (safety measure)
+        if (userToDelete.role === 'admin') {
+            await connection.end();
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Cannot delete admin users' 
+            });
+        }
+        
+        // Begin transaction to ensure data integrity
+        await connection.beginTransaction();
+        console.log('🔄 Starting transaction for user deletion');
+        
+        try {
+            // Delete related records first (to avoid foreign key constraints)
+            console.log('🧹 Cleaning up related user data...');
+              // Delete user's orders (if any) - with error handling
+            try {
+                const [orderResult] = await connection.execute(
+                    'DELETE FROM orders WHERE user_id = ?',
+                    [userId]
+                );
+                console.log(`   Deleted ${orderResult.affectedRows} order(s)`);
+            } catch (orderError) {
+                console.log(`   Orders table error (might not exist): ${orderError.message}`);
+            }
+            
+            // Delete user's addresses (if table exists)
+            try {
+                const [addressResult] = await connection.execute(
+                    'DELETE FROM user_addresses WHERE user_id = ?',
+                    [userId]
+                );
+                console.log(`   Deleted ${addressResult.affectedRows} address(es)`);
+            } catch (addressError) {
+                console.log(`   User addresses table error (might not exist): ${addressError.message}`);
+            }
+            
+            // Delete user's sessions (if table exists)
+            try {
+                const [sessionResult] = await connection.execute(
+                    'DELETE FROM user_sessions WHERE user_id = ?',
+                    [userId]
+                );
+                console.log(`   Deleted ${sessionResult.affectedRows} session(s)`);
+            } catch (sessionError) {
+                console.log(`   User sessions table error (might not exist): ${sessionError.message}`);
+            }
+              // Delete any custom orders (if table exists)
+            try {
+                const [customOrderResult] = await connection.execute(
+                    'DELETE FROM custom_orders WHERE user_id = ?',
+                    [userId]
+                );
+                console.log(`   Deleted ${customOrderResult.affectedRows} custom order(s)`);
+            } catch (customError) {
+                console.log(`   Custom orders table error (might not exist): ${customError.message}`);
+            }
+            
+            // Delete any custom designs (if table exists)
+            try {
+                const [customDesignResult] = await connection.execute(
+                    'DELETE FROM custom_designs WHERE user_id = ?',
+                    [userId]
+                );
+                console.log(`   Deleted ${customDesignResult.affectedRows} custom design(s)`);
+            } catch (designError) {
+                console.log(`   Custom designs table error (might not exist): ${designError.message}`);
+            }
+            
+            // Finally delete the user account
+            console.log('🗑️ Deleting user account...');
+            const [deleteResult] = await connection.execute(
+                'DELETE FROM users WHERE user_id = ?',
+                [userId]
+            );
+            
+            if (deleteResult.affectedRows === 0) {
+                throw new Error('User deletion failed - no rows affected');
+            }
+            
+            console.log(`   Deleted user account (${deleteResult.affectedRows} row affected)`);
+            
+            // Commit the transaction
+            await connection.commit();
+            console.log('✅ Transaction committed successfully');
+            
+            console.log(`✅ User ${userToDelete.email} (ID: ${userId}) deleted successfully`);
+            
+            res.json({
+                success: true,
+                message: `User account deleted successfully`,
+                deletedUser: {
+                    id: userId,
+                    email: userToDelete.email
+                }
+            });
+            
+        } catch (transactionError) {
+            // Rollback the transaction on error
+            console.error('💥 Transaction error, rolling back:', transactionError.message);
+            await connection.rollback();
+            throw transactionError;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error deleting user:', error);
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to delete user account',
+            error: error.message,
+            details: 'Check server logs for more information'
+        });
+    } finally {
+        if (connection) {
+            try {
+                await connection.end();
+                console.log('🔌 Database connection closed');
+            } catch (closeError) {
+                console.error('Error closing connection:', closeError.message);
+            }
+        }
+    }
 });
 
 // Get Inventory Report

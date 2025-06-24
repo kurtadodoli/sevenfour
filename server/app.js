@@ -58,9 +58,9 @@ const registerLimiter = rateLimit({
 });
 app.use('/api/auth/register', registerLimiter);
 
-// Update CORS to match your client port (3002)
+// Update CORS to match your client port (allow all localhost ports)
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -69,7 +69,7 @@ app.use(cors({
 
 // Handle preflight requests explicitly
 app.options('*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -159,6 +159,9 @@ const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const adminRoutes = require('./routes/admin');
 const inventoryRoutes = require('./routes/api/inventory');
 const customOrdersRoutes = require('./routes/custom-orders');
+const customDesignsRoutes = require('./routes/custom-designs');
+const searchRoutes = require('./routes/api/search');
+const deliveryRoutes = require('./routes/api/delivery');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -176,6 +179,9 @@ app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/custom-orders', customOrdersRoutes);
+app.use('/api/custom-designs', customDesignsRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/delivery', deliveryRoutes);
 app.use('/health', healthCheckRoutes);
 
 // Simple test route
@@ -191,6 +197,567 @@ app.post('/api/custom-orders/test', (req, res) => {
     message: 'Custom orders endpoint is working!',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test custom designs endpoint without auth
+app.get('/api/test-designs', async (req, res) => {
+  console.log('🔍 Test designs endpoint hit (public)');
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established');    const [designs] = await connection.execute(`
+      SELECT cd.*
+      FROM custom_designs cd
+      WHERE cd.status != 'cancelled'
+      ORDER BY cd.created_at DESC
+    `);
+      // Transform data to match frontend expectations (without images for now)
+      const ordersWithImages = designs.map(design => ({
+        id: design.id,
+        custom_order_id: design.design_id,
+        user_id: design.user_id,
+        product_type: design.product_type,
+        size: design.product_size,
+        color: design.product_color,
+        quantity: design.quantity,
+        urgency: 'standard',
+        special_instructions: design.additional_info,
+        customer_name: design.customer_name,
+        customer_email: design.customer_email,
+        customer_phone: design.customer_phone,
+        province: 'Metro Manila',
+        municipality: design.city,
+        street_number: design.street_address,
+        house_number: design.house_number,
+        barangay: design.barangay,
+        postal_code: design.postal_code,
+        status: design.status,
+        estimated_price: parseFloat(design.estimated_price) || 0, // Convert to number
+        final_price: parseFloat(design.final_price) || 0, // Convert to number
+        payment_status: 'pending',
+        payment_method: 'cash_on_delivery',
+        admin_notes: design.admin_notes,
+        production_notes: null,
+        estimated_delivery_date: null,
+        actual_delivery_date: null,
+        created_at: design.created_at,
+        updated_at: design.updated_at,
+        images: [] // Simplified for now
+    }));
+    
+    await connection.end();
+    
+    console.log(`✅ Retrieved ${ordersWithImages.length} custom designs`);
+    
+    res.json({
+      success: true,
+      data: ordersWithImages
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching custom designs:', error);
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch custom designs',
+      error: error.message
+    });
+  }
+});
+
+// Test cancelled designs endpoint without auth
+app.get('/api/test-designs-cancelled', async (req, res) => {
+  console.log('🔍 Test cancelled designs endpoint hit (public)');
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established');
+
+    const [designs] = await connection.execute(`
+      SELECT cd.*
+      FROM custom_designs cd
+      WHERE cd.status = 'cancelled'
+      ORDER BY cd.updated_at DESC
+    `);
+
+    // Transform data to match frontend expectations (without images for now)
+    const cancelledOrdersWithImages = designs.map(design => ({
+      id: design.id,
+      custom_order_id: design.design_id,
+      user_id: design.user_id,
+      product_type: design.product_type,
+      size: design.product_size,
+      color: design.product_color,
+      quantity: design.quantity,
+      urgency: 'standard',
+      special_instructions: design.additional_info,
+      customer_name: design.customer_name,
+      customer_email: design.customer_email,
+      customer_phone: design.customer_phone,
+      province: 'Metro Manila',
+      municipality: design.city,
+      street_number: design.street_address,
+      house_number: design.house_number,
+      barangay: design.barangay,
+      postal_code: design.postal_code,
+      status: design.status,
+      estimated_price: parseFloat(design.estimated_price) || 0, // Convert to number
+      final_price: parseFloat(design.final_price) || 0, // Convert to number
+      payment_status: 'cancelled',
+      payment_method: 'cash_on_delivery',
+      admin_notes: design.admin_notes,
+      production_notes: null,
+      estimated_delivery_date: null,
+      actual_delivery_date: null,
+      created_at: design.created_at,
+      updated_at: design.updated_at,
+      images: [] // Simplified for now
+    }));
+    
+    await connection.end();
+    
+    console.log(`✅ Retrieved ${cancelledOrdersWithImages.length} cancelled custom designs`);
+    
+    res.json({
+      success: true,
+      data: cancelledOrdersWithImages
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching cancelled custom designs:', error);
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch cancelled custom designs',
+      error: error.message
+    });
+  }
+});
+
+// Update custom design status endpoint (for cancellation) - PUBLIC
+app.put('/api/public/custom-orders/:customOrderId/status', async (req, res) => {
+  console.log(`🔄 Public cancel request for custom order ${req.params.customOrderId}`);
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    const { customOrderId } = req.params;
+    const { status, admin_notes } = req.body;
+    
+    // Validate status
+    const validStatuses = ['pending', 'under_review', 'approved', 'in_production', 'ready_for_pickup', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+      });
+    }
+    
+    connection = await mysql.createConnection(dbConfig);
+    
+    // Update the custom design status (using design_id which matches custom_order_id)
+    const updateQuery = `
+      UPDATE custom_designs 
+      SET status = ?, admin_notes = ?, updated_at = NOW()
+      WHERE design_id = ?
+    `;
+
+    console.log('📝 Executing status update:', { status, designId: customOrderId });
+    
+    const [result] = await connection.execute(updateQuery, [status, admin_notes || null, customOrderId]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Custom design not found'
+      });
+    }
+
+    console.log(`✅ Successfully updated custom design ${customOrderId} to ${status}`);
+
+    res.json({
+      success: true,
+      message: `Custom design ${status === 'cancelled' ? 'cancelled' : 'updated'} successfully`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error updating custom design status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update custom design status',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+  }
+});
+
+// User-specific custom designs endpoint (active orders by email)
+app.get('/api/user-designs/:email', async (req, res) => {
+  console.log(`🔍 User designs endpoint hit for email: ${req.params.email}`);
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email parameter is required'
+      });
+    }
+    
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established');    const [designs] = await connection.execute(`
+      SELECT cd.*
+      FROM custom_designs cd
+      WHERE cd.customer_email = ? AND cd.status != 'cancelled'
+      ORDER BY cd.created_at DESC
+    `, [email]);
+
+    console.log(`🔍 Raw database results for ${email}:`, designs.length > 0 ? Object.keys(designs[0]) : 'No results');// Transform data to match frontend expectations
+    const userOrdersWithImages = designs.map(design => ({
+      id: design.id,
+      custom_order_id: design.design_id,
+      user_id: design.user_id,
+      product_type: design.product_type,
+      product_name: design.product_name,
+      productName: design.product_name, // Add camelCase version too
+      size: design.product_size,
+      color: design.product_color,
+      quantity: design.quantity,
+      urgency: 'standard',
+      special_instructions: design.additional_info,
+      customer_name: `${design.first_name} ${design.last_name}`.trim(),
+      first_name: design.first_name,
+      firstName: design.first_name, // Add camelCase version
+      last_name: design.last_name,
+      lastName: design.last_name, // Add camelCase version
+      customer_email: design.email,
+      email: design.email,
+      customer_phone: design.customer_phone,
+      province: 'Metro Manila',
+      municipality: design.city,
+      street_number: design.street_address,
+      house_number: design.house_number,
+      barangay: design.barangay,
+      postal_code: design.postal_code,
+      status: design.status,
+      estimated_price: parseFloat(design.estimated_price) || 0,
+      final_price: parseFloat(design.final_price) || 0,
+      payment_status: 'pending',
+      payment_method: 'cash_on_delivery',
+      admin_notes: design.admin_notes,
+      production_notes: null,
+      estimated_delivery_date: null,
+      actual_delivery_date: null,
+      created_at: design.created_at,
+      updated_at: design.updated_at,
+      images: []
+    }));
+    
+    await connection.end();
+    
+    console.log(`✅ Retrieved ${userOrdersWithImages.length} custom designs for ${email}`);
+    
+    res.json({
+      success: true,
+      data: userOrdersWithImages
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching user custom designs:', error);
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user custom designs',
+      error: error.message
+    });
+  }
+});
+
+// User-specific cancelled custom designs endpoint
+app.get('/api/user-designs-cancelled/:email', async (req, res) => {
+  console.log(`🔍 User cancelled designs endpoint hit for email: ${req.params.email}`);
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    const { email } = req.params;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email parameter is required'
+      });
+    }
+    
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established');    const [designs] = await connection.execute(`
+      SELECT cd.*
+      FROM custom_designs cd
+      WHERE cd.email = ? AND cd.status = 'cancelled'
+      ORDER BY cd.updated_at DESC
+    `, [email]);    // Transform data to match frontend expectations
+    const cancelledUserOrdersWithImages = designs.map(design => ({
+      id: design.id,
+      custom_order_id: design.design_id,
+      user_id: design.user_id,
+      product_type: design.product_type,
+      product_name: design.product_name,
+      productName: design.product_name, // Add camelCase version too
+      size: design.product_size,
+      color: design.product_color,
+      quantity: design.quantity,
+      urgency: 'standard',
+      special_instructions: design.additional_info,
+      customer_name: `${design.first_name} ${design.last_name}`.trim(),
+      first_name: design.first_name,
+      firstName: design.first_name, // Add camelCase version
+      last_name: design.last_name,
+      lastName: design.last_name, // Add camelCase version
+      customer_email: design.email,
+      email: design.email,
+      customer_phone: design.customer_phone,
+      province: 'Metro Manila',
+      municipality: design.city,
+      street_number: design.street_address,
+      house_number: design.house_number,
+      barangay: design.barangay,
+      postal_code: design.postal_code,
+      status: design.status,
+      estimated_price: parseFloat(design.estimated_price) || 0,
+      final_price: parseFloat(design.final_price) || 0,
+      payment_status: 'cancelled',
+      payment_method: 'cash_on_delivery',
+      admin_notes: design.admin_notes,
+      production_notes: null,
+      estimated_delivery_date: null,
+      actual_delivery_date: null,
+      created_at: design.created_at,
+      updated_at: design.updated_at,
+      images: []
+    }));
+    
+    await connection.end();
+    
+    console.log(`✅ Retrieved ${cancelledUserOrdersWithImages.length} cancelled custom designs for ${email}`);
+    
+    res.json({
+      success: true,
+      data: cancelledUserOrdersWithImages
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching user cancelled custom designs:', error);
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user cancelled custom designs',
+      error: error.message
+    });
+  }
+});
+
+// Add missing API endpoints to prevent 404 errors
+app.get('/api/deliveries/schedules', (req, res) => {
+  console.log('📦 Delivery schedules endpoint hit');
+  res.json({ 
+    success: true, 
+    data: [],
+    message: 'Delivery schedules endpoint working (no data yet)' 
+  });
+});
+
+app.get('/api/production/status', (req, res) => {
+  console.log('🏭 Production status endpoint hit');
+  res.json({ 
+    success: true, 
+    data: {
+      active_orders: 0,
+      pending_orders: 0,
+      completed_today: 0
+    },
+    message: 'Production status endpoint working (no data yet)' 
+  });
+});
+
+// Test endpoint to manually confirm an order without authentication
+app.post('/api/test-confirm-order/:orderId', async (req, res) => {
+  console.log('🧪 TEST CONFIRM ORDER endpoint hit for order:', req.params.orderId);
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    const orderId = req.params.orderId;
+    
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established for test confirm');
+    
+    await connection.beginTransaction();
+    
+    // Get order details
+    const [orders] = await connection.execute(`
+      SELECT id, status, user_id, invoice_id, order_number
+      FROM orders 
+      WHERE id = ?
+    `, [orderId]);
+    
+    if (orders.length === 0) {
+      throw new Error('Order not found');
+    }
+    
+    const order = orders[0];
+    console.log('📋 Order found:', order);
+    
+    if (order.status !== 'pending') {
+      throw new Error(`Cannot confirm order with status: ${order.status}`);
+    }
+    
+    // Get order items
+    const [orderItems] = await connection.execute(`
+      SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock, p.total_reserved_stock
+      FROM order_items oi
+      JOIN orders o ON oi.invoice_id = o.invoice_id
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE o.id = ?
+    `, [orderId]);
+    
+    console.log(`📦 Found ${orderItems.length} items in order`);
+    
+    // Check stock availability
+    const insufficientStock = [];
+    for (const item of orderItems) {
+      console.log(`Checking ${item.productname}: need ${item.quantity}, have ${item.total_available_stock}`);
+      if (item.total_available_stock < item.quantity) {
+        insufficientStock.push({
+          product: item.productname,
+          requested: item.quantity,
+          available: item.total_available_stock
+        });
+      }
+    }
+    
+    if (insufficientStock.length > 0) {
+      throw new Error('Insufficient stock: ' + JSON.stringify(insufficientStock));
+    }
+    
+    // Update inventory
+    console.log('🔄 Updating inventory...');
+    for (const item of orderItems) {
+      const [updateResult] = await connection.execute(`
+        UPDATE products 
+        SET total_available_stock = total_available_stock - ?,
+            total_reserved_stock = COALESCE(total_reserved_stock, 0) + ?,
+            last_stock_update = CURRENT_TIMESTAMP,
+            stock_status = CASE 
+                WHEN (total_available_stock - ?) <= 0 THEN 'out_of_stock'
+                WHEN (total_available_stock - ?) <= 5 THEN 'critical_stock'
+                WHEN (total_available_stock - ?) <= 15 THEN 'low_stock'
+                ELSE 'in_stock'
+            END
+        WHERE product_id = ?
+      `, [item.quantity, item.quantity, item.quantity, item.quantity, item.quantity, item.product_id]);
+      
+      console.log(`✅ Updated ${item.productname}: -${item.quantity} units (affected rows: ${updateResult.affectedRows})`);
+    }
+    
+    // Update order status
+    await connection.execute(`
+      UPDATE orders 
+      SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `, [orderId]);
+    
+    console.log('✅ Order status updated to confirmed');
+    
+    await connection.commit();
+    
+    // Get updated inventory to verify
+    const [updatedItems] = await connection.execute(`
+      SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock, p.total_reserved_stock
+      FROM order_items oi
+      JOIN orders o ON oi.invoice_id = o.invoice_id
+      JOIN products p ON oi.product_id = p.product_id
+      WHERE o.id = ?
+    `, [orderId]);
+    
+    await connection.end();
+    
+    res.json({
+      success: true,
+      message: 'Order confirmed successfully (TEST)',
+      order: {
+        id: orderId,
+        number: order.order_number,
+        status: 'confirmed'
+      },
+      inventoryUpdates: updatedItems.map(item => ({
+        product: item.productname,
+        quantityOrdered: item.quantity,
+        newAvailableStock: item.total_available_stock,
+        newReservedStock: item.total_reserved_stock
+      }))
+    });
+    
+  } catch (error) {
+    console.error('❌ Test confirm order error:', error.message);
+    if (connection) {
+      await connection.rollback();
+      await connection.end();
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Test confirm failed: ' + error.message
+    });
+  }
 });
 
 // Error handling middleware

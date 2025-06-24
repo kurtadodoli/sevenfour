@@ -266,9 +266,13 @@ router.get('/products', async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
         
-        // Get products with their images
+        // Get products with their images and current stock (using same fields as order confirmation)
         const [products] = await connection.execute(`
             SELECT p.*, 
+                   p.total_available_stock,
+                   p.total_reserved_stock,
+                   p.stock_status,
+                   p.last_stock_update,
                    GROUP_CONCAT(pi.image_filename ORDER BY pi.image_order) as images,
                    MIN(CASE WHEN pi.is_thumbnail = 1 THEN pi.image_filename END) as thumbnail
             FROM products p
@@ -279,11 +283,16 @@ router.get('/products', async (req, res) => {
         
         await connection.end();
         
-        // Process the products to include image arrays
+        // Process the products to include image arrays and correct stock display
         const processedProducts = products.map(product => ({
             ...product,
             images: product.images ? product.images.split(',') : [],
-            productimage: product.thumbnail || (product.images ? product.images.split(',')[0] : null)
+            productimage: product.thumbnail || (product.images ? product.images.split(',')[0] : null),
+            // Use total_available_stock as the display stock (this is what order confirmation updates)
+            displayStock: product.total_available_stock || product.productquantity || 0,
+            // Keep original fields for compatibility
+            totalStock: product.total_available_stock || product.productquantity || 0,
+            reservedStock: product.total_reserved_stock || 0
         }));
         
         res.json(processedProducts);

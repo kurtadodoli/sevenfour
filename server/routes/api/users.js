@@ -218,6 +218,42 @@ router.put('/profile', auth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update profile'
+    });  }
+});
+
+// @route   GET /api/users
+// @desc    Get all users (Admin only)
+// @access  Private/Admin
+router.get('/', auth, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const [rows] = await pool.execute(`
+      SELECT 
+        user_id as id,
+        first_name,
+        last_name,
+        email,
+        role,
+        created_at,
+        updated_at
+      FROM users 
+      ORDER BY created_at DESC
+    `);
+
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch users'
     });
   }
 });

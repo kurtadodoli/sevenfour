@@ -7,7 +7,6 @@ import {
   faInfoCircle,
   faChevronLeft,
   faChevronRight,
-  faTruck,
   faExpand,
   faTimes,
   faPalette,
@@ -321,24 +320,24 @@ const DeliveryIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: ${props => {
     switch (props.status) {
       case 'pending':
         return 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
       case 'scheduled':
-        return 'linear-gradient(135deg, #d1ecf1, #bee5eb)';
+        return 'linear-gradient(135deg, #28a745, #20c997)';
       case 'pending_completion':
         return 'linear-gradient(135deg, #ffa500, #ff8c00)';
       case 'in_transit':
-        return 'linear-gradient(135deg, #000000, #2d3436)';
+        return 'linear-gradient(135deg, #007bff, #0056b3)';
       case 'delivered':
-        return 'linear-gradient(135deg, #d4edda, #c3e6cb)';
+        return 'linear-gradient(135deg, #28a745, #198754)';
       case 'delayed':
-        return 'linear-gradient(135deg, #f8d7da, #f5c6cb)';
+        return 'linear-gradient(135deg, #dc3545, #b02a37)';
       default:
-        return '#000000'; // Default black for unscheduled orders
+        return 'linear-gradient(135deg, #6c757d, #495057)'; // Better default
     }
   }};
   color: ${props => {
@@ -346,29 +345,55 @@ const DeliveryIcon = styled.div`
       case 'pending':
         return '#856404';
       case 'scheduled':
-        return '#0c5460';
+        return '#ffffff';
       case 'pending_completion':
         return '#ffffff';
       case 'in_transit':
         return '#ffffff';
       case 'delivered':
-        return '#155724';
+        return '#ffffff';
       case 'delayed':
-        return '#721c24';
+        return '#ffffff';
       default:
         return '#ffffff';
     }
   }};
-  border-radius: 50%;
-  font-size: 0.8rem;
+  border-radius: 8px; // Changed from circle to rounded square
+  font-size: 0.9rem; // Slightly larger icon
   margin-top: auto;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-  transition: all 0.2s ease;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+    transform: scale(1.1) translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 8px;
+    height: 8px;
+    background: ${props => {
+      switch (props.status) {
+        case 'delivered':
+          return '#28a745';
+        case 'in_transit':
+          return '#007bff';
+        case 'delayed':
+          return '#dc3545';
+        case 'scheduled':
+          return '#ffc107';
+        default:
+          return 'transparent';
+      }
+    }};
+    border-radius: 50%;
+    border: 1px solid white;
   }
 `;
 
@@ -494,7 +519,9 @@ const FullCalendarGrid = styled.div`
   overflow: hidden;
 `;
 
-const FullCalendarDay = styled.div`
+const FullCalendarDay = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['availabilityStatus', 'isToday', 'isCurrentMonth'].includes(prop),
+})`
   background: ${props => {
     if (!props.isCurrentMonth) return '#f8f8f8';
       // Availability status colors for current month days
@@ -1796,16 +1823,45 @@ const DeliveryPage = () => {
         } catch (customError) {
           console.log('⚠️ DeliveryPage: Could not fetch custom orders:', customError.message);
         }
-        
-        // Sort all orders by priority (highest first) then by creation date
+          // Sort all orders by priority (highest first) then by creation date
         allOrders.sort((a, b) => {
           if (b.priority !== a.priority) {
             return b.priority - a.priority;
           }
           return new Date(b.created_at) - new Date(a.created_at);        });
+          // Filter out sample/mock orders by ID
+        const sampleOrderIds = [1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3];
+        const filteredOrders = allOrders.filter(order => {
+          // Extract numeric ID from order ID (handle both numeric and string IDs)
+          let numericId;
+          if (typeof order.id === 'string') {
+            // For custom orders like "custom-order-123", extract the number
+            const matches = order.id.match(/\d+/);
+            numericId = matches ? parseInt(matches[0], 10) : null;
+          } else {
+            numericId = parseInt(order.id, 10);
+          }
+          
+          // Also check order number if it's numeric
+          let orderNumberId;
+          if (order.order_number && !isNaN(order.order_number)) {
+            orderNumberId = parseInt(order.order_number, 10);
+          }
+          
+          // Filter out if the numeric ID or order number matches sample IDs
+          const isFilteredById = numericId && sampleOrderIds.includes(numericId);
+          const isFilteredByOrderNumber = orderNumberId && sampleOrderIds.includes(orderNumberId);
+          
+          if (isFilteredById || isFilteredByOrderNumber) {
+            console.log(`🚫 DeliveryPage: Filtering out sample order - ID: ${order.id}, Order Number: ${order.order_number}`);
+            return false;
+          }
+          
+          return true;
+        });
         
-        setOrders(allOrders);
-        console.log(`✅ DeliveryPage: Total ${allOrders.length} orders loaded (${allOrders.filter(o => o.order_type === 'regular').length} regular + ${allOrders.filter(o => o.order_type === 'custom').length} custom)`);          // Fetch delivery schedules from the new delivery database
+        setOrders(filteredOrders);
+        console.log(`✅ DeliveryPage: Total ${filteredOrders.length} orders loaded after filtering (${filteredOrders.filter(o => o.order_type === 'regular').length} regular + ${filteredOrders.filter(o => o.order_type === 'custom').length} custom)`);          // Fetch delivery schedules from the new delivery database
         try {
           console.log('📅 DeliveryPage: Fetching delivery schedules...');
           const schedulesResponse = await api.get('/delivery/schedules');
@@ -1823,8 +1879,22 @@ const DeliveryPage = () => {
               status: schedule.delivery_status,
               notes: schedule.delivery_notes
             }));
+              // Filter out delivery schedules for sample orders
+            const sampleOrderIds = [1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3];
+            const filteredSchedules = formattedSchedules.filter(schedule => {
+              const orderId = parseInt(schedule.order_id, 10);
+              const isFiltered = sampleOrderIds.includes(orderId);
+              
+              if (isFiltered) {
+                console.log(`🚫 DeliveryPage: Filtering out sample delivery schedule for order ID: ${schedule.order_id}`);
+                return false;
+              }
+              
+              return true;
+            });
             
-            setDeliverySchedules(formattedSchedules);
+            setDeliverySchedules(filteredSchedules);
+            console.log(`✅ DeliveryPage: ${filteredSchedules.length} delivery schedules loaded after filtering`);
           } else {
             console.log('⚠️ DeliveryPage: Invalid delivery schedules response');
             setDeliverySchedules([]);
@@ -1848,104 +1918,13 @@ const DeliveryPage = () => {
           console.log('⚠️ DeliveryPage: Production status endpoint not available');
           // Set default production statuses - will be updated when orders are set
           setProductionStatuses({});
-        }
-
-      } catch (error) {
+        }      } catch (error) {
         console.error('❌ DeliveryPage: Error fetching delivery data:', error);
-        console.log('📋 DeliveryPage: Using mock data as fallback...');
-          // Use mock data for demonstration
-        const mockOrders = [
-          {
-            id: 1,
-            order_number: 'ORD-001',
-            customerName: 'John Doe',
-            user_email: 'john@example.com',
-            total_amount: 150.00,
-            status: 'confirmed',
-            created_at: '2025-06-19T10:00:00Z',            shipping_address: '123 Main St, Manila',
-            contact_phone: '+63 912 345 6789',
-            priority: 15,
-            items: [
-              {
-                id: 1,
-                product_id: '123456789',
-                productname: 'SVNFR T-Shirt',
-                productcolor: 'Black',
-                product_type: 't-shirts',
-                quantity: 2,
-                price: 45.00
-              },
-              {
-                id: 2,
-                product_id: '987654321',
-                productname: 'SVNFR Hoodie',
-                productcolor: 'Gray',
-                product_type: 'hoodies',
-                quantity: 1,
-                price: 75.00
-              }
-            ]
-          },
-          {
-            id: 2,
-            order_number: 'ORD-002',
-            customerName: 'Jane Smith',
-            user_email: 'jane@example.com',
-            total_amount: 89.99,
-            status: 'confirmed',
-            created_at: '2025-06-18T14:30:00Z',
-            shipping_address: '456 Oak Ave, Quezon City',
-            contact_phone: '+63 917 123 4567',
-            priority: 20,
-            items: [
-              {
-                id: 3,
-                product_id: '555666777',
-                productname: 'SVNFR Shorts',
-                productcolor: 'Navy',
-                product_type: 'shorts',
-                quantity: 1,
-                price: 89.99
-              }
-            ]
-          },
-          {
-            id: 3,
-            order_number: 'ORD-003',
-            customerName: 'Maria Garcia',
-            user_email: 'maria@example.com',
-            total_amount: 299.50,
-            status: 'confirmed',
-            created_at: '2025-06-17T09:15:00Z',
-            shipping_address: '789 Pine St, Makati',
-            contact_phone: '+63 920 987 6543',
-            priority: 35,
-            items: [
-              {
-                id: 4,
-                product_id: '111222333',
-                productname: 'SVNFR Jacket',
-                productcolor: 'Black',
-                product_type: 'jackets',
-                quantity: 1,
-                price: 149.75
-              },
-              {
-                id: 5,
-                product_id: '444555666',
-                productname: 'SVNFR Hat',
-                productcolor: 'White',
-                product_type: 'hats',
-                quantity: 2,
-                price: 74.88
-              }
-            ]
-          }
-        ];
+        console.log('📋 DeliveryPage: No orders loaded - showing empty state');
         
-        setOrders(mockOrders);
+        // Set empty arrays instead of mock data
+        setOrders([]);
         setDeliverySchedules([]);
-        console.log('✅ DeliveryPage: Mock orders loaded');
       } finally {
         setLoading(false);
       }
@@ -1955,19 +1934,8 @@ const DeliveryPage = () => {
   }, []); // Empty dependency array to prevent infinite calls
   // Update stats whenever orders change
   useEffect(() => {
-    updateStats();
-  }, [updateStats]);
+    updateStats();  }, [updateStats]);
 
-  // Update production statuses when orders change (for mock data)
-  useEffect(() => {
-    if (orders.length > 0 && Object.keys(productionStatuses).length === 0) {
-      const mockStatuses = {};
-      orders.forEach(order => {
-        mockStatuses[order.id] = Math.random() > 0.3 ? 'completed' : 'in_progress';
-      });
-      setProductionStatuses(mockStatuses);
-    }
-  }, [orders, productionStatuses]);
   // Function to suggest alternative dates when scheduling conflicts occur
   const getSuggestedAlternativeDates = (originalDate) => {
     const suggestions = [];
@@ -1993,13 +1961,12 @@ const DeliveryPage = () => {
         if (!order.scheduled_delivery_date) return false;
         const orderDate = new Date(order.scheduled_delivery_date);
         return orderDate.toDateString() === checkDate.toDateString();
-      });
-
-      // Filter out deliveries that correspond to orders to avoid double counting
+      });      // Filter out deliveries that correspond to orders to avoid double counting
       const standaloneDeliveries = dayDeliveries.filter(delivery => {
         return !dayOrders.some(order => order.id === delivery.order_id);
       });
       
+      // Include scheduled orders in booking count for alternative date calculation
       const currentBookings = dayOrders.length + standaloneDeliveries.length;
       
       // If this date has availability, add it to suggestions
@@ -2335,22 +2302,22 @@ const DeliveryPage = () => {
         scheduled_delivery_time: scheduleData.time,
         delivery_notes: scheduleData.notes
       };
+        setOrders(prevOrders => prevOrders.map(o => o.id === order.id ? updatedOrder : o));
       
-      setOrders(prevOrders => prevOrders.map(o => o.id === order.id ? updatedOrder : o));
-      
-      // Mock email notification
+      // Email notification sent
       console.log('📧 Email notification sent to:', order.user_email);
       
       setShowScheduleModal(false);
       setSelectedOrder(null);      setSelectedDate(null);
       
-      // Clear selected order for scheduling if it was the one just scheduled
-      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
+      // Clear selected order for scheduling if it was the one just scheduled      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
         setSelectedOrderForScheduling(null);
-      }      
+      }
+      
       showPopup(
         'Delivery Scheduled Successfully',
-        'Delivery scheduled successfully! Customer notification sent.',        'success'
+        'Delivery scheduled successfully! Customer notification sent.',
+        'success'
       );
       
     } catch (error) {
@@ -2381,8 +2348,7 @@ const DeliveryPage = () => {
             'warning'
           );
         }, 500);
-      }
-        // Handle custom designs and custom orders differently than regular orders
+      }        // Handle custom designs and custom orders differently than regular orders
       if (order.order_type === 'custom_design' && order.custom_design_data) {
         const designId = order.custom_design_data.design_id;
         
@@ -2418,6 +2384,21 @@ const DeliveryPage = () => {
         } catch (apiError) {
           console.error('Failed to update custom order delivery status:', apiError);
           showPopup('Error', 'Failed to update custom order delivery status in database. Please try again.', 'error');
+          return;
+        }
+      } else {
+        // Handle regular orders - update orders table
+        try {
+          await api.patch(`/orders/${order.id}/delivery-status`, {
+            delivery_status: newStatus,
+            delivery_date: newStatus === 'delivered' ? new Date().toISOString().split('T')[0] : null,
+            delivery_notes: `Status updated to ${newStatus} on ${new Date().toLocaleString()}`
+          });
+          
+          console.log(`✅ Successfully updated regular order ${order.order_number} delivery status to ${newStatus}`);
+        } catch (apiError) {
+          console.error('Failed to update regular order delivery status:', apiError);
+          showPopup('Error', 'Failed to update regular order delivery status in database. Please try again.', 'error');
           return;
         }
       }
@@ -2612,8 +2593,8 @@ const DeliveryPage = () => {
         return scheduleDate.getFullYear() === calendarDate.getFullYear() &&
                scheduleDate.getMonth() === calendarDate.getMonth() &&
                scheduleDate.getDate() === calendarDate.getDate();
-      });      // Find orders scheduled for this date
-      const dayOrders = orders.filter(order => {
+      });      // Find orders scheduled for this date - for counting and delivery icons only
+      const dayScheduledOrders = orders.filter(order => {
         if (!order.scheduled_delivery_date) return false;
         const orderDate = new Date(order.scheduled_delivery_date);
         const calendarDate = new Date(date);
@@ -2623,6 +2604,9 @@ const DeliveryPage = () => {
                orderDate.getMonth() === calendarDate.getMonth() &&
                orderDate.getDate() === calendarDate.getDate();
       });
+      
+      // Keep dayOrders empty for display purposes (no order blocks shown)
+      const dayOrders = [];
       
       // Find custom orders with production timeline for this date
       const productionInfo = orders.filter(order => {
@@ -2664,11 +2648,10 @@ const DeliveryPage = () => {
       // Filter out deliveries that correspond to orders to avoid double counting
       const standaloneDeliveries = dayDeliveries.filter(delivery => {
         return !dayOrders.some(order => order.id === delivery.order_id);
-      });
-
-      // Determine availability status
+      });      // Determine availability status
       const maxDeliveriesPerDay = 3; // Updated maximum capacity
-      const currentBookings = dayOrders.length + standaloneDeliveries.length;
+      // Include scheduled orders in booking count
+      const currentBookings = dayOrders.length + standaloneDeliveries.length + dayScheduledOrders.length;
       let availabilityStatus = 'available';
       
       // Check if date is user-marked as unavailable
@@ -2690,6 +2673,7 @@ const DeliveryPage = () => {
         isToday: date.toDateString() === today.toDateString(),
         deliveries: standaloneDeliveries,
         orders: dayOrders,
+        scheduledOrders: dayScheduledOrders, // Add scheduled orders to day data
         availabilityStatus: availabilityStatus,
         bookingCount: currentBookings,
         productionOrders: productionInfo // Add production timeline info
@@ -2723,7 +2707,9 @@ const DeliveryPage = () => {
       'info'
     );
   };  const handleCalendarDayClick = (day) => {
-    if (!day.isCurrentMonth || day.availabilityStatus === 'busy' || day.availabilityStatus === 'unavailable') return;
+    // Allow clicking on current month days that aren't marked as unavailable
+    // Note: Allow clicking on 'busy' days for scheduling existing orders
+    if (!day.isCurrentMonth || day.availabilityStatus === 'unavailable') return;
     
     console.log('📅 Calendar day clicked:', day.date);
     console.log('📅 Day object:', day);
@@ -2747,26 +2733,46 @@ const DeliveryPage = () => {
     
     // Check if we have a selected order for scheduling
     if (selectedOrderForScheduling) {
+      // Show visual feedback
+      showPopup(
+        'Opening Schedule Modal',
+        `Scheduling delivery for order ${selectedOrderForScheduling.order_number} on ${day.date.toLocaleDateString()}`,
+        'info'
+      );
+      
       setSelectedOrder(selectedOrderForScheduling);
       setShowScheduleModal(true);
       return;
     }
     
-    // Find orders that need scheduling
-    const pendingOrders = orders.filter(order => !order.delivery_status);
+    // Find orders that need scheduling (including those that can be rescheduled)
+    const pendingOrders = orders.filter(order => 
+      !order.delivery_status || 
+      order.delivery_status === 'pending' || 
+      order.delivery_status === 'delayed'
+    );
     
     if (pendingOrders.length === 0) {
-      showPopup('No Orders Available', 'No orders available for scheduling. Please select an order first.', 'warning');
+      showPopup('No Orders Available', 'No orders available for scheduling. All orders may already be scheduled or delivered.', 'warning');
       return;
     }
     
     // If only one pending order, select it automatically
     if (pendingOrders.length === 1) {
+      showPopup(
+        'Auto-selecting Order',
+        `Only one pending order found. Auto-selecting order ${pendingOrders[0].order_number} for scheduling.`,
+        'info'
+      );
       setSelectedOrder(pendingOrders[0]);
       setShowScheduleModal(true);
     } else {
-      // Show message to select an order first
-      showPopup('Select an Order', 'Please select an order from the Orders list first, then click on a calendar date to schedule delivery.', 'info');
+      // Show message to select an order first with more helpful guidance
+      showPopup(
+        'Select an Order First', 
+        `You have ${pendingOrders.length} orders available for scheduling.\n\nPlease:\n1. Select an order from the Orders list below\n2. Then click on this date (${day.date.toLocaleDateString()}) to schedule delivery\n\nAvailable orders: ${pendingOrders.map(o => o.order_number).join(', ')}`,
+        'info'
+      );
     }
   };
 
@@ -2792,12 +2798,10 @@ const DeliveryPage = () => {
       </PageContainer>
     );
   }
-
   return (
     <PageContainer>
       <Header>
-        <Title>Delivery Management</Title>
-        <Subtitle>Schedule and manage deliveries for confirmed orders with priority-based scheduling</Subtitle>
+        <Title>Delivery Management</Title>        <Subtitle>Schedule and manage deliveries for confirmed orders with priority-based scheduling</Subtitle>
       </Header>
 
       <StatsGrid>
@@ -2841,10 +2845,45 @@ const DeliveryPage = () => {
                 >
                   <FontAwesomeIcon icon={faExpand} style={{ color: '#000000' }} />
                 </CalendarButton>
-              </CalendarNav>
-              <MonthYear>
+              </CalendarNav>              <MonthYear>
                 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-              </MonthYear>              <CalendarNav>
+                {selectedOrderForScheduling && (
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#28a745',
+                    fontWeight: '500',
+                    marginTop: '0.5rem',
+                    padding: '0.5rem',
+                    backgroundColor: '#f8fff8',
+                    borderRadius: '4px',
+                    border: '1px solid #28a745'
+                  }}>
+                    📦 Order {selectedOrderForScheduling.order_number} selected
+                    <br />
+                    <span style={{ fontSize: '0.7rem', color: '#666' }}>
+                      Click on any available date to schedule delivery
+                    </span>
+                  </div>
+                )}
+                {selectedOrderForProductionStart && (
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#667eea',
+                    fontWeight: '500',
+                    marginTop: '0.5rem',
+                    padding: '0.5rem',
+                    backgroundColor: '#f8f9ff',
+                    borderRadius: '4px',
+                    border: '1px solid #667eea'
+                  }}>
+                    🎯 Production start for {selectedOrderForProductionStart.order_number}
+                    <br />
+                    <span style={{ fontSize: '0.7rem', color: '#666' }}>
+                      Click on any future date to set production start
+                    </span>
+                  </div>
+                )}
+              </MonthYear><CalendarNav>
                 <CalendarButton onClick={() => navigateMonth(-1)}>
                   <FontAwesomeIcon icon={faChevronLeft} style={{ color: '#000000' }} />
                 </CalendarButton>
@@ -2858,29 +2897,32 @@ const DeliveryPage = () => {
                 <CalendarDay key={day} style={{ minHeight: '40px', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', background: '#f8f8f8' }}>
                   {day}
                 </CalendarDay>              ))}              {generateCalendarDays().map((day, index) => {
-                const dominantStatus = getDominantOrderStatus(day.orders);                return (                  <CalendarDay 
+                return (                  <CalendarDay 
                     key={index} 
-                    clickable={day.isCurrentMonth && day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable'}
+                    clickable={day.isCurrentMonth && day.availabilityStatus !== 'unavailable'}
                     onClick={() => handleCalendarDayClick(day)}
                     isToday={day.isToday}
                     availabilityStatus={day.availabilityStatus}
                     style={{
                       ...(selectedOrderForProductionStart && day.isCurrentMonth && 
-                          day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable' && {
+                          day.availabilityStatus !== 'unavailable' && {
                         boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
                         borderColor: '#667eea',
                         cursor: 'pointer'
+                      }),
+                      ...(selectedOrderForScheduling && day.isCurrentMonth && 
+                          day.availabilityStatus !== 'unavailable' && {
+                        boxShadow: '0 0 8px rgba(40, 167, 69, 0.5)',
+                        borderColor: '#28a745',
+                        cursor: 'pointer',
+                        background: 'linear-gradient(135deg, #f8fff8, #e8f5e8)'
                       })
                     }}
-                  >
-                    <DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
+                  ><DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
                       {day.dayNumber}
                     </DayNumber>
                     
-                    {/* Status indicator for orders */}
-                    {day.orders.length > 0 && dominantStatus && (
-                      <StatusIndicator status={dominantStatus} title={`Primary status: ${dominantStatus}`} />
-                    )}                    {/* Availability indicator */}                    <AvailabilityIndicator                      availability={day.availabilityStatus} 
+                    {/* Availability indicator */}                    <AvailabilityIndicator                      availability={day.availabilityStatus} 
                       title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle availability`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -2890,18 +2932,58 @@ const DeliveryPage = () => {
                       }}
                     >
                       {day.bookingCount > 0 ? day.bookingCount : ''}
-                    </AvailabilityIndicator>                    {/* Delivery truck icon */}
-                    {(day.orders.length > 0 || day.deliveries.length > 0) && (
+                    </AvailabilityIndicator>                    {/* Delivery truck icon - show if there are deliveries or scheduled orders */}
+                    {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
                       <DeliveryIcon 
-                        status={dominantStatus || 'default'}
-                        title={`Delivery status: ${dominantStatus || 'No orders'}`}
+                        status={'scheduled'}
+                        title={`${day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)} delivery(ies) scheduled - Click to view details`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Show modal with all orders scheduled for this day
+                          const allScheduledOrders = [...(day.scheduledOrders || [])];
+                          if (allScheduledOrders.length > 0) {
+                            const orderDetails = allScheduledOrders.map(order => 
+                              `• ${order.order_number} - ${order.customerName} (₱${parseFloat(order.total_amount || 0).toFixed(2)})`
+                            ).join('\n');
+                            
+                            showPopup(
+                              `� Scheduled Deliveries - ${day.date.toLocaleDateString()}`,
+                              `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}\n\nClick on any order in the Orders list to view complete details.`,
+                              'info'
+                            );
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
                       >
-                        <FontAwesomeIcon icon={faTruck} style={{ color: '#000000' }} />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          �🚚
+                          {/* Order count badge */}
+                          {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-8px',
+                              background: '#dc3545',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '16px',
+                              height: '16px',
+                              fontSize: '10px',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '2px solid white',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}>
+                              {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
+                            </div>
+                          )}
+                        </div>
                       </DeliveryIcon>
-                    )}
-                      {/* Production start selection indicator */}
+                    )}                      {/* Production start selection indicator */}
                     {selectedOrderForProductionStart && day.isCurrentMonth && 
-                     day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable' && (
+                     day.availabilityStatus !== 'unavailable' && (
                       <div style={{
                         position: 'absolute',
                         top: '2px',
@@ -3316,9 +3398,8 @@ const DeliveryPage = () => {
                         <StatusBadge status={order.delivery_status || 'pending'}>
                           {order.delivery_status || 'pending'}
                         </StatusBadge>
-                      </StatusRow>                        <ButtonRow>
-                        {/* Buttons for pending orders */}
-                        {!order.delivery_status && (
+                      </StatusRow>                        <ButtonRow>                        {/* Buttons for pending orders (no delivery status set yet) */}
+                        {(!order.delivery_status || order.delivery_status === 'pending') && (
                           selectedOrderForScheduling && selectedOrderForScheduling.id === order.id ? (
                             <ActionButton 
                               onClick={() => setSelectedOrderForScheduling(null)}
@@ -3362,10 +3443,11 @@ const DeliveryPage = () => {
                                       'warning'
                                     );
                                     return;
-                                  }
-                                }
+                                  }                                }
+                                // For regular orders, allow immediate selection
                                 setSelectedOrderForScheduling(order);
-                              }}                              disabled={(() => {
+                              }}disabled={(() => {
+                                // Only disable custom orders if production is not complete
                                 if (order.order_type === 'custom') {
                                   const now = new Date();
                                   const orderDate = new Date(order.created_at);
@@ -3383,6 +3465,7 @@ const DeliveryPage = () => {
                                   
                                   return now < completionDate;
                                 }
+                                // Regular orders are never disabled
                                 return false;
                               })()}                            >
                               {(() => {
@@ -3410,7 +3493,8 @@ const DeliveryPage = () => {
                                     return `Select (Ready)${adminSetCompletionDate ? ' ✓' : ''}`;
                                   }
                                 }
-                                return 'Select';
+                                // Regular orders show simple "Select" text
+                                return 'Select for Delivery';
                               })()}
                             </ActionButton>                          )                        )}
                         
@@ -3538,7 +3622,9 @@ const DeliveryPage = () => {
                 <p><strong>Standard Delivery:</strong> 1-3 business days</p>
                 <p><strong>Daily Capacity:</strong> 3 deliveries maximum</p>
                 <p><strong>Priority Algorithm:</strong> Order date and amount based</p>
-                <p><strong>Production Tracking:</strong> Custom orders require admin-set production completion date before scheduling</p>
+                <p><strong>Regular Orders:</strong> Available for immediate scheduling - select and schedule delivery date</p>
+                <p><strong>Custom Orders:</strong> Require admin-set production completion date before scheduling</p>
+                <p><strong>Status Management:</strong> Once scheduled, update order status using Delayed/In Transit/Delivered buttons</p>
                 <p><strong>Conflict Resolution:</strong> Automatic detection and prevention</p>
                 <p><strong>Calendar Features:</strong> Click days to schedule, click green box to toggle availability</p>
               </div>
@@ -3876,31 +3962,94 @@ const DeliveryPage = () => {
                 <FullCalendarDay key={day} style={{ minHeight: '50px', padding: '1rem', textAlign: 'center', fontWeight: 'bold', background: '#f8f8f8' }}>
                   {day}
                 </FullCalendarDay>
-              ))}                {generateCalendarDays().map((day, index) => {
-                const dominantStatus = getDominantOrderStatus(day.orders);
-                  return (
-                  <FullCalendarDay 
+              ))}              {generateCalendarDays().map((day, index) => {
+                  return (                      <FullCalendarDay 
                     key={index} 
                     isCurrentMonth={day.isCurrentMonth}
                     isToday={day.isToday}
-                    availabilityStatus={day.availabilityStatus}                    style={{
+                    availabilityStatus={day.availabilityStatus}
+                    style={{
                       borderLeft: day.availabilityStatus === 'available' ? '4px solid #28a745' :
                                  day.availabilityStatus === 'partial' ? '4px solid #ffc107' :
                                  day.availabilityStatus === 'busy' ? '4px solid #dc3545' :
-                                 day.availabilityStatus === 'unavailable' ? '4px solid #6c757d' : 'none'
+                                 day.availabilityStatus === 'unavailable' ? '4px solid #6c757d' : 'none',
+                      cursor: day.isCurrentMonth && day.availabilityStatus !== 'unavailable' ? 'pointer' : 'default'
                     }}
-                  ><FullDayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
+                    onClick={() => handleCalendarDayClick(day)}
+                  >
+                    <FullDayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
                       {day.dayNumber}
                     </FullDayNumber>
                     
-                    {/* Status indicator for orders */}
-                    {day.orders.length > 0 && dominantStatus && (
-                      <StatusIndicator 
-                        status={dominantStatus} 
-                        title={`Primary status: ${dominantStatus}`}
-                        style={{ top: '0.5rem', right: '0.5rem', width: '12px', height: '12px' }}
-                      />
-                    )}                    {/* Availability indicator */}
+                    {/* Delivery truck icon for full calendar */}
+                    {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '8px',
+                        left: '8px',
+                        width: '32px',
+                        height: '32px',
+                        background: 'linear-gradient(135deg, #28a745, #20c997)',
+                        color: '#ffffff',
+                        borderRadius: '8px',
+                        fontSize: '1.2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px solid rgba(255, 255, 255, 0.3)',
+                        boxShadow: '0 3px 8px rgba(0, 0, 0, 0.2)',
+                        transition: 'all 0.3s ease',
+                        cursor: 'pointer',
+                        zIndex: 10
+                      }}
+                      title={`${day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)} delivery(ies) scheduled - Click for details`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const allScheduledOrders = [...(day.scheduledOrders || [])];
+                        if (allScheduledOrders.length > 0) {
+                          const orderDetails = allScheduledOrders.map(order => 
+                            `• ${order.order_number} - ${order.customerName} (₱${parseFloat(order.total_amount || 0).toFixed(2)})`
+                          ).join('\n');
+                          
+                          showPopup(
+                            `📦 Scheduled Deliveries - ${day.date.toLocaleDateString()}`,
+                            `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}`,
+                            'info'
+                          );
+                        }
+                      }}
+                      onMouseOver={(e) => e.target.style.transform = 'scale(1.1)'}
+                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
+                      >
+                        <div style={{ position: 'relative' }}>
+                          🚚
+                          {/* Order count badge for full calendar */}
+                          {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-10px',
+                              right: '-10px',
+                              background: '#dc3545',
+                              color: 'white',
+                              borderRadius: '50%',
+                              width: '18px',
+                              height: '18px',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              border: '2px solid white',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            }}>
+                              {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Availability indicator */}
                     <AvailabilityIndicator 
                       availability={day.availabilityStatus} 
                       title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle availability`}
@@ -3987,47 +4136,10 @@ const DeliveryPage = () => {
                           title={`Production Progress: ${Math.round(prodOrder.productionProgress)}% - ${prodOrder.order_number} - ${prodOrder.customerName}`}
                           />
                         )}
-                      </div>
-                    ))}
+                      </div>                    ))}
                     
+                    {/* Delivery schedules display only */}
                     <div>
-                      {day.orders.map((order, i) => (                        <FullOrderBlock 
-                          key={`order-${i}`} 
-                          status={getOrderDeliveryStatus(order)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCalendarOrderClick(order);
-                          }}
-                          title={`${order.order_number} - ${order.customerName} - ${order.scheduled_delivery_time || 'No time set'}`}
-                        >                          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '50%',
-                              fontSize: '8px',
-                              background: order.order_type === 'custom' 
-                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                                : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                              color: 'white'
-                            }}>
-                              <FontAwesomeIcon 
-                                icon={order.order_type === 'custom' ? faPalette : faShoppingBag} 
-                              />
-                            </div>
-                            {order.order_number}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', opacity: '0.9' }}>
-                            {order.customerName}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', opacity: '0.8' }}>
-                            {order.scheduled_delivery_time || 'Time TBD'}
-                          </div>
-                        </FullOrderBlock>
-                      ))}
-                      
                       {day.deliveries.map((delivery, i) => (
                         <FullOrderBlock 
                           key={`delivery-${i}`} 

@@ -22,10 +22,9 @@ const auth = async (req, res, next) => {    try {
         console.log('=== AUTH MIDDLEWARE DEBUG ===');
         console.log('Decoded token:', decoded);
         console.log('Looking up user with ID:', decoded.id);
-        
-        // Check if user still exists and is active
+          // Check if user still exists and is active
         const users = await query(
-            'SELECT user_id, email, role, is_active FROM users WHERE user_id = ?',
+            'SELECT user_id, email, first_name, last_name, role, is_active FROM users WHERE user_id = ?',
             [decoded.id]
         );
 
@@ -48,11 +47,12 @@ const auth = async (req, res, next) => {    try {
                 message: 'Account is inactive'
             });
         }        
-        
-        // Add user info to request
+          // Add user info to request
         req.user = {
             id: user.user_id,
             email: user.email,
+            first_name: user.first_name,
+            last_name: user.last_name,
             role: user.role
         };
         

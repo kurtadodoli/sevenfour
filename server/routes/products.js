@@ -21,6 +21,7 @@ router.get('/categories', productController.getProductCategories);
 
 // Admin-only routes - require authentication and admin role
 router.get('/admin/all', [auth, adminCheck], productController.getAllProducts);
+router.get('/admin/inventory', [auth, adminCheck], productController.getInventoryOverview);
 router.post('/', [auth, adminCheck], productController.createProduct);
 router.put('/:id', [auth, adminCheck], productController.updateProduct);
 router.delete('/:id', [auth, adminCheck], productController.deleteProduct);

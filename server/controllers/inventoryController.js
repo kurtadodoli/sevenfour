@@ -2,41 +2,95 @@ console.log('Starting inventory controller load...');
 
 const { query } = require('../config/db');
 
-// Get inventory overview with stock levels
+// Get inventory overview with stock levels from products table (matches order confirmation system)
 const getInventoryOverview = async (req, res) => {
-  console.log('getInventoryOverview called');
+  console.log('🔍 getInventoryOverview called - fetching from products table with real-time stock');
   try {
-    const sql = `
+    // Get all active products with their current stock levels (same fields used by order confirmation)
+    const productsSql = `
       SELECT 
         product_id,
         productname,
         productimage,
         productdescription,
         productprice,
-        productsize,
         productcolor,
         product_type,
-        productquantity,
         productstatus,
-        sizes,
+        status,
+        total_available_stock,
+        total_reserved_stock,
         total_stock,
+        stock_status,
+        productquantity,
+        sizes,
+        last_stock_update,
         created_at,
         updated_at
-      FROM products 
-      WHERE productstatus = 'active'
+      FROM products
+      WHERE (productstatus = 'active' OR status = 'active')
       ORDER BY productname ASC
     `;
     
-    const products = await query(sql);
-    console.log(`Found ${products.length} products in database`);
+    const products = await query(productsSql);
+    console.log(`Found ${products.length} active products`);
+    
+    // Process products with their actual stock data
+    const processedProducts = products.map(product => {
+      // Use total_available_stock as the primary stock source (this is what order confirmation updates)
+      const totalStock = product.total_available_stock || product.total_stock || product.productquantity || 0;
+      const reservedStock = product.total_reserved_stock || 0;
+      
+      // Determine stock level based on available stock
+      let stockLevel = 'normal';
+      if (totalStock === 0) {
+        stockLevel = 'critical';
+      } else if (totalStock <= 5) {
+        stockLevel = 'critical';
+      } else if (totalStock <= 15) {
+        stockLevel = 'low';
+      }
+      
+      // Parse sizes JSON for display (but use total_available_stock for actual numbers)
+      let sizesData = [];
+      if (product.sizes) {
+        try {
+          sizesData = JSON.parse(product.sizes) || [];
+        } catch (error) {
+          console.log(`Could not parse sizes for product ${product.product_id}`);
+          sizesData = [];
+        }
+      }
+      
+      return {
+        product_id: product.product_id,
+        productname: product.productname,
+        productimage: product.productimage,
+        productdescription: product.productdescription,
+        productprice: product.productprice,
+        productcolor: product.productcolor,
+        product_type: product.product_type,
+        status: product.productstatus || product.status,
+        totalStock: totalStock,
+        reservedStock: reservedStock,
+        stockLevel: stockLevel,
+        stock_status: product.stock_status,
+        sizes: JSON.stringify(sizesData),
+        last_stock_update: product.last_stock_update,
+        created_at: product.created_at,
+        updated_at: product.updated_at
+      };
+    });
+    
+    console.log(`✅ Processed ${processedProducts.length} products with stock levels`);
     
     res.json({ 
       success: true, 
-      data: products,
-      message: `Found ${products.length} products` 
+      data: processedProducts,
+      message: `Found ${processedProducts.length} products with stock data` 
     });
   } catch (error) {
-    console.error('Error fetching inventory overview:', error);
+    console.error('❌ Error fetching inventory overview:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch inventory data',

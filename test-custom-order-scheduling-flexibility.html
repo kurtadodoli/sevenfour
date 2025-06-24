@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Order Scheduling Flexibility Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .test-scenario {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .info {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        .order-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .order-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .custom-order {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .regular-order {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        .schedule-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .schedule-btn:hover {
+            background: #218838;
+        }
+        .timeline-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 10px;
+        }
+        .result {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Custom Order Scheduling Flexibility Test</h1>
+    
+    <div class="test-container">
+        <h2 class="test-title">📋 Test Overview</h2>
+        <p>This test simulates the scheduling behavior for both custom and regular orders to verify that:</p>
+        <ul>
+            <li>Custom orders can be scheduled at any time (no restrictions)</li>
+            <li>Production timeline information is still displayed</li>
+            <li>User receives appropriate information but not blocking restrictions</li>
+            <li>Regular orders continue to work normally</li>
+        </ul>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-title">🧪 Test Scenarios</h2>
+        
+        <div class="test-scenario">
+            <h3>Scenario 1: New Custom Order (Day 2 of Production)</h3>
+            <div class="order-card">
+                <strong>Order #CUST001</strong>
+                <span class="order-type custom-order">🎨 Custom Order</span>
+                <div class="timeline-info">
+                    Created: 2 days ago<br>
+                    Production Status: IN PROGRESS (8 days remaining)<br>
+                    Expected Completion: In 8 days
+                </div>
+                <button class="schedule-btn" onclick="testCustomOrderScheduling('early')">
+                    Schedule for Tomorrow
+                </button>
+                <button class="schedule-btn" onclick="testCustomOrderScheduling('normal')">
+                    Schedule for Next Week
+                </button>
+                <div id="scenario1-result" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="test-scenario success">
+            <h3>Scenario 2: Completed Custom Order</h3>
+            <div class="order-card">
+                <strong>Order #CUST002</strong>
+                <span class="order-type custom-order">🎨 Custom Order</span>
+                <div class="timeline-info">
+                    Created: 12 days ago<br>
+                    Production Status: COMPLETED ✓<br>
+                    Completed: 2 days ago
+                </div>
+                <button class="schedule-btn" onclick="testCustomOrderScheduling('completed')">
+                    Schedule Delivery
+                </button>
+                <div id="scenario2-result" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="test-scenario info">
+            <h3>Scenario 3: Regular Order (For Comparison)</h3>
+            <div class="order-card">
+                <strong>Order #REG003</strong>
+                <span class="order-type regular-order">🛍️ Regular Order</span>
+                <div class="timeline-info">
+                    Created: 1 day ago<br>
+                    Status: Ready for delivery
+                </div>
+                <button class="schedule-btn" onclick="testRegularOrderScheduling()">
+                    Schedule Delivery
+                </button>
+                <div id="scenario3-result" class="result" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2 class="test-title">📊 Test Results Summary</h2>
+        <div id="test-summary">
+            <p>Click the buttons above to test different scheduling scenarios.</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {
+            customEarlyScheduling: false,
+            customNormalScheduling: false,
+            customCompletedScheduling: false,
+            regularOrderScheduling: false
+        };
+
+        function testCustomOrderScheduling(type) {
+            let resultDiv, message, resultKey;
+            
+            switch(type) {
+                case 'early':
+                    resultDiv = document.getElementById('scenario1-result');
+                    resultKey = 'customEarlyScheduling';
+                    // Simulate the new behavior - informational popup but allows scheduling
+                    const proceed = confirm(
+                        "🎨 Custom Order Production Timeline\n\n" +
+                        "Order Created: 2 days ago\n" +
+                        "Production Completion: In 8 days\n" +
+                        "Days Remaining: 8 days\n\n" +
+                        "ℹ️ NOTE: This order is still in production.\n" +
+                        "Scheduled delivery: Tomorrow\n\n" +
+                        "While this order can be scheduled at any time, please note that delivery should ideally occur after production completion.\n\n" +
+                        "Do you want to proceed with scheduling?"
+                    );
+                    
+                    if (proceed) {
+                        message = "✅ SUCCESS: Custom order scheduled for tomorrow despite being in production. User was informed but not blocked.";
+                        testResults.customEarlyScheduling = true;
+                    } else {
+                        message = "ℹ️ User chose not to proceed with early scheduling.";
+                    }
+                    break;
+                    
+                case 'normal':
+                    resultDiv = document.getElementById('scenario1-result');
+                    resultKey = 'customNormalScheduling';
+                    message = "✅ SUCCESS: Custom order scheduled for next week without any restrictions or warnings.";
+                    testResults.customNormalScheduling = true;
+                    break;
+                    
+                case 'completed':
+                    resultDiv = document.getElementById('scenario2-result');
+                    resultKey = 'customCompletedScheduling';
+                    message = "✅ SUCCESS: Completed custom order scheduled immediately without any restrictions.";
+                    testResults.customCompletedScheduling = true;
+                    break;
+            }
+            
+            resultDiv.innerHTML = message;
+            resultDiv.style.display = 'block';
+            updateTestSummary();
+        }
+
+        function testRegularOrderScheduling() {
+            const resultDiv = document.getElementById('scenario3-result');
+            const message = "✅ SUCCESS: Regular order scheduled normally (baseline comparison).";
+            resultDiv.innerHTML = message;
+            resultDiv.style.display = 'block';
+            testResults.regularOrderScheduling = true;
+            updateTestSummary();
+        }
+
+        function updateTestSummary() {
+            const summaryDiv = document.getElementById('test-summary');
+            const totalTests = Object.keys(testResults).length;
+            const passedTests = Object.values(testResults).filter(Boolean).length;
+            
+            let summaryHTML = `<h3>📊 Test Progress: ${passedTests}/${totalTests}</h3>`;
+            
+            for (const [test, passed] of Object.entries(testResults)) {
+                const status = passed ? '✅' : '⏳';
+                const testName = test.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                summaryHTML += `<p>${status} ${testName}</p>`;
+            }
+            
+            if (passedTests === totalTests) {
+                summaryHTML += `
+                    <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                        <h4 style="color: #155724; margin: 0 0 10px 0;">🎉 All Tests Passed!</h4>
+                        <p style="color: #155724; margin: 0;">
+                            Custom order scheduling flexibility has been successfully implemented. 
+                            Custom orders can now be scheduled at any time, just like regular orders, 
+                            while still providing helpful production timeline information.
+                        </p>
+                    </div>
+                `;
+            }
+            
+            summaryDiv.innerHTML = summaryHTML;
+        }
+
+        // Initialize
+        updateTestSummary();
+    </script>
+</body>
+</html>

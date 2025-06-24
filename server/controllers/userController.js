@@ -70,22 +70,38 @@ exports.register = async (req, res) => {
         
         // Add CORS headers directly in the handler for this specific endpoint
         res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-        const { first_name, last_name, email, password, gender, birthday } = req.body;
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');        const { first_name, last_name, email, password, gender, birthday, role } = req.body;
 
         // Validate required fields
-        if (!first_name || !last_name || !email || !password || !gender || !birthday) {
+        if (!first_name || !last_name || !email || !password) {
             console.log('Missing required fields:', { 
                 first_name: !!first_name, 
                 last_name: !!last_name, 
                 email: !!email, 
-                password: !!password, 
-                gender: !!gender, 
-                birthday: !!birthday 
+                password: !!password
             });
             return res.status(400).json({
                 success: false,
-                message: 'All fields are required: first_name, last_name, email, password, gender, birthday'
+                message: 'Required fields: first_name, last_name, email, password'
+            });
+        }        // Set default values for optional fields
+        const userGender = gender || 'other'; // Default to 'other' since 'not_specified' is not allowed
+        const userBirthday = birthday || '1990-01-01';
+        const userRole = role || 'customer';
+
+        // Validate gender if provided
+        if (gender && !['male', 'female', 'other'].includes(gender)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Gender must be either "male", "female", or "other"'
+            });
+        }
+
+        // Validate role if provided
+        if (role && !['customer', 'admin'].includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Role must be either "customer" or "admin"'
             });
         }
 
@@ -126,13 +142,12 @@ exports.register = async (req, res) => {
         // Hash password
         console.log('Hashing password...');
         const saltRounds = 12;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);        try {
-            // Insert new user
+        const hashedPassword = await bcrypt.hash(password, saltRounds);        try {            // Insert new user
             console.log('Attempting to insert new user into database...');
             const result = await query(
                 `INSERT INTO users (first_name, last_name, email, password, gender, birthday, role) 
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [first_name, last_name, email.toLowerCase(), hashedPassword, gender, birthday, 'customer']
+                [first_name, last_name, email.toLowerCase(), hashedPassword, userGender, userBirthday, userRole]
             );
             
             console.log('User inserted successfully, ID:', result.insertId);
