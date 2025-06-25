@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useStock } from '../context/StockContext';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -853,6 +854,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [cancelReason, setCancelReason] = useState('');
     const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
+  const { updateMultipleProductsStock, getProductStock } = useStock(); // Get stock context
   
   const fetchOrders = useCallback(async () => {
     try {
@@ -989,6 +991,13 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       
       if (response.data.success) {
         toast.success('Order confirmed successfully!');
+        
+        // Update stock context with the affected products
+        if (response.data.stockUpdateEvent && response.data.stockUpdateEvent.productIds) {
+          await updateMultipleProductsStock(response.data.stockUpdateEvent.productIds);
+          console.log('📦 Stock updated for products:', response.data.stockUpdateEvent.productIds);
+        }
+        
         fetchOrders();
       }    } catch (error) {
       console.error('Error confirming order:', error);

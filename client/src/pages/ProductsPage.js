@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faSearch, faTimes, faFilter, faSort } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
+import { useStock } from '../context/StockContext';
+import StockStatusWidget from '../components/StockStatusWidget';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -820,6 +822,9 @@ const ProductsPage = () => {
     const [activeDropdown, setActiveDropdown] = useState(null); // 'categories', 'sort', 'price', 'stock'
     const navigate = useNavigate();
     
+    // Use stock context
+    const { stockData, fetchStockData } = useStock();
+    
     // Categories for filtering
     const categories = [
         { value: 'all', label: 'All Products' },
@@ -856,6 +861,16 @@ const ProductsPage = () => {
 
     // Get total stock for a product
     const getTotalStock = React.useCallback((product) => {
+        // Use stock data from context if available
+        if (stockData && stockData[product.product_id]) {
+            return stockData[product.product_id].total_available_stock || 0;
+        }
+        
+        // Use total_available_stock first (most accurate for frontend display)
+        if (product.total_available_stock !== undefined && product.total_available_stock !== null) {
+            return product.total_available_stock;
+        }
+        
         // Use total_stock if it exists
         if (product.total_stock !== undefined && product.total_stock !== null) {
             return product.total_stock;
@@ -873,7 +888,7 @@ const ProductsPage = () => {
         // Fallback to old sizes structure
         const sizes = parseSizes(product.sizes);
         return sizes.reduce((total, size) => total + (size.stock || 0), 0);
-    }, []);
+    }, [stockData]);
 
     const getAvailableSizes = (product) => {
         const variants = parseSizeColorVariants(product.sizeColorVariants);
@@ -897,7 +912,7 @@ const ProductsPage = () => {
     };
 
     // Fetch products function
-    const fetchProducts = async () => {
+    const fetchProducts = React.useCallback(async () => {
         try {
             setLoading(true);
             setError('');
@@ -982,6 +997,9 @@ const ProductsPage = () => {
                 
                 setProducts(activeProducts);
                 setFilteredProducts(activeProducts);
+                
+                // Refresh stock data to ensure consistency
+                await fetchStockData();
             } else {
                 setError('Failed to load products');
             }
@@ -991,7 +1009,7 @@ const ProductsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [fetchStockData]);
 
     // Filter and sort products
     useEffect(() => {
@@ -1111,7 +1129,7 @@ const ProductsPage = () => {
     // Fetch products on component mount
     useEffect(() => {
         fetchProducts();
-    }, []);
+    }, [fetchProducts]);
 
     // Inject CSS animations
     React.useEffect(() => {
@@ -1180,6 +1198,7 @@ const ProductsPage = () => {
                 <Header>
                     <Title>Our Collection</Title>
                     <Subtitle>Discover our carefully curated selection of premium products crafted with exceptional quality and attention to detail</Subtitle>
+                    <StockStatusWidget />
                 </Header>
                 
                 {/* Search Section */}

@@ -244,6 +244,53 @@ router.post('/products', (req, res, next) => {
             }
         }
         
+        // CREATE PRODUCT VARIANTS FOR STOCK MANAGEMENT
+        console.log('Creating product variants for stock management...');
+        
+        if (parsedSizeColorVariants && parsedSizeColorVariants.length > 0) {
+            for (const sizeVariant of parsedSizeColorVariants) {
+                const size = sizeVariant.size;
+                const colorStocks = sizeVariant.colorStocks || [];
+                
+                for (const colorStock of colorStocks) {
+                    const color = colorStock.color;
+                    const stock = parseInt(colorStock.stock) || 0;
+                    
+                    if (color && color.trim() !== '') {
+                        console.log(`Creating variant: ${size}/${color} with ${stock} stock`);
+                        
+                        await connection.execute(`
+                            INSERT INTO product_variants 
+                            (product_id, size, color, stock_quantity, available_quantity, reserved_quantity)
+                            VALUES (?, ?, ?, ?, ?, 0)
+                        `, [generatedProductId, size, color, stock, stock]);
+                        
+                        console.log(`✅ Created variant: ${size}/${color}`);
+                    }
+                }
+            }
+            
+            console.log('✅ All product variants created successfully');
+        } else {
+            console.log('⚠️ No size-color variants found, creating default variants');
+            
+            // Create default variants if no size-color data is provided
+            const defaultSizes = ['S', 'M', 'L', 'XL'];
+            const defaultColor = 'Black';
+            const defaultStock = parseInt(total_stock) || 0;
+            const stockPerSize = Math.floor(defaultStock / defaultSizes.length);
+            
+            for (const size of defaultSizes) {
+                await connection.execute(`
+                    INSERT INTO product_variants 
+                    (product_id, size, color, stock_quantity, available_quantity, reserved_quantity)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                `, [generatedProductId, size, defaultColor, stockPerSize, stockPerSize]);
+                
+                console.log(`✅ Created default variant: ${size}/${defaultColor} with ${stockPerSize} stock`);
+            }
+        }
+        
         await connection.end();
         
         console.log('Product added successfully, ID:', productDbId);
@@ -456,6 +503,61 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
                     imageOrder,
                     isFirstImage
                 ]);
+            }
+        }
+        
+        // UPDATE PRODUCT VARIANTS FOR STOCK MANAGEMENT
+        console.log('Updating product variants for stock management...');
+        
+        // First, delete existing variants for this product
+        await connection.execute(
+            'DELETE FROM product_variants WHERE product_id = ?',
+            [productId]
+        );
+        console.log('🗑️ Deleted existing variants');
+        
+        // Create new variants based on the updated data
+        if (parsedSizeColorVariants && parsedSizeColorVariants.length > 0) {
+            for (const sizeVariant of parsedSizeColorVariants) {
+                const size = sizeVariant.size;
+                const colorStocks = sizeVariant.colorStocks || [];
+                
+                for (const colorStock of colorStocks) {
+                    const color = colorStock.color;
+                    const stock = parseInt(colorStock.stock) || 0;
+                    
+                    if (color && color.trim() !== '') {
+                        console.log(`Creating updated variant: ${size}/${color} with ${stock} stock`);
+                        
+                        await connection.execute(`
+                            INSERT INTO product_variants 
+                            (product_id, size, color, stock_quantity, available_quantity, reserved_quantity)
+                            VALUES (?, ?, ?, ?, ?, 0)
+                        `, [productId, size, color, stock, stock]);
+                        
+                        console.log(`✅ Updated variant: ${size}/${color}`);
+                    }
+                }
+            }
+            
+            console.log('✅ All product variants updated successfully');
+        } else {
+            console.log('⚠️ No size-color variants found, creating default variants');
+            
+            // Create default variants if no size-color data is provided
+            const defaultSizes = ['S', 'M', 'L', 'XL'];
+            const defaultColor = 'Black';
+            const defaultStock = parseInt(total_stock) || 0;
+            const stockPerSize = Math.floor(defaultStock / defaultSizes.length);
+            
+            for (const size of defaultSizes) {
+                await connection.execute(`
+                    INSERT INTO product_variants 
+                    (product_id, size, color, stock_quantity, available_quantity, reserved_quantity)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                `, [productId, size, defaultColor, stockPerSize, stockPerSize]);
+                
+                console.log(`✅ Created default variant: ${size}/${defaultColor} with ${stockPerSize} stock`);
             }
         }
         

@@ -275,14 +275,19 @@ exports.confirmOrder = async (req, res) => {
     try {
         const orderId = req.params.id; // Use 'id' instead of 'orderId'
         
-        console.log('=== CONFIRM ORDER DEBUG ===');
+        console.log('=== CONFIRM ORDER DEBUG (ENHANCED) ===');
+        console.log('req.headers:', JSON.stringify(req.headers, null, 2));
         console.log('req.user:', req.user);
         console.log('req.user.id:', req.user?.id);
         console.log('orderId:', orderId);
         console.log('typeof req.user.id:', typeof req.user?.id);
+        console.log('Request from:', req.ip);
+        console.log('User agent:', req.headers['user-agent']);
+        console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
         
         if (!req.user || !req.user.id) {
             console.log('❌ Authentication failed - no user or user.id');
+            console.log('Full req.user object:', req.user);
             return res.status(401).json({
                 success: false,
                 message: 'User authentication required'
@@ -294,6 +299,8 @@ exports.confirmOrder = async (req, res) => {
         
         console.log('userId for queries:', userId);
         console.log('typeof userId:', typeof userId);
+        console.log('orderId for queries:', orderId);
+        console.log('typeof orderId:', typeof orderId);
         
         const connection = await mysql.createConnection(dbConfig);
         
@@ -331,10 +338,11 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Get the order items to update inventory
+            // Get the order items to update inventory (with size and color info)
             console.log('Getting order items for inventory update...');
             const [orderItems] = await connection.execute(`
-                SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock
+                SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
+                       p.productname, p.total_available_stock
                 FROM order_items oi
                 JOIN orders o ON oi.invoice_id = o.invoice_id
                 JOIN products p ON oi.product_id = p.product_id
@@ -353,50 +361,145 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Check if we have enough stock for all items
+            // Check stock for each specific size/color variant
             const insufficientStock = [];
             for (const item of orderItems) {
-                console.log(`Checking stock for ${item.productname}: ordered=${item.quantity}, available=${item.total_available_stock}`);
-                if (item.total_available_stock < item.quantity) {
-                    insufficientStock.push({
-                        product: item.productname,
-                        requested: item.quantity,
-                        available: item.total_available_stock
-                    });
+                console.log(`Checking variant stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
+                
+                // Check if specific size/color variant exists and has enough stock
+                const [variantStock] = await connection.execute(`
+                    SELECT available_quantity, stock_quantity, reserved_quantity
+                    FROM product_variants 
+                    WHERE product_id = ? AND size = ? AND color = ?
+                `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                
+                if (variantStock.length === 0) {
+                    // No variant found - check general product stock as fallback
+                    console.log(`No variant found for ${item.productname} ${item.size}/${item.color}, checking general stock`);
+                    if (item.total_available_stock < item.quantity) {
+                        insufficientStock.push({
+                            product: item.productname,
+                            size: item.size,
+                            color: item.color,
+                            requested: item.quantity,
+                            available: item.total_available_stock
+                        });
+                    }
+                } else {
+                    // Check variant-specific stock
+                    const variant = variantStock[0];
+                    console.log(`Variant stock: available=${variant.available_quantity}, requested=${item.quantity}`);
+                    
+                    if (variant.available_quantity < item.quantity) {
+                        insufficientStock.push({
+                            product: item.productname,
+                            size: item.size,
+                            color: item.color,
+                            requested: item.quantity,
+                            available: variant.available_quantity
+                        });
+                    }
                 }
             }
             
             if (insufficientStock.length > 0) {
                 await connection.rollback();
                 await connection.end();
-                console.log('❌ Insufficient stock:', insufficientStock);
+                console.log('❌ Insufficient stock for variants:', insufficientStock);
                 return res.status(400).json({
                     success: false,
-                    message: 'Insufficient stock for some items',
+                    message: 'Insufficient stock for some item variants',
                     insufficientStock
                 });
             }
             
-            console.log('✅ All items have sufficient stock');
+            console.log('✅ All variants have sufficient stock');
             
-            // Update inventory - subtract ordered quantities from available stock
-            console.log('Updating inventory for confirmed order...');
+            // Update inventory - subtract ordered quantities from specific variants
+            console.log('Updating variant-specific inventory for confirmed order...');
+            
             for (const item of orderItems) {
-                await connection.execute(`
-                    UPDATE products 
-                    SET total_available_stock = total_available_stock - ?,
-                        total_reserved_stock = COALESCE(total_reserved_stock, 0) + ?,
-                        last_stock_update = CURRENT_TIMESTAMP,
-                        stock_status = CASE 
-                            WHEN (total_available_stock - ?) <= 0 THEN 'out_of_stock'
-                            WHEN (total_available_stock - ?) <= 5 THEN 'critical_stock'
-                            WHEN (total_available_stock - ?) <= 15 THEN 'low_stock'
-                            ELSE 'in_stock'
-                        END
-                    WHERE product_id = ?
-                `, [item.quantity, item.quantity, item.quantity, item.quantity, item.quantity, item.product_id]);
+                console.log(`Processing item: ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}, Product ID: ${item.product_id}`);
                 
-                console.log(`Updated stock for ${item.productname}: -${item.quantity} units`);
+                // First, try to update the specific variant
+                const [variantResult] = await connection.execute(`
+                    UPDATE product_variants 
+                    SET reserved_quantity = reserved_quantity + ?,
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE product_id = ? AND size = ? AND color = ?
+                `, [item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
+                
+                console.log(`Variant update affected rows: ${variantResult.affectedRows}`);
+                
+                // Update available_quantity separately to ensure it's calculated correctly
+                await connection.execute(`
+                    UPDATE product_variants 
+                    SET available_quantity = stock_quantity - reserved_quantity
+                    WHERE product_id = ? AND size = ? AND color = ?
+                `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                
+                if (variantResult.affectedRows > 0) {
+                    console.log(`✅ Updated variant stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units`);
+                    
+                    // Log the stock movement
+                    await connection.execute(`
+                        INSERT INTO stock_movements 
+                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                        VALUES (?, 'OUT', ?, ?, 'Order Confirmation', ?, ?, ?)
+                    `, [item.product_id, item.quantity, item.size || 'N/A', 
+                        orderId, userId, `Order confirmed - reserved ${item.quantity} units for ${item.productname} ${item.size}/${item.color}`]);
+                } else {
+                    // Fallback to general product stock update
+                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
+                    await connection.execute(`
+                        UPDATE products 
+                        SET total_available_stock = total_available_stock - ?,
+                            total_reserved_stock = COALESCE(total_reserved_stock, 0) + ?,
+                            last_stock_update = CURRENT_TIMESTAMP
+                        WHERE product_id = ?
+                    `, [item.quantity, item.quantity, item.product_id]);
+                }
+            }
+            
+            // Update overall product stock totals from variants
+            console.log('Updating overall product stock totals...');
+            
+            // Get unique product IDs from order items
+            const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
+            
+            // Update each product individually to avoid SQL issues
+            for (const productId of uniqueProductIds) {
+                await connection.execute(`
+                    UPDATE products p
+                    SET p.total_stock = (
+                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_available_stock = (
+                        SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_reserved_stock = (
+                        SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.stock_status = CASE 
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                        ELSE 'in_stock'
+                    END,
+                    p.last_stock_update = CURRENT_TIMESTAMP
+                    WHERE p.product_id = ?
+                `, [productId]);
+                
+                console.log(`Updated product totals for product ID: ${productId}`);
+                
+                // Sync all stock fields (totals + sizes JSON) with current variant data
+                await syncAllStockFields(connection, productId);
             }
 
             // Update order status
@@ -434,13 +537,24 @@ exports.confirmOrder = async (req, res) => {
             await connection.commit();
             await connection.end();
             
+            // Prepare stock update data for real-time notifications
+            const stockUpdates = orderItems.map(item => ({
+                product_id: item.product_id,
+                product: item.productname,
+                quantityReserved: item.quantity,
+                newAvailableStock: item.total_available_stock - item.quantity
+            }));
+            
             res.json({
                 success: true,
                 message: 'Order confirmed successfully and inventory updated',
-                inventoryUpdated: orderItems.map(item => ({
-                    product: item.productname,
-                    quantityReserved: item.quantity
-                }))
+                inventoryUpdated: stockUpdates,
+                stockUpdateEvent: {
+                    type: 'order_confirmed',
+                    orderId: orderId,
+                    productIds: orderItems.map(item => item.product_id),
+                    timestamp: new Date().toISOString()
+                }
             });
             
         } catch (error) {
@@ -908,6 +1022,206 @@ exports.getConfirmedOrders = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to fetch confirmed orders' 
+        });
+    }
+};
+
+// Process order cancellation and restore stock
+exports.processOrderCancellation = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        
+        console.log('=== PROCESS ORDER CANCELLATION ===');
+        console.log('Order ID:', orderId);
+        console.log('User ID:', req.user?.id);
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            await connection.beginTransaction();
+            
+            // Get order details
+            const [orderCheck] = await connection.execute(`
+                SELECT o.id, o.user_id, o.status, o.order_number, o.invoice_id
+                FROM orders o
+                WHERE o.id = ?
+            `, [orderId]);
+            
+            if (orderCheck.length === 0) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: 'Order not found'
+                });
+            }
+            
+            const order = orderCheck[0];
+            
+            // Check if order can be cancelled
+            if (!['pending', 'confirmed'].includes(order.status)) {
+                await connection.rollback();
+                await connection.end();
+                return res.status(400).json({
+                    success: false,
+                    message: `Cannot cancel order with status: ${order.status}`
+                });
+            }
+            
+            // Get order items to restore stock
+            const [orderItems] = await connection.execute(`
+                SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
+                       oi.product_name, p.productname
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.product_id
+                WHERE oi.order_id = ?
+            `, [orderId]);
+            
+            console.log(`Found ${orderItems.length} items to restore stock for`);
+            
+            // Restore stock for each item
+            for (const item of orderItems) {
+                console.log(`Restoring stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
+                
+                // Try to restore to specific variant first
+                const [variantResult] = await connection.execute(`
+                    UPDATE product_variants 
+                    SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
+                        available_quantity = stock_quantity - GREATEST(0, reserved_quantity - ?),
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE product_id = ? AND size = ? AND color = ?
+                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
+                
+                if (variantResult.affectedRows > 0) {
+                    console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units`);
+                    
+                    // Log the stock movement
+                    await connection.execute(`
+                        INSERT INTO stock_movements 
+                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                        VALUES (?, 'IN', ?, ?, 'Order Cancellation', ?, ?, ?)
+                    `, [item.product_id, item.quantity, item.size || 'N/A', 
+                        orderId, req.user?.id || 0, `Order cancelled - restored ${item.quantity} units for ${item.productname} ${item.size}/${item.color}`]);
+                } else {
+                    // Fallback to general product stock restoration
+                    console.log(`No variant found, restoring general stock for ${item.productname}`);
+                    await connection.execute(`
+                        UPDATE products 
+                        SET total_available_stock = total_available_stock + ?,
+                            total_reserved_stock = GREATEST(0, COALESCE(total_reserved_stock, 0) - ?),
+                            last_stock_update = CURRENT_TIMESTAMP
+                        WHERE product_id = ?
+                    `, [item.quantity, item.quantity, item.product_id]);
+                }
+            }
+            
+            // Update overall product stock totals from variants
+            console.log('Updating overall product stock totals after restoration...');
+            await connection.execute(`
+                UPDATE products p
+                SET p.total_stock = (
+                    SELECT COALESCE(SUM(pv.stock_quantity), 0) 
+                    FROM product_variants pv 
+                    WHERE pv.product_id = p.product_id
+                ),
+                p.total_available_stock = (
+                    SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                    FROM product_variants pv 
+                    WHERE pv.product_id = p.product_id
+                ),
+                p.total_reserved_stock = (
+                    SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                    FROM product_variants pv 
+                    WHERE pv.product_id = p.product_id
+                ),
+                p.stock_status = CASE 
+                    WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                    WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                    WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                    ELSE 'in_stock'
+                END,
+                p.last_stock_update = CURRENT_TIMESTAMP
+                WHERE p.product_id IN (${orderItems.map(() => '?').join(',')})
+            `, orderItems.map(item => item.product_id));
+            
+            // Sync all stock fields for all affected products
+            console.log('Syncing all stock fields for all affected products...');
+            const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
+            for (const productId of uniqueProductIds) {
+                await syncAllStockFields(connection, productId);
+            }
+            
+            // Update order status to cancelled
+            await connection.execute(`
+                UPDATE orders 
+                SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 
+                WHERE id = ?
+            `, [orderId]);
+            
+            // Update related transactions and invoices
+            await connection.execute(`
+                UPDATE sales_transactions st
+                JOIN orders o ON st.transaction_id = o.transaction_id
+                SET st.transaction_status = 'cancelled'
+                WHERE o.id = ?
+            `, [orderId]);
+            
+            await connection.execute(`
+                UPDATE order_invoices oi
+                JOIN orders o ON oi.invoice_id = o.invoice_id
+                SET oi.invoice_status = 'cancelled'
+                WHERE o.id = ?
+            `, [orderId]);
+            
+            // Update any pending cancellation requests
+            await connection.execute(`
+                UPDATE cancellation_requests
+                SET status = 'approved', processed_at = CURRENT_TIMESTAMP
+                WHERE order_id = ? AND status = 'pending'
+            `, [orderId]);
+            
+            await connection.commit();
+            await connection.end();
+            
+            console.log(`✅ Order ${orderId} cancelled successfully and stock restored`);
+            
+            // Prepare response with stock restoration data
+            const stockUpdates = orderItems.map(item => ({
+                product_id: item.product_id,
+                product: item.productname,
+                quantityRestored: item.quantity,
+                size: item.size,
+                color: item.color
+            }));
+            
+            res.json({
+                success: true,
+                message: 'Order cancelled successfully and stock restored',
+                data: {
+                    orderId,
+                    orderNumber: order.order_number,
+                    status: 'cancelled'
+                },
+                inventoryRestored: stockUpdates,
+                stockUpdateEvent: {
+                    type: 'order_cancelled',
+                    orderId: orderId,
+                    productIds: orderItems.map(item => item.product_id),
+                    timestamp: new Date().toISOString()
+                }
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            await connection.end();
+            throw error;
+        }
+        
+    } catch (error) {
+        console.error('Error processing order cancellation:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to process order cancellation' 
         });
     }
 };
@@ -1509,6 +1823,23 @@ exports.processCancellationRequest = async (req, res) => {
                 `, [request.order_id]);
                 
                 console.log('Order cancelled and inventory restored successfully');
+                
+                // Prepare stock restoration data for real-time notifications
+                const stockRestorations = orderItems.map(item => ({
+                    product_id: item.product_id,
+                    product: item.productname,
+                    quantityRestored: item.quantity,
+                    newAvailableStock: item.total_available_stock + item.quantity
+                }));
+                
+                // Store stock update event data
+                var stockUpdateEvent = {
+                    type: 'order_cancelled',
+                    orderId: request.order_id,
+                    productIds: orderItems.map(item => item.product_id),
+                    stockRestorations: stockRestorations,
+                    timestamp: new Date().toISOString()
+                };
             }
             
             await connection.commit();
@@ -1518,15 +1849,23 @@ exports.processCancellationRequest = async (req, res) => {
                 ? 'Cancellation request approved and order cancelled successfully'
                 : 'Cancellation request denied successfully';
             
+            const responseData = {
+                requestId,
+                action,
+                status: newStatus,
+                adminNotes
+            };
+            
+            // Add stock update event if cancellation was approved
+            if (action === 'approve' && typeof stockUpdateEvent !== 'undefined') {
+                responseData.stockUpdateEvent = stockUpdateEvent;
+                responseData.inventoryRestored = stockUpdateEvent.stockRestorations;
+            }
+            
             res.json({
                 success: true,
                 message,
-                data: {
-                    requestId,
-                    action,
-                    status: newStatus,
-                    adminNotes
-                }
+                data: responseData
             });
             
         } catch (error) {
@@ -1534,7 +1873,6 @@ exports.processCancellationRequest = async (req, res) => {
             await connection.end();
             throw error;
         }
-        
     } catch (error) {
         console.error('Error processing cancellation request:', error);
         res.status(500).json({ 
@@ -1543,3 +1881,88 @@ exports.processCancellationRequest = async (req, res) => {
         });
     }
 };
+
+// Helper function to sync product sizes JSON with variant data
+async function syncProductSizesWithVariants(connection, productId) {
+    try {
+        console.log(`Syncing sizes JSON for product ${productId}...`);
+        
+        // Get current variants for this product
+        const [variants] = await connection.execute(
+            'SELECT size, color, available_quantity FROM product_variants WHERE product_id = ? ORDER BY size, color',
+            [productId]
+        );
+        
+        if (variants.length > 0) {
+            // Build the new sizes JSON structure
+            const sizesMap = {};
+            variants.forEach(variant => {
+                if (!sizesMap[variant.size]) {
+                    sizesMap[variant.size] = {
+                        size: variant.size,
+                        colorStocks: []
+                    };
+                }
+                sizesMap[variant.size].colorStocks.push({
+                    color: variant.color,
+                    stock: variant.available_quantity
+                });
+            });
+            
+            const newSizesArray = Object.values(sizesMap);
+            const newSizesJSON = JSON.stringify(newSizesArray);
+            
+            // Update the products table
+            await connection.execute(
+                'UPDATE products SET sizes = ? WHERE product_id = ?',
+                [newSizesJSON, productId]
+            );
+            
+            console.log(`✅ Synced sizes JSON for product ${productId}`);
+        }
+    } catch (error) {
+        console.error(`Error syncing sizes JSON for product ${productId}:`, error);
+    }
+}
+
+// Helper function to sync all stock fields (totals + sizes JSON)
+async function syncAllStockFields(connection, productId) {
+    try {
+        console.log(`Syncing all stock fields for product ${productId}...`);
+        
+        // Update all stock totals from variants
+        await connection.execute(`
+            UPDATE products p
+            SET p.total_stock = (
+                SELECT COALESCE(SUM(pv.stock_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_available_stock = (
+                SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_reserved_stock = (
+                SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.stock_status = CASE 
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                ELSE 'in_stock'
+            END,
+            p.last_stock_update = CURRENT_TIMESTAMP
+            WHERE p.product_id = ?
+        `, [productId]);
+        
+        // Also sync the sizes JSON
+        await syncProductSizesWithVariants(connection, productId);
+        
+        console.log(`✅ All stock fields synced for product ${productId}`);
+    } catch (error) {
+        console.error(`Error syncing all stock fields for product ${productId}:`, error);
+    }
+}

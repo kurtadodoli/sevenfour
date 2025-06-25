@@ -915,7 +915,12 @@ const ProductDetailsPage = () => {
     const getTotalStock = (product) => {
         if (!product) return 0;
         
-        // Use total_stock if it exists (most reliable)
+        // Use total_available_stock for customer-facing display (most relevant)
+        if (product.total_available_stock !== undefined && product.total_available_stock !== null) {
+            return product.total_available_stock;
+        }
+        
+        // Use total_stock if available stock is not set
         if (product.total_stock !== undefined && product.total_stock !== null) {
             return product.total_stock;
         }

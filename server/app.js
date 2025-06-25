@@ -31,50 +31,93 @@ app.use(helmet({
 }));
 app.use(security);
 
-// Rate limiting
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
-});
+// Rate limiting - disabled for development/testing
+// const apiLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15 minutes
+//     max: 1000, // much higher limit for development
+//     message: 'Too many requests, please try again later.'
+// });
 
-// Apply rate limiting to API routes
-app.use('/api/', apiLimiter);
+// Apply rate limiting to API routes - DISABLED for testing
+// app.use('/api/', apiLimiter);
 
-// Auth-specific rate limiting
-const authLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour window
-    max: 30, // increased from 5 to 30 for development
-    message: 'Too many login attempts, please try again after an hour'
-});
+// Auth-specific rate limiting - DISABLED for testing
+// const authLimiter = rateLimit({
+//     windowMs: 60 * 60 * 1000, // 1 hour window
+//     max: 100, // increased for development
+//     message: 'Too many login attempts, please try again after an hour'
+// });
 
-// Login limiter (keep stricter)
-app.use('/api/auth/login', authLimiter);
+// Login limiter - DISABLED for testing
+// app.use('/api/auth/login', authLimiter);
 
-// Registration limiter (more generous for development)
-const registerLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour window
-    max: 50, // much higher limit for registration
-    message: 'Too many registration attempts, please try again after an hour'
-});
-app.use('/api/auth/register', registerLimiter);
+// Registration limiter - DISABLED for testing
+// const registerLimiter = rateLimit({
+//     windowMs: 60 * 60 * 1000, // 1 hour window
+//     max: 50, // much higher limit for registration
+//     message: 'Too many registration attempts, please try again after an hour'
+// });
+// app.use('/api/auth/register', registerLimiter);
 
-// Update CORS to match your client port (allow all localhost ports)
+// Update CORS to fix preflight and origin issues
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001', 
+      'http://localhost:3002',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:3002'
+    ];
+    
+    console.log('🌐 CORS Request from origin:', origin);
+    
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV !== 'production') {
+      if (origin && origin.includes('localhost')) {
+        console.log('✅ CORS: Allowing localhost origin');
+        return callback(null, true);
+      }
+    }
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('✅ CORS: Origin allowed');
+      callback(null, true);
+    } else {
+      console.log('❌ CORS: Origin not allowed:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  optionsSuccessStatus: 200
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 }));
 
-// Handle preflight requests explicitly
-app.options('*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-  optionsSuccessStatus: 200
-}));
+// Handle preflight requests explicitly for all routes
+app.options('*', (req, res) => {
+  console.log('🔄 CORS Preflight request for:', req.url);
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept,Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(200);
+});
 
 // Logging
 app.use(morgan('dev'));

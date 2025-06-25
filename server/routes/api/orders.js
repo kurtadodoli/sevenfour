@@ -176,4 +176,9 @@ router.get('/confirmed-test', async (req, res) => {
     }
 });
 
+// @route   POST api/orders/:id/process-cancellation
+// @desc    Process order cancellation and restore stock (Admin/Staff only)
+// @access  Private/Admin/Staff
+router.post('/:id/process-cancellation', auth, orderController.processOrderCancellation);
+
 module.exports = router;
