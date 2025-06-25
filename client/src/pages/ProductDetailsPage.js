@@ -1009,59 +1009,9 @@ const ProductDetailsPage = () => {
         
         // Fallback to old structure
         return getStockForSize(size);
-    };// Get detailed size-color breakdown for display (matches MaintenancePage.js logic)
-    const getSizeColorBreakdown = (product) => {
-        try {
-            // First check if sizes field contains sizeColorVariants structure
-            if (product.sizes) {
-                const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
-                
-                // Check if it's the new sizeColorVariants format
-                if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
-                    // Ensure the structure is correct
-                    const validVariants = parsedSizes.filter(sizeVariant => {
-                        return sizeVariant && 
-                               typeof sizeVariant.size === 'string' && 
-                               Array.isArray(sizeVariant.colorStocks) &&
-                               sizeVariant.colorStocks.some(colorStock => 
-                                   colorStock && 
-                                   typeof colorStock.color === 'string' && 
-                                   typeof colorStock.stock === 'number' && 
-                                   colorStock.stock > 0
-                               );
-                    });
-                    
-                    return validVariants;
-                }
-            }
-            
-            // Then check sizeColorVariants field
-            if (product.sizeColorVariants) {
-                const sizeColorVariants = typeof product.sizeColorVariants === 'string' 
-                    ? JSON.parse(product.sizeColorVariants) 
-                    : product.sizeColorVariants;
-                
-                // Ensure the structure is correct
-                const validVariants = sizeColorVariants.filter(sizeVariant => {
-                    return sizeVariant && 
-                           typeof sizeVariant.size === 'string' && 
-                           Array.isArray(sizeVariant.colorStocks) &&
-                           sizeVariant.colorStocks.some(colorStock => 
-                               colorStock && 
-                               typeof colorStock.color === 'string' && 
-                               typeof colorStock.stock === 'number' && 
-                               colorStock.stock > 0
-                           );
-                });
-                
-                return validVariants;
-            }
-        } catch (error) {
-            console.error('Error parsing size-color variants:', error);
-        }
-        
-        return [];
-    };const addToCart = async () => {
+    };
+
+    const addToCart = async () => {
         // Validate required fields
         if (availableSizes.length > 0 && !selectedSize) {
             showNotification('Please select a size first', 'error');
@@ -1324,9 +1274,10 @@ const ProductDetailsPage = () => {
                                     <SpecLabel>Size:</SpecLabel>
                                     <SizeOptions>
                                         {availableSizes.map((sizeData) => {
-                                            // Get color breakdown for this size
-                                            const sizeColorBreakdown = getSizeColorBreakdown(product);
-                                            const sizeVariant = sizeColorBreakdown.find(variant => variant.size === sizeData.size);
+                                            // Get stock for this specific size and currently selected color
+                                            const stockForSelectedColor = selectedColor ? 
+                                                getStockForSizeAndColor(sizeData.size, selectedColor) :
+                                                sizeData.stock; // Show total if no color selected
                                             
                                             return (
                                                 <SizeButton
@@ -1342,13 +1293,13 @@ const ProductDetailsPage = () => {
                                                             setSelectedColor('');
                                                         }
                                                     }}
-                                                    title={sizeVariant ? 
-                                                        `${sizeData.size}: ${sizeVariant.colorStocks.map(cs => `${cs.color} (${cs.stock})`).join(', ')}` :
-                                                        `${sizeData.size}: ${sizeData.stock} available`
+                                                    title={selectedColor ? 
+                                                        `${sizeData.size} - ${selectedColor}: ${stockForSelectedColor} available` :
+                                                        `${sizeData.size}: Total ${sizeData.stock} available`
                                                     }
                                                 >
                                                     {sizeData.size}
-                                                    <small>({sizeData.stock} available)</small>
+                                                    <small>({stockForSelectedColor} available)</small>
                                                 </SizeButton>
                                             );
                                         })}

@@ -1770,36 +1770,104 @@ exports.processCancellationRequest = async (req, res) => {
             
             // If approved, update the order status to cancelled
             if (action === 'approve') {
-                // First, get the order items to restore inventory
-                console.log('Getting order items for inventory restoration...');
-                const [orderItems] = await connection.execute(`
-                    SELECT oi.product_id, oi.quantity, p.productname, p.total_available_stock, p.total_reserved_stock
-                    FROM order_items oi
-                    JOIN orders o ON oi.invoice_id = o.invoice_id
-                    JOIN products p ON oi.product_id = p.product_id
+                // First, check the original order status to determine if stock was ever subtracted
+                console.log('Checking original order status...');
+                const [originalOrder] = await connection.execute(`
+                    SELECT o.status, o.order_number
+                    FROM orders o
                     WHERE o.id = ?
                 `, [request.order_id]);
                 
-                console.log(`Found ${orderItems.length} items in cancelled order`);
+                if (originalOrder.length === 0) {
+                    throw new Error('Order not found');
+                }
                 
-                // Restore inventory - add back cancelled quantities to available stock
-                console.log('Restoring inventory for cancelled order...');
-                for (const item of orderItems) {
-                    await connection.execute(`
-                        UPDATE products 
-                        SET total_available_stock = total_available_stock + ?,
-                            total_reserved_stock = GREATEST(0, COALESCE(total_reserved_stock, 0) - ?),
-                            last_stock_update = CURRENT_TIMESTAMP,
-                            stock_status = CASE 
-                                WHEN (total_available_stock + ?) <= 0 THEN 'out_of_stock'
-                                WHEN (total_available_stock + ?) <= 5 THEN 'critical_stock'
-                                WHEN (total_available_stock + ?) <= 15 THEN 'low_stock'
-                                ELSE 'in_stock'
-                            END
-                        WHERE product_id = ?
-                    `, [item.quantity, item.quantity, item.quantity, item.quantity, item.quantity, item.product_id]);
+                const originalStatus = originalOrder[0].status;
+                const orderNumber = originalOrder[0].order_number;
+                console.log(`Original order status: ${originalStatus} (Order: ${orderNumber})`);
+                
+                // Only restore inventory if the order was previously confirmed
+                // Orders in 'pending' status never had stock subtracted, so no need to restore
+                const shouldRestoreStock = ['confirmed', 'processing', 'shipped'].includes(originalStatus);
+                
+                if (shouldRestoreStock) {
+                    console.log('Order was confirmed - restoring inventory...');
                     
-                    console.log(`Restored stock for ${item.productname}: +${item.quantity} units`);
+                    // Get the order items to restore inventory with variant details
+                    const [orderItems] = await connection.execute(`
+                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname, 
+                               p.total_available_stock, p.total_reserved_stock
+                        FROM order_items oi
+                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        JOIN products p ON oi.product_id = p.product_id
+                        WHERE o.id = ?
+                    `, [request.order_id]);
+                    
+                    console.log(`Found ${orderItems.length} items in cancelled order`);
+                    
+                    // Restore inventory - add back cancelled quantities to both variant and product level
+                    for (const item of orderItems) {
+                        // First restore the variant stock
+                        await connection.execute(`
+                            UPDATE product_variants 
+                            SET stock_quantity = stock_quantity + ?,
+                                available_quantity = available_quantity + ?,
+                                last_updated = CURRENT_TIMESTAMP
+                            WHERE product_id = ? AND color = ? AND size = ?
+                        `, [item.quantity, item.quantity, item.product_id, item.color, item.size]);
+                        
+                        console.log(`Restored variant stock for ${item.productname} ${item.color} ${item.size}: +${item.quantity} units`);
+                        
+                        // Record stock movement for variant restoration
+                        await connection.execute(`
+                            INSERT INTO stock_movements (
+                                product_id, movement_type, quantity, size, reason, 
+                                reference_number, user_id, notes
+                            ) VALUES (?, 'IN', ?, ?, 'Order Cancellation', ?, ?, ?)
+                        `, [
+                            item.product_id, 
+                            item.quantity, 
+                            item.size, 
+                            request.order_id, 
+                            req.user?.user_id || null,
+                            `Order cancelled - restored ${item.quantity} units for ${item.productname} ${item.size}/${item.color}`
+                        ]);
+                    }
+                    
+                    // Now sync product-level totals from variants
+                    console.log('Syncing product-level stock from variants...');
+                    for (const item of orderItems) {
+                        await connection.execute(`
+                            UPDATE products p
+                            SET total_stock = (
+                                SELECT COALESCE(SUM(pv.stock_quantity), 0) 
+                                FROM product_variants pv 
+                                WHERE pv.product_id = p.product_id
+                            ),
+                            total_available_stock = (
+                                SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                                FROM product_variants pv 
+                                WHERE pv.product_id = p.product_id
+                            ),
+                            total_reserved_stock = (
+                                SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                                FROM product_variants pv 
+                                WHERE pv.product_id = p.product_id
+                            ),
+                            stock_status = CASE 
+                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                                ELSE 'in_stock'
+                            END,
+                            last_stock_update = CURRENT_TIMESTAMP
+                            WHERE product_id = ?
+                        `, [item.product_id]);
+                        
+                        console.log(`Synced stock totals for ${item.productname}`);
+                    }
+                } else {
+                    console.log(`Order was in '${originalStatus}' status - no stock to restore (stock was never subtracted)`);
                 }
                 
                 await connection.execute(`
@@ -1822,24 +1890,53 @@ exports.processCancellationRequest = async (req, res) => {
                     WHERE transaction_id = (SELECT transaction_id FROM orders WHERE id = ?)
                 `, [request.order_id]);
                 
-                console.log('Order cancelled and inventory restored successfully');
+                console.log(`Order cancelled successfully. Stock restoration: ${shouldRestoreStock ? 'YES' : 'NO'}`);
                 
-                // Prepare stock restoration data for real-time notifications
-                const stockRestorations = orderItems.map(item => ({
-                    product_id: item.product_id,
-                    product: item.productname,
-                    quantityRestored: item.quantity,
-                    newAvailableStock: item.total_available_stock + item.quantity
-                }));
-                
-                // Store stock update event data
+                // Prepare response data for notifications
                 var stockUpdateEvent = {
                     type: 'order_cancelled',
                     orderId: request.order_id,
-                    productIds: orderItems.map(item => item.product_id),
-                    stockRestorations: stockRestorations,
+                    originalStatus: originalStatus,
+                    stockRestored: shouldRestoreStock,
                     timestamp: new Date().toISOString()
                 };
+                
+                if (shouldRestoreStock) {
+                    // Get the order items for the response (we have them from the restoration logic)
+                    const [responseOrderItems] = await connection.execute(`
+                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname
+                        FROM order_items oi
+                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        JOIN products p ON oi.product_id = p.product_id
+                        WHERE o.id = ?
+                    `, [request.order_id]);
+                    
+                    // Get updated stock levels for notifications
+                    const [updatedStock] = await connection.execute(`
+                        SELECT p.product_id, p.productname, p.total_available_stock, p.total_stock
+                        FROM products p
+                        WHERE p.product_id IN (${responseOrderItems.map(() => '?').join(',')})
+                    `, responseOrderItems.map(item => item.product_id));
+                    
+                    // Prepare stock restoration data
+                    const stockRestorations = responseOrderItems.map(item => {
+                        const updatedProduct = updatedStock.find(p => p.product_id === item.product_id);
+                        return {
+                            product_id: item.product_id,
+                            product: item.productname,
+                            color: item.color,
+                            size: item.size,
+                            quantityRestored: item.quantity,
+                            newAvailableStock: updatedProduct ? updatedProduct.total_available_stock : 0,
+                            newTotalStock: updatedProduct ? updatedProduct.total_stock : 0
+                        };
+                    });
+                    
+                    stockUpdateEvent.productIds = responseOrderItems.map(item => item.product_id);
+                    stockUpdateEvent.stockRestorations = stockRestorations;
+                } else {
+                    stockUpdateEvent.message = `Order was in '${originalStatus}' status - no stock restoration needed`;
+                }
             }
             
             await connection.commit();
@@ -1859,7 +1956,12 @@ exports.processCancellationRequest = async (req, res) => {
             // Add stock update event if cancellation was approved
             if (action === 'approve' && typeof stockUpdateEvent !== 'undefined') {
                 responseData.stockUpdateEvent = stockUpdateEvent;
-                responseData.inventoryRestored = stockUpdateEvent.stockRestorations;
+                if (stockUpdateEvent.stockRestored && stockUpdateEvent.stockRestorations) {
+                    responseData.inventoryRestored = stockUpdateEvent.stockRestorations;
+                } else {
+                    responseData.inventoryRestored = [];
+                    responseData.message = stockUpdateEvent.message;
+                }
             }
             
             res.json({

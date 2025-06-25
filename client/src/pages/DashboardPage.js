@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
+import StockStatusWidget from '../components/StockStatusWidget';
 
 const DashboardPage = () => {
     const { currentUser } = useAuth();
@@ -278,6 +279,7 @@ const DashboardPage = () => {
             <Header>
                 <Title>Dashboard</Title>
                 <Subtitle>Administrative Reports & Analytics</Subtitle>
+                <StockStatusWidget />
             </Header>
 
             <ReportsContainer>                <SidePanel>
