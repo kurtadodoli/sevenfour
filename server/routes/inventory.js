@@ -103,4 +103,80 @@ router.get('/inventory', async (req, res) => {
     }
 });
 
+// GET all product variants with size/color combinations
+router.get('/variants', async (req, res) => {
+    try {
+        console.log('🔍 Getting all product variants...');
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get all variants with product information
+        const [variants] = await connection.execute(`
+            SELECT 
+                pv.product_id,
+                pv.size,
+                pv.color,
+                pv.stock_quantity,
+                pv.available_quantity,
+                pv.reserved_quantity,
+                pv.created_at,
+                p.productname,
+                p.productprice,
+                p.productcolor as primary_color,
+                p.product_type,
+                p.status
+            FROM product_variants pv
+            JOIN products p ON pv.product_id = p.product_id
+            WHERE p.status = 'active'
+            ORDER BY p.productname, pv.size, pv.color
+        `);
+        
+        console.log(`✅ Found ${variants.length} product variants`);
+        
+        // Group variants by product
+        const groupedVariants = variants.reduce((acc, variant) => {
+            if (!acc[variant.product_id]) {
+                acc[variant.product_id] = {
+                    product_id: variant.product_id,
+                    productname: variant.productname,
+                    productprice: variant.productprice,
+                    primary_color: variant.primary_color,
+                    product_type: variant.product_type,
+                    status: variant.status,
+                    variants: []
+                };
+            }
+            
+            acc[variant.product_id].variants.push({
+                size: variant.size,
+                color: variant.color,
+                stock_quantity: variant.stock_quantity,
+                available_quantity: variant.available_quantity,
+                reserved_quantity: variant.reserved_quantity,
+                stock_level: variant.stock_quantity === 0 ? 'critical' : 
+                           variant.stock_quantity <= 5 ? 'low' : 'normal',
+                created_at: variant.created_at
+            });
+            
+            return acc;
+        }, {});
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Product variants retrieved successfully',
+            data: Object.values(groupedVariants),
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Error getting variants:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to retrieve variants',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

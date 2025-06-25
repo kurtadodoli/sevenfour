@@ -291,6 +291,37 @@ router.post('/products', (req, res, next) => {
             }
         }
         
+        // SYNC PRODUCT TOTALS FROM VARIANTS (Critical for stock display)
+        console.log('Syncing product totals from variants...');
+        await connection.execute(`
+            UPDATE products p
+            SET p.total_stock = (
+                SELECT COALESCE(SUM(pv.stock_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_available_stock = (
+                SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_reserved_stock = (
+                SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.stock_status = CASE 
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                ELSE 'in_stock'
+            END,
+            p.last_stock_update = NOW()
+            WHERE p.product_id = ?
+        `, [generatedProductId]);
+        
+        console.log('✅ Product totals synced from variants');
+        
         await connection.end();
         
         console.log('Product added successfully, ID:', productDbId);
@@ -560,6 +591,37 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
                 console.log(`✅ Created default variant: ${size}/${defaultColor} with ${stockPerSize} stock`);
             }
         }
+        
+        // SYNC PRODUCT TOTALS FROM VARIANTS (Critical for stock display)
+        console.log('Syncing product totals from variants...');
+        await connection.execute(`
+            UPDATE products p
+            SET p.total_stock = (
+                SELECT COALESCE(SUM(pv.stock_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_available_stock = (
+                SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.total_reserved_stock = (
+                SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                FROM product_variants pv 
+                WHERE pv.product_id = p.product_id
+            ),
+            p.stock_status = CASE 
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                ELSE 'in_stock'
+            END,
+            p.last_stock_update = NOW()
+            WHERE p.product_id = ?
+        `, [productId]);
+        
+        console.log('✅ Product totals synced from variants');
         
         await connection.end();
         res.json({ message: 'Product updated successfully' });

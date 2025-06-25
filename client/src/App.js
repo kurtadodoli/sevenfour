@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { SidebarProvider } from './context/SidebarContext';
+import { StockProvider } from './context/StockContext';
 import { ToastProvider } from './components/Toast';
 import { ToastContainer } from 'react-toastify';
 import logoImg from './assets/images/sfc-logo-white.png'; // Import your logo
@@ -155,11 +156,13 @@ function App() {
         <CartProvider>
           <WishlistProvider>
             <SidebarProvider>
-              <ToastProvider>
-                <AppWrapper>
-                  <Layout />
-                </AppWrapper>
-              </ToastProvider>
+              <StockProvider>
+                <ToastProvider>
+                  <AppWrapper>
+                    <Layout />
+                  </AppWrapper>
+                </ToastProvider>
+              </StockProvider>
             </SidebarProvider>
           </WishlistProvider>
         </CartProvider>

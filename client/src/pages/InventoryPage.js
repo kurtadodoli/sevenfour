@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { useStock } from '../context/StockContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faBoxes, 
@@ -586,6 +587,7 @@ const StockLabel = styled.div`
 `;
 
 const InventoryPage = () => {
+  const { stockData, loading: stockLoading, lastUpdate, fetchStockData, getStockStats } = useStock();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -595,31 +597,39 @@ const InventoryPage = () => {
   const [sortDirection, setSortDirection] = useState('asc');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [showProductModal, setShowProductModal] = useState(false);  // Fetch products with stock information from inventory API with product_stock data
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [variants, setVariants] = useState([]);
+
+  // Fetch products with detailed size/color information from maintenance API (same as MaintenancePage)
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
-        console.log('🔄 Fetching products from maintenance API...');
+      
+      console.log('🔄 Fetching products from maintenance API (authoritative source)...');
+      
+      // Use only the maintenance API for consistent data
       const response = await fetch('http://localhost:3001/api/maintenance/products', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
-      });      if (response.ok) {
+      });
+
+      if (response.ok) {
         const products = await response.json();
-        console.log('✅ Received products from maintenance API:', products.length);        // Process products to match inventory page format (using same logic as MaintenancePage)
+        console.log('✅ Received products from maintenance API:', products.length);        // Process products using the same logic as MaintenancePage.js for accuracy
         const processedProducts = products
-          .filter(product => product.status === 'active' || product.productstatus === 'active') // Only show active products
+          .filter(product => product.status === 'active' || product.productstatus === 'active')
           .map(product => {
-            // Calculate total stock from size-color variants (same as MaintenancePage)
+            console.log('Processing product:', product.productname, 'Raw sizes:', product.sizes);
+            
             let totalStock = 0;
             let sizesData = [];
-            
-            // Parse size-color variants from the product
             let sizeColorVariants = [];
             
+            // Use the EXACT same processing logic as MaintenancePage.js
             if (product.sizes) {
               try {
                 const parsedSizes = typeof product.sizes === 'string' ? JSON.parse(product.sizes) : product.sizes;
@@ -627,6 +637,7 @@ const InventoryPage = () => {
                 // Check if it's the new sizeColorVariants format (has size and colorStocks properties)
                 if (Array.isArray(parsedSizes) && parsedSizes.length > 0 && parsedSizes[0].colorStocks) {
                   sizeColorVariants = parsedSizes;
+                  console.log('Found sizeColorVariants for', product.productname, ':', sizeColorVariants);
                 }
                 // Otherwise it's the old format (array of objects with size and stock, or just strings)
                 else if (Array.isArray(parsedSizes) && parsedSizes.length > 0) {
@@ -674,19 +685,34 @@ const InventoryPage = () => {
               }];
             }
             
-            // Calculate total stock and create sizes data for display
+            // Calculate total stock and create sizes data for display (EXACT same logic as MaintenancePage)
             sizeColorVariants.forEach(variant => {
               let sizeStock = 0;
-              variant.colorStocks.forEach(colorStock => {
-                sizeStock += colorStock.stock || 0;
-              });
-              totalStock += sizeStock;
+              const colors = [];
               
+              if (variant.colorStocks) {
+                variant.colorStocks.forEach(colorStock => {
+                  const stockAmount = colorStock.stock || 0;
+                  sizeStock += stockAmount;
+                  colors.push({
+                    color: colorStock.color,
+                    stock: stockAmount,
+                    available: stockAmount, // Use same value for now
+                    reserved: 0, // Default to 0
+                    level: stockAmount === 0 ? 'critical' : stockAmount <= 5 ? 'low' : 'normal'
+                  });
+                });
+              }
+              
+              totalStock += sizeStock;
               sizesData.push({
                 size: variant.size,
-                stock: sizeStock
+                stock: sizeStock,
+                colors: colors
               });
             });
+            
+            console.log('Processed stock for', product.productname, '- Total:', totalStock, 'Sizes:', sizesData);
             
             // Determine stock level based on total stock
             let stockLevel = 'normal';
@@ -705,24 +731,61 @@ const InventoryPage = () => {
               status: product.status || product.productstatus,
               totalStock: totalStock,
               stockLevel: stockLevel,
-              sizes: JSON.stringify(sizesData), // For compatibility with existing display logic
-              sizeColorVariants: sizeColorVariants, // Store the full variant data
-              rawProduct: product // Keep original data for modal
+              sizes: JSON.stringify(sizesData), // For compatibility
+              sizesData: sizesData, // New detailed data with accurate stock numbers
+              sizeColorVariants: sizeColorVariants,
+              rawProduct: product
             };
           });
           
-        console.log('✅ Processed products for inventory:', processedProducts.length);
+        console.log('✅ Processed products for inventory with accurate stock:', processedProducts.length);
         setProducts(processedProducts);
         setLastUpdated(new Date());
       } else {
-        throw new Error(`Failed to fetch products: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
       }
+            
     } catch (err) {
-      console.error('Error fetching products:', err);        setError('Failed to load inventory data from maintenance API');
+      console.error('Error fetching products:', err);
+      setError('Failed to load inventory data from maintenance API');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Listen for stock updates from other parts of the app (like order cancellations)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'stock_updated') {
+        console.log('📦 Stock updated in another tab/component, refreshing inventory...');
+        fetchProducts();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [fetchProducts]);
+
+  // Auto-refresh when stock context updates or periodically
+  useEffect(() => {
+    if (lastUpdate) {
+      console.log('📦 StockContext updated, refreshing inventory data...');
+      fetchProducts();
+    }
+  }, [lastUpdate, fetchProducts]);
+
+  // Add periodic refresh to catch stock changes from order operations
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Only refresh if page is visible and not currently loading
+      if (document.visibilityState === 'visible' && !loading) {
+        console.log('🔄 Periodic stock refresh (catching order changes)...');
+        fetchProducts();
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, [fetchProducts, loading]);
 
   useEffect(() => {
     fetchProducts();
@@ -843,8 +906,32 @@ const InventoryPage = () => {
     }
   };
 
-  const handleRefresh = () => {
-    fetchProducts();
+  const handleRefresh = async () => {
+    console.log('🔄 Manual refresh triggered');
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchProducts(),
+        fetchStockData()
+      ]);
+      console.log('📦 Inventory and stock data refreshed');
+      
+      // Show a brief success indicator
+      const refreshBtn = document.querySelector('button[title="Refresh Stock"]');
+      if (refreshBtn) {
+        const originalText = refreshBtn.innerHTML;
+        refreshBtn.innerHTML = '<i class="fas fa-check"></i> Updated!';
+        refreshBtn.style.backgroundColor = '#28a745';
+        setTimeout(() => {
+          refreshBtn.innerHTML = originalText;
+          refreshBtn.style.backgroundColor = '';
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenModal = (product) => {
@@ -899,8 +986,8 @@ const InventoryPage = () => {
           <Subtitle>
             Monitor product stock levels and manage inventory across all items
             {lastUpdated && (
-              <span style={{ marginLeft: '16px', fontSize: '14px' }}>
-                Last updated: {lastUpdated.toLocaleTimeString()}
+              <span style={{ marginLeft: '16px', fontSize: '14px', color: '#28a745' }}>
+                ✅ Last updated: {lastUpdated.toLocaleTimeString()}
               </span>
             )}
           </Subtitle>
@@ -962,12 +1049,23 @@ const InventoryPage = () => {
               </SearchIcon>
               <SearchInput
                 type="text"
-                placeholder="Search products by name, ID, or color..."
+                placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </SearchContainer>
-
+            <ActionButton 
+              onClick={handleRefresh} 
+              title="Refresh Stock"
+              style={{ 
+                backgroundColor: '#28a745', 
+                borderColor: '#28a745',
+                color: 'white',
+                fontWeight: '600'
+              }}>
+              <FontAwesomeIcon icon={faRefresh} />
+              Refresh Stock
+            </ActionButton>
             <FilterSelect
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
@@ -978,9 +1076,14 @@ const InventoryPage = () => {
               <option value="normal">Normal Stock</option>
             </FilterSelect>
 
-            <ActionButton onClick={handleRefresh}>
+            <ActionButton onClick={handleRefresh} style={{ 
+              backgroundColor: '#28a745', 
+              borderColor: '#28a745',
+              color: 'white',
+              fontWeight: '600'
+            }}>
               <FontAwesomeIcon icon={faRefresh} />
-              Refresh
+              Refresh Stock
             </ActionButton>
 
             <ActionButton primary>
@@ -1032,7 +1135,7 @@ const InventoryPage = () => {
                       />
                     )}
                   </TableHeader>
-                  <TableHeader>Sizes & Stock</TableHeader>
+                  <TableHeader>Sizes & Colors</TableHeader>
                   <TableHeader>Status</TableHeader>
                   <TableHeader>Actions</TableHeader>
                 </TableRow>
@@ -1069,15 +1172,36 @@ const InventoryPage = () => {
                       </TableCell>
                       
                       <TableCell>
-                        <div style={{ 
-                          padding: '4px 8px', 
-                          background: '#f5f5f5', 
-                          borderRadius: '4px', 
-                          display: 'inline-block',
-                          fontSize: '12px',
-                          fontWeight: '500'
-                        }}>
-                          {product.productcolor || 'No Color'}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {product.sizesData && product.sizesData.length > 0 ? (
+                            // Get unique colors from all size variants
+                            [...new Set(product.sizesData.flatMap(sizeData => 
+                              sizeData.colors ? sizeData.colors.map(c => c.color) : []
+                            ))].map((color, index) => (
+                              <div key={index} style={{ 
+                                padding: '4px 8px', 
+                                background: '#f5f5f5', 
+                                borderRadius: '4px', 
+                                display: 'inline-block',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                border: '1px solid #e0e0e0'
+                              }}>
+                                {color}
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ 
+                              padding: '4px 8px', 
+                              background: '#f5f5f5', 
+                              borderRadius: '4px', 
+                              display: 'inline-block',
+                              fontSize: '12px',
+                              fontWeight: '500'
+                            }}>
+                              {product.productcolor || 'No Color'}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                       
@@ -1093,52 +1217,117 @@ const InventoryPage = () => {
                       <TableCell>
                         <strong>₱{parseFloat(product.productprice || 0).toLocaleString()}</strong>
                       </TableCell>
-                        <TableCell>
-                        <div style={{ fontSize: '12px' }}>
-                          {parseSizes(product.sizes).map((size, index) => (
-                            <div key={index} style={{ 
-                              marginBottom: '4px', 
-                              display: 'flex', 
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '4px 8px',
-                              background: size.stock === 0 ? '#ffebee' : size.stock <= 5 ? '#fff3e0' : size.stock <= 15 ? '#fff8e1' : '#f5f5f5',
-                              borderRadius: '6px',
-                              border: `1px solid ${size.stock === 0 ? '#ffcdd2' : size.stock <= 5 ? '#ffe0b2' : size.stock <= 15 ? '#fff3c4' : '#e0e0e0'}`,
-                              color: size.stock === 0 ? '#d32f2f' : size.stock <= 5 ? '#f57c00' : size.stock <= 15 ? '#ff8f00' : '#333333'
-                            }}>
-                              <span style={{ fontWeight: '500' }}>{size.size}:</span>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontWeight: '600' }}>{size.stock}</span>
-                                {size.stock === 0 && (
-                                  <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '10px', color: '#d32f2f' }} />
-                                )}
-                                {size.stock > 0 && size.stock <= 5 && (
-                                  <FontAwesomeIcon icon={faWarning} style={{ fontSize: '10px', color: '#f57c00' }} />
-                                )}
+                      <TableCell>
+                        <div style={{ fontSize: '12px', maxWidth: '200px' }}>
+                          {product.sizesData && product.sizesData.length > 0 ? (
+                            // Show all color/size combinations with accurate stock numbers
+                            product.sizesData.flatMap(sizeData => 
+                              sizeData.colors ? sizeData.colors.map(colorData => ({
+                                ...colorData,
+                                size: sizeData.size
+                              })) : []
+                            ).map((variant, index) => (
+                              <div key={index} style={{ 
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '4px 8px',
+                                marginBottom: '3px',
+                                background: '#f8f9fa',
+                                borderRadius: '4px',
+                                border: '1px solid #e0e0e0',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                color: '#333'
+                              }}>
+                                <span>{variant.color} Size {variant.size}</span>
+                                <span style={{ 
+                                  fontWeight: '600',
+                                  color: variant.stock === 0 ? '#d32f2f' : variant.stock <= 5 ? '#f57c00' : '#2e7d32',
+                                  backgroundColor: variant.stock === 0 ? '#ffebee' : variant.stock <= 5 ? '#fff3e0' : '#f1f8e9',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  fontSize: '10px'
+                                }}>
+                                  {variant.stock} units
+                                </span>
                               </div>
-                            </div>
-                          ))}
-                          {parseSizes(product.sizes).length === 0 && (
+                            ))
+                          ) : (
+                            // Fallback to old display
+                            parseSizes(product.sizes).map((size, index) => (
+                              <div key={index} style={{ 
+                                marginBottom: '4px', 
+                                display: 'flex', 
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '4px 8px',
+                                background: size.stock === 0 ? '#ffebee' : size.stock <= 5 ? '#fff3e0' : '#f5f5f5',
+                                borderRadius: '6px',
+                                border: `1px solid ${size.stock === 0 ? '#ffcdd2' : size.stock <= 5 ? '#ffe0b2' : '#e0e0e0'}`,
+                                color: size.stock === 0 ? '#d32f2f' : size.stock <= 5 ? '#f57c00' : '#333333'
+                              }}>
+                                <span style={{ fontWeight: '500' }}>{size.size}:</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span style={{ fontWeight: '600' }}>{size.stock}</span>
+                                  {size.stock === 0 && (
+                                    <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '10px', color: '#d32f2f' }} />
+                                  )}
+                                  {size.stock > 0 && size.stock <= 5 && (
+                                    <FontAwesomeIcon icon={faWarning} style={{ fontSize: '10px', color: '#f57c00' }} />
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                          {(!product.sizesData || product.sizesData.length === 0) && 
+                           parseSizes(product.sizes).length === 0 && (
                             <span style={{ color: '#666666' }}>No sizes defined</span>
                           )}
                         </div>
                       </TableCell>
-                        <TableCell>
-                        <StockStatus level={product.stockLevel}>
-                          <FontAwesomeIcon 
-                            icon={
-                              product.stockLevel === 'critical' ? faExclamationTriangle :
-                              product.stockLevel === 'low' ? faWarning :
-                              faChartLine
-                            } 
-                          />
-                          {product.stockLevel === 'critical' && (
-                            product.totalStock === 0 ? 'Out of Stock' : 'Critical Stock'
+                      <TableCell>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          {product.sizesData && product.sizesData.length > 0 ? (
+                            // Show status for each color/size combination
+                            product.sizesData.flatMap(sizeData => 
+                              sizeData.colors ? sizeData.colors.map(colorData => ({
+                                ...colorData,
+                                size: sizeData.size
+                              })) : []
+                            ).map((variant, index) => (
+                              <StockStatus key={index} level={variant.level}>
+                                <FontAwesomeIcon 
+                                  icon={
+                                    variant.level === 'critical' ? faExclamationTriangle :
+                                    variant.level === 'low' ? faWarning :
+                                    faChartLine
+                                  } 
+                                />
+                                {variant.level === 'critical' && (
+                                  variant.stock === 0 ? 'Out of Stock' : 'Critical Stock'
+                                )}
+                                {variant.level === 'low' && 'Low Stock'}
+                                {variant.level === 'normal' && 'In Stock'}
+                              </StockStatus>
+                            ))
+                          ) : (
+                            <StockStatus level={product.stockLevel}>
+                              <FontAwesomeIcon 
+                                icon={
+                                  product.stockLevel === 'critical' ? faExclamationTriangle :
+                                  product.stockLevel === 'low' ? faWarning :
+                                  faChartLine
+                                } 
+                              />
+                              {product.stockLevel === 'critical' && (
+                                product.totalStock === 0 ? 'Out of Stock' : 'Critical Stock'
+                              )}
+                              {product.stockLevel === 'low' && 'Low Stock'}
+                              {product.stockLevel === 'normal' && 'In Stock'}
+                            </StockStatus>
                           )}
-                          {product.stockLevel === 'low' && 'Low Stock'}
-                          {product.stockLevel === 'normal' && 'In Stock'}
-                        </StockStatus>
+                        </div>
                       </TableCell>
                         <TableCell>
                         <ActionButton 
@@ -1190,20 +1379,53 @@ const InventoryPage = () => {
                         <InfoValue>₱{parseFloat(selectedProduct.productprice).toLocaleString()}</InfoValue>
                       </InfoCard>
                     </ProductDetailsInfo>                    <StockSection>
-                      <SectionTitle>Stock Information</SectionTitle>
+                      <SectionTitle>Stock Status by Color & Size</SectionTitle>
                       <StockGrid>
-                        {parseSizes(selectedProduct.sizes).map((size, index) => (
-                          <SizeStockCard key={index} stock={size.stock}>
-                            <SizeLabel>{size.size}</SizeLabel>
-                            <StockAmount stock={size.stock}>{size.stock}</StockAmount>
-                            <StockLabel>
-                              {size.stock === 0 && 'Out of Stock'}
-                              {size.stock > 0 && size.stock <= 5 && 'Low Stock'}
-                              {size.stock > 5 && 'In Stock'}
-                            </StockLabel>
-                          </SizeStockCard>
-                        ))}
-                        {parseSizes(selectedProduct.sizes).length === 0 && (
+                        {selectedProduct.sizesData && selectedProduct.sizesData.length > 0 ? (
+                          // Flatten all color/size combinations and display each one as individual cards
+                          selectedProduct.sizesData.flatMap(sizeData => 
+                            sizeData.colors ? sizeData.colors.map(colorData => ({
+                              ...colorData,
+                              size: sizeData.size,
+                              displayName: `${colorData.color} Size ${sizeData.size}`
+                            })) : []
+                          ).map((variant, index) => (
+                            <SizeStockCard key={index} stock={variant.stock}>
+                              <SizeLabel>{variant.displayName}</SizeLabel>
+                              <StockAmount stock={variant.stock}>{variant.stock}</StockAmount>
+                              <StockLabel>
+                                {variant.stock === 0 && 'Out of Stock'}
+                                {variant.stock > 0 && variant.stock <= 5 && 'Low Stock'}
+                                {variant.stock > 5 && 'In Stock'}
+                              </StockLabel>
+                              {variant.reserved > 0 && (
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  color: '#666', 
+                                  marginTop: '4px',
+                                  fontStyle: 'italic'
+                                }}>
+                                  {variant.reserved} reserved
+                                </div>
+                              )}
+                            </SizeStockCard>
+                          ))
+                        ) : (
+                          // Fallback to old display
+                          parseSizes(selectedProduct.sizes).map((size, index) => (
+                            <SizeStockCard key={index} stock={size.stock}>
+                              <SizeLabel>{size.size}</SizeLabel>
+                              <StockAmount stock={size.stock}>{size.stock}</StockAmount>
+                              <StockLabel>
+                                {size.stock === 0 && 'Out of Stock'}
+                                {size.stock > 0 && size.stock <= 5 && 'Low Stock'}
+                                {size.stock > 5 && 'In Stock'}
+                              </StockLabel>
+                            </SizeStockCard>
+                          ))
+                        )}
+                        {(!selectedProduct.sizesData || selectedProduct.sizesData.length === 0) && 
+                         parseSizes(selectedProduct.sizes).length === 0 && (
                           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#666' }}>
                             No size information available
                           </div>
