@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useStock } from '../context/StockContext';
 import TopBar from '../components/TopBar';
 
 const MaintenancePage = () => {
+    const { fetchStockData, getProductStock } = useStock(); // Add stock context
     const [activeTab, setActiveTab] = useState('add');
     const [products, setProducts] = useState([]);
     const [archivedProducts, setArchivedProducts] = useState([]);    const [loading, setLoading] = useState(false);
@@ -636,6 +638,10 @@ const MaintenancePage = () => {
                 setMessage(`Product ${editingProduct ? 'updated' : 'added'} successfully!`);
                 resetForm();
                 fetchProducts();
+                
+                // Refresh stock data to ensure all pages show updated stock
+                await fetchStockData();
+                console.log('📦 Stock data refreshed after product update');
             } else if (response.status === 431) {
                 throw new Error('Request headers too large - please try with smaller images or refresh the page');
             } else {                const errorData = await response.text();
