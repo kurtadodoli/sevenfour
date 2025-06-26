@@ -15,58 +15,133 @@ import {
   faTshirt,
   faRulerCombined
 } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
 
-// Custom SVG Icons for clothing types
-const ShortsIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 8h24v6l-2 4v18h-8V20h-4v16h-8V18l-2-4V8z" fill={color} stroke={color} strokeWidth="1"/>
-    <path d="M16 8v6M32 8v6" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+// Icon component using FontAwesome
+const Icon = ({ icon, ...props }) => <FontAwesomeIcon icon={icon} {...props} />;
+
+// Enhanced Modern SVG Icons for clothing types
+const TShirtIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="tshirtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+    <path d="M14 14h6v-3c0-1.5 1.5-3 3-3h10c1.5 0 3 1.5 3 3v3h6l2 6-2 2v25H14V22l-2-2 2-6z" fill="url(#tshirtGrad)" stroke={color} strokeWidth="1"/>
+    <path d="M20 14h16M16 18v26M40 18v26" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="28" cy="26" r="1.5" fill="#ffffff" opacity="0.7"/>
   </svg>
 );
 
-const JacketIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M10 12h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 4v26H8V16l2-4z" fill={color}/>
-    <path d="M18 12h12M14 18v20M34 18v20M18 20h12M18 24h12" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="16" cy="22" r="1" fill="white"/>
-    <circle cx="16" cy="26" r="1" fill="white"/>
-    <circle cx="32" cy="22" r="1" fill="white"/>
-    <circle cx="32" cy="26" r="1" fill="white"/>
+const ShortsIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="shortsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+    <path d="M16 12h24v6l-3 4v18h-7V24h-4v16h-7V22l-3-4V12z" fill="url(#shortsGrad)" stroke={color} strokeWidth="1"/>
+    <path d="M20 12v8M36 12v8" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M20 24h4M32 24h4" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
-const SweaterIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 14h4v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h4l2 2v26H10V16l2-2z" fill={color}/>
-    <path d="M18 14h12M16 18v22M32 18v22" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M18 20h12M18 24h12M18 28h12M18 32h12" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
+const HoodieIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hoodieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+    <path d="M14 16h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 2v28H12V18l2-2z" fill="url(#hoodieGrad)" stroke={color} strokeWidth="1"/>
+    <path d="M18 8c0-3 3-6 10-6s10 3 10 6c0 2-2 4-3 5H21c-1-1-3-3-3-5z" fill="url(#hoodieGrad)" stroke={color} strokeWidth="1"/>
+    <path d="M20 16h16M16 20v24M40 20v24" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M22 20v6h12v-6" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" fill="none"/>
+    <circle cx="24" cy="22" r="1" fill="#ffffff"/>
+    <circle cx="32" cy="22" r="1" fill="#ffffff"/>
   </svg>
 );
 
-const HoodieIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 14h4v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h4l2 2v26H10V16l2-2z" fill={color}/>
-    <path d="M16 8c0-2 2-4 8-4s8 2 8 4c0 1-1 2-2 3h-12c-1-1-2-2-2-3z" fill={color}/>
-    <path d="M18 14h12M16 18v22M32 18v22" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M20 18v4h8v-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-    <circle cx="22" cy="20" r="0.5" fill="white"/>
-    <circle cx="26" cy="20" r="0.5" fill="white"/>
+const JerseyIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+    <path d="M14 14h6v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h6v6l-2 2v22H16V22l-2-2v-6z" fill="url(#jerseyGrad)" stroke={color} strokeWidth="1"/>
+    <path d="M20 14h16M16 18v26M40 18v26" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+    <rect x="24" y="20" width="8" height="12" rx="1" fill="#ffffff" opacity="0.9"/>
+    <text x="28" y="30" textAnchor="middle" fill={color} fontSize="10" fontWeight="bold">7</text>
   </svg>
 );
 
-const JerseyIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 12h4v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h4v6l-2 2v20H14V20l-2-2v-6z" fill={color}/>
-    <path d="M18 12h12M16 16v24M32 16v24" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
-    <text x="24" y="28" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">7</text>
+const JacketIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="jacketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+    </defs>
+    {/* Main jacket body */}
+    <path d="M12 14h6v-2c0-2 2-4 4-4h12c2 0 4 2 4 4v2h6l2 4v26H10V18l2-4z" fill="url(#jacketGrad)" stroke={color} strokeWidth="1"/>
+    
+    {/* Jacket details - collar, sleeves, pockets */}
+    <path d="M18 14h20M16 20v22M40 20v22M20 22h7M29 22h7M20 26h7M29 26h7" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
+    
+    {/* Jacket collar */}
+    <path d="M22 18v4h5v-4M29 18v4h5v-4" stroke="#ffffff" strokeWidth="1.5" fill="none"/>
+    
+    {/* Side buttons */}
+    <circle cx="18" cy="24" r="1.5" fill="#ffffff"/>
+    <circle cx="18" cy="28" r="1.5" fill="#ffffff"/>
+    <circle cx="38" cy="24" r="1.5" fill="#ffffff"/>
+    <circle cx="38" cy="28" r="1.5" fill="#ffffff"/>
+    
+    {/* Central vertical zipper line */}
+    <line x1="28" y1="18" x2="28" y2="42" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+    
+    {/* Zipper teeth/details */}
+    <g stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.8">
+      <line x1="26" y1="20" x2="30" y2="20"/>
+      <line x1="26" y1="22" x2="30" y2="22"/>
+      <line x1="26" y1="24" x2="30" y2="24"/>
+      <line x1="26" y1="26" x2="30" y2="26"/>
+      <line x1="26" y1="28" x2="30" y2="28"/>
+      <line x1="26" y1="30" x2="30" y2="30"/>
+      <line x1="26" y1="32" x2="30" y2="32"/>
+      <line x1="26" y1="34" x2="30" y2="34"/>
+      <line x1="26" y1="36" x2="30" y2="36"/>
+      <line x1="26" y1="38" x2="30" y2="38"/>
+      <line x1="26" y1="40" x2="30" y2="40"/>
+    </g>
+    
+    {/* Zipper pull tab */}
+    <rect x="26" y="17" width="4" height="3" rx="1" fill="#ffffff" opacity="0.9"/>
   </svg>
 );
 
-const TShirtIcon = ({ color = 'currentColor', size = 48 }) => (
-  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 12h4v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h4v6l-2 2v20H14V20l-2-2v-6z" fill={color}/>
-    <path d="M18 12h12M16 16v24M32 16v24" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+const SweaterIcon = ({ color = '#000000', size = 56 }) => (
+  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="sweaterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor={color} stopOpacity="1" />
+        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
+      </linearGradient>
+      <pattern id="sweaterPattern" patternUnits="userSpaceOnUse" width="4" height="4">
+        <rect width="4" height="4" fill="transparent"/>
+        <circle cx="2" cy="2" r="0.5" fill="#ffffff" opacity="0.3"/>
+      </pattern>
+    </defs>
+    <path d="M14 16h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 2v26H12V18l2-2z" fill="url(#sweaterGrad)" stroke={color} strokeWidth="1"/>
+    <rect x="16" y="18" width="24" height="24" fill="url(#sweaterPattern)"/>
+    <path d="M20 16h16M16 20v22M40 20v22" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M20 22h16M20 26h16M20 30h16M20 34h16" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.6"/>
   </svg>
 );
 
@@ -119,179 +194,304 @@ const productTypes = {
 
 const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
-// Styled Components
+// Styled Components - Modern Minimalist Design
 const PageContainer = styled.div`
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1.5rem;
-  padding-top: 80px;
+  padding: 2rem 1.5rem;
+  padding-top: 100px;
   background: #ffffff;
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 `;
 
 const Header = styled.div`
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 5rem;
   
   h1 {
-    font-size: 2.5rem;
-    font-weight: 300;
+    font-size: 3rem;
+    font-weight: 200;
     color: #000000;
-    margin-bottom: 1rem;
-    letter-spacing: -0.5px;
+    margin-bottom: 1.5rem;
+    letter-spacing: -1px;
+    line-height: 1.1;
+    
+    @media (max-width: 768px) {
+      font-size: 2.5rem;
+    }
   }
   
   p {
     color: #666666;
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 300;
-    max-width: 500px;
+    max-width: 600px;
     margin: 0 auto;
-    line-height: 1.6;
+    line-height: 1.7;
+    letter-spacing: 0.2px;
   }
 `;
 
 const StepContainer = styled.div`
   background: #ffffff;
-  border-radius: 8px;
-  padding: 2.5rem;
+  border-radius: 12px;
+  padding: 3rem;
   margin-bottom: 3rem;
-  box-shadow: none;
-  border: 1px solid #e5e5e5;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #e0e0e0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
 `;
 
 const StepHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
+  gap: 2rem;
+  margin-bottom: 3rem;
   
   h2 {
-    font-size: 1.25rem;
-    font-weight: 400;
+    font-size: 1.5rem;
+    font-weight: 300;
     color: #000000;
     margin: 0;
-    letter-spacing: -0.25px;
+    letter-spacing: -0.5px;
   }
+  
   .step-number {
-    width: 32px;
-    height: 32px;
-    background: #000000;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #000000, #333333);
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 400;
-    font-size: 0.875rem;
+    font-weight: 500;
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  @media (max-width: 768px) {
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    
+    h2 {
+      font-size: 1.25rem;
+    }
+    
+    .step-number {
+      width: 36px;
+      height: 36px;
+      font-size: 0.9rem;
+    }
   }
 `;
 
 const ProductGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+  }
 `;
 
 const ProductCard = styled.div`
   background: ${props => props.selected ? '#000000' : '#ffffff'};
   color: ${props => props.selected ? '#ffffff' : '#000000'};
-  border: 1px solid ${props => props.selected ? '#000000' : '#e5e5e5'};
-  border-radius: 6px;
-  padding: 1.5rem 1rem;
+  border: 2px solid ${props => props.selected ? '#000000' : '#f0f0f0'};
+  border-radius: 12px;
+  padding: 2rem 1.5rem;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
   
   &:hover {
+    transform: translateY(-4px);
     border-color: #000000;
-    transform: translateY(-1px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+    
+    &::before {
+      opacity: ${props => props.selected ? 1 : 0};
+    }
   }
   
   .icon {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100px;
   }
   
   h3 {
-    font-size: 0.875rem;
-    font-weight: 400;
-    margin: 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 1rem 0 0.5rem 0;
     letter-spacing: -0.25px;
   }
   
   .price {
-    font-size: 1rem;
-    font-weight: 500;
+    font-size: 1.25rem;
+    font-weight: 600;
     color: ${props => props.selected ? '#ffffff' : '#000000'};
+    margin-top: 0.5rem;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 1.5rem 1rem;
+    
+    .icon {
+      height: 80px;
+      margin-bottom: 1rem;
+    }
+    
+    h3 {
+      font-size: 0.9rem;
+    }
+    
+    .price {
+      font-size: 1.1rem;
+    }
   }
 `;
 
 const ImageUploadSection = styled.div`
-  border: 1px dashed #d0d0d0;
-  border-radius: 6px;
-  padding: 3rem 2rem;
+  border: 2px dashed ${props => props.isDragOver ? '#000000' : '#d0d0d0'};
+  border-radius: 12px;
+  padding: 4rem 2rem;
   text-align: center;
-  background: #fafafa;
-  transition: all 0.2s ease;
+  background: ${props => props.isDragOver ? '#f8f8f8' : '#fafafa'};
+  transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
     border-color: #000000;
     background: #f5f5f5;
   }
   
-  &.dragover {
-    border-color: #000000;
-    background: #f0f0f0;
+  .upload-icon {
+    font-size: 3rem;
+    color: #d0d0d0;
+    margin-bottom: 1.5rem;
+    transition: color 0.3s ease;
+  }
+  
+  &:hover .upload-icon {
+    color: #000000;
   }
   
   h3 {
-    font-size: 1rem;
+    font-size: 1.25rem;
     font-weight: 400;
     color: #000000;
-    margin: 1rem 0 0.5rem 0;
+    margin: 0 0 0.75rem 0;
     letter-spacing: -0.25px;
   }
   
   p {
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: #666666;
-    margin: 0;
+    margin: 0 0 1.5rem 0;
     font-weight: 300;
+    line-height: 1.5;
+  }
+  
+  @media (max-width: 768px) {
+    padding: 3rem 1.5rem;
+    
+    .upload-icon {
+      font-size: 2.5rem;
+    }
+    
+    h3 {
+      font-size: 1.1rem;
+    }
+    
+    p {
+      font-size: 0.9rem;
+    }
   }
 `;
 
 const UploadButton = styled.button`
-  background: #000000;
+  background: linear-gradient(135deg, #000000, #333333);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 400;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 1rem;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   
   &:hover {
-    background: #333333;
+    background: linear-gradient(135deg, #333333, #555555);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;
 
 const ImagePreviewGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 0.75rem;
-  margin-top: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+  }
 `;
 
 const ImagePreview = styled.div`
   position: relative;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
   background: #f8f8f8;
   aspect-ratio: 1;
-  border: 1px solid #e5e5e5;
+  border: 2px solid #f0f0f0;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #000000;
+    transform: scale(1.05);
+  }
   
   img {
     width: 100%;
@@ -301,34 +501,41 @@ const ImagePreview = styled.div`
   
   .remove-btn {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 8px;
+    right: 8px;
     background: rgba(0, 0, 0, 0.8);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
     
     &:hover {
       background: rgba(0, 0, 0, 1);
+      transform: scale(1.1);
     }
   }
 `;
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   
   &.full-width {
     grid-column: 1 / -1;
@@ -337,155 +544,205 @@ const FormGroup = styled.div`
 
 const Label = styled.label`
   display: block;
-  font-weight: 400;
+  font-weight: 500;
   color: #000000;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  letter-spacing: -0.25px;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  letter-spacing: -0.2px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
+  padding: 1rem;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
   background: white;
   font-family: inherit;
+  color: #000000;
+  
+  &::placeholder {
+    color: #999999;
+  }
   
   &:focus {
     outline: none;
     border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
   
-  &:invalid {
+  &:invalid:not(:focus) {
     border-color: #dc3545;
   }
 `;
 
 const Select = styled.select`
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
+  padding: 1rem;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
   background: white;
   cursor: pointer;
   font-family: inherit;
+  color: #000000;
   
   &:focus {
     outline: none;
     border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  option {
+    padding: 0.5rem;
   }
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
+  padding: 1rem;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
   background: white;
-  min-height: 100px;
+  min-height: 120px;
   resize: vertical;
   font-family: inherit;
+  color: #000000;
+  line-height: 1.5;
+  
+  &::placeholder {
+    color: #999999;
+  }
   
   &:focus {
     outline: none;
     border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const OrderSummary = styled.div`
   background: #fafafa;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  padding: 2rem;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 2.5rem;
   margin-top: 2rem;
+  
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #000000;
+    margin: 0 0 1.5rem 0;
+    letter-spacing: -0.25px;
+  }
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   color: #000000;
-  font-size: 0.875rem;
+  font-size: 1rem;
   
   &.total {
-    font-size: 1.125rem;
-    font-weight: 500;
+    font-size: 1.5rem;
+    font-weight: 600;
     color: #000000;
-    border-top: 1px solid #e5e5e5;
-    padding-top: 1rem;
-    margin-top: 1rem;
+    border-top: 2px solid #e0e0e0;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  
+  .label {
+    font-weight: 400;
+  }
+  
+  .value {
+    font-weight: 500;
   }
 `;
 
 const SubmitButton = styled.button`
   width: 100%;
-  background: #000000;
+  background: linear-gradient(135deg, #000000, #333333);
   color: white;
   border: none;
-  padding: 1rem 2rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 400;
+  padding: 1.25rem 2rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   margin-top: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  letter-spacing: -0.25px;
   
   &:hover:not(:disabled) {
-    background: #333333;
+    background: linear-gradient(135deg, #333333, #555555);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
   }
   
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none;
+  }
+  
+  svg {
+    font-size: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
   }
 `;
 
-const ErrorMessage = styled.div`
-  background: #fafafa;
-  color: #000000;
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  border: 1px solid #e5e5e5;
-  font-size: 0.875rem;
+const StatusMessage = styled.div`
+  background: ${props => props.type === 'error' ? '#fff5f5' : '#f0fff4'};
+  color: ${props => props.type === 'error' ? '#c53030' : '#38a169'};
+  border: 2px solid ${props => props.type === 'error' ? '#fed7d7' : '#c6f6d5'};
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  
+  .icon {
+    font-size: 1.25rem;
+  }
 `;
 
-const SuccessMessage = styled.div`
-  background: #fafafa;
-  color: #000000;
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  border: 1px solid #e5e5e5;
-  font-size: 0.875rem;
-`;
-
-const Icon = styled(FontAwesomeIcon)`
-  color: #000000;
-`;
+const ErrorMessage = styled(StatusMessage).attrs({ type: 'error' })``;
+const SuccessMessage = styled(StatusMessage).attrs({ type: 'success' })``;
 
 const PendingOrderCard = styled.div`
   background: #ffffff;
-  border: 1px solid #e5e5e5;
-  border-radius: 6px;
-  padding: 1.5rem;
-  margin-bottom: 1rem;
-  transition: all 0.2s ease;
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
   
   &:hover {
-    border-color: #000000;
+    border-color: #e0e0e0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
   }
 `;
 
@@ -493,22 +750,28 @@ const OrderHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
 `;
 
 const OrderId = styled.h4`
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: #000000;
   margin: 0;
   letter-spacing: -0.25px;
 `;
 
 const OrderStatus = styled.span`
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 400;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: ${props => {
@@ -531,7 +794,7 @@ const OrderStatus = styled.span`
       default: return '#666666';
     }
   }};
-  border: 1px solid ${props => {
+  border: 2px solid ${props => {
     switch (props.status) {
       case 'pending': return '#e5e5e5';
       case 'confirmed': return '#2196f3';
@@ -545,40 +808,45 @@ const OrderStatus = styled.span`
 
 const OrderDetails = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 `;
 
 const DetailItem = styled.div`
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #000000;
+  line-height: 1.5;
   
   strong {
     color: #000000;
-    font-weight: 500;
+    font-weight: 600;
   }
 `;
 
 const ToggleButton = styled.button`
-  background: none;
-  border: 1px solid #e5e5e5;
+  background: #ffffff;
+  border: 2px solid #f0f0f0;
   color: #000000;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   
   &:hover {
     border-color: #000000;
     background: #fafafa;
+    transform: translateY(-1px);
   }
 `;
 
 const CustomPage = () => {
-  const navigate = useNavigate();
   const [selectedProduct, setSelectedProduct] = useState('');
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -643,11 +911,11 @@ const CustomPage = () => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      console.log('📡 Making request to: http://localhost:3001/api/custom-orders/my-orders');
+      console.log('📡 Making request to: http://localhost:5000/api/custom-orders/my-orders');
       console.log('   This will fetch orders for email:', user?.email);
       console.log('   Headers:', headers);
       
-      const response = await fetch('http://localhost:3001/api/custom-orders/my-orders', {
+      const response = await fetch('http://localhost:5000/api/custom-orders/my-orders', {
         method: 'GET',
         headers
       });
@@ -832,7 +1100,7 @@ const CustomPage = () => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch('http://localhost:3001/api/custom-orders', {
+      const response = await fetch('http://localhost:5000/api/custom-orders', {
         method: 'POST',
         headers,
         body: submitFormData
@@ -929,12 +1197,12 @@ const CustomPage = () => {
             <div>
               {loadingPending ? (
                 <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <Icon icon={faSpinner} spin size="2x" />
+                  <Icon icon={faSpinner} spin size="3x" />
                   <p style={{ marginTop: '1rem', color: '#666666', fontSize: '0.875rem' }}>Loading your orders...</p>
                 </div>
               ) : pendingOrders.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-                  <Icon icon={faTshirt} size="2x" />
+                  <Icon icon={faTshirt} size="3x" />
                   <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>No pending custom orders yet.</p>
                   <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Submit your first custom design below!</p>
                 </div>
@@ -1024,7 +1292,7 @@ const CustomPage = () => {
               >
                 <div className="icon">                  <IconComponent 
                     color={selectedProduct === key ? '#ffffff' : '#000000'} 
-                    size={40} 
+                    size={60} 
                   />
                 </div>
                 <h3>{product.name}</h3>
@@ -1042,7 +1310,7 @@ const CustomPage = () => {
           <h2>Upload Your Design</h2>
         </StepHeader>
         <ImageUploadSection>
-          <Icon icon={faCloudUploadAlt} size="2x" />
+          <Icon icon={faCloudUploadAlt} size="3x" />
           <h3>Drop your design files here or click to browse</h3>
           <p>Upload up to 10 images (JPG, PNG, GIF). Maximum 10MB per file.</p>
           <input
@@ -1352,69 +1620,6 @@ const CustomPage = () => {
           </>
         )}
       </SubmitButton>
-
-      {/* Pending Orders Section */}
-      {user && (
-        <div style={{ marginTop: '4rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '400', color: '#000000', marginBottom: '1.5rem' }}>
-            Your Pending Orders
-          </h2>
-
-          {loadingPending ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-              <Icon icon={faSpinner} spin size="2x" />
-              <p style={{ marginTop: '1rem' }}>Loading your pending orders...</p>
-            </div>
-          ) : (
-            <div>
-              {pendingOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-                  <Icon icon={faShoppingCart} size="2x" />
-                  <p style={{ marginTop: '1rem' }}>You have no pending orders.</p>
-                </div>              ) : (
-                pendingOrders
-                  .filter(order => order && order._id) // Filter out invalid orders
-                  .map(order => (
-                  <PendingOrderCard key={order._id}>
-                    <OrderHeader>
-                      <OrderId>
-                        Order ID: {order._id}
-                      </OrderId>
-                      <OrderStatus status={order.status}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </OrderStatus>
-                    </OrderHeader>
-
-                    <OrderDetails>
-                      <DetailItem>
-                        <strong>Product:</strong> {order.productName}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Size:</strong> {order.size}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Color:</strong> {order.color}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Quantity:</strong> {order.quantity}
-                      </DetailItem>                      <DetailItem>
-                        <strong>Unit Price:</strong> ₱{order.price?.toLocaleString() || 'TBD'}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Total:</strong> ₱{order.total?.toLocaleString() || 'TBD'}
-                      </DetailItem>
-                    </OrderDetails>
-
-                    <ToggleButton onClick={() => navigate(`/orders/${order._id}`)}>
-                      View Order Details
-                    </ToggleButton>
-                  </PendingOrderCard>
-                ))
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </PageContainer>
   );
 };

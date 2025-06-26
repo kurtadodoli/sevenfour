@@ -461,6 +461,12 @@ const AddToCartButton = styled.button`
   }
   
   svg {
+    font-size: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    
     &.loading {
       animation: spin 1s linear infinite;
     }

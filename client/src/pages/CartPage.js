@@ -67,8 +67,10 @@ const Title = styled.h1`
   .icon {
     color: #1a1a1a;
     padding: 0.5rem;
-    border-radius: 6px;
-    font-size: 1.5rem;
+    border-radius: 50%;
+    font-size: 1.8rem;
+    border: 3px solid rgba(26, 26, 26, 0.2);
+    background: rgba(26, 26, 26, 0.05);
   }
 `;
 
@@ -442,10 +444,14 @@ const EmptyCart = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.1);
   
   .icon {
-    font-size: 5rem;
+    font-size: 6rem;
     color: #4a9eff;
     margin-bottom: 2rem;
     animation: ${pulse} 2s infinite;
+    border: 4px solid rgba(74, 158, 255, 0.3);
+    border-radius: 50%;
+    padding: 1.5rem;
+    background: rgba(74, 158, 255, 0.1);
   }
   
   h2 {
