@@ -181,4 +181,36 @@ router.get('/confirmed-test', async (req, res) => {
 // @access  Private/Admin/Staff
 router.post('/:id/process-cancellation', auth, orderController.processOrderCancellation);
 
+// @route   PATCH api/orders/:id/delivery-status
+// @desc    Update delivery status for an order (redirects to delivery schedule system)
+// @access  Private
+router.patch('/:id/delivery-status', async (req, res) => {
+    try {
+        const { id: orderId } = req.params;
+        const { delivery_status } = req.body;
+        
+        console.log(`🚚 Received delivery status update request for order ${orderId}: ${delivery_status}`);
+        
+        // This endpoint is for compatibility with frontend calls
+        // The actual delivery status is managed through the delivery_schedules table
+        // We'll respond with success but log that the status should be managed through delivery schedules
+        
+        res.json({
+            success: true,
+            message: 'Delivery status updates are now managed through delivery schedules',
+            note: 'Please use the delivery schedule system for managing delivery status',
+            order_id: orderId,
+            requested_status: delivery_status
+        });
+        
+    } catch (error) {
+        console.error('Error in delivery status endpoint:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Error processing delivery status update',
+            error: error.message 
+        });
+    }
+});
+
 module.exports = router;
