@@ -917,7 +917,7 @@ const ProductsPage = () => {
             setLoading(true);
             setError('');
             
-            const response = await fetch('http://localhost:3001/api/maintenance/products');
+            const response = await fetch('http://localhost:5000/api/maintenance/products');
             
             if (response.ok) {
                 const data = await response.json();
@@ -1129,6 +1129,31 @@ const ProductsPage = () => {
     // Fetch products on component mount
     useEffect(() => {
         fetchProducts();
+    }, [fetchProducts]);
+
+    // Listen for stock updates from order cancellations and other stock changes
+    useEffect(() => {
+        const handleStockUpdate = (event) => {
+            console.log('📦 Stock update detected in ProductsPage, refreshing products...', event.detail);
+            fetchProducts();
+        };
+
+        const handleStorageChange = (e) => {
+            if (e.key === 'stock_updated') {
+                console.log('📦 Stock updated via localStorage, refreshing products...');
+                fetchProducts();
+            }
+        };
+
+        // Listen for custom stock update events (from cancellation approvals, etc.)
+        window.addEventListener('stockUpdated', handleStockUpdate);
+        // Listen for cross-tab stock updates
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('stockUpdated', handleStockUpdate);
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, [fetchProducts]);
 
     // Inject CSS animations
@@ -1344,7 +1369,7 @@ const ProductsPage = () => {
                                         {product.productimage ? (
                                             <>
                                                 <ProductImage 
-                                                    src={`http://localhost:3001/uploads/${product.productimage}`} 
+                                                    src={`http://localhost:5000/uploads/${product.productimage}`} 
                                                     alt={product.productname}
                                                     onError={(e) => {
                                                         console.log('Image failed to load:', product.productimage);

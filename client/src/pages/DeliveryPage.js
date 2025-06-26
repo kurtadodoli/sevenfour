@@ -3,16 +3,13 @@ import api from '../utils/api';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faBox,
-  faInfoCircle,
   faChevronLeft,
   faChevronRight,
   faExpand,
   faTimes,
-  faPalette,
-  faShoppingBag,
-  faCheck
+  faUsers
 } from '@fortawesome/free-solid-svg-icons';
+import CourierManagement from '../components/CourierManagement';
 
 // Styled Components - Modern Minimalist Black & White Design
 const PageContainer = styled.div`
@@ -320,81 +317,98 @@ const DeliveryIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   background: ${props => {
     switch (props.status) {
       case 'pending':
-        return 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
+        return 'linear-gradient(135deg, #ffc107, #f39c12)';
       case 'scheduled':
-        return 'linear-gradient(135deg, #28a745, #20c997)';
-      case 'pending_completion':
-        return 'linear-gradient(135deg, #ffa500, #ff8c00)';
-      case 'in_transit':
         return 'linear-gradient(135deg, #007bff, #0056b3)';
+      case 'in_transit':
+        return 'linear-gradient(135deg, #17a2b8, #138496)';
       case 'delivered':
-        return 'linear-gradient(135deg, #28a745, #198754)';
+        return 'linear-gradient(135deg, #28a745, #20c997)';
       case 'delayed':
-        return 'linear-gradient(135deg, #dc3545, #b02a37)';
+        return 'linear-gradient(135deg, #ffc107, #e0a800)';
+      case 'cancelled':
+        return 'linear-gradient(135deg, #6c757d, #5a6268)';
       default:
-        return 'linear-gradient(135deg, #6c757d, #495057)'; // Better default
+        return 'linear-gradient(135deg, #f8f9fa, #e9ecef)';
     }
   }};
   color: ${props => {
     switch (props.status) {
       case 'pending':
-        return '#856404';
-      case 'scheduled':
-        return '#ffffff';
-      case 'pending_completion':
-        return '#ffffff';
-      case 'in_transit':
-        return '#ffffff';
-      case 'delivered':
-        return '#ffffff';
+        return '#212529';
       case 'delayed':
-        return '#ffffff';
+        return '#212529';
       default:
         return '#ffffff';
     }
   }};
-  border-radius: 8px; // Changed from circle to rounded square
-  font-size: 0.9rem; // Slightly larger icon
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
   margin-top: auto;
   border: 2px solid rgba(255, 255, 255, 0.3);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
+  cursor: pointer;
   
   &:hover {
-    transform: scale(1.1) translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
   }
   
-  &::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    right: -2px;
-    width: 8px;
-    height: 8px;
-    background: ${props => {
-      switch (props.status) {
-        case 'delivered':
-          return '#28a745';
-        case 'in_transit':
-          return '#007bff';
-        case 'delayed':
-          return '#dc3545';
-        case 'scheduled':
-          return '#ffc107';
-        default:
-          return 'transparent';
-      }
-    }};
-    border-radius: 50%;
-    border: 1px solid white;
+  &:active {
+    transform: translateY(-1px) scale(1.02);
   }
+  
+  /* Status-specific styling */
+  ${props => props.status === 'delivered' && `
+    &::before {
+      content: '✅';
+      font-size: 16px;
+    }
+  `}
+  
+  ${props => props.status === 'in_transit' && `
+    &::before {
+      content: '🚚';
+      font-size: 14px;
+    }
+  `}
+  
+  ${props => props.status === 'delayed' && `
+    &::before {
+      content: '⚠️';
+      font-size: 14px;
+    }
+  `}
+  
+  ${props => props.status === 'scheduled' && `
+    &::before {
+      content: '📅';
+      font-size: 14px;
+    }
+  `}
+  
+  ${props => props.status === 'pending' && `
+    &::before {
+      content: '⏳';
+      font-size: 14px;
+    }
+  `}
+  
+  ${props => props.status === 'cancelled' && `
+    &::before {
+      content: '❌';
+      font-size: 14px;
+    }
+  `}
 `;
 
 const StatusIndicator = styled.div.withConfig({
@@ -724,7 +738,7 @@ const SummaryTitle = styled.h4`
 `;
 
 const ItemSummary = styled.div`
-  display: flex;
+  display: flex
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
@@ -762,7 +776,7 @@ const OrdersList = styled.div`
 `;
 
 const OrderItem = styled.div.withConfig({
-  shouldForwardProp: (prop) => prop !== 'isSelected',
+  shouldForwardProp: (prop) => prop !== 'isSelected' && prop !== 'orderType',
 })`
   padding: 1rem;
   border-bottom: 1px solid #e0e0e0;
@@ -1547,8 +1561,12 @@ const DeliveryPage = () => {
     });
     
     return dominantStatus;
-  };  const [orders, setOrders] = useState([]);
-  const [deliverySchedules, setDeliverySchedules] = useState([]);  const [currentDate, setCurrentDate] = useState(new Date());  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  };  // Initialize all state variables with proper defaults to prevent runtime errors
+  const [orders, setOrders] = useState([]);
+  const [deliverySchedules, setDeliverySchedules] = useState([]);
+  const [couriers, setCouriers] = useState([]);
+  const [showCourierManagement, setShowCourierManagement] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);  const [selectedDate, setSelectedDate] = useState(null);  const [productionStatuses, setProductionStatuses] = useState({});
   const [customOrderProductionDates, setCustomOrderProductionDates] = useState({}); // Admin-controlled production completion dates
   const [customOrderProductionStartDates, setCustomOrderProductionStartDates] = useState({}); // Admin-controlled production start dates
@@ -1566,18 +1584,22 @@ const DeliveryPage = () => {
     scheduled: 0,
     inTransit: 0,
     delivered: 0,
-    delayed: 0
+    delayed: 0,
+    cancelled: 0
   });
 
   const updateStats = useCallback(() => {
-    const total = orders.length;
-    const pending = orders.filter(o => !o.delivery_status).length;
-    const scheduled = orders.filter(o => o.delivery_status === 'scheduled').length;
-    const inTransit = orders.filter(o => o.delivery_status === 'in_transit').length;
-    const delivered = orders.filter(o => o.delivery_status === 'delivered').length;
-    const delayed = orders.filter(o => o.delivery_status === 'delayed').length;
+    // Ensure orders is always an array to prevent runtime errors
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    const total = safeOrders.length;
+    const pending = safeOrders.filter(o => !o.delivery_status).length;
+    const scheduled = safeOrders.filter(o => o.delivery_status === 'scheduled').length;
+    const inTransit = safeOrders.filter(o => o.delivery_status === 'in_transit').length;
+    const delivered = safeOrders.filter(o => o.delivery_status === 'delivered').length;
+    const delayed = safeOrders.filter(o => o.delivery_status === 'delayed').length;
+    const cancelled = safeOrders.filter(o => o.delivery_status === 'cancelled').length;
 
-    setStats({ total, pending, scheduled, inTransit, delivered, delayed });
+    setStats({ total, pending, scheduled, inTransit, delivered, delayed, cancelled });
   }, [orders]);  // Priority Algorithm Implementation - Sort by creation date and amount
   const calculatePriority = (order) => {
     const now = new Date();
@@ -1587,7 +1609,7 @@ const DeliveryPage = () => {
     // Higher priority for older orders and higher amounts
     return daysSinceOrder * 10 + (order.total_amount / 100);
   };
-  // Custom Order Production Timeline - Admin-controlled production completion dates
+  // Custom Order Production Timeline - Admin-controlled production completion dates (15-day timeline)
   const getCustomOrderProductionStatus = (order) => {
     if (order.order_type !== 'custom') {
       return null; // Not a custom order
@@ -1603,8 +1625,8 @@ const DeliveryPage = () => {
     if (adminSetCompletionDate) {
       completionDate = new Date(adminSetCompletionDate);
     } else {
-      // Default to 10 days if admin hasn't set a date
-      const defaultProductionDays = 10;
+      // Updated to 15 days for custom orders as requested
+      const defaultProductionDays = 15;
       completionDate = new Date(orderDate.getTime() + (defaultProductionDays * 24 * 60 * 60 * 1000));
     }
     
@@ -1619,7 +1641,7 @@ const DeliveryPage = () => {
         completionDate: completionDate,
         isReady: false,
         adminControlled: !!adminSetCompletionDate,
-        message: `Production in progress - ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}`
+        message: `Production in progress - ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining${adminSetCompletionDate ? ' (Admin Set)' : ' (Default 15-day timeline)'}`
       };
     } else {
       return {
@@ -1628,7 +1650,7 @@ const DeliveryPage = () => {
         completionDate: completionDate,
         isReady: true,
         adminControlled: !!adminSetCompletionDate,
-        message: `Production completed - Ready for delivery${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}`
+        message: `Production completed - Ready for delivery${adminSetCompletionDate ? ' (Admin Set)' : ' (15-day timeline)'}`
       };
     }
   };
@@ -1646,16 +1668,16 @@ const DeliveryPage = () => {
     );
   };
 
-  // Function to set production start date for custom orders
+  // Function to set production start date for custom orders (15-day timeline)
   const setCustomOrderProductionStartDate = (orderId, startDate) => {
     setCustomOrderProductionStartDates(prev => ({
       ...prev,
       [orderId]: startDate
     }));
     
-    // Auto-calculate completion date as start date + 10 days
+    // Auto-calculate completion date as start date + 15 days (updated from 10 days)
     const completionDate = new Date(startDate);
-    completionDate.setDate(completionDate.getDate() + 10);
+    completionDate.setDate(completionDate.getDate() + 15);
     
     setCustomOrderProductionDate(orderId, completionDate.toISOString().split('T')[0]);
     
@@ -1666,7 +1688,7 @@ const DeliveryPage = () => {
       '✅ Production Start Date Set',
       `Production start date set to: ${new Date(startDate).toLocaleDateString()}\n` +
       `Production completion date auto-calculated to: ${completionDate.toLocaleDateString()}\n\n` +
-      `The order will now follow the admin-controlled production timeline.`,
+      `The order will now follow the 15-day production timeline.`,
       'success'
     );
   };
@@ -1829,8 +1851,16 @@ const DeliveryPage = () => {
             return b.priority - a.priority;
           }
           return new Date(b.created_at) - new Date(a.created_at);        });
-          // Filter out sample/mock orders by ID
-        const sampleOrderIds = [1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3];
+          // Filter out ALL sample/mock orders by ID - comprehensive list
+        const sampleOrderIds = [
+          1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
+          // Additional sample IDs to ensure complete filtering
+          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+          1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+          99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
+          // Remove orders 26-30 from calendar
+          26, 27, 28, 29, 30
+        ];
         const filteredOrders = allOrders.filter(order => {
           // Extract numeric ID from order ID (handle both numeric and string IDs)
           let numericId;
@@ -1848,12 +1878,20 @@ const DeliveryPage = () => {
             orderNumberId = parseInt(order.order_number, 10);
           }
           
+          // Additional filtering for obvious sample/test patterns
+          const hasTestPattern = order.customerName && (
+            order.customerName.toLowerCase().includes('test') ||
+            order.customerName.toLowerCase().includes('sample') ||
+            order.customerName.toLowerCase().includes('demo') ||
+            order.customerName.toLowerCase().includes('mock')
+          );
+          
           // Filter out if the numeric ID or order number matches sample IDs
           const isFilteredById = numericId && sampleOrderIds.includes(numericId);
           const isFilteredByOrderNumber = orderNumberId && sampleOrderIds.includes(orderNumberId);
           
-          if (isFilteredById || isFilteredByOrderNumber) {
-            console.log(`🚫 DeliveryPage: Filtering out sample order - ID: ${order.id}, Order Number: ${order.order_number}`);
+          if (isFilteredById || isFilteredByOrderNumber || hasTestPattern) {
+            console.log(`🚫 DeliveryPage: Filtering out sample order - ID: ${order.id}, Order Number: ${order.order_number}, Customer: ${order.customerName}`);
             return false;
           }
           
@@ -1865,11 +1903,23 @@ const DeliveryPage = () => {
         try {
           console.log('📅 DeliveryPage: Fetching delivery schedules...');
           const schedulesResponse = await api.get('/delivery/schedules');
-          if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
-            console.log(`✅ DeliveryPage: ${schedulesResponse.data.length} delivery schedules loaded`);
+          
+          // Handle different response formats
+          let schedulesData;
+          if (schedulesResponse.data && schedulesResponse.data.success && schedulesResponse.data.schedules) {
+            schedulesData = schedulesResponse.data.schedules;
+          } else if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
+            schedulesData = schedulesResponse.data;
+          } else {
+            console.log('⚠️ DeliveryPage: Invalid delivery schedules response format');
+            schedulesData = [];
+          }
+          
+          if (schedulesData.length > 0) {
+            console.log(`✅ DeliveryPage: ${schedulesData.length} delivery schedules loaded`);
             
             // Convert database schedules to frontend format
-            const formattedSchedules = schedulesResponse.data.map(schedule => ({
+            const formattedSchedules = schedulesData.map(schedule => ({
               id: schedule.id,
               order_id: schedule.order_id,
               order_number: schedule.order_id, // Will be updated based on order data
@@ -1879,22 +1929,22 @@ const DeliveryPage = () => {
               status: schedule.delivery_status,
               notes: schedule.delivery_notes
             }));
-              // Filter out delivery schedules for sample orders
-            const sampleOrderIds = [1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3];
+              // Filter out delivery schedules for ALL sample orders - comprehensive list
+            const sampleOrderIds = [
+              1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
+              // Additional sample IDs to ensure complete filtering
+              1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+              1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+              99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
+              // Remove orders 26-30 from calendar
+              26, 27, 28, 29, 30
+            ];
             const filteredSchedules = formattedSchedules.filter(schedule => {
-              const orderId = parseInt(schedule.order_id, 10);
-              const isFiltered = sampleOrderIds.includes(orderId);
-              
-              if (isFiltered) {
-                console.log(`🚫 DeliveryPage: Filtering out sample delivery schedule for order ID: ${schedule.order_id}`);
-                return false;
-              }
-              
-              return true;
+              return !sampleOrderIds.includes(parseInt(schedule.order_id));
             });
             
             setDeliverySchedules(filteredSchedules);
-            console.log(`✅ DeliveryPage: ${filteredSchedules.length} delivery schedules loaded after filtering`);
+            console.log(`✅ DeliveryPage: ${filteredSchedules.length} delivery schedules loaded after filtering (${formattedSchedules.length - filteredSchedules.length} sample schedules removed)`);
           } else {
             console.log('⚠️ DeliveryPage: Invalid delivery schedules response');
             setDeliverySchedules([]);
@@ -1918,6 +1968,22 @@ const DeliveryPage = () => {
           console.log('⚠️ DeliveryPage: Production status endpoint not available');
           // Set default production statuses - will be updated when orders are set
           setProductionStatuses({});
+        }
+
+        // Fetch couriers
+        try {
+          console.log('🚛 DeliveryPage: Fetching couriers...');
+          const couriersResponse = await api.get('/couriers');
+          if (couriersResponse.data && Array.isArray(couriersResponse.data)) {
+            setCouriers(couriersResponse.data);
+            console.log(`✅ DeliveryPage: ${couriersResponse.data.length} couriers loaded`);
+          } else {
+            console.log('⚠️ DeliveryPage: Invalid couriers response');
+            setCouriers([]);
+          }
+        } catch (courierError) {
+          console.log('⚠️ DeliveryPage: Could not fetch couriers:', courierError.message);
+          setCouriers([]);
         }      } catch (error) {
         console.error('❌ DeliveryPage: Error fetching delivery data:', error);
         console.log('📋 DeliveryPage: No orders loaded - showing empty state');
@@ -1952,12 +2018,14 @@ const DeliveryPage = () => {
       // if (dayOfWeek === 0 || dayOfWeek === 6) continue;
       
       // Count existing bookings for this date
-      const dayDeliveries = deliverySchedules.filter(schedule => {
+      const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
+      const dayDeliveries = safeDeliverySchedules.filter(schedule => {
         const scheduleDate = new Date(schedule.delivery_date);
         return scheduleDate.toDateString() === checkDate.toDateString();
       });
       
-      const dayOrders = orders.filter(order => {
+      const safeOrders = Array.isArray(orders) ? orders : [];
+      const dayOrders = safeOrders.filter(order => {
         if (!order.scheduled_delivery_date) return false;
         const orderDate = new Date(order.scheduled_delivery_date);
         return orderDate.toDateString() === checkDate.toDateString();
@@ -2057,7 +2125,9 @@ const DeliveryPage = () => {
           showPopup('Schedule Conflict Detected', conflicts.join('\n'), 'error');
         }
         return;
-      }      // Save delivery schedule to backend database
+      }
+
+      // Save delivery schedule to backend database
       console.log('📅 Scheduling delivery for order:', order.order_number);
       console.log('📅 Schedule data:', scheduleData);
       console.log('📅 Full order object:', order);
@@ -2071,7 +2141,8 @@ const DeliveryPage = () => {
       } else {
         // For orders without customer ID, use a placeholder
         console.warn('⚠️ No customer ID found for order:', order.order_number);
-        customerId = 1; // Default fallback      }
+        customerId = 1; // Default fallback
+      }
 
       // Validate and prepare order_id (declare outside try block for scope access)
       let processedOrderId;
@@ -2115,7 +2186,8 @@ const DeliveryPage = () => {
           delivery_contact_phone: order.contact_phone || order.customer_phone || order.phone || '',
           delivery_notes: scheduleData.notes || '',
           priority_level: (order.priority && order.priority > 50) ? 'high' : 'normal',
-          delivery_fee: 150.00 // Standard delivery fee
+          delivery_fee: 150.00, // Standard delivery fee
+          courier_id: scheduleData.courier_id || null
         };
         
         console.log('📋 Delivery schedule data to send:', deliveryScheduleData);
@@ -2143,7 +2215,8 @@ const DeliveryPage = () => {
             delivery_date: deliveryDate,
             delivery_time_slot: scheduleData.time || '9:00-17:00',
             delivery_notes: scheduleData.notes || '',
-            delivery_status: 'scheduled'
+            delivery_status: 'scheduled',
+            courier_id: scheduleData.courier_id || null
           };
           
           deliveryResponse = await api.put(`/delivery/schedules/${existingSchedule.id}`, updateData);
@@ -2151,17 +2224,20 @@ const DeliveryPage = () => {
           console.log('✅ Delivery schedule updated successfully');
           
           // Update local state
-          setDeliverySchedules(prev => prev.map(schedule => 
-            schedule.id === existingSchedule.id 
-              ? {
-                  ...schedule,
-                  delivery_date: scheduleData.date,
-                  delivery_time: scheduleData.time,
-                  notes: scheduleData.notes,
-                  status: 'scheduled'
-                }
-              : schedule
-          ));
+          setDeliverySchedules(prev => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            return safePrev.map(schedule => 
+              schedule.id === existingSchedule.id 
+                ? {
+                    ...schedule,
+                    delivery_date: scheduleData.date,
+                    delivery_time: scheduleData.time,
+                    notes: scheduleData.notes,
+                    status: 'scheduled'
+                  }
+                : schedule
+            );
+          });
           
         } else {
           // Create new schedule
@@ -2183,7 +2259,10 @@ const DeliveryPage = () => {
               status: 'scheduled',
               notes: scheduleData.notes            };
             
-            setDeliverySchedules(prev => [...prev, newSchedule]);
+            setDeliverySchedules(prev => {
+              const safePrev = Array.isArray(prev) ? prev : [];
+              return [...safePrev, newSchedule];
+            });
           } else {
             throw new Error('Invalid response from delivery API');
           }
@@ -2214,9 +2293,10 @@ const DeliveryPage = () => {
               
               // Update local state
               setDeliverySchedules(prev => {
-                const scheduleExists = prev.some(s => s.id === existingSchedule.id);
+                const safePrev = Array.isArray(prev) ? prev : [];
+                const scheduleExists = safePrev.some(s => s.id === existingSchedule.id);
                 if (scheduleExists) {
-                  return prev.map(schedule => 
+                  return safePrev.map(schedule => 
                     schedule.id === existingSchedule.id 
                       ? {
                           ...schedule,
@@ -2229,7 +2309,7 @@ const DeliveryPage = () => {
                   );
                 } else {
                   // Add the schedule to local state if it wasn't there
-                  return [...prev, {
+                  return [...safePrev, {
                     id: existingSchedule.id,
                     order_id: order.id,
                     order_number: order.order_number,
@@ -2264,7 +2344,10 @@ const DeliveryPage = () => {
             status: 'scheduled',
             notes: scheduleData.notes
           };
-          setDeliverySchedules(prev => [...prev, newSchedule]);
+          setDeliverySchedules(prev => {
+            const safePrev = Array.isArray(prev) ? prev : [];
+            return [...safePrev, newSchedule];
+          });
         }      }
 
       // Update backend for custom orders (legacy support)
@@ -2302,15 +2385,20 @@ const DeliveryPage = () => {
         scheduled_delivery_time: scheduleData.time,
         delivery_notes: scheduleData.notes
       };
-        setOrders(prevOrders => prevOrders.map(o => o.id === order.id ? updatedOrder : o));
+        setOrders(prevOrders => {
+          const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
+          return safePrevOrders.map(o => o.id === order.id ? updatedOrder : o);
+        });
       
       // Email notification sent
       console.log('📧 Email notification sent to:', order.user_email);
       
       setShowScheduleModal(false);
-      setSelectedOrder(null);      setSelectedDate(null);
+      setSelectedOrder(null);
+      setSelectedDate(null);
       
-      // Clear selected order for scheduling if it was the one just scheduled      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
+      // Clear selected order for scheduling if it was the one just scheduled
+      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
         setSelectedOrderForScheduling(null);
       }
       
@@ -2320,9 +2408,121 @@ const DeliveryPage = () => {
         'success'
       );
       
+      // Refresh delivery schedules from server to ensure calendar is updated
+      try {
+        console.log('🔄 Refreshing delivery schedules from server...');
+        const schedulesResponse = await api.get('/delivery/schedules');
+        
+        // Handle different response formats
+        let schedulesData;
+        if (schedulesResponse.data && schedulesResponse.data.success && schedulesResponse.data.schedules) {
+          schedulesData = schedulesResponse.data.schedules;
+        } else if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
+          schedulesData = schedulesResponse.data;
+        } else {
+          console.log('⚠️ DeliveryPage: Invalid delivery schedules response format on refresh');
+          schedulesData = [];
+        }
+        
+        // Ensure we always set an array
+        if (Array.isArray(schedulesData)) {
+          setDeliverySchedules(schedulesData);
+          console.log('✅ Delivery schedules refreshed successfully');
+        } else {
+          console.log('⚠️ DeliveryPage: Schedules data is not an array, setting empty array');
+          setDeliverySchedules([]);
+        }
+      } catch (refreshError) {
+        console.error('⚠️ Failed to refresh delivery schedules:', refreshError);
+        setDeliverySchedules([]); // Ensure we set an empty array on error
+      }
+      
     } catch (error) {
       console.error('Error scheduling delivery:', error);
       showPopup('Error', 'Error scheduling delivery. Please try again.', 'error');
+    }
+  };
+
+  // Function to remove/delete an order completely
+  const handleRemoveOrder = async (order) => {
+    const confirmed = window.confirm(
+      `⚠️ PERMANENT DELETION WARNING ⚠️\n\nAre you sure you want to permanently remove order ${order.order_number}?\n\nThis will:\n- Delete the order from the database\n- Remove all delivery schedules\n- Cannot be undone\n\nType "DELETE" to confirm deletion.`
+    );
+    
+    if (!confirmed) return;
+    
+    // Ask for additional confirmation
+    const deleteConfirmation = prompt('Type "DELETE" to confirm permanent deletion:');
+    if (deleteConfirmation !== 'DELETE') {
+      showPopup('Deletion Cancelled', 'Order deletion cancelled. Type "DELETE" exactly to confirm.', 'info');
+      return;
+    }
+
+    try {
+      console.log(`🗑️ Removing order ${order.order_number} permanently...`);
+      
+      // Remove from backend database based on order type
+      if (order.order_type === 'custom_design' && order.custom_design_data) {
+        const designId = order.custom_design_data.design_id;
+        await api.delete(`/custom-designs/${designId}`);
+        console.log(`✅ Deleted custom design ${designId} from database`);
+      } else if (order.order_type === 'custom') {
+        const customOrderId = order.id.toString().startsWith('custom-order-') 
+          ? order.id.replace('custom-order-', '') 
+          : order.id;
+        await api.delete(`/custom-orders/${customOrderId}`);
+        console.log(`✅ Deleted custom order ${customOrderId} from database`);
+      } else {
+        // Regular order - extract numeric ID
+        const numericId = typeof order.id === 'string' && order.id.includes('-') 
+          ? order.id.split('-').pop() 
+          : order.id;
+        await api.delete(`/orders/${numericId}`);
+        console.log(`✅ Deleted regular order ${numericId} from database`);
+      }
+
+      // Remove any associated delivery schedules
+      const associatedSchedule = deliverySchedules.find(schedule => 
+        schedule.order_id === order.id || schedule.order_number === order.order_number
+      );
+      
+      if (associatedSchedule && associatedSchedule.id) {
+        try {
+          await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
+          console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
+        } catch (scheduleError) {
+          console.warn('Could not delete delivery schedule:', scheduleError);
+        }
+      }
+
+      // Remove from frontend state
+      setOrders(prevOrders => {
+        const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
+        return safePrevOrders.filter(o => o.id !== order.id);
+      });
+      setDeliverySchedules(prevSchedules => {
+        const safePrevSchedules = Array.isArray(prevSchedules) ? prevSchedules : [];
+        return safePrevSchedules.filter(s => s.order_id !== order.id);
+      });
+      
+      // Clear selected order if it was the one being removed
+      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
+        setSelectedOrderForScheduling(null);
+      }
+
+      showPopup(
+        'Order Removed Successfully',
+        `Order ${order.order_number} has been permanently deleted from the system.`,
+        'success'
+      );
+
+    } catch (error) {
+      console.error('❌ Failed to remove order:', error);
+      showPopup(
+        'Deletion Failed', 
+        `Failed to remove order ${order.order_number}. Please try again or contact support.`, 
+        'error'
+      );
     }
   };
 
@@ -2348,6 +2548,23 @@ const DeliveryPage = () => {
             'warning'
           );
         }, 500);
+      }
+
+      // Special handling for cancelled status
+      if (newStatus === 'cancelled') {
+        const confirmed = window.confirm(
+          `Are you sure you want to cancel the delivery for order ${order.order_number}?\n\nThis will:\n- Remove the delivery schedule completely\n- Set the order status to cancelled\n- This action cannot be undone`
+        );
+        
+        if (!confirmed) {
+          return; // User cancelled, don't proceed
+        }
+        
+        showPopup(
+          'Delivery Cancelled',
+          `Delivery for order ${order.order_number} has been cancelled.\n\nThe order has been removed from the delivery schedule.`,
+          'warning'
+        );
       }        // Handle custom designs and custom orders differently than regular orders
       if (order.order_type === 'custom_design' && order.custom_design_data) {
         const designId = order.custom_design_data.design_id;
@@ -2387,26 +2604,20 @@ const DeliveryPage = () => {
           return;
         }
       } else {
-        // Handle regular orders - update orders table
-        try {
-          await api.patch(`/orders/${order.id}/delivery-status`, {
-            delivery_status: newStatus,
-            delivery_date: newStatus === 'delivered' ? new Date().toISOString().split('T')[0] : null,
-            delivery_notes: `Status updated to ${newStatus} on ${new Date().toLocaleString()}`
-          });
-          
-          console.log(`✅ Successfully updated regular order ${order.order_number} delivery status to ${newStatus}`);
-        } catch (apiError) {
-          console.error('Failed to update regular order delivery status:', apiError);
-          showPopup('Error', 'Failed to update regular order delivery status in database. Please try again.', 'error');
-          return;
-        }
+        // For regular orders, we don't need to update any order-specific status
+        // All status tracking is handled through delivery schedules
+        console.log(`📋 Regular order ${order.order_number} - status will be managed through delivery schedule only`);
       }
       
-      // Update delivery schedule in the new delivery database
+      // Update delivery schedule in the new delivery database (this is the primary source for delivery status)
       try {
         // Find the delivery schedule for this order
-        const existingSchedule = deliverySchedules.find(schedule => schedule.order_id === order.id);
+        const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
+        const existingSchedule = safeDeliverySchedules.find(schedule => 
+          schedule.order_id === order.id || 
+          schedule.order_id === parseInt(order.id) ||
+          schedule.order_number === order.order_number
+        );
         
         if (existingSchedule && existingSchedule.id) {
           console.log(`💾 Updating delivery schedule ${existingSchedule.id} status to ${newStatus}...`);
@@ -2419,16 +2630,26 @@ const DeliveryPage = () => {
           if (newStatus === 'delivered') {
             updateData.actual_delivery_time = new Date().toISOString();
           }
-            // If delayed, clear the schedule (will be deleted from database)
-          if (newStatus === 'delayed') {
+            // If delayed or cancelled, clear the schedule (will be deleted from database)
+          if (newStatus === 'delayed' || newStatus === 'cancelled') {
             await api.delete(`/delivery/schedules/${existingSchedule.id}`);
-            console.log(`✅ Deleted delivery schedule ${existingSchedule.id} for delayed order`);
+            console.log(`✅ Deleted delivery schedule ${existingSchedule.id} for ${newStatus} order`);
           } else {
             await api.put(`/delivery/schedules/${existingSchedule.id}`, updateData);
             console.log(`✅ Updated delivery schedule ${existingSchedule.id} status to ${newStatus}`);
           }
-        } else {
+        } else if (newStatus !== 'delayed' && newStatus !== 'cancelled') {
+          // If no delivery schedule exists and we're not marking as delayed/cancelled, 
+          // the user should schedule the delivery first
           console.log(`⚠️ No delivery schedule found for order ${order.order_number}`);
+          showPopup(
+            'Schedule Required',
+            `To update the delivery status to "${newStatus}", please schedule this order for delivery first using the calendar.`,
+            'warning'
+          );
+          return;
+        } else {
+          console.log(`⚠️ No delivery schedule found for order ${order.order_number} - status change to ${newStatus} allowed`);
         }
       } catch (deliveryApiError) {
         console.error('❌ Failed to update delivery schedule in database:', deliveryApiError);
@@ -2441,12 +2662,12 @@ const DeliveryPage = () => {
         delivery_status: newStatus
       };
       
-      // If marking as delayed, clear the scheduled delivery date and time
-      if (newStatus === 'delayed') {
+      // If marking as delayed or cancelled, clear the scheduled delivery date and time
+      if (newStatus === 'delayed' || newStatus === 'cancelled') {
         updatedOrder.scheduled_delivery_date = null;
         updatedOrder.scheduled_delivery_time = null;
         updatedOrder.delivery_notes = null;
-        console.log(`📅 Cleared scheduled delivery date for delayed order ${order.order_number}`);
+        console.log(`📅 Cleared scheduled delivery date for ${newStatus} order ${order.order_number}`);
       }
       
       // If marking as delivered, set delivery date
@@ -2455,18 +2676,27 @@ const DeliveryPage = () => {
         console.log(`📅 Set delivery date for order ${order.order_number}`);
       }
       
-      setOrders(prevOrders => prevOrders.map(o => o.id === order.id ? updatedOrder : o));
+      setOrders(prevOrders => {
+        const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
+        return safePrevOrders.map(o => o.id === order.id ? updatedOrder : o);
+      });
       
       // Update delivery schedules if exists
-      setDeliverySchedules(prev => prev.map(schedule => 
-        schedule.order_id === order.id 
-          ? { ...schedule, status: newStatus }
-          : schedule
-      ));
+      setDeliverySchedules(prev => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        return safePrev.map(schedule => 
+          schedule.order_id === order.id 
+            ? { ...schedule, status: newStatus }
+            : schedule
+        );
+      });
       
-      // If marking as delayed, also remove from delivery schedules since it's no longer scheduled
-      if (newStatus === 'delayed') {
-        setDeliverySchedules(prev => prev.filter(schedule => schedule.order_id !== order.id));
+      // If marking as delayed or cancelled, also remove from delivery schedules since it's no longer scheduled
+      if (newStatus === 'delayed' || newStatus === 'cancelled') {
+        setDeliverySchedules(prev => {
+          const safePrev = Array.isArray(prev) ? prev : [];
+          return safePrev.filter(schedule => schedule.order_id !== order.id);
+        });
         console.log(`📅 Removed order ${order.order_number} from delivery schedules`);
       }
       
@@ -2505,6 +2735,13 @@ const DeliveryPage = () => {
   };
   const checkScheduleConflicts = (scheduleData) => {
     const conflicts = [];
+    
+    // Check if scheduleData is provided and has required properties
+    if (!scheduleData || !scheduleData.date || !scheduleData.time) {
+      conflicts.push('Invalid schedule data provided');
+      return conflicts;
+    }
+    
     const scheduleDateTime = new Date(`${scheduleData.date} ${scheduleData.time}`);
     
     // Check if date is in the past
@@ -2516,13 +2753,15 @@ const DeliveryPage = () => {
     }
     
     // Check for existing deliveries at the same time
-    const existingDeliveries = deliverySchedules.filter(schedule => {
+    const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
+    const existingDeliveries = safeDeliverySchedules.filter(schedule => {
       const existingDateTime = new Date(`${schedule.delivery_date} ${schedule.delivery_time}`);
       return Math.abs(existingDateTime - scheduleDateTime) < 60 * 60 * 1000; // 1 hour buffer
     });
     
     // Check for orders scheduled at the same time
-    const existingOrders = orders.filter(order => {
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    const existingOrders = safeOrders.filter(order => {
       if (!order.scheduled_delivery_date || !order.scheduled_delivery_time) return false;
       const existingDateTime = new Date(`${order.scheduled_delivery_date} ${order.scheduled_delivery_time}`);
       return Math.abs(existingDateTime - scheduleDateTime) < 60 * 60 * 1000; // 1 hour buffer
@@ -2531,13 +2770,13 @@ const DeliveryPage = () => {
     if (existingDeliveries.length > 0 || existingOrders.length > 0) {
       conflicts.push('Time slot already booked');
     }      // Check daily capacity
-    const sameDayDeliveries = deliverySchedules.filter(schedule => {
+    const sameDayDeliveries = safeDeliverySchedules.filter(schedule => {
       const scheduleDate = new Date(schedule.delivery_date);
       const targetDate = new Date(scheduleData.date);
       return scheduleDate.toDateString() === targetDate.toDateString();
     });
     
-    const sameDayOrders = orders.filter(order => {
+    const sameDayOrders = safeOrders.filter(order => {
       if (!order.scheduled_delivery_date) return false;
       const orderDate = new Date(order.scheduled_delivery_date);
       const targetDate = new Date(scheduleData.date);
@@ -2584,18 +2823,86 @@ const DeliveryPage = () => {
     
     for (let i = 0; i < 42; i++) {
       const date = new Date(startDate);
-      date.setDate(startDate.getDate() + i);        // Find scheduled deliveries for this date
-      const dayDeliveries = deliverySchedules.filter(schedule => {
+      date.setDate(startDate.getDate() + i);
+
+      // Find scheduled deliveries for this date
+      // Ensure deliverySchedules is an array to prevent filter errors
+      const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
+      const dayDeliveries = safeDeliverySchedules.filter(schedule => {
+        // Filter out ALL sample deliveries - comprehensive list
+        const sampleOrderIds = [
+          1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
+          // Additional sample IDs to ensure complete filtering
+          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+          1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+          99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
+          // Remove orders 26-30 from calendar
+          26, 27, 28, 29, 30
+        ];
+        if (sampleOrderIds.includes(parseInt(schedule.order_id))) {
+          return false; // Filter out sample deliveries
+        }
+        
         const scheduleDate = new Date(schedule.delivery_date);
         const calendarDate = new Date(date);
         
         // Compare just the date parts (ignore time)
-        return scheduleDate.getFullYear() === calendarDate.getFullYear() &&
+        const matches = scheduleDate.getFullYear() === calendarDate.getFullYear() &&
                scheduleDate.getMonth() === calendarDate.getMonth() &&
                scheduleDate.getDate() === calendarDate.getDate();
-      });      // Find orders scheduled for this date - for counting and delivery icons only
-      const dayScheduledOrders = orders.filter(order => {
+               
+        // Debug logging for today's date (only for real orders)
+        if (calendarDate.toDateString() === new Date().toDateString() && matches) {
+          console.log(`📅 Calendar Debug for ${calendarDate.toDateString()}:`, {
+            schedule: schedule.id,
+            order_id: schedule.order_id,
+            delivery_date: schedule.delivery_date,
+            scheduleDate: scheduleDate.toDateString(),
+            calendarDate: calendarDate.toDateString(),
+            matches
+          });
+        }
+        
+        return matches;
+      });
+
+      // Find orders scheduled for this date - for counting and delivery icons only
+      // Ensure orders is an array to prevent filter errors
+      const safeOrders = Array.isArray(orders) ? orders : [];
+      const dayScheduledOrders = safeOrders.filter(order => {
         if (!order.scheduled_delivery_date) return false;
+        
+        // Filter out ALL sample orders - comprehensive list
+        const sampleOrderIds = [
+          1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
+          // Additional sample IDs to ensure complete filtering
+          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+          1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
+          99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
+          // Remove orders 26-30 from calendar
+          26, 27, 28, 29, 30
+        ];
+        const numericId = typeof order.id === 'string' && order.id.includes('-') 
+          ? parseInt(order.id.split('-').pop()) 
+          : parseInt(order.id);
+        const orderNumberId = order.order_number && !isNaN(order.order_number) 
+          ? parseInt(order.order_number) 
+          : null;
+          
+        // Additional filtering for obvious sample/test patterns
+        const hasTestPattern = order.customerName && (
+          order.customerName.toLowerCase().includes('test') ||
+          order.customerName.toLowerCase().includes('sample') ||
+          order.customerName.toLowerCase().includes('demo') ||
+          order.customerName.toLowerCase().includes('mock')
+        );
+          
+        if ((numericId && sampleOrderIds.includes(numericId)) || 
+            (orderNumberId && sampleOrderIds.includes(orderNumberId)) ||
+            hasTestPattern) {
+          return false; // Filter out sample orders
+        }
+        
         const orderDate = new Date(order.scheduled_delivery_date);
         const calendarDate = new Date(date);
         
@@ -2605,18 +2912,18 @@ const DeliveryPage = () => {
                orderDate.getDate() === calendarDate.getDate();
       });
       
-      // Keep dayOrders empty for display purposes (no order blocks shown)
-      const dayOrders = [];
+      // Keep dayOrders empty for display purposes (no order blocks shown) - completely remove all sample deliveries
+      const dayOrders = []; // Ensure no sample deliveries are displayed in calendar
       
-      // Find custom orders with production timeline for this date
-      const productionInfo = orders.filter(order => {
+      // Find custom orders with production timeline for this date (15-day timeline)
+      const productionInfo = safeOrders.filter(order => {
         if (order.order_type !== 'custom') return false;
         
         const adminSetStartDate = customOrderProductionStartDates[order.id];
         if (!adminSetStartDate) return false;
         
         const productionStartDate = new Date(adminSetStartDate);
-        const completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        const completionDate = new Date(productionStartDate.getTime() + (15 * 24 * 60 * 60 * 1000));
         const calendarDate = new Date(date);
         
         // Check if this date is within the production timeline
@@ -2624,7 +2931,7 @@ const DeliveryPage = () => {
       }).map(order => {
         const adminSetStartDate = customOrderProductionStartDates[order.id];
         const productionStartDate = new Date(adminSetStartDate);
-        const completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
+        const completionDate = new Date(productionStartDate.getTime() + (15 * 24 * 60 * 60 * 1000));
         const calendarDate = new Date(date);
         
         // Calculate production progress for this date
@@ -2733,12 +3040,35 @@ const DeliveryPage = () => {
     
     // Check if we have a selected order for scheduling
     if (selectedOrderForScheduling) {
-      // Show visual feedback
-      showPopup(
-        'Opening Schedule Modal',
-        `Scheduling delivery for order ${selectedOrderForScheduling.order_number} on ${day.date.toLocaleDateString()}`,
-        'info'
-      );
+      // Prevent rescheduling to past dates
+      const selectedDate = new Date(day.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to start of day for comparison
+      
+      if (selectedDate < today) {
+        showPopup(
+          'Invalid Date', 
+          `Cannot reschedule delivery to a past date.\n\nSelected date: ${day.date.toLocaleDateString()}\nPlease select today or a future date.`, 
+          'warning'
+        );
+        return;
+      }
+      
+      // If rescheduling a delayed order, show special message
+      if (selectedOrderForScheduling.delivery_status === 'delayed') {
+        showPopup(
+          'Rescheduling Delayed Order',
+          `Rescheduling delayed order ${selectedOrderForScheduling.order_number} to ${day.date.toLocaleDateString()}.\n\nThis will update the delivery status to 'scheduled'.`,
+          'info'
+        );
+      } else {
+        // Show visual feedback
+        showPopup(
+          'Opening Schedule Modal',
+          `Scheduling delivery for order ${selectedOrderForScheduling.order_number} on ${day.date.toLocaleDateString()}`,
+          'info'
+        );
+      }
       
       setSelectedOrder(selectedOrderForScheduling);
       setShowScheduleModal(true);
@@ -2746,7 +3076,8 @@ const DeliveryPage = () => {
     }
     
     // Find orders that need scheduling (including those that can be rescheduled)
-    const pendingOrders = orders.filter(order => 
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    const pendingOrders = safeOrders.filter(order => 
       !order.delivery_status || 
       order.delivery_status === 'pending' || 
       order.delivery_status === 'delayed'
@@ -2829,10 +3160,27 @@ const DeliveryPage = () => {
           <StatNumber>{stats.delayed}</StatNumber>
           <StatLabel>Delayed</StatLabel>
         </StatCard>
+        <StatCard>
+          <StatNumber>{stats.cancelled}</StatNumber>
+          <StatLabel>Cancelled</StatLabel>
+        </StatCard>
       </StatsGrid>      <MainContent>
         <ContentSection>
           <LeftSection>            <CalendarContainer>            <CalendarHeader>
               <CalendarNav>
+                <CalendarButton 
+                  onClick={() => setShowCourierManagement(true)}
+                  title="Manage Couriers"
+                  style={{ 
+                    fontSize: '1rem',
+                    padding: '0.8rem',
+                    width: '44px',
+                    height: '44px',
+                    marginRight: '0.5rem'
+                  }}
+                >
+                  <FontAwesomeIcon icon={faUsers} style={{ color: '#000000' }} />
+                </CalendarButton>
                 <CalendarButton 
                   onClick={() => setShowFullCalendar(true)}
                   title="View Full Calendar"
@@ -2896,8 +3244,10 @@ const DeliveryPage = () => {
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <CalendarDay key={day} style={{ minHeight: '40px', padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', background: '#f8f8f8' }}>
                   {day}
-                </CalendarDay>              ))}              {generateCalendarDays().map((day, index) => {
-                return (                  <CalendarDay 
+                </CalendarDay>  
+              ))}
+              {generateCalendarDays().map((day, index) => (
+                <CalendarDay 
                     key={index} 
                     clickable={day.isCurrentMonth && day.availabilityStatus !== 'unavailable'}
                     onClick={() => handleCalendarDayClick(day)}
@@ -2932,54 +3282,97 @@ const DeliveryPage = () => {
                       }}
                     >
                       {day.bookingCount > 0 ? day.bookingCount : ''}
-                    </AvailabilityIndicator>                    {/* Delivery truck icon - show if there are deliveries or scheduled orders */}
+                    </AvailabilityIndicator>                    {/* Enhanced Delivery Status Icon - Larger and more visible */}
                     {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
                       <DeliveryIcon 
-                        status={'scheduled'}
-                        title={`${day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)} delivery(ies) scheduled - Click to view details`}
+                        status={(() => {
+                          // Determine the overall status for this day
+                          const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                          if (allOrders.length === 0) return 'scheduled';
+                          
+                          // Priority: delivered > in_transit > delayed > cancelled > scheduled > pending
+                          if (allOrders.some(order => order.delivery_status === 'delivered')) return 'delivered';
+                          if (allOrders.some(order => order.delivery_status === 'in_transit')) return 'in_transit';
+                          if (allOrders.some(order => order.delivery_status === 'delayed')) return 'delayed';
+                          if (allOrders.some(order => order.delivery_status === 'cancelled')) return 'cancelled';
+                          if (allOrders.some(order => order.delivery_status === 'scheduled')) return 'scheduled';
+                          return 'pending';
+                        })()}
+                        title={(() => {
+                          const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                          const count = allOrders.length;
+                          const status = allOrders.length > 0 ? 
+                            (allOrders.some(order => order.delivery_status === 'delivered') ? 'DELIVERED' :
+                             allOrders.some(order => order.delivery_status === 'in_transit') ? 'IN TRANSIT' :
+                             allOrders.some(order => order.delivery_status === 'delayed') ? 'DELAYED' :
+                             allOrders.some(order => order.delivery_status === 'cancelled') ? 'CANCELLED' :
+                             allOrders.some(order => order.delivery_status === 'scheduled') ? 'SCHEDULED' : 'PENDING') : 'SCHEDULED';
+                          
+                          return `${count} delivery(ies) - Status: ${status}\nClick to view order details`;
+                        })()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Show modal with all orders scheduled for this day
+                          // Show detailed popup with all orders scheduled for this day
                           const allScheduledOrders = [...(day.scheduledOrders || [])];
                           if (allScheduledOrders.length > 0) {
-                            const orderDetails = allScheduledOrders.map(order => 
-                              `• ${order.order_number} - ${order.customerName} (₱${parseFloat(order.total_amount || 0).toFixed(2)})`
-                            ).join('\n');
+                            const orderDetails = allScheduledOrders.map(order => {
+                              const status = order.delivery_status || 'pending';
+                              const statusIcon = {
+                                'pending': '⏳ PENDING',
+                                'scheduled': '📅 SCHEDULED',
+                                'in_transit': '🚚 IN TRANSIT',
+                                'delivered': '✅ DELIVERED',
+                                'delayed': '⚠️ DELAYED',
+                                'cancelled': '❌ CANCELLED'
+                              }[status] || '📦 UNKNOWN';
+                              
+                              const orderType = order.order_type === 'custom' ? '🎨 Custom' : '🛍️ Regular';
+                              
+                              return `${statusIcon}\n${orderType} Order: ${order.order_number}\nCustomer: ${order.customerName}\nAmount: ₱${parseFloat(order.total_amount || 0).toFixed(2)}`;
+                            }).join('\n\n');
                             
                             showPopup(
-                              `� Scheduled Deliveries - ${day.date.toLocaleDateString()}`,
-                              `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}\n\nClick on any order in the Orders list to view complete details.`,
+                              `📦 Delivery Schedule - ${day.date.toLocaleDateString()}`,
+                              `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}\n\n💡 Use the action buttons in the Orders list to update delivery status.`,
                               'info'
                             );
                           }
                         }}
-                        style={{ cursor: 'pointer' }}
                       >
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          �🚚
-                          {/* Order count badge */}
-                          {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '-8px',
-                              right: '-8px',
-                              background: '#dc3545',
-                              color: 'white',
-                              borderRadius: '50%',
-                              width: '16px',
-                              height: '16px',
-                              fontSize: '10px',
-                              fontWeight: 'bold',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '2px solid white',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                            }}>
-                              {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
-                            </div>
-                          )}
-                        </div>
+                        {/* Order count badge - Enhanced visibility */}
+                        {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-6px',
+                            right: '-6px',
+                            background: (() => {
+                              const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                              if (allOrders.some(order => order.delivery_status === 'delivered')) return '#28a745';
+                              if (allOrders.some(order => order.delivery_status === 'in_transit')) return '#17a2b8';
+                              if (allOrders.some(order => order.delivery_status === 'delayed')) return '#ffc107';
+                              if (allOrders.some(order => order.delivery_status === 'cancelled')) return '#6c757d';
+                              return '#007bff'; // Default for scheduled
+                            })(),
+                            color: (() => {
+                              const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                              if (allOrders.some(order => order.delivery_status === 'delayed')) return '#212529';
+                              return 'white';
+                            })(),
+                            borderRadius: '50%',
+                            width: '18px',
+                            height: '18px',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '2px solid white',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                            zIndex: 10
+                          }}>
+                            {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
+                          </div>
+                        )}
                       </DeliveryIcon>
                     )}                      {/* Production start selection indicator */}
                     {selectedOrderForProductionStart && day.isCurrentMonth && 
@@ -3004,639 +3397,387 @@ const DeliveryPage = () => {
                       </div>
                     )}
                     
-                    {/* Production timeline indicators */}
+                    {/* Enhanced 15-Day Production Timeline for Custom Orders */}
                     {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
                       <div key={`production-${prodOrder.id}-${idx}`}>
-                        {/* Production start marker */}
+                        {/* Production start marker - Enhanced visibility */}
                         {prodOrder.isProductionStart && (
                           <div style={{
                             position: 'absolute',
                             top: '2px',
                             right: '2px',
-                            width: '14px',
-                            height: '14px',
-                            backgroundColor: '#28a745',
+                            width: '20px',
+                            height: '20px',
+                            background: 'linear-gradient(135deg, #28a745, #20c997)',
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '8px',
+                            fontSize: '10px',
                             color: 'white',
                             fontWeight: 'bold',
                             zIndex: 15,
-                            border: '2px solid white',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            border: '3px solid white',
+                            boxShadow: '0 3px 8px rgba(40,167,69,0.4)'
                           }}
-                          title={`Production Start: ${prodOrder.order_number}`}
+                          title={`🎨 Custom Order Production START\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionStartDate.toLocaleDateString()}\n15-day production timeline begins`}
                           >
-                            🏁
+                            🚀
                           </div>
                         )}
                         
-                        {/* Production end marker */}
+                        {/* Production completion marker - Enhanced visibility */}
                         {prodOrder.isProductionEnd && (
                           <div style={{
                             position: 'absolute',
-                            bottom: '2px',
+                            top: '2px',
                             right: '2px',
-                            width: '14px',
-                            height: '14px',
-                            backgroundColor: '#ffc107',
+                            width: '20px',
+                            height: '20px',
+                            background: 'linear-gradient(135deg, #ffc107, #f39c12)',
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '8px',
+                            fontSize: '10px',
                             color: 'white',
                             fontWeight: 'bold',
                             zIndex: 15,
-                            border: '2px solid white',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                            border: '3px solid white',
+                            boxShadow: '0 3px 8px rgba(255,193,7,0.4)'
                           }}
-                          title={`Production Complete: ${prodOrder.order_number}`}
+                          title={`🎨 Custom Order Production COMPLETE\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionCompletionDate.toLocaleDateString()}\nReady for delivery scheduling`}
                           >
-                            ✅
+                            ✨
                           </div>
                         )}
                         
-                        {/* Production progress line */}
+                        {/* 15-Day Production Progress Bar - Enhanced design */}
                         {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
                           <div style={{
                             position: 'absolute',
                             bottom: '4px',
                             left: '4px',
                             right: '4px',
-                            height: '3px',
-                            backgroundColor: '#ffd700',
-                            borderRadius: '2px',
-                            zIndex: 12,
-                            opacity: 0.8,
-                            background: `linear-gradient(90deg, #28a745 0%, #ffc107 ${prodOrder.productionProgress}%, #e9ecef ${prodOrder.productionProgress}%, #e9ecef 100%)`
+                            height: '6px',
+                            background: '#e9ecef',
+                            borderRadius: '3px',
+                            zIndex: 10,
+                            border: '1px solid rgba(0,0,0,0.1)',
+                            overflow: 'hidden'
                           }}
-                          title={`Production Progress: ${Math.round(prodOrder.productionProgress)}% - ${prodOrder.order_number}`}
-                          />
+                          title={`🎨 Custom Order Production Progress\nOrder: ${prodOrder.order_number}\nProgress: ${Math.round(prodOrder.productionProgress)}%\nDay ${Math.ceil((prodOrder.productionProgress / 100) * 15)} of 15-day timeline`}
+                          >
+                            {/* Progress fill with gradient */}
+                            <div style={{
+                              width: `${prodOrder.productionProgress}%`,
+                              height: '100%',
+                              background: `linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)`,
+                              borderRadius: '2px',
+                              transition: 'width 0.3s ease',
+                              position: 'relative'
+                            }}>
+                              {/* Progress indicator dot */}
+                              {prodOrder.productionProgress > 10 && (
+                                <div style={{
+                                  position: 'absolute',
+                                  right: '-3px',
+                                  top: '-2px',
+                                  width: '10px',
+                                  height: '10px',
+                                  background: '#ffffff',
+                                  borderRadius: '50%',
+                                  border: '2px solid #28a745',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                }} />
+                              )}
+                            </div>
+                            
+                            {/* Timeline markers for days */}
+                            <div style={{
+                              position: 'absolute',
+                              top: '0',
+                              left: '0',
+                              right: '0',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}>
+                              {/* Day markers - every 5th day */}
+                              {[33.33, 66.66].map((position, index) => (
+                                <div
+                                  key={index}
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${position}%`,
+                                    width: '1px',
+                                    height: '100%',
+                                    background: 'rgba(255,255,255,0.5)',
+                                    zIndex: 1
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Custom order type indicator */}
+                        {(prodOrder.isProductionStart || prodOrder.isProductionEnd || (!prodOrder.isProductionStart && !prodOrder.isProductionEnd)) && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '2px',
+                            left: '2px',
+                            width: '16px',
+                            height: '16px',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '8px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            zIndex: 12,
+                            border: '2px solid white',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}
+                          title={`🎨 Custom Order: ${prodOrder.order_number}\n15-day production timeline`}
+                          >
+                            🎨
+                          </div>
                         )}
                       </div>
                     ))}
-                  </CalendarDay>
-                );
-              })}</CalendarGrid>            <CalendarLegend>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                  📦 Order Status
-                </div>                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #d1ecf1, #bee5eb)" />
-                    <span>Scheduled</span>
-                  </LegendItem>
-                                   <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #000000, #2d3436)" />
-                    <span>In Transit</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #d4edda, #c3e6cb)" />
-                    <span>Delivered</span>
-                  </LegendItem>                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #fce4ec, #f8bbd9)" />
-                    <span>Delayed</span>
-                  </LegendItem>
-                </div>
-              </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                  📅 Calendar Availability
-                </div>                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #28a745, #20c997)" />
-                    <span>Available - Green</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <LegendColor color="linear-gradient(135deg, #6c757d, #495057)" />
-                    <span>Unavailable (User Defined) - Gray</span>
-                  </LegendItem>                </div>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                  🎨 Custom Order Production Timeline
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                  <LegendItem>
-                    <div style={{
-                      width: '14px',
-                      height: '14px',
-                      backgroundColor: '#28a745',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '8px',
-                      color: 'white',
-                      border: '2px solid white',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }}>
-                      🏁
-                    </div>
-                    <span>Production Start</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <div style={{
-                      width: '14px',
-                      height: '14px',
-                      backgroundColor: '#ffc107',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '8px',
-                      color: 'white',
-                      border: '2px solid white',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }}>
-                      ✅
-                    </div>
-                    <span>Production Complete</span>
-                  </LegendItem>
-                  <LegendItem>
-                    <div style={{
-                      width: '20px',
-                      height: '3px',
-                      background: 'linear-gradient(90deg, #28a745 0%, #ffc107 60%, #e9ecef 60%, #e9ecef 100%)',
-                      borderRadius: '2px'
-                    }} />
-                    <span>Production Progress</span>
-                  </LegendItem>
-                </div>
-              </div>
-            </CalendarLegend>
-          </CalendarContainer>
+                </CalendarDay>
+              ))}
+            </CalendarGrid>
+            </CalendarContainer>
         </LeftSection>
 
+        {/* Right Section - Order Management */}
         <RightSection>
-          <Card>            <CardHeader>              <CardTitle>
-                <FontAwesomeIcon icon={faBox} style={{ color: '#000000' }} />
-                Orders
-                {selectedOrderForScheduling && (
-                  <span style={{ fontSize: '0.8rem', color: '#666666', marginLeft: '0.5rem' }}>
-                    (Selected: {selectedOrderForScheduling.order_number})
-                  </span>
-                )}
-              </CardTitle>
+          <Card>
+            <CardHeader>
+              <CardTitle>📋 Order Management</CardTitle>
             </CardHeader>
-            <CardContent>              <OrdersList>
-                {prioritizedOrders.map(order => (
-                  <OrderItem 
-                    key={order.id}
-                    isSelected={selectedOrderForScheduling && selectedOrderForScheduling.id === order.id}
-                  >                    <OrderInfo>                      <OrderNumber>
-                        <OrderTypeIcon className={order.order_type || 'regular'}>
-                          <FontAwesomeIcon 
-                            icon={
-                              order.order_type === 'custom_design' ? faPalette :
-                              order.order_type === 'custom' ? faPalette : 
-                              faShoppingBag
-                            } 
-                          />
-                        </OrderTypeIcon>
-                        {order.order_number}
-                        {order.order_type === 'custom_design' && (
-                          <span style={{
-                            marginLeft: '8px',
-                            backgroundColor: '#667eea',
-                            color: 'white',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            fontSize: '0.6rem',
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}>
-                            Design
-                          </span>
-                        )}
-                      </OrderNumber>{/* Custom Order Production Timeline (Admin-Controlled) */}
-                      {order.order_type === 'custom' && (() => {
-                        const now = new Date();
-                        const orderDate = new Date(order.created_at);
-                        
-                        // Get admin-controlled production start date
-                        const adminSetStartDate = customOrderProductionStartDates[order.id];
-                        const productionStartDate = adminSetStartDate ? new Date(adminSetStartDate) : orderDate;
-                        
-                        // Get admin-controlled production completion date or default
-                        const adminSetCompletionDate = customOrderProductionDates[order.id];
-                        let completionDate;
-                        
-                        if (adminSetCompletionDate) {
-                          completionDate = new Date(adminSetCompletionDate);
-                        } else {
-                          // Default to 10 days from production start date
-                          completionDate = new Date(productionStartDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-                        }
-                        
-                        // Calculate progress based on production start date
-                        const totalDuration = completionDate - productionStartDate;
-                        const elapsed = Math.min(now - productionStartDate, totalDuration);
-                        const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-                        
-                        const isComplete = now >= completionDate;
-                        const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
-                          // Calculate milestone dates based on production timeline
-                        const midPoint = new Date(productionStartDate.getTime() + (totalDuration / 2));
-                        const midPointReached = now >= midPoint;
-                        
-                        return (
-                          <ProductionTimelineContainer>                            <TimelineHeader>
-                              <div className="title">
-                                <FontAwesomeIcon icon={isComplete ? faCheck : faBox} />
-                                Production Timeline {adminSetStartDate || adminSetCompletionDate ? '(Admin Set)' : '(Default)'}
-                              </div>
-                              <div className="dates">
-                                {adminSetStartDate ? (
-                                  <>Production: {productionStartDate.toLocaleDateString()} → {completionDate.toLocaleDateString()}</>
-                                ) : (
-                                  <>Order: {orderDate.toLocaleDateString()} → {completionDate.toLocaleDateString()}</>
-                                )}
-                              </div>
-                            </TimelineHeader>
-                            
-                            <TimelineTrack>
-                              <TimelineProgress 
-                                progress={progress} 
-                                isComplete={isComplete}
-                              />
-                            </TimelineTrack>
-                              <TimelineMarkers>
-                              <TimelineMarker active={true} className="complete">
-                                <div className="dot"></div>
-                                <div className="label">
-                                  {adminSetStartDate ? 'Production Start' : 'Order Placed'}
-                                  <br/>{adminSetStartDate ? productionStartDate.toLocaleDateString() : orderDate.toLocaleDateString()}
-                                </div>
-                              </TimelineMarker>
-                              
-                              <TimelineMarker active={midPointReached} className={midPointReached ? 'complete' : ''}>
-                                <div className="dot"></div>
-                                <div className="label">Mid-Production<br/>{midPoint.toLocaleDateString()}</div>
-                              </TimelineMarker>
-                              
-                              <TimelineMarker active={isComplete} className={isComplete ? 'complete' : ''}>
-                                <div className="dot"></div>
-                                <div className="label">Complete<br/>{completionDate.toLocaleDateString()}</div>
-                              </TimelineMarker>
-                            </TimelineMarkers>
-                              <ProductionStatusIndicator isComplete={isComplete}>
-                              <div className="status-icon">
-                                {isComplete ? '✓' : Math.max(0, daysUntilCompletion)}
-                              </div>
-                              <div className="status-text">
-                                {isComplete ? 'Production Complete - Ready for Delivery' : 'Production in Progress'}
-                                {(adminSetStartDate || adminSetCompletionDate) && (
-                                  <span style={{ fontSize: '0.8em', color: '#666' }}> (Admin Controlled)</span>
-                                )}
-                              </div>
-                              {!isComplete && (
-                                <div className="status-days">
-                                  {Math.max(0, daysUntilCompletion)} day{Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining
-                                  {adminSetStartDate && (
-                                    <span style={{ fontSize: '0.85em', display: 'block', marginTop: '2px' }}>
-                                      Started: {productionStartDate.toLocaleDateString()}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </ProductionStatusIndicator>
-                          </ProductionTimelineContainer>
-                        );
-                      })()}
-
-                      <OrderDetails><div><strong>Customer:</strong> {order.customerName}</div>
+            <CardContent>
+              <OrdersList>
+                {orders.map(order => {
+                  const isScheduled = order.delivery_status && order.delivery_status !== 'pending';
+                  const isSelected = selectedOrderForScheduling && selectedOrderForScheduling.id === order.id;
+                  
+                  return (
+                    <OrderItem key={order.id} orderType={order.order_type} isSelected={isSelected}>
+                      <OrderInfo>
+                        <OrderNumber>
+                          Order #{order.order_number || order.id}
+                          <OrderTypeIcon className={order.order_type}>
+                            {order.order_type === 'custom' ? '🎨' : '🛍️'}
+                          </OrderTypeIcon>
+                        </OrderNumber>
+                        <div><strong>Customer:</strong> {order.customerName}</div>
                         <div><strong>Amount:</strong> ₱{parseFloat(order.total_amount).toFixed(2)}</div>
                         <div><strong>Order Date:</strong> {new Date(order.created_at).toLocaleDateString()}</div>
                         <div><strong>Address:</strong> {order.shipping_address}</div>
-                          {/* Product Details */}
-                        {order.items && order.items.length > 0 && (
-                          <div style={{ marginTop: '12px', padding: '8px', backgroundColor: '#f8f9fa', borderRadius: '4px', border: '1px solid #e9ecef' }}>
-                            <div style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center',
-                              marginBottom: '6px' 
-                            }}>
-                              <div style={{ fontWeight: '600', color: '#000000', fontSize: '0.85rem' }}>
-                                📦 Products ({order.items.length} item{order.items.length > 1 ? 's' : ''})
-                              </div>
-                              {order.items.length > 2 && (
-                                <button
-                                  style={{
-                                    background: '#000000',
-                                    color: '#ffffff',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '4px 8px',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer',
-                                    fontWeight: '500',
-                                    transition: 'all 0.2s ease'
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedOrder(order);
-                                    setShowProductModal(true);
-                                  }}
-                                  onMouseOver={(e) => e.target.style.background = '#333333'}
-                                  onMouseOut={(e) => e.target.style.background = '#000000'}
-                                >
-                                  View All
-                                </button>
-                              )}
-                            </div>
-                            {order.items.slice(0, 2).map((item, index) => (
-                              <div key={index} style={{ 
-                                fontSize: '0.75rem',
-                                color: '#666666',
-                                marginBottom: '6px',
-                                lineHeight: '1.3',
-                                padding: '4px 6px',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '3px',
-                                backgroundColor: '#ffffff'
-                              }}>
-                                <div style={{ fontWeight: '600', color: '#000000', marginBottom: '2px' }}>
-                                  {item.productname || 'Unknown Product'}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#555555', marginBottom: '2px' }}>
-                                  <strong>ID:</strong> {item.product_id || 'N/A'}
-                                </div>
-                                <div style={{ fontSize: '0.7rem', color: '#888888' }}>
-                                  {item.productcolor && (
-                                    <span><strong>Color:</strong> {item.productcolor} • </span>
-                                  )}
-                                  {item.product_type && (
-                                    <span><strong>Type:</strong> {item.product_type} • </span>
-                                  )}
-                                  <span><strong>Qty:</strong> {item.quantity || 1}</span>
-                                </div>
-                              </div>
-                            ))}
-                            {order.items.length > 2 && (
-                              <div style={{ 
-                                fontSize: '0.7rem',
-                                color: '#999999',
-                                fontStyle: 'italic',
-                                textAlign: 'center',
-                                marginTop: '4px'
-                              }}>
-                                +{order.items.length - 2} more item{order.items.length - 2 > 1 ? 's' : ''}...
-                              </div>
-                            )}
-                          </div>
+                        {order.scheduled_delivery_date && (
+                          <div><strong>Scheduled:</strong> {new Date(order.scheduled_delivery_date).toLocaleDateString()}</div>
                         )}
-                      </OrderDetails>
-                    </OrderInfo>                    <OrderActions>
-                      <StatusRow>
-                        <StatusBadge status={order.delivery_status || 'pending'}>
-                          {order.delivery_status || 'pending'}
-                        </StatusBadge>
-                      </StatusRow>                        <ButtonRow>                        {/* Buttons for pending orders (no delivery status set yet) */}
-                        {(!order.delivery_status || order.delivery_status === 'pending') && (
-                          selectedOrderForScheduling && selectedOrderForScheduling.id === order.id ? (
-                            <ActionButton 
-                              onClick={() => setSelectedOrderForScheduling(null)}
-                              variant="warning"
-                            >
-                              Deselect
-                            </ActionButton>                          ) : (
-                            <ActionButton 
-                              $primary
-                              onClick={() => {
-                                // Enhanced Custom Order Production Check (Admin-Controlled)
-                                if (order.order_type === 'custom') {
-                                  const now = new Date();
-                                  const orderDate = new Date(order.created_at);
-                                  
-                                  // Get admin-controlled production completion date or default
-                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
-                                  let completionDate;
-                                  
-                                  if (adminSetCompletionDate) {
-                                    completionDate = new Date(adminSetCompletionDate);
-                                  } else {
-                                    // Default to 10 days if admin hasn't set a date
-                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-                                  }
-                                  
-                                  const isProductionComplete = now >= completionDate;
-                                  const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
-                                  
-                                  if (!isProductionComplete) {
-                                    showPopup(
-                                      '🎨 Custom Order Production Timeline',
-                                      `Production Status: IN PROGRESS\n\n` +
-                                      `Order Created: ${orderDate.toLocaleDateString()}\n` +
-                                      `Production Completion: ${completionDate.toLocaleDateString()}${adminSetCompletionDate ? ' (Admin Set)' : ' (Default)'}\n` +
-                                      `Days Remaining: ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''}\n\n` +
-                                      `⚠️ SELECTION RESTRICTION:\n` +
-                                      `Custom orders require production completion before they can be selected for delivery scheduling.\n\n` +
-                                      `This order will be available for scheduling on: ${completionDate.toLocaleDateString()}\n\n` +
-                                      `${!adminSetCompletionDate ? 'Admin can set a custom production start date using the "Select Production Start" button to control the production timeline.' : 'Production date was set by admin.'}`,
-                                      'warning'
-                                    );
-                                    return;
-                                  }                                }
-                                // For regular orders, allow immediate selection
-                                setSelectedOrderForScheduling(order);
-                              }}disabled={(() => {
-                                // Only disable custom orders if production is not complete
-                                if (order.order_type === 'custom') {
-                                  const now = new Date();
-                                  const orderDate = new Date(order.created_at);
-                                  
-                                  // Get admin-controlled production completion date or default
-                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
-                                  let completionDate;
-                                  
-                                  if (adminSetCompletionDate) {
-                                    completionDate = new Date(adminSetCompletionDate);
-                                  } else {
-                                    // Default to 10 days if admin hasn't set a date
-                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-                                  }
-                                  
-                                  return now < completionDate;
-                                }
-                                // Regular orders are never disabled
-                                return false;
-                              })()}                            >
-                              {(() => {
-                                if (order.order_type === 'custom') {
-                                  const now = new Date();
-                                  const orderDate = new Date(order.created_at);
-                                  
-                                  // Get admin-controlled production completion date or default
-                                  const adminSetCompletionDate = customOrderProductionDates[order.id];
-                                  let completionDate;
-                                  
-                                  if (adminSetCompletionDate) {
-                                    completionDate = new Date(adminSetCompletionDate);
-                                  } else {
-                                    // Default to 10 days if admin hasn't set a date
-                                    completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-                                  }
-                                  
-                                  const isComplete = now >= completionDate;
-                                  const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
-                                  
-                                  if (!isComplete) {
-                                    return `Production: ${Math.max(0, daysUntilCompletion)}d left${adminSetCompletionDate ? ' (Admin)' : ''}`;
-                                  } else {
-                                    return `Select (Ready)${adminSetCompletionDate ? ' ✓' : ''}`;
-                                  }
-                                }
-                                // Regular orders show simple "Select" text
-                                return 'Select for Delivery';
-                              })()}
-                            </ActionButton>                          )                        )}
-                        
-                        {/* Production Start Date Selection for Custom Orders */}
-                        {order.order_type === 'custom' && !customOrderProductionStartDates[order.id] && (
+                        <div><strong>Status:</strong> 
+                          <span style={{ 
+                            color: {
+                              'pending': '#ffc107',
+                              'scheduled': '#007bff', 
+                              'in_transit': '#17a2b8',
+                              'delivered': '#28a745',
+                              'delayed': '#dc3545',
+                              'cancelled': '#6c757d'
+                            }[order.delivery_status || 'pending'] || '#ffc107',
+                            fontWeight: 'bold',
+                            marginLeft: '0.5rem'
+                          }}>
+                            {(order.delivery_status || 'pending').toUpperCase()}
+                          </span>
+                        </div>
+                      </OrderInfo>
+                      <OrderActions>
+                        {!isScheduled ? (
                           <ActionButton 
                             onClick={() => {
-                              if (selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id) {
-                                // Cancel selection
-                                setSelectedOrderForProductionStart(null);
-                                showPopup('Selection Cancelled', 'Production start date selection cancelled.', 'info');
+                              if (isSelected) {
+                                setSelectedOrderForScheduling(null);
                               } else {
-                                // Select this order for production start date
-                                setSelectedOrderForProductionStart(order);
+                                setSelectedOrderForScheduling(order);
                                 showPopup(
-                                  '📅 Select Production Start Date', 
-                                  `Click on a calendar date to set the production start date for Order #${order.order_number}.\n\n` +
-                                  `The production completion date will be automatically calculated as start date + 10 days.`, 
+                                  'Order Selected for Scheduling',
+                                  `Order ${order.order_number} is now selected. Click on any available date in the calendar to schedule delivery.`,
                                   'info'
                                 );
                               }
-                            }}
-                            variant={selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id ? "danger" : "warning"}
-                            style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                            }} 
+                            $primary={isSelected}
                           >
-                            {selectedOrderForProductionStart && selectedOrderForProductionStart.id === order.id ? 
-                              '❌ Cancel Selection' : 
-                              '🎯 Select Production Start'
-                            }
+                            {isSelected ? 'Cancel Selection' : 'Select Order'}
                           </ActionButton>
-                        )}
-                        
-                        {/* Show production start date if set */}
-                        {order.order_type === 'custom' && customOrderProductionStartDates[order.id] && (
-                          <div style={{ 
-                            fontSize: '0.75rem', 
-                            color: '#666', 
-                            padding: '4px 8px',
-                            background: '#f0f8ff',
-                            borderRadius: '4px',
-                            border: '1px solid #d0e7ff',
-                            margin: '4px 0'
-                          }}>
-                            🎯 Production starts: {new Date(customOrderProductionStartDates[order.id]).toLocaleDateString()}
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {/* Enhanced Action Buttons for All Order Statuses */}
+                            
+                            {/* Delivered Button - Available for scheduled and in_transit orders */}
+                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                              <ActionButton 
+                                onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
+                                variant="success"
+                                title="Mark as Delivered - Order completed and paid"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #28a745, #20c997)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                ✅ Delivered
+                              </ActionButton>
+                            )}
+                            
+                            {/* In Transit Button - Available for scheduled orders */}
+                            {order.delivery_status === 'scheduled' && (
+                              <ActionButton 
+                                onClick={() => handleUpdateDeliveryStatus(order, 'in_transit')}
+                                variant="info"
+                                title="Mark as In Transit - Package is on the way"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #17a2b8, #3498db)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                🚚 In Transit
+                              </ActionButton>
+                            )}
+                            
+                            {/* Delay Button - Available for scheduled and in_transit orders */}
+                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                              <ActionButton 
+                                onClick={() => handleUpdateDeliveryStatus(order, 'delayed')}
+                                variant="warning"
+                                title="Mark as Delayed - Removes schedule and requires rescheduling"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
+                                  color: '#212529', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                ⚠️ Delay
+                              </ActionButton>
+                            )}
+                            
+                            {/* Reschedule Button - Only for delayed orders */}
+                            {order.delivery_status === 'delayed' && (
+                              <ActionButton 
+                                onClick={() => {
+                                  setSelectedOrderForScheduling(order);
+                                  showPopup(
+                                    'Reschedule Delayed Order',
+                                    `Order ${order.order_number} is selected for rescheduling. Click on any available date in the calendar to set a new delivery date.`,
+                                    'warning'
+                                  );
+                                }}
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
+                                  color: '#212529', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                📅 Reschedule
+                              </ActionButton>
+                            )}
+                            
+                            {/* Remove Button - Available for all orders except delivered */}
+                            {order.delivery_status !== 'delivered' && (
+                              <ActionButton 
+                                onClick={() => handleRemoveOrder(order)}
+                                variant="danger"
+                                title="Permanently remove this order from the system"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600',
+                                  border: '2px solid #dc3545'
+                                }}
+                              >
+                                🗑️ Remove
+                              </ActionButton>
+                            )}
                           </div>
                         )}
-                        
-                        {/* Buttons for scheduled orders */}
-                        {order.delivery_status === 'scheduled' && (
-                          <>
-                            <ActionButton 
-                              onClick={() => handleUpdateDeliveryStatus(order, 'in_transit')}
-                              variant="info"
-                            >
-                              In Transit
-                            </ActionButton>
-                            <ActionButton 
-                              onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
-                              variant="success"
-                            >
-                              Delivered
-                            </ActionButton>
-                            <ActionButton 
-                              onClick={() => handleUpdateDeliveryStatus(order, 'delayed')}
-                              variant="danger"
-                            >
-                              Delayed
-                            </ActionButton>
-                          </>
-                        )}
-                        
-                        {/* Buttons for in_transit orders */}
-                        {order.delivery_status === 'in_transit' && (
-                          <>
-                            <ActionButton 
-                              onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
-                              variant="success"
-                            >
-                              Delivered
-                            </ActionButton>
-                            <ActionButton 
-                              onClick={() => handleUpdateDeliveryStatus(order, 'delayed')}
-                              variant="danger"
-                            >
-                              Delayed
-                            </ActionButton>
-                          </>
-                        )}
-                        
-                        {/* Button for delayed orders - only show Select/Deselect for rescheduling */}
-                        {order.delivery_status === 'delayed' && (
-                          selectedOrderForScheduling && selectedOrderForScheduling.id === order.id ? (
-                            <ActionButton 
-                              onClick={() => setSelectedOrderForScheduling(null)}
-                              variant="warning"
-                            >
-                              Deselect
-                            </ActionButton>
-                          ) : (
-                            <ActionButton 
-                              onClick={() => setSelectedOrderForScheduling(order)}
-                              variant="danger"
-                            >
-                              Select to Reschedule
-                            </ActionButton>
-                          )
-                        )}
-                      </ButtonRow>
-                    </OrderActions>
-                  </OrderItem>
-                ))}
+                      </OrderActions>
+                    </OrderItem>
+                  );
+                })}
               </OrdersList>
             </CardContent>
           </Card>
-
+          
           <Card>
             <CardHeader>
-              <CardTitle>
-                <FontAwesomeIcon icon={faInfoCircle} style={{ color: '#000000' }} />
-                Delivery Guidelines
-              </CardTitle>
+              <CardTitle>📋 Enhanced Delivery Guidelines</CardTitle>
             </CardHeader>
-            <CardContent>              <div style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#666666' }}>                <p><strong>Operating Hours:</strong> 9:00 AM - 5:00 PM</p>
-                <p><strong>Delivery Areas:</strong> Metro Manila</p>
-                <p><strong>Standard Delivery:</strong> 1-3 business days</p>
-                <p><strong>Daily Capacity:</strong> 3 deliveries maximum</p>
-                <p><strong>Priority Algorithm:</strong> Order date and amount based</p>
-                <p><strong>Regular Orders:</strong> Available for immediate scheduling - select and schedule delivery date</p>
-                <p><strong>Custom Orders:</strong> Require admin-set production completion date before scheduling</p>
-                <p><strong>Status Management:</strong> Once scheduled, update order status using Delayed/In Transit/Delivered buttons</p>
-                <p><strong>Conflict Resolution:</strong> Automatic detection and prevention</p>
-                <p><strong>Calendar Features:</strong> Click days to schedule, click green box to toggle availability</p>
+            <CardContent>
+              <div style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#666666' }}>
+                <p><strong>🚀 Enhanced Scheduling Workflow:</strong></p>
+                <p>1. Click "Select Order" for unscheduled orders</p>
+                <p>2. Click on an available date in the calendar</p>
+                <p>3. Set delivery time and assign courier</p>
+                <p>4. Use the new action buttons to update delivery progress</p>
+                <br />
+                <p><strong>⚡ New Action Buttons:</strong></p>
+                <p>• <span style={{color: '#28a745', fontWeight: 'bold'}}>✅ Delivered</span> - Mark as delivered and paid (COD)</p>
+                <p>• <span style={{color: '#17a2b8', fontWeight: 'bold'}}>🚚 In Transit</span> - Package is on the way</p>
+                <p>• <span style={{color: '#ffc107', fontWeight: 'bold'}}>⚠️ Delay</span> - Removes schedule, requires rescheduling</p>
+                <p>• <span style={{color: '#dc3545', fontWeight: 'bold'}}>🗑️ Remove</span> - Permanently delete order</p>
+                <br />
+                <p><strong>📊 Order Types & Production:</strong></p>
+                <p>• <span style={{color: '#667eea', fontWeight: 'bold'}}>🎨 Custom Orders</span> - 15-day production timeline</p>
+                <p>• <span style={{color: '#f093fb', fontWeight: 'bold'}}>🛍️ Regular Orders</span> - Direct scheduling (no timeline)</p>
+                <br />
+                <p><strong>⏰ Operating Schedule:</strong></p>
+                <p><strong>Hours:</strong> 9:00 AM - 5:00 PM</p>
+                <p><strong>Areas:</strong> Metro Manila</p>
+                <p><strong>Capacity:</strong> 3 deliveries maximum per day</p>
+                <br />
+                <p><strong>📈 Status Flow:</strong></p>
+                <p>• Pending → Schedule → In Transit → Delivered</p>
+                <p>• Any status → Delay (requires rescheduling)</p>
+                <p>• Any status → Remove (permanent deletion)</p>
               </div>
-            </CardContent>          </Card>
+            </CardContent>
+          </Card>
         </RightSection>
         </ContentSection>
-      </MainContent>      {/* Schedule Delivery Modal */}
+      </MainContent>
+
+
+      {/* Schedule Delivery Modal */}
       {showScheduleModal && selectedOrder && (
         <ScheduleModal 
           order={selectedOrder}
           preSelectedDate={selectedDate}
           customOrderProductionDates={customOrderProductionDates}
+          couriers={couriers}
           onClose={() => {
             setShowScheduleModal(false);
             setSelectedOrder(null);
@@ -3644,271 +3785,6 @@ const DeliveryPage = () => {
           }}
           onSchedule={handleScheduleDelivery}
         />
-      )}{/* Product Modal */}
-      {showProductModal && selectedOrder && (
-        <ProductModal 
-          order={selectedOrder}
-          onClose={() => {
-            setShowProductModal(false);
-            setSelectedOrder(null);
-          }}
-        />
-      )}      {/* Simple Order Details Modal for Calendar */}
-      {showSimpleOrderModal && selectedCalendarOrder && (
-        <SimpleOrderModal onClick={(e) => {
-          e.stopPropagation();
-          setShowSimpleOrderModal(false);
-        }}>
-          <SimpleOrderContent onClick={(e) => e.stopPropagation()}>            <SimpleOrderHeader>
-              <SimpleOrderTitle>
-                {selectedCalendarOrder.order_type === 'custom_design' ? '🎨 Custom Design' : '📦 Order'} - {selectedCalendarOrder.order_number}
-                {selectedCalendarOrder.order_type === 'custom_design' && (
-                  <span style={{
-                    marginLeft: '12px',
-                    backgroundColor: '#667eea',
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '12px',
-                    fontSize: '0.7rem',
-                    fontWeight: '600',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    Design
-                  </span>
-                )}
-              </SimpleOrderTitle>
-              <SimpleCloseButton onClick={() => setShowSimpleOrderModal(false)}>
-                <FontAwesomeIcon icon={faTimes} />
-              </SimpleCloseButton>
-            </SimpleOrderHeader>
-            
-            <SimpleOrderBody>
-              {/* Customer Details */}
-              <QuickDetailRow>
-                <QuickDetailLabel>Customer:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.customerName}</QuickDetailValue>
-              </QuickDetailRow>
-              <QuickDetailRow>
-                <QuickDetailLabel>Email:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.customer_email || 'N/A'}</QuickDetailValue>
-              </QuickDetailRow>
-              <QuickDetailRow>
-                <QuickDetailLabel>Phone:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.customer_phone || 'N/A'}</QuickDetailValue>
-              </QuickDetailRow>
-              <QuickDetailRow>
-                <QuickDetailLabel>Address:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.customer_address || 'N/A'}</QuickDetailValue>
-              </QuickDetailRow>
-              <QuickDetailRow>
-                <QuickDetailLabel>Order Date:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.order_date ? new Date(selectedCalendarOrder.order_date).toLocaleDateString() : 'N/A'}</QuickDetailValue>
-              </QuickDetailRow>              <QuickDetailRow>
-                <QuickDetailLabel>Status:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.status || 'Pending'}</QuickDetailValue>
-              </QuickDetailRow>
-              
-              {/* Delivery Status for all order types */}
-              <QuickDetailRow>
-                <QuickDetailLabel>Delivery Status:</QuickDetailLabel>
-                <QuickDetailValue style={{
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  fontSize: '0.8rem',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  backgroundColor: (() => {
-                    switch(selectedCalendarOrder.delivery_status) {
-                      case 'pending': return '#f8f9fa';
-                      case 'scheduled': return '#d1ecf1';
-                      case 'in_transit': return '#fff3cd';
-                      case 'delivered': return '#d4edda';
-                      case 'delayed': return '#f8d7da';
-                      default: return '#f8f9fa';
-                    }
-                  })(),
-                  color: (() => {
-                    switch(selectedCalendarOrder.delivery_status) {
-                      case 'pending': return '#6c757d';
-                      case 'scheduled': return '#0c5460';
-                      case 'in_transit': return '#856404';
-                      case 'delivered': return '#155724';
-                      case 'delayed': return '#721c24';
-                      default: return '#6c757d';
-                    }
-                  })()
-                }}>
-                  {selectedCalendarOrder.delivery_status || 'pending'}
-                </QuickDetailValue>
-              </QuickDetailRow>
-
-              {/* Show scheduled delivery information if available */}
-              {selectedCalendarOrder.scheduled_delivery_date && (
-                <>
-                  <QuickDetailRow>
-                    <QuickDetailLabel>Scheduled Date:</QuickDetailLabel>
-                    <QuickDetailValue>{new Date(selectedCalendarOrder.scheduled_delivery_date).toLocaleDateString()}</QuickDetailValue>
-                  </QuickDetailRow>
-                  {selectedCalendarOrder.scheduled_delivery_time && (
-                    <QuickDetailRow>
-                      <QuickDetailLabel>Scheduled Time:</QuickDetailLabel>
-                      <QuickDetailValue>{selectedCalendarOrder.scheduled_delivery_time}</QuickDetailValue>
-                    </QuickDetailRow>
-                  )}
-                </>
-              )}
-
-              {/* Show delivery date if delivered */}
-              {selectedCalendarOrder.delivery_date && (
-                <QuickDetailRow>
-                  <QuickDetailLabel>Delivered On:</QuickDetailLabel>
-                  <QuickDetailValue>{new Date(selectedCalendarOrder.delivery_date).toLocaleDateString()}</QuickDetailValue>
-                </QuickDetailRow>
-              )}
-
-              {/* Show delivery notes if available */}
-              {selectedCalendarOrder.delivery_notes && (
-                <QuickDetailRow>
-                  <QuickDetailLabel>Delivery Notes:</QuickDetailLabel>
-                  <QuickDetailValue style={{ fontSize: '0.85rem', fontStyle: 'italic' }}>
-                    {selectedCalendarOrder.delivery_notes}
-                  </QuickDetailValue>
-                </QuickDetailRow>
-              )}              {/* Product Details Section */}
-              {selectedCalendarOrder.items && selectedCalendarOrder.items.length > 0 && (
-                <div style={{ margin: '16px 0' }}>
-                  <QuickDetailLabel style={{ 
-                    display: 'block', 
-                    marginBottom: '12px',
-                    color: '#000000',
-                    fontWeight: '600',
-                    fontSize: '1rem'
-                  }}>
-                    {selectedCalendarOrder.order_type === 'custom_design' ? '� Custom Design Details' : `�🏷️ ${selectedCalendarOrder.items.length} Product${selectedCalendarOrder.items.length > 1 ? 's' : ''}`}
-                  </QuickDetailLabel>
-                  <div style={{ 
-                    background: '#f8f9fa', 
-                    border: '1px solid #e9ecef', 
-                    borderRadius: '8px', 
-                    padding: '12px',
-                    maxHeight: '300px',
-                    overflowY: 'auto'
-                  }}>
-                    {selectedCalendarOrder.items.map((item, index) => (
-                      <div key={`${item.product_id || item.id}-${index}`} style={{
-                        padding: '12px 0',
-                        borderBottom: index < selectedCalendarOrder.items.length - 1 ? '1px solid #dee2e6' : 'none'
-                      }}>
-                        <div style={{ 
-                          fontWeight: '600', 
-                          marginBottom: '4px',
-                          color: '#000000',
-                          fontSize: '0.9rem'
-                        }}>
-                          {item.productname || 'Unknown Product'}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#666666', marginBottom: '2px' }}>
-                          <strong>Product ID:</strong> {item.product_id || 'N/A'}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#888888' }}>
-                          {item.productcolor && (
-                            <span><strong>Color:</strong> {item.productcolor} • </span>
-                          )}
-                          {item.product_type && (
-                            <span><strong>Type:</strong> {item.product_type} • </span>
-                          )}
-                          <span><strong>Qty:</strong> {item.quantity || 1}</span>
-                          {item.price && (
-                            <span> • <strong>Price:</strong> ₱{parseFloat(item.price).toFixed(2)}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Custom Design Specific Information */}
-              {selectedCalendarOrder.order_type === 'custom_design' && selectedCalendarOrder.custom_design_data && (
-                <div style={{ margin: '16px 0' }}>
-                  <QuickDetailLabel style={{ 
-                    display: 'block', 
-                    marginBottom: '12px',
-                    color: '#000000',
-                    fontWeight: '600',
-                    fontSize: '1rem'
-                  }}>
-                    📝 Design Specifications
-                  </QuickDetailLabel>
-                  <div style={{ 
-                    background: '#f0f8ff', 
-                    border: '1px solid #d0e7ff', 
-                    borderRadius: '8px', 
-                    padding: '12px'
-                  }}>
-                    {selectedCalendarOrder.custom_design_data.design_description && (
-                      <div style={{ marginBottom: '8px' }}>
-                        <strong style={{ color: '#000000' }}>Description:</strong>
-                        <div style={{ 
-                          fontSize: '0.85rem', 
-                          color: '#555555', 
-                          marginTop: '4px',
-                          fontStyle: 'italic',
-                          lineHeight: '1.4'
-                        }}>
-                          {selectedCalendarOrder.custom_design_data.design_description}
-                        </div>
-                      </div>
-                    )}
-                    {selectedCalendarOrder.custom_design_data.design_notes && (
-                      <div style={{ marginBottom: '8px' }}>
-                        <strong style={{ color: '#000000' }}>Design Notes:</strong>
-                        <div style={{ 
-                          fontSize: '0.85rem', 
-                          color: '#555555', 
-                          marginTop: '4px',
-                          lineHeight: '1.4'
-                        }}>
-                          {selectedCalendarOrder.custom_design_data.design_notes}
-                        </div>
-                      </div>
-                    )}
-                    {(selectedCalendarOrder.custom_design_data.estimated_price || selectedCalendarOrder.custom_design_data.final_price) && (
-                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #d0e7ff' }}>
-                        {selectedCalendarOrder.custom_design_data.estimated_price && (
-                          <div style={{ fontSize: '0.8rem', color: '#666666' }}>
-                            <strong>Estimated Price:</strong> ₱{parseFloat(selectedCalendarOrder.custom_design_data.estimated_price).toFixed(2)}
-                          </div>
-                        )}
-                        {selectedCalendarOrder.custom_design_data.final_price && (
-                          <div style={{ fontSize: '0.8rem', color: '#666666' }}>
-                            <strong>Final Price:</strong> ₱{parseFloat(selectedCalendarOrder.custom_design_data.final_price).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                    )}                  </div>
-                </div>
-              )}
-
-              {/* Total Amount */}
-              <TotalAmount>
-                <span>Total Amount:</span>
-                <span>₱{parseFloat(selectedCalendarOrder.total_amount || 0).toFixed(2)}</span>
-              </TotalAmount>
-
-              {/* Payment Info */}
-              <QuickDetailRow>
-                <QuickDetailLabel>Payment Method:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.payment_method || 'N/A'}</QuickDetailValue>
-              </QuickDetailRow>
-              <QuickDetailRow>
-                <QuickDetailLabel>Payment Status:</QuickDetailLabel>
-                <QuickDetailValue>{selectedCalendarOrder.payment_status || 'Pending'}</QuickDetailValue>
-              </QuickDetailRow>
-            </SimpleOrderBody>
-          </SimpleOrderContent>
-        </SimpleOrderModal>
       )}
 
       {/* Custom Popup Modal */}
@@ -3937,365 +3813,669 @@ const DeliveryPage = () => {
             </PopupActions>
           </PopupModal>
         </PopupOverlay>
-      )}{/* Full Calendar Modal */}
+      )}      {/* Full Calendar Modal - Enhanced version using the same logic as minimized calendar */}
       {showFullCalendar && (
         <FullCalendarModal onClick={() => setShowFullCalendar(false)}>
-          <FullCalendarContent onClick={(e) => e.stopPropagation()}>            <CloseFullCalendar onClick={() => setShowFullCalendar(false)}>
-              <FontAwesomeIcon icon={faTimes} style={{ color: '#000000' }} />
-            </CloseFullCalendar>
-            
-            <FullCalendarHeader>
-              <FullCalendarTitle>
-                {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} - Delivery Calendar
-              </FullCalendarTitle>              <CalendarNav>
-                <CalendarButton onClick={() => navigateMonth(-1)}>
+          <FullCalendarContent onClick={(e) => e.stopPropagation()}>
+            {/* Enhanced Calendar Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '1.5rem 2rem',
+              borderBottom: '1px solid #e0e0e0',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                  background: '#000000',
+                  borderRadius: '8px',
+                  padding: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <FontAwesomeIcon icon={faExpand} style={{ color: '#ffffff', fontSize: '1.5rem' }} />
+                </div>
+                <div>
+                  <h1 style={{
+                    fontSize: '2rem',
+                    fontWeight: '200',
+                    color: '#000000',
+                    margin: '0',
+                    letterSpacing: '-0.02em'
+                  }}>
+                    {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h1>
+                  <p style={{
+                    fontSize: '1rem',
+                    color: '#666666',
+                    margin: '0.25rem 0 0 0',
+                    fontWeight: '300'
+                  }}>
+                    Delivery Management Calendar
+                  </p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  onClick={() => navigateMonth(-1)}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '8px',
+                    padding: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: '48px',
+                    height: '48px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = '#f8f8f8';
+                    e.target.style.borderColor = '#000000';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = '#ffffff';
+                    e.target.style.borderColor = '#e0e0e0';
+                  }}
+                >
                   <FontAwesomeIcon icon={faChevronLeft} style={{ color: '#000000' }} />
-                </CalendarButton>
-                <CalendarButton onClick={() => navigateMonth(1)}>
+                </button>
+                
+                <button
+                  onClick={() => navigateMonth(1)}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '8px',
+                    padding: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: '48px',
+                    height: '48px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = '#f8f8f8';
+                    e.target.style.borderColor = '#000000';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = '#ffffff';
+                    e.target.style.borderColor = '#e0e0e0';
+                  }}
+                >
                   <FontAwesomeIcon icon={faChevronRight} style={{ color: '#000000' }} />
-                </CalendarButton>
-              </CalendarNav>
-            </FullCalendarHeader>
+                </button>
+                
+                <button
+                  onClick={() => setShowFullCalendar(false)}
+                  style={{
+                    background: '#000000',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: '48px',
+                    height: '48px',
+                    marginLeft: '0.5rem'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.background = '#333333';
+                    e.target.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.background = '#000000';
+                    e.target.style.transform = 'scale(1)';
+                  }}
+                >
+                  <FontAwesomeIcon icon={faTimes} style={{ color: '#ffffff' }} />
+                </button>
+              </div>
+            </div>
 
-            <FullCalendarGrid>
-              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
-                <FullCalendarDay key={day} style={{ minHeight: '50px', padding: '1rem', textAlign: 'center', fontWeight: 'bold', background: '#f8f8f8' }}>
+            {/* Enhanced Calendar Grid - Uses same logic as minimized calendar */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, 1fr)',
+              background: '#ffffff',
+              borderRadius: '0 0 8px 8px',
+              overflow: 'hidden',
+              border: '1px solid #e0e0e0',
+              borderTop: 'none'
+            }}>
+              {/* Day Headers */}
+              {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
+                <div key={day} style={{
+                  padding: '1.5rem 1rem',
+                  textAlign: 'center',
+                  fontWeight: '400',
+                  fontSize: '1rem',
+                  color: '#000000',
+                  background: '#f8f8f8',
+                  borderRight: index < 6 ? '1px solid #e0e0e0' : 'none',
+                  borderBottom: '1px solid #e0e0e0',
+                  letterSpacing: '0.02em'
+                }}>
                   {day}
-                </FullCalendarDay>
-              ))}              {generateCalendarDays().map((day, index) => {
-                  return (                      <FullCalendarDay 
-                    key={index} 
-                    isCurrentMonth={day.isCurrentMonth}
-                    isToday={day.isToday}
-                    availabilityStatus={day.availabilityStatus}
-                    style={{
-                      borderLeft: day.availabilityStatus === 'available' ? '4px solid #28a745' :
-                                 day.availabilityStatus === 'partial' ? '4px solid #ffc107' :
-                                 day.availabilityStatus === 'busy' ? '4px solid #dc3545' :
-                                 day.availabilityStatus === 'unavailable' ? '4px solid #6c757d' : 'none',
-                      cursor: day.isCurrentMonth && day.availabilityStatus !== 'unavailable' ? 'pointer' : 'default'
-                    }}
-                    onClick={() => handleCalendarDayClick(day)}
-                  >
-                    <FullDayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
+                </div>
+              ))}
+              
+              {/* Calendar Days - Uses same logic as minimized calendar but with enhanced styling */}
+              {generateCalendarDays().map((day, index) => (
+                <div
+                  key={index}
+                  onClick={() => handleCalendarDayClick(day)}
+                  style={{
+                    minHeight: '180px',
+                    padding: '1rem',
+                    borderRight: (index + 1) % 7 !== 0 ? '1px solid #e0e0e0' : 'none',
+                    borderBottom: index < 35 ? '1px solid #e0e0e0' : 'none',
+                    background: (() => {
+                      if (!day.isCurrentMonth) return '#f8f8f8';
+                      if (day.isToday) return '#f0f8ff';
+                      if (selectedOrderForScheduling && day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
+                        return '#f8fff8';
+                      }
+                      return '#ffffff';
+                    })(),
+                    cursor: day.isCurrentMonth && day.availabilityStatus !== 'unavailable' ? 'pointer' : 'default',
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    ...(selectedOrderForProductionStart && day.isCurrentMonth && 
+                        day.availabilityStatus !== 'unavailable' && {
+                      boxShadow: '0 0 12px rgba(102, 126, 234, 0.5)',
+                      borderColor: '#667eea'
+                    }),
+                    ...(selectedOrderForScheduling && day.isCurrentMonth && 
+                        day.availabilityStatus !== 'unavailable' && {
+                      boxShadow: '0 0 12px rgba(40, 167, 69, 0.5)',
+                      borderColor: '#28a745'
+                    })
+                  }}
+                  onMouseOver={(e) => {
+                    if (day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
+                      e.target.style.background = '#f5f5f5';
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!day.isCurrentMonth) {
+                      e.target.style.background = '#f8f8f8';
+                    } else if (day.isToday) {
+                      e.target.style.background = '#f0f8ff';
+                    } else if (selectedOrderForScheduling && day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
+                      e.target.style.background = '#f8fff8';
+                    } else {
+                      e.target.style.background = '#ffffff';
+                    }
+                  }}
+                >
+                  {/* Day Number - Enhanced styling */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '0.75rem'
+                  }}>
+                    <span style={{
+                      fontSize: '1.25rem',
+                      fontWeight: day.isToday ? '600' : '300',
+                      color: (() => {
+                        if (!day.isCurrentMonth) return '#cccccc';
+                        if (day.isToday) return '#0066cc';
+                        return '#000000';
+                      })(),
+                      background: day.isToday ? 'rgba(0, 102, 204, 0.1)' : 'transparent',
+                      borderRadius: day.isToday ? '8px' : '0',
+                      padding: day.isToday ? '0.5rem 0.75rem' : '0',
+                      minWidth: '2rem',
+                      textAlign: 'center'
+                    }}>
                       {day.dayNumber}
-                    </FullDayNumber>
+                    </span>
                     
-                    {/* Delivery truck icon for full calendar */}
-                    {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '8px',
-                        left: '8px',
-                        width: '32px',
-                        height: '32px',
-                        background: 'linear-gradient(135deg, #28a745, #20c997)',
-                        color: '#ffffff',
-                        borderRadius: '8px',
-                        fontSize: '1.2rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '2px solid rgba(255, 255, 255, 0.3)',
-                        boxShadow: '0 3px 8px rgba(0, 0, 0, 0.2)',
-                        transition: 'all 0.3s ease',
-                        cursor: 'pointer',
-                        zIndex: 10
-                      }}
-                      title={`${day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)} delivery(ies) scheduled - Click for details`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const allScheduledOrders = [...(day.scheduledOrders || [])];
-                        if (allScheduledOrders.length > 0) {
-                          const orderDetails = allScheduledOrders.map(order => 
-                            `• ${order.order_number} - ${order.customerName} (₱${parseFloat(order.total_amount || 0).toFixed(2)})`
-                          ).join('\n');
-                          
-                          showPopup(
-                            `📦 Scheduled Deliveries - ${day.date.toLocaleDateString()}`,
-                            `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}`,
-                            'info'
-                          );
-                        }
-                      }}
-                      onMouseOver={(e) => e.target.style.transform = 'scale(1.1)'}
-                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
-                      >
-                        <div style={{ position: 'relative' }}>
-                          🚚
-                          {/* Order count badge for full calendar */}
-                          {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '-10px',
-                              right: '-10px',
-                              background: '#dc3545',
-                              color: 'white',
-                              borderRadius: '50%',
-                              width: '18px',
-                              height: '18px',
-                              fontSize: '11px',
-                              fontWeight: 'bold',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              border: '2px solid white',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                            }}>
-                              {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Availability indicator */}
-                    <AvailabilityIndicator 
-                      availability={day.availabilityStatus} 
-                      title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle availability`}
-                      style={{ bottom: '0.5rem', left: '0.5rem', fontSize: '0.7rem' }}
+                    {/* Availability Indicator - Enhanced */}
+                    <div
                       onClick={(e) => {
                         e.stopPropagation();
                         if (day.isCurrentMonth) {
                           toggleDateAvailability(day.date);
                         }
                       }}
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        background: (() => {
+                          switch (day.availabilityStatus) {
+                            case 'available': return '#28a745';
+                            case 'partial': return '#ffc107';
+                            case 'busy': return '#dc3545';
+                            case 'unavailable': return '#6c757d';
+                            default: return '#28a745';
+                          }
+                        })(),
+                        cursor: 'pointer',
+                        transition: 'transform 0.2s ease',
+                        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        color: 'white',
+                        fontWeight: 'bold'
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'scale(1.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'scale(1)';
+                      }}
+                      title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle`}
                     >
-                      {day.bookingCount}
-                    </AvailabilityIndicator>
-                    
-                    {/* Production timeline indicators for full calendar */}
-                    {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
-                      <div key={`full-production-${prodOrder.id}-${idx}`}>
-                        {/* Production start marker */}
-                        {prodOrder.isProductionStart && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '8px',
-                            right: '8px',
-                            width: '20px',
-                            height: '20px',
-                            backgroundColor: '#28a745',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            zIndex: 15,
-                            border: '2px solid white',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                          }}
-                          title={`Production Start: ${prodOrder.order_number} - ${prodOrder.customerName}`}
-                          >
-                            🏁
-                          </div>
-                        )}
-                        
-                        {/* Production end marker */}
-                        {prodOrder.isProductionEnd && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '8px',
-                            right: '8px',
-                            width: '20px',
-                            height: '20px',
-                            backgroundColor: '#ffc107',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            zIndex: 15,
-                            border: '2px solid white',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                          }}
-                          title={`Production Complete: ${prodOrder.order_number} - ${prodOrder.customerName}`}
-                          >
-                            ✅
-                          </div>
-                        )}
-                        
-                        {/* Production progress line */}
-                        {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '6px',
-                            left: '6px',
-                            right: '6px',
-                            height: '4px',
-                            backgroundColor: '#ffd700',
-                            borderRadius: '2px',
-                            zIndex: 12,
-                            opacity: 0.8,
-                            background: `linear-gradient(90deg, #28a745 0%, #ffc107 ${prodOrder.productionProgress}%, #e9ecef ${prodOrder.productionProgress}%, #e9ecef 100%)`
-                          }}
-                          title={`Production Progress: ${Math.round(prodOrder.productionProgress)}% - ${prodOrder.order_number} - ${prodOrder.customerName}`}
-                          />
-                        )}
-                      </div>                    ))}
-                    
-                    {/* Delivery schedules display only */}
-                    <div>
-                      {day.deliveries.map((delivery, i) => (
-                        <FullOrderBlock 
-                          key={`delivery-${i}`} 
-                          status={delivery.status}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeliveryClick(delivery);
-                          }}
-                          title={`Delivery - ${delivery.customer_name} - ${delivery.delivery_time || 'No time set'}`}
-                        >
-                          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                            {delivery.order_number || 'DEL'}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', opacity: '0.9' }}>
-                            {delivery.customer_name}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', opacity: '0.8' }}>
-                            {delivery.delivery_time || 'Time TBD'}
-                          </div>
-                        </FullOrderBlock>
-                      ))}
+                      {day.bookingCount > 0 ? day.bookingCount : ''}
                     </div>
-                    
-                    {day.isCurrentMonth && day.availabilityStatus !== 'busy' && day.availabilityStatus !== 'unavailable' && (
-                      <button
-                        style={{
+                  </div>
+
+                  {/* Enhanced Delivery Status Icon - Same logic as minimized calendar */}
+                  {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const allScheduledOrders = [...(day.scheduledOrders || [])];
+                        if (allScheduledOrders.length > 0) {
+                          const orderDetails = allScheduledOrders.map(order => {
+                            const status = order.delivery_status || 'pending';
+                            const statusIcon = {
+                              'pending': '⏳ PENDING',
+                              'scheduled': '📅 SCHEDULED',
+                              'in_transit': '🚚 IN TRANSIT',
+                              'delivered': '✅ DELIVERED',
+                              'delayed': '⚠️ DELAYED',
+                              'cancelled': '❌ CANCELLED'
+                            }[status] || '📦 UNKNOWN';
+                            
+                            const orderType = order.order_type === 'custom' ? '🎨 Custom' : '🛍️ Regular';
+                            
+                            return `${statusIcon}\n${orderType} Order: ${order.order_number}\nCustomer: ${order.customerName}\nAmount: ₱${parseFloat(order.total_amount || 0).toFixed(2)}`;
+                          }).join('\n\n');
+                          
+                          showPopup(
+                            `📦 Delivery Schedule - ${day.date.toLocaleDateString()}`,
+                            `${allScheduledOrders.length} order${allScheduledOrders.length > 1 ? 's' : ''} scheduled for delivery:\n\n${orderDetails}\n\n💡 Use the action buttons in the Orders list to update delivery status.`,
+                            'info'
+                          );
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        bottom: '1rem',
+                        right: '1rem',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: (() => {
+                          const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                          if (allOrders.some(order => order.delivery_status === 'delivered')) return '#28a745';
+                          if (allOrders.some(order => order.delivery_status === 'in_transit')) return '#17a2b8';
+                          if (allOrders.some(order => order.delivery_status === 'delayed')) return '#ffc107';
+                          if (allOrders.some(order => order.delivery_status === 'cancelled')) return '#6c757d';
+                          return '#007bff';
+                        })(),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+                        zIndex: 5
+                      }}
+                      onMouseOver={(e) => {
+                        e.target.style.transform = 'scale(1.1)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.target.style.transform = 'scale(1)';
+                      }}
+                      title={(() => {
+                        const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                        const count = allOrders.length;
+                        const status = allOrders.length > 0 ? 
+                          (allOrders.some(order => order.delivery_status === 'delivered') ? 'DELIVERED' :
+                           allOrders.some(order => order.delivery_status === 'in_transit') ? 'IN TRANSIT' :
+                           allOrders.some(order => order.delivery_status === 'delayed') ? 'DELAYED' :
+                           allOrders.some(order => order.delivery_status === 'cancelled') ? 'CANCELLED' :
+                           allOrders.some(order => order.delivery_status === 'scheduled') ? 'SCHEDULED' : 'PENDING') : 'SCHEDULED';
+                        
+                        return `${count} delivery(ies) - Status: ${status}\nClick to view order details`;
+                      })()}
+                    >
+                      📦
+                      {/* Order count badge */}
+                      {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
+                        <div style={{
                           position: 'absolute',
-                          bottom: '0.5rem',
-                          right: '0.5rem',
-                          background: '#000000',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          padding: '0.25rem 0.5rem',
-                          fontSize: '0.7rem',
-                          cursor: 'pointer'
+                          top: '-8px',
+                          right: '-8px',
+                          background: (() => {
+                            const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                            if (allOrders.some(order => order.delivery_status === 'delivered')) return '#28a745';
+                            if (allOrders.some(order => order.delivery_status === 'in_transit')) return '#17a2b8';
+                            if (allOrders.some(order => order.delivery_status === 'delayed')) return '#ffc107';
+                            if (allOrders.some(order => order.delivery_status === 'cancelled')) return '#6c757d';
+                            return '#007bff';
+                          })(),
+                          color: (() => {
+                            const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
+                            if (allOrders.some(order => order.delivery_status === 'delayed')) return '#212529';
+                            return 'white';
+                          })(),
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          fontSize: '0.875rem',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '2px solid white',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                          zIndex: 10
+                        }}>
+                          {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Production start selection indicator */}
+                  {selectedOrderForProductionStart && day.isCurrentMonth && 
+                   day.availabilityStatus !== 'unavailable' && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      left: '1rem',
+                      width: '20px',
+                      height: '20px',
+                      backgroundColor: '#667eea',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.75rem',
+                      color: 'white',
+                      fontWeight: 'bold',
+                      zIndex: 10,
+                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+                    }}>
+                      🎯
+                    </div>
+                  )}
+                  
+                  {/* Enhanced 15-Day Production Timeline - Same logic as minimized calendar */}
+                  {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
+                    <div key={`production-${prodOrder.id}-${idx}`}>
+                      {/* Production start marker */}
+                      {prodOrder.isProductionStart && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '1rem',
+                          right: '1rem',
+                          width: '32px',
+                          height: '32px',
+                          background: 'linear-gradient(135deg, #28a745, #20c997)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1rem',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          zIndex: 15,
+                          border: '3px solid white',
+                          boxShadow: '0 4px 12px rgba(40,167,69,0.4)'
                         }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCalendarDayClick(day);
-                          setShowFullCalendar(false);
+                        title={`🎨 Custom Order Production START\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionStartDate.toLocaleDateString()}\n15-day production timeline begins`}
+                        >
+                          🚀
+                        </div>
+                      )}
+                      
+                      {/* Production completion marker */}
+                      {prodOrder.isProductionEnd && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '1rem',
+                          right: '1rem',
+                          width: '32px',
+                          height: '32px',
+                          background: 'linear-gradient(135deg, #ffc107, #f39c12)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1rem',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          zIndex: 15,
+                          border: '3px solid white',
+                          boxShadow: '0 4px 12px rgba(255,193,7,0.4)'
                         }}
-                      >
-                        + Schedule
-                      </button>
-                    )}
-                  </FullCalendarDay>
-                );
-              })}            </FullCalendarGrid>
+                        title={`🎨 Custom Order Production COMPLETE\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionCompletionDate.toLocaleDateString()}\nReady for delivery scheduling`}
+                        >
+                          ✨
+                        </div>
+                      )}
+                      
+                      {/* Enhanced Production Progress Bar */}
+                      {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '1rem',
+                          left: '1rem',
+                          right: '1rem',
+                          height: '10px',
+                          background: '#e9ecef',
+                          borderRadius: '5px',
+                          zIndex: 10,
+                          border: '1px solid rgba(0,0,0,0.1)',
+                          overflow: 'hidden'
+                        }}
+                        title={`🎨 Custom Order Production Progress\nOrder: ${prodOrder.order_number}\nProgress: ${Math.round(prodOrder.productionProgress)}%\nDay ${Math.ceil((prodOrder.productionProgress / 100) * 15)} of 15-day timeline`}
+                        >
+                          <div style={{
+                            width: `${prodOrder.productionProgress}%`,
+                            height: '100%',
+                            background: `linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)`,
+                            borderRadius: '4px',
+                            transition: 'width 0.3s ease',
+                            position: 'relative'
+                          }}>
+                            {prodOrder.productionProgress > 15 && (
+                              <div style={{
+                                position: 'absolute',
+                                right: '-5px',
+                                top: '-4px',
+                                width: '18px',
+                                height: '18px',
+                                background: '#ffffff',
+                                borderRadius: '50%',
+                                border: '2px solid #28a745',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                              }} />
+                            )}
+                          </div>
+                          
+                          {/* Timeline markers */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '0',
+                            left: '0',
+                            right: '0',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}>
+                            {[33.33, 66.66].map((position, index) => (
+                              <div
+                                key={index}
+                                style={{
+                                  position: 'absolute',
+                                  left: `${position}%`,
+                                  width: '2px',
+                                  height: '100%',
+                                  background: 'rgba(255,255,255,0.7)',
+                                  zIndex: 1
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Custom order type indicator */}
+                      {(prodOrder.isProductionStart || prodOrder.isProductionEnd || (!prodOrder.isProductionStart && !prodOrder.isProductionEnd)) && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '1rem',
+                          left: '1rem',
+                          width: '24px',
+                          height: '24px',
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.875rem',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          zIndex: 12,
+                          border: '2px solid white',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                        }}
+                        title={`🎨 Custom Order: ${prodOrder.order_number}\n15-day production timeline`}
+                        >
+                          🎨
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
             
-            {/* Full Calendar Legend */}
+            {/* Enhanced Calendar Legend - Minimalist Design */}
             <div style={{
-              marginTop: '2rem',
+              marginTop: '1.5rem',
               padding: '1.5rem',
-              background: '#f8f9fa',
+              background: '#f8f8f8',
               borderRadius: '8px',
-              border: '1px solid #dee2e6'
+              border: '1px solid #e0e0e0'
             }}>
               <h4 style={{ 
                 margin: '0 0 1rem 0', 
-                color: '#495057',
+                color: '#000000',
                 fontSize: '1.1rem',
-                fontWeight: '600'
+                fontWeight: '400'
               }}>
                 Calendar Legend
               </h4>
               
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                gap: '1rem' 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                gap: '1.5rem' 
               }}>
-                {/* Order Types */}
+                {/* Order Status */}
                 <div>
-                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#6c757d', fontSize: '0.9rem' }}>Order Types</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Order Status</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
                       <div style={{
-                        width: '16px', height: '16px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#007bff', color: 'white',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '8px', color: 'white'
+                        fontSize: '0.75rem'
                       }}>
-                        🎨
+                        📦
                       </div>
-                      <span>Custom Orders</span>
+                      <span>Scheduled Orders</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
                       <div style={{
-                        width: '16px', height: '16px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#28a745', color: 'white',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '8px', color: 'white'
+                        fontSize: '0.75rem'
                       }}>
-                        🛍️
+                        ✅
                       </div>
-                      <span>Regular Orders</span>
+                      <span>Delivered Orders</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Production Timeline */}
                 <div>
-                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#6c757d', fontSize: '0.9rem' }}>Custom Order Production Timeline</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Production Timeline</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
                       <div style={{
-                        width: '20px', height: '20px', borderRadius: '50%',
-                        backgroundColor: '#28a745', border: '2px solid white',
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #28a745, #20c997)', color: 'white',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '10px', color: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                       }}>
-                        🏁
+                        🚀
                       </div>
-                      <span>Production Start Date</span>
+                      <span>Production Start</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
                       <div style={{
-                        width: '20px', height: '20px', borderRadius: '50%',
-                        backgroundColor: '#ffc107', border: '2px solid white',
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #ffc107, #f39c12)', color: 'white',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '10px', color: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                       }}>
-                        ✅
+                        ✨
                       </div>
-                      <span>Production Complete Date</span>
+                      <span>Production Complete</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
                       <div style={{
-                        width: '30px', height: '4px', borderRadius: '2px',
-                        background: 'linear-gradient(90deg, #28a745 0%, #ffc107 60%, #e9ecef 60%, #e9ecef 100%)'
+                        width: '50px', height: '8px', borderRadius: '4px',
+                        background: 'linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)',
+                        border: '1px solid rgba(0,0,0,0.1)'
                       }} />
-                      <span>Production Progress Line</span>
+                      <span>Production Progress (15 days)</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Availability Status */}
+                {/* Day Availability */}
                 <div>
-                  <h5 style={{ margin: '0 0 0.5rem 0', color: '#6c757d', fontSize: '0.9rem' }}>Day Availability</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                      <div style={{ width: '4px', height: '16px', backgroundColor: '#28a745' }} />
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Day Availability</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#28a745' }} />
                       <span>Available (0-1 deliveries)</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                      <div style={{ width: '4px', height: '16px', backgroundColor: '#ffc107' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#ffc107' }} />
                       <span>Partial (2 deliveries)</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                      <div style={{ width: '4px', height: '16px', backgroundColor: '#dc3545' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#dc3545' }} />
                       <span>Busy (3+ deliveries)</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                      <div style={{ width: '4px', height: '16px', backgroundColor: '#6c757d' }} />
-                      <span>Unavailable (admin set)</span>
                     </div>
                   </div>
                 </div>
@@ -4303,24 +4483,32 @@ const DeliveryPage = () => {
               
               <div style={{ 
                 marginTop: '1rem', 
-                padding: '0.75rem', 
-                background: '#e3f2fd', 
+                padding: '1rem', 
+                background: '#ffffff', 
                 borderRadius: '6px',
-                fontSize: '0.8rem',
-                color: '#1565c0'
+                fontSize: '0.85rem',
+                color: '#333333',
+                border: '1px solid #e0e0e0'
               }}>
-                <strong>💡 Production Timeline:</strong> When a production start date is set for custom orders, 
-                the calendar shows the complete 10-day production timeline with start marker, daily progress, 
-                and completion marker to help track production status.
+                <strong>💡 Enhanced Calendar:</strong> This full calendar view uses the same logic and data as the minimized calendar, 
+                but with enhanced visibility and larger interactive elements for better order management experience.
               </div>
             </div>
-          </FullCalendarContent></FullCalendarModal>      )}
+          </FullCalendarContent>
+        </FullCalendarModal>
+      )}
+
+      {/* Courier Management Modal */}
+      <CourierManagement
+        isOpen={showCourierManagement}
+        onClose={() => setShowCourierManagement(false)}
+      />
     </PageContainer>
   );
 };
 
 // Schedule Modal Component
-const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrderProductionDates }) => {
+const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrderProductionDates, couriers = [] }) => {
   const [scheduleData, setScheduleData] = useState({
     date: preSelectedDate ? 
       `${preSelectedDate.getFullYear()}-${String(preSelectedDate.getMonth() + 1).padStart(2, '0')}-${String(preSelectedDate.getDate()).padStart(2, '0')}` : 
@@ -4479,6 +4667,31 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrde
               <option value="16:00">4:00 PM</option>
               <option value="17:00">5:00 PM</option>
             </Select>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Assign Courier (Optional)</Label>
+            <Select
+              value={scheduleData.courier_id || ''}
+              onChange={(e) => setScheduleData({...scheduleData, courier_id: e.target.value})}
+            >
+              <option value="">No courier assigned</option>
+              {couriers.filter(courier => courier.status === 'active').map(courier => (
+                <option key={courier.id} value={courier.id}>
+                  {courier.name} - {courier.phone_number} ({courier.vehicle_type})
+                </option>
+              ))}
+            </Select>
+            {couriers.length === 0 && (
+              <div style={{ 
+                fontSize: '0.8rem', 
+                color: '#666666', 
+                marginTop: '4px',
+                fontStyle: 'italic'
+              }}>
+                ℹ️ No couriers available. Manage couriers using the courier management button.
+              </div>
+            )}
           </FormGroup>
 
           <FormGroup>

@@ -58,7 +58,7 @@ const MaintenancePage = () => {
         try {
             setLoading(true);
             setMessage('');              console.log('📡 Making fetch request to /api/maintenance/products');
-            const response = await fetch('http://localhost:3001/api/maintenance/products', {
+            const response = await fetch('http://localhost:5000/api/maintenance/products', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -168,7 +168,7 @@ const MaintenancePage = () => {
     };// Fetch product images
     const fetchProductImages = async (productId) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/images`);
+            const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/images`);
             if (response.ok) {
                 const images = await response.json();
                 return images;
@@ -192,7 +192,34 @@ const MaintenancePage = () => {
     // Debug: Log form data changes
     useEffect(() => {
         console.log('Form data changed:', formData);
-    }, [formData]);// Handle form input changes
+    }, [formData]);
+
+    // Listen for stock updates from order cancellations and other stock changes
+    useEffect(() => {
+        const handleStockUpdate = (event) => {
+            console.log('📦 Stock update detected in MaintenancePage, refreshing products...', event.detail);
+            fetchProducts();
+        };
+
+        const handleStorageChange = (e) => {
+            if (e.key === 'stock_updated') {
+                console.log('📦 Stock updated via localStorage, refreshing products...');
+                fetchProducts();
+            }
+        };
+
+        // Listen for custom stock update events (from cancellation approvals, etc.)
+        window.addEventListener('stockUpdated', handleStockUpdate);
+        // Listen for cross-tab stock updates
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('stockUpdated', handleStockUpdate);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, []);
+
+    // Handle form input changes
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         console.log('Form input changed:', name, '=', value);
@@ -511,7 +538,7 @@ const MaintenancePage = () => {
         if (!window.confirm('Are you sure you want to delete this image?')) return;
         
         try {
-            const response = await fetch(`http://localhost:3001/api/maintenance/images/${imageId}`, {
+            const response = await fetch(`http://localhost:5000/api/maintenance/images/${imageId}`, {
                 method: 'DELETE'
             });
             
@@ -624,8 +651,8 @@ const MaintenancePage = () => {
                 if (pair[0] !== 'images') { // Don't log file objects
                     console.log(pair[0] + ':', pair[1]);
                 }
-            }const url = editingProduct? `http://localhost:3001/api/maintenance/products/${editingProduct.id}`
-                : 'http://localhost:3001/api/maintenance/products';
+            }const url = editingProduct? `http://localhost:5000/api/maintenance/products/${editingProduct.id}`
+                : 'http://localhost:5000/api/maintenance/products';
             
             const method = editingProduct ? 'PUT' : 'POST';
 
@@ -767,7 +794,7 @@ const MaintenancePage = () => {
     const archiveProduct = async (id) => {
         if (window.confirm('Are you sure you want to archive this product? It will be removed from public view.')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/archive`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/archive`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -784,7 +811,7 @@ const MaintenancePage = () => {
     const restoreProduct = async (id) => {
         if (window.confirm('Are you sure you want to restore this product?')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}/restore`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}/restore`, {
                     method: 'POST'
                 });
                 if (response.ok) {
@@ -803,7 +830,7 @@ const MaintenancePage = () => {
     const deleteProduct = async (id) => {
         if (window.confirm('Are you sure you want to permanently delete this product?')) {
             try {
-                const response = await fetch(`http://localhost:3001/api/maintenance/products/${id}`, {
+                const response = await fetch(`http://localhost:5000/api/maintenance/products/${id}`, {
                     method: 'DELETE'
                 });
                 if (response.ok) {
@@ -822,7 +849,7 @@ const MaintenancePage = () => {
     const backupData = async () => {
         try {
             setLoading(true);
-            const response = await fetch('http://localhost:3001/api/maintenance/backup', {
+            const response = await fetch('http://localhost:5000/api/maintenance/backup', {
                 method: 'POST'
             });
             if (response.ok) {
@@ -843,7 +870,7 @@ const MaintenancePage = () => {
     //     if (!window.confirm('Are you sure you want to delete this image?')) return;
     //     
     //     try {
-    //         const response = await fetch(`http://localhost:3001/api/maintenance/products/${productId}/image/${filename}`, {
+    //         const response = await fetch(`http://localhost:5000/api/maintenance/products/${productId}/image/${filename}`, {
     //             method: 'DELETE'
     //         });
     //         
@@ -1178,7 +1205,7 @@ if (typeof document !== 'undefined') {
                                                             }}
                                                         >
                                                             <img 
-                                                                src={`http://localhost:3001/uploads/${img.image_filename}`} 
+                                                                src={`http://localhost:5000/uploads/${img.image_filename}`} 
                                                                 alt={`Product ${index + 1}`}
                                                                 style={styles.imagePreview}
                                                             />
@@ -1432,7 +1459,7 @@ if (typeof document !== 'undefined') {
                                                             {product.images && product.images.length > 0 ? (
                                                                 <div style={styles.productImageContainer}>
                                                                     <img 
-                                                                        src={`http://localhost:3001/uploads/${product.images[0]}`}
+                                                                        src={`http://localhost:5000/uploads/${product.images[0]}`}
                                                                         alt={product.productname}
                                                                         style={styles.productImage}
                                                                     />
@@ -1445,7 +1472,7 @@ if (typeof document !== 'undefined') {
                                                             ) : product.productimage ? (
                                                                 <div style={styles.productImageContainer}>
                                                                     <img 
-                                                                        src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                        src={`http://localhost:5000/uploads/${product.productimage}`}
                                                                         alt={product.productname}
                                                                         style={styles.productImage}
                                                                     />
@@ -1570,7 +1597,7 @@ if (typeof document !== 'undefined') {
                                                                 {product.images && product.images.length > 0 ? (
                                                                     <div style={styles.productImageContainer}>
                                                                         <img 
-                                                                            src={`http://localhost:3001/uploads/${product.images[0]}`}
+                                                                            src={`http://localhost:5000/uploads/${product.images[0]}`}
                                                                             alt={product.productname}
                                                                             style={styles.archivedProductImage}
                                                                         />
@@ -1583,7 +1610,7 @@ if (typeof document !== 'undefined') {
                                                                 ) : product.productimage ? (
                                                                     <div style={styles.productImageContainer}>
                                                                         <img 
-                                                                            src={`http://localhost:3001/uploads/${product.productimage}`}
+                                                                            src={`http://localhost:5000/uploads/${product.productimage}`}
                                                                             alt={product.productname}
                                                                             style={styles.archivedProductImage}
                                                                         />
@@ -1902,7 +1929,7 @@ const styles = {
         marginTop: '2rem'
     },
     imageCard: {
-        backgroundColor: '#ffffff',
+               backgroundColor: '#ffffff',
         border: '1px solid #e0e0e0',
         overflow: 'hidden',
         transition: 'box-shadow 0.2s ease'

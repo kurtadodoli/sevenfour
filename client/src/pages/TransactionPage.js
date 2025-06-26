@@ -634,7 +634,9 @@ const TabsContainer = styled.div`
   margin-bottom: 1px;
 `;
 
-const Tab = styled.button`
+const Tab = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   flex: 1;
   padding: 16px 24px;
   background: ${props => props.active ? '#000000' : '#ffffff'};
@@ -1089,6 +1091,49 @@ const TransactionPage = () => {
       
       if (response.data.success) {
         toast.success(response.data.message);
+        
+        // If cancellation was approved and stock was restored, trigger stock update events
+        if (action === 'approve' && response.data.data?.stockUpdateEvent?.stockRestored) {
+          const stockEvent = response.data.data.stockUpdateEvent;
+          console.log('📦 Cancellation approved - stock restored, triggering inventory updates...', stockEvent);
+          
+          // Trigger localStorage event for inventory pages to refresh
+          localStorage.setItem('stock_updated', JSON.stringify({
+            type: 'order_cancelled',
+            timestamp: new Date().toISOString(),
+            orderId: stockEvent.orderId,
+            productIds: stockEvent.productIds || [],
+            stockRestorations: stockEvent.stockRestorations || []
+          }));
+          
+          // Remove the flag immediately to allow future updates
+          localStorage.removeItem('stock_updated');
+          
+          // Also dispatch a custom event for components that might not use localStorage
+          window.dispatchEvent(new CustomEvent('stockUpdated', {
+            detail: {
+              type: 'order_cancelled',
+              orderId: stockEvent.orderId,
+              productIds: stockEvent.productIds || [],
+              restoredQuantities: stockEvent.stockRestorations || []
+            }
+          }));
+          
+          // Show detailed stock restoration information
+          if (stockEvent.stockRestorations && stockEvent.stockRestorations.length > 0) {
+            const restorationDetails = stockEvent.stockRestorations.map(item => 
+              `• ${item.product} (${item.size}/${item.color}): +${item.quantityRestored} units → ${item.newAvailableStock} available`
+            ).join('\n');
+            
+            toast.success(
+              `✅ Order cancelled and inventory restored:\n\n${restorationDetails}`,
+              { autoClose: 8000 }
+            );
+          }
+        } else if (action === 'approve') {
+          console.log('📝 Cancellation approved but no stock restoration needed');
+        }
+        
         setShowProcessingModal(false);
         setProcessingRequest(null);
         setAdminNotes('');

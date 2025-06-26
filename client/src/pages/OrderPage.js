@@ -1111,10 +1111,10 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           <div>
             {cartItems.map((item) => (
               <CartItem key={item.id}>                <ItemImage 
-                  src={item.main_image ? `http://localhost:3001/uploads/${item.main_image}` : 'http://localhost:3001/images/placeholder.svg'} 
+                  src={item.main_image ? `http://localhost:5000/uploads/${item.main_image}` : 'http://localhost:5000/images/placeholder.svg'} 
                   alt={item.name}
                   onError={(e) => {
-                    e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                    e.target.src = 'http://localhost:5000/images/placeholder.svg';
                   }}
                 /><ItemDetails>
                   <ItemName>{item.name}</ItemName>                  <ItemSpecs>
@@ -1351,17 +1351,19 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                   <OrderItemsList>
                     {order.items.map((item, index) => (
                       <OrderItem key={index}>                        <OrderItemImage 
-                          src={item.productimage ? `http://localhost:3001/uploads/${item.productimage}` : 'http://localhost:3001/images/placeholder.svg'}
+                          src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : 'http://localhost:5000/images/placeholder.svg'}
                           alt={item.productname || 'Product'}
                           onError={(e) => {
-                            e.target.src = 'http://localhost:3001/images/placeholder.svg';
+                            e.target.src = 'http://localhost:5000/images/placeholder.svg';
                           }}
                         />
                         <OrderItemDetails>
                           <OrderItemName>{item.productname || 'Unknown Product'}</OrderItemName>
                           <OrderItemMeta>
-                            {item.productcolor && `Color: ${item.productcolor}`}
-                            {item.productcolor && item.product_type && ' • '}
+                            {(item.color || item.productcolor) && `Color: ${item.color || item.productcolor}`}
+                            {(item.color || item.productcolor) && (item.size || item.product_type) && ' • '}
+                            {item.size && `Size: ${item.size}`}
+                            {item.size && item.product_type && ' • '}
                             {item.product_type && `Type: ${item.product_type}`}
                           </OrderItemMeta>
                           <OrderItemMeta>Qty: {item.quantity}</OrderItemMeta>
