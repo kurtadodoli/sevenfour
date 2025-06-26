@@ -21,7 +21,9 @@ const formatDeliverySchedule = (schedule) => {
         delivery_contact_phone: schedule.delivery_contact_phone,
         delivery_notes: schedule.delivery_notes,
         tracking_number: schedule.tracking_number,
+        courier_id: schedule.courier_id,
         courier_name: schedule.courier_name,
+        courier_phone: schedule.courier_phone,
         estimated_delivery_time: schedule.estimated_delivery_time,
         actual_delivery_time: schedule.actual_delivery_time,
         priority_level: schedule.priority_level,
@@ -35,8 +37,15 @@ const formatDeliverySchedule = (schedule) => {
 // @desc    Get all delivery schedules with filtering options
 // @access  Public (temporarily for testing)
 router.get('/schedules', async (req, res) => {
-    try {        // Simple query without filters for debugging
-        const query = 'SELECT * FROM delivery_schedules ORDER BY delivery_date ASC';
+    try {        // Query with courier information
+        const query = `
+            SELECT ds.*, 
+                   c.name as courier_name, 
+                   c.phone_number as courier_phone
+            FROM delivery_schedules ds
+            LEFT JOIN couriers c ON ds.courier_id = c.id
+            ORDER BY ds.delivery_date ASC
+        `;
         
         const [schedules] = await pool.execute(query);
         console.log(`Found ${schedules.length} delivery schedules`);
@@ -62,9 +71,12 @@ router.get('/schedules/:id', auth, async (req, res) => {
         // Get delivery schedule details
         const [schedules] = await pool.execute(`
             SELECT ds.*, 
-                   u.first_name, u.last_name, u.email as customer_email,                   u.address, u.city, u.postal_code, u.province, u.phone
+                   u.first_name, u.last_name, u.email as customer_email,
+                   u.address, u.city, u.postal_code, u.province, u.phone,
+                   c.name as courier_name, c.phone_number as courier_phone
             FROM delivery_schedules ds
             LEFT JOIN users u ON ds.customer_id = u.user_id
+            LEFT JOIN couriers c ON ds.courier_id = c.id
             WHERE ds.id = ?
         `, [id]);
 
@@ -126,6 +138,7 @@ router.post('/schedules', async (req, res) => {
             delivery_notes,
             priority_level = 'normal',
             delivery_fee = 0.00,
+            courier_id,
             items = []
         } = req.body;
 
@@ -186,13 +199,13 @@ router.post('/schedules', async (req, res) => {
                 order_id, order_type, customer_id, delivery_date, delivery_time_slot,
                 delivery_address, delivery_city, delivery_postal_code, delivery_province,
                 delivery_contact_phone, delivery_notes, priority_level, delivery_fee,
-                tracking_number, scheduled_by, delivery_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tracking_number, scheduled_by, delivery_status, courier_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             order_id, order_type, customer_id, delivery_date, delivery_time_slot,
             delivery_address, delivery_city, delivery_postal_code, delivery_province,
             delivery_contact_phone, delivery_notes, priority_level, delivery_fee,
-            tracking_number, 1, 'scheduled'
+            tracking_number, 1, 'scheduled', courier_id || null
         ]);
 
         console.log('Insert result:', result);
@@ -249,7 +262,7 @@ router.post('/schedules', async (req, res) => {
 // @route   PUT /api/delivery/schedules/:id
 // @desc    Update delivery schedule
 // @access  Private (Admin)
-router.put('/schedules/:id', auth, async (req, res) => {
+router.put('/schedules/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -369,7 +382,8 @@ router.put('/schedules/:id', auth, async (req, res) => {
     } catch (error) {
         console.error('Error updating delivery schedule:', error);
         res.status(500).json({ 
-            message: 'Failed to update delivery schedule',
+            success: false,
+            message: 'Error updating delivery schedule',
             error: error.message 
         });
     }

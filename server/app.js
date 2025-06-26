@@ -204,7 +204,8 @@ const inventoryRoutes = require('./routes/inventory');
 const customOrdersRoutes = require('./routes/custom-orders');
 const customDesignsRoutes = require('./routes/custom-designs');
 const searchRoutes = require('./routes/api/search');
-const deliveryRoutes = require('./routes/api/delivery');
+const deliveryRoutes = require('./routes/delivery');
+const courierRoutes = require('./routes/couriers');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -225,6 +226,7 @@ app.use('/api/custom-orders', customOrdersRoutes);
 app.use('/api/custom-designs', customDesignsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/couriers', courierRoutes);
 app.use('/health', healthCheckRoutes);
 
 // Simple test route
@@ -809,10 +811,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Use environment variable or default to 3001
-const PORT = process.env.PORT || 3001;
+// Use environment variable or default to 5000
+const PORT = process.env.PORT || 5000;
 
-// Make sure server starts on port 3001
+// Make sure server starts on port 5000
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📊 Frontend should connect to: http://localhost:${PORT}`);

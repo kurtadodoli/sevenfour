@@ -16,132 +16,56 @@ import {
   faRulerCombined
 } from '@fortawesome/free-solid-svg-icons';
 
-// Icon component using FontAwesome
-const Icon = ({ icon, ...props }) => <FontAwesomeIcon icon={icon} {...props} />;
-
-// Enhanced Modern SVG Icons for clothing types
-const TShirtIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="tshirtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-    <path d="M14 14h6v-3c0-1.5 1.5-3 3-3h10c1.5 0 3 1.5 3 3v3h6l2 6-2 2v25H14V22l-2-2 2-6z" fill="url(#tshirtGrad)" stroke={color} strokeWidth="1"/>
-    <path d="M20 14h16M16 18v26M40 18v26" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-    <circle cx="28" cy="26" r="1.5" fill="#ffffff" opacity="0.7"/>
+// Custom SVG Icons for clothing types
+const ShortsIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 8h24v6l-2 4v18h-8V20h-4v16h-8V18l-2-4V8z" fill={color} stroke={color} strokeWidth="1"/>
+    <path d="M16 8v6M32 8v6" stroke={color} strokeWidth="2" strokeLinecap="round"/>
   </svg>
 );
 
-const ShortsIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="shortsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-    <path d="M16 12h24v6l-3 4v18h-7V24h-4v16h-7V22l-3-4V12z" fill="url(#shortsGrad)" stroke={color} strokeWidth="1"/>
-    <path d="M20 12v8M36 12v8" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M20 24h4M32 24h4" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
+const JacketIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 12h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 4v26H8V16l2-4z" fill={color}/>
+    <path d="M18 12h12M14 18v20M34 18v20M18 20h12M18 24h12" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <circle cx="16" cy="22" r="1" fill="white"/>
+    <circle cx="16" cy="26" r="1" fill="white"/>
+    <circle cx="32" cy="22" r="1" fill="white"/>
+    <circle cx="32" cy="26" r="1" fill="white"/>
   </svg>
 );
 
-const HoodieIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="hoodieGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-    <path d="M14 16h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 2v28H12V18l2-2z" fill="url(#hoodieGrad)" stroke={color} strokeWidth="1"/>
-    <path d="M18 8c0-3 3-6 10-6s10 3 10 6c0 2-2 4-3 5H21c-1-1-3-3-3-5z" fill="url(#hoodieGrad)" stroke={color} strokeWidth="1"/>
-    <path d="M20 16h16M16 20v24M40 20v24" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M22 20v6h12v-6" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" fill="none"/>
-    <circle cx="24" cy="22" r="1" fill="#ffffff"/>
-    <circle cx="32" cy="22" r="1" fill="#ffffff"/>
+const SweaterIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 14h4v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h4l2 2v26H10V16l2-2z" fill={color}/>
+    <path d="M18 14h12M16 18v22M32 18v22" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M18 20h12M18 24h12M18 28h12M18 32h12" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.7"/>
   </svg>
 );
 
-const JerseyIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-    <path d="M14 14h6v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h6v6l-2 2v22H16V22l-2-2v-6z" fill="url(#jerseyGrad)" stroke={color} strokeWidth="1"/>
-    <path d="M20 14h16M16 18v26M40 18v26" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-    <rect x="24" y="20" width="8" height="12" rx="1" fill="#ffffff" opacity="0.9"/>
-    <text x="28" y="30" textAnchor="middle" fill={color} fontSize="10" fontWeight="bold">7</text>
+const HoodieIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 14h4v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h4l2 2v26H10V16l2-2z" fill={color}/>
+    <path d="M16 8c0-2 2-4 8-4s8 2 8 4c0 1-1 2-2 3h-12c-1-1-2-2-2-3z" fill={color}/>
+    <path d="M18 14h12M16 18v22M32 18v22" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M20 18v4h8v-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+    <circle cx="22" cy="20" r="0.5" fill="white"/>
+    <circle cx="26" cy="20" r="0.5" fill="white"/>
   </svg>
 );
 
-const JacketIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="jacketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-    </defs>
-    {/* Main jacket body */}
-    <path d="M12 14h6v-2c0-2 2-4 4-4h12c2 0 4 2 4 4v2h6l2 4v26H10V18l2-4z" fill="url(#jacketGrad)" stroke={color} strokeWidth="1"/>
-    
-    {/* Jacket details - collar, sleeves, pockets */}
-    <path d="M18 14h20M16 20v22M40 20v22M20 22h7M29 22h7M20 26h7M29 26h7" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
-    
-    {/* Jacket collar */}
-    <path d="M22 18v4h5v-4M29 18v4h5v-4" stroke="#ffffff" strokeWidth="1.5" fill="none"/>
-    
-    {/* Side buttons */}
-    <circle cx="18" cy="24" r="1.5" fill="#ffffff"/>
-    <circle cx="18" cy="28" r="1.5" fill="#ffffff"/>
-    <circle cx="38" cy="24" r="1.5" fill="#ffffff"/>
-    <circle cx="38" cy="28" r="1.5" fill="#ffffff"/>
-    
-    {/* Central vertical zipper line */}
-    <line x1="28" y1="18" x2="28" y2="42" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
-    
-    {/* Zipper teeth/details */}
-    <g stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.8">
-      <line x1="26" y1="20" x2="30" y2="20"/>
-      <line x1="26" y1="22" x2="30" y2="22"/>
-      <line x1="26" y1="24" x2="30" y2="24"/>
-      <line x1="26" y1="26" x2="30" y2="26"/>
-      <line x1="26" y1="28" x2="30" y2="28"/>
-      <line x1="26" y1="30" x2="30" y2="30"/>
-      <line x1="26" y1="32" x2="30" y2="32"/>
-      <line x1="26" y1="34" x2="30" y2="34"/>
-      <line x1="26" y1="36" x2="30" y2="36"/>
-      <line x1="26" y1="38" x2="30" y2="38"/>
-      <line x1="26" y1="40" x2="30" y2="40"/>
-    </g>
-    
-    {/* Zipper pull tab */}
-    <rect x="26" y="17" width="4" height="3" rx="1" fill="#ffffff" opacity="0.9"/>
+const JerseyIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 12h4v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h4v6l-2 2v20H14V20l-2-2v-6z" fill={color}/>
+    <path d="M18 12h12M16 16v24M32 16v24" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+    <text x="24" y="28" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">7</text>
   </svg>
 );
 
-const SweaterIcon = ({ color = '#000000', size = 56 }) => (
-  <svg width={size} height={size} viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="sweaterGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={color} stopOpacity="1" />
-        <stop offset="100%" stopColor={color} stopOpacity="0.8" />
-      </linearGradient>
-      <pattern id="sweaterPattern" patternUnits="userSpaceOnUse" width="4" height="4">
-        <rect width="4" height="4" fill="transparent"/>
-        <circle cx="2" cy="2" r="0.5" fill="#ffffff" opacity="0.3"/>
-      </pattern>
-    </defs>
-    <path d="M14 16h6v-2c0-2 2-4 4-4h8c2 0 4 2 4 4v2h6l2 2v26H12V18l2-2z" fill="url(#sweaterGrad)" stroke={color} strokeWidth="1"/>
-    <rect x="16" y="18" width="24" height="24" fill="url(#sweaterPattern)"/>
-    <path d="M20 16h16M16 20v22M40 20v22" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M20 22h16M20 26h16M20 30h16M20 34h16" stroke="#ffffff" strokeWidth="1" strokeLinecap="round" opacity="0.6"/>
+const TShirtIcon = ({ color = 'currentColor', size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 12h4v-2c0-1 1-2 2-2h12c1 0 2 1 2 2v2h4v6l-2 2v20H14V20l-2-2v-6z" fill={color}/>
+    <path d="M18 12h12M16 16v24M32 16v24" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
   </svg>
 );
 
@@ -194,272 +118,165 @@ const productTypes = {
 
 const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
-// Styled Components - Modern Minimalist Design
+// Styled Components
 const PageContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
-  padding-top: 100px;
+  padding: 1.5rem;
+  padding-top: 80px;
   background: #ffffff;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 `;
 
 const Header = styled.div`
   text-align: center;
-  margin-bottom: 5rem;
+  margin-bottom: 4rem;
   
   h1 {
-    font-size: 3rem;
-    font-weight: 200;
+    font-size: 2.5rem;
+    font-weight: 300;
     color: #000000;
-    margin-bottom: 1.5rem;
-    letter-spacing: -1px;
-    line-height: 1.1;
-    
-    @media (max-width: 768px) {
-      font-size: 2.5rem;
-    }
+    margin-bottom: 1rem;
+    letter-spacing: -0.5px;
   }
   
   p {
     color: #666666;
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 300;
-    max-width: 600px;
+    max-width: 500px;
     margin: 0 auto;
-    line-height: 1.7;
-    letter-spacing: 0.2px;
+    line-height: 1.6;
   }
 `;
 
 const StepContainer = styled.div`
   background: #ffffff;
-  border-radius: 12px;
-  padding: 3rem;
+  border-radius: 8px;
+  padding: 2.5rem;
   margin-bottom: 3rem;
-  border: 1px solid #f0f0f0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    border-color: #e0e0e0;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 2rem;
-    margin-bottom: 2rem;
-  }
+  box-shadow: none;
+  border: 1px solid #e5e5e5;
 `;
 
 const StepHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: 2rem;
-  margin-bottom: 3rem;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
   
   h2 {
-    font-size: 1.5rem;
-    font-weight: 300;
+    font-size: 1.25rem;
+    font-weight: 400;
     color: #000000;
     margin: 0;
-    letter-spacing: -0.5px;
+    letter-spacing: -0.25px;
   }
-  
   .step-number {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #000000, #333333);
+    width: 32px;
+    height: 32px;
+    background: #000000;
     color: white;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500;
-    font-size: 1rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  
-  @media (max-width: 768px) {
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-    
-    h2 {
-      font-size: 1.25rem;
-    }
-    
-    .step-number {
-      width: 36px;
-      height: 36px;
-      font-size: 0.9rem;
-    }
+    font-weight: 400;
+    font-size: 0.875rem;
   }
 `;
 
 const ProductGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2.5rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 1rem;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
 `;
 
 const ProductCard = styled.div`
   background: ${props => props.selected ? '#000000' : '#ffffff'};
   color: ${props => props.selected ? '#ffffff' : '#000000'};
-  border: 2px solid ${props => props.selected ? '#000000' : '#f0f0f0'};
-  border-radius: 12px;
-  padding: 2rem 1.5rem;
+  border: 1px solid ${props => props.selected ? '#000000' : '#e5e5e5'};
+  border-radius: 6px;
+  padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
+  transition: all 0.2s ease;
   
   &:hover {
-    transform: translateY(-4px);
     border-color: #000000;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
-    
-    &::before {
-      opacity: ${props => props.selected ? 1 : 0};
-    }
+    transform: translateY(-1px);
   }
   
   .icon {
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100px;
+    margin-bottom: 1rem;
   }
   
   h3 {
-    font-size: 1rem;
-    font-weight: 500;
-    margin: 1rem 0 0.5rem 0;
+    font-size: 0.875rem;
+    font-weight: 400;
+    margin: 0.5rem 0;
     letter-spacing: -0.25px;
   }
   
   .price {
-    font-size: 1.25rem;
-    font-weight: 600;
+    font-size: 1rem;
+    font-weight: 500;
     color: ${props => props.selected ? '#ffffff' : '#000000'};
-    margin-top: 0.5rem;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 1.5rem 1rem;
-    
-    .icon {
-      height: 80px;
-      margin-bottom: 1rem;
-    }
-    
-    h3 {
-      font-size: 0.9rem;
-    }
-    
-    .price {
-      font-size: 1.1rem;
-    }
   }
 `;
 
 const ImageUploadSection = styled.div`
-  border: 2px dashed ${props => props.isDragOver ? '#000000' : '#d0d0d0'};
-  border-radius: 12px;
-  padding: 4rem 2rem;
+  border: 1px dashed #d0d0d0;
+  border-radius: 6px;
+  padding: 3rem 2rem;
   text-align: center;
-  background: ${props => props.isDragOver ? '#f8f8f8' : '#fafafa'};
-  transition: all 0.3s ease;
-  position: relative;
+  background: #fafafa;
+  transition: all 0.2s ease;
   
   &:hover {
     border-color: #000000;
     background: #f5f5f5;
   }
   
-  .upload-icon {
-    font-size: 3rem;
-    color: #d0d0d0;
-    margin-bottom: 1.5rem;
-    transition: color 0.3s ease;
-  }
-  
-  &:hover .upload-icon {
-    color: #000000;
+  &.dragover {
+    border-color: #000000;
+    background: #f0f0f0;
   }
   
   h3 {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 400;
     color: #000000;
-    margin: 0 0 0.75rem 0;
+    margin: 1rem 0 0.5rem 0;
     letter-spacing: -0.25px;
   }
   
   p {
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: #666666;
-    margin: 0 0 1.5rem 0;
+    margin: 0;
     font-weight: 300;
-    line-height: 1.5;
-  }
-  
-  @media (max-width: 768px) {
-    padding: 3rem 1.5rem;
-    
-    .upload-icon {
-      font-size: 2.5rem;
-    }
-    
-    h3 {
-      font-size: 1.1rem;
-    }
-    
-    p {
-      font-size: 0.9rem;
-    }
   }
 `;
 
 const UploadButton = styled.button`
-  background: linear-gradient(135deg, #000000, #333333);
-  color: white;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #495057;
   border: none;
-  padding: 1rem 2rem;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 0.875rem 1.75rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   
   &:hover {
-    background: linear-gradient(135deg, #333333, #555555);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
   }
   
   &:active {
@@ -469,29 +286,18 @@ const UploadButton = styled.button`
 
 const ImagePreviewGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 1rem;
-  margin-top: 2rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 0.75rem;
-  }
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.5rem;
 `;
 
 const ImagePreview = styled.div`
   position: relative;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
   background: #f8f8f8;
   aspect-ratio: 1;
-  border: 2px solid #f0f0f0;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    border-color: #000000;
-    transform: scale(1.05);
-  }
+  border: 1px solid #e5e5e5;
   
   img {
     width: 100%;
@@ -501,41 +307,34 @@ const ImagePreview = styled.div`
   
   .remove-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 4px;
+    right: 4px;
     background: rgba(0, 0, 0, 0.8);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
-    transition: all 0.2s ease;
+    font-size: 0.7rem;
     
     &:hover {
       background: rgba(0, 0, 0, 1);
-      transform: scale(1.1);
     }
   }
 `;
 
 const FormGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   
   &.full-width {
     grid-column: 1 / -1;
@@ -544,137 +343,102 @@ const FormGroup = styled.div`
 
 const Label = styled.label`
   display: block;
-  font-weight: 500;
+  font-weight: 400;
   color: #000000;
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
-  letter-spacing: -0.2px;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  letter-spacing: -0.25px;
 `;
 
 const Input = styled.input`
   width: 100%;
-  padding: 1rem;
-  border: 2px solid #f0f0f0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  padding: 0.75rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
   background: white;
   font-family: inherit;
-  color: #000000;
-  
-  &::placeholder {
-    color: #999999;
-  }
   
   &:focus {
     outline: none;
     border-color: #000000;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
   
-  &:invalid:not(:focus) {
+  &:invalid {
     border-color: #dc3545;
   }
 `;
 
 const Select = styled.select`
   width: 100%;
-  padding: 1rem;
-  border: 2px solid #f0f0f0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  padding: 0.75rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
   background: white;
   cursor: pointer;
   font-family: inherit;
-  color: #000000;
   
   &:focus {
     outline: none;
     border-color: #000000;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
-  }
-  
-  option {
-    padding: 0.5rem;
   }
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 1rem;
-  border: 2px solid #f0f0f0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  padding: 0.75rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
   background: white;
-  min-height: 120px;
+  min-height: 100px;
   resize: vertical;
   font-family: inherit;
-  color: #000000;
-  line-height: 1.5;
-  
-  &::placeholder {
-    color: #999999;
-  }
   
   &:focus {
     outline: none;
     border-color: #000000;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const OrderSummary = styled.div`
   background: #fafafa;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
-  padding: 2.5rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 2rem;
   margin-top: 2rem;
-  
-  h3 {
-    font-size: 1.25rem;
-    font-weight: 500;
-    color: #000000;
-    margin: 0 0 1.5rem 0;
-    letter-spacing: -0.25px;
-  }
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: #000000;
-  font-size: 1rem;
+  font-size: 0.875rem;
   
   &.total {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #000000;
-    border-top: 2px solid #e0e0e0;
-    padding-top: 1.5rem;
-    margin-top: 1.5rem;
-  }
-  
-  .label {
-    font-weight: 400;
-  }
-  
-  .value {
+    font-size: 1.125rem;
     font-weight: 500;
+    color: #000000;
+    border-top: 1px solid #e5e5e5;
+    padding-top: 1rem;
+    margin-top: 1rem;
   }
 `;
 
 const SubmitButton = styled.button`
   width: 100%;
-  background: linear-gradient(135deg, #000000, #333333);
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
   color: white;
   border: none;
   padding: 1.25rem 2rem;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -682,14 +446,13 @@ const SubmitButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  letter-spacing: -0.25px;
+  gap: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   
   &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #333333, #555555);
+    background: linear-gradient(135deg, #333333 0%, #555555 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   }
   
   &:active:not(:disabled) {
@@ -701,48 +464,42 @@ const SubmitButton = styled.button`
     cursor: not-allowed;
     transform: none;
   }
-  
-  svg {
-    font-size: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    padding: 8px;
-    background: rgba(255, 255, 255, 0.1);
-  }
 `;
 
-const StatusMessage = styled.div`
-  background: ${props => props.type === 'error' ? '#fff5f5' : '#f0fff4'};
-  color: ${props => props.type === 'error' ? '#c53030' : '#38a169'};
-  border: 2px solid ${props => props.type === 'error' ? '#fed7d7' : '#c6f6d5'};
-  padding: 1.25rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  
-  .icon {
-    font-size: 1.25rem;
-  }
+const ErrorMessage = styled.div`
+  background: #fafafa;
+  color: #000000;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e5e5;
+  font-size: 0.875rem;
 `;
 
-const ErrorMessage = styled(StatusMessage).attrs({ type: 'error' })``;
-const SuccessMessage = styled(StatusMessage).attrs({ type: 'success' })``;
+const SuccessMessage = styled.div`
+  background: #fafafa;
+  color: #000000;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  border: 1px solid #e5e5e5;
+  font-size: 0.875rem;
+`;
+
+const Icon = styled(FontAwesomeIcon)`
+  color: #000000;
+`;
 
 const PendingOrderCard = styled.div`
   background: #ffffff;
-  border: 2px solid #f0f0f0;
-  border-radius: 12px;
-  padding: 2rem;
-  margin-bottom: 1.5rem;
-  transition: all 0.3s ease;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
   
   &:hover {
-    border-color: #e0e0e0;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
+    border-color: #000000;
   }
 `;
 
@@ -750,28 +507,22 @@ const OrderHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
+  margin-bottom: 1rem;
 `;
 
 const OrderId = styled.h4`
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 500;
   color: #000000;
   margin: 0;
   letter-spacing: -0.25px;
 `;
 
 const OrderStatus = styled.span`
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: ${props => {
@@ -794,7 +545,7 @@ const OrderStatus = styled.span`
       default: return '#666666';
     }
   }};
-  border: 2px solid ${props => {
+  border: 1px solid ${props => {
     switch (props.status) {
       case 'pending': return '#e5e5e5';
       case 'confirmed': return '#2196f3';
@@ -808,41 +559,45 @@ const OrderStatus = styled.span`
 
 const OrderDetails = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
 `;
 
 const DetailItem = styled.div`
-  font-size: 1rem;
+  font-size: 0.875rem;
   color: #000000;
-  line-height: 1.5;
   
   strong {
     color: #000000;
-    font-weight: 600;
+    font-weight: 500;
   }
 `;
 
 const ToggleButton = styled.button`
-  background: #ffffff;
-  border: 2px solid #f0f0f0;
-  color: #000000;
+  background: none;
+  border: none;
+  color: #666666;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-bottom: 2rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  position: relative;
   
   &:hover {
-    border-color: #000000;
-    background: #fafafa;
-    transform: translateY(-1px);
+    color: #000000;
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -854,7 +609,7 @@ const CustomPage = () => {
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
-  const [showPendingSection, setShowPendingSection] = useState(true);
+  const [activeMode, setActiveMode] = useState('customize'); // 'customize' or 'pending'
 
   const [formData, setFormData] = useState({
     // Product details
@@ -1136,8 +891,8 @@ const CustomPage = () => {
           fetchPendingOrders();
         }, 1000);
         
-        // Auto-show the pending section after successful submission
-        setShowPendingSection(true);
+        // Auto-switch to pending orders view after successful submission
+        setActiveMode('pending');
 
       } else {
         setSubmitStatus({
@@ -1167,9 +922,52 @@ const CustomPage = () => {
         <p>Create your perfect custom clothing with our design studio. Upload your designs and we'll bring them to life!</p>
       </Header>
 
-      {/* Pending Customized Products Section */}
+      {/* Mode Toggle Buttons */}
       {user && (
-        <StepContainer>          <StepHeader>
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          marginBottom: '3rem', 
+          justifyContent: 'center',
+          background: '#f8f9fa',
+          borderRadius: '12px',
+          padding: '0.25rem',
+          width: 'fit-content',
+          margin: '0 auto 3rem auto'
+        }}>
+          <ToggleButton 
+            onClick={() => setActiveMode('customize')}
+            style={{ 
+              background: activeMode === 'customize' ? '#ffffff' : 'transparent',
+              color: activeMode === 'customize' ? '#000000' : '#666666',
+              boxShadow: activeMode === 'customize' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+              borderRadius: '10px',
+              marginBottom: '0'
+            }}
+          >
+            <Icon icon={faTshirt} style={{ marginRight: '0.5rem' }} />
+            Design Studio
+          </ToggleButton>
+          <ToggleButton 
+            onClick={() => setActiveMode('pending')}
+            style={{ 
+              background: activeMode === 'pending' ? '#ffffff' : 'transparent',
+              color: activeMode === 'pending' ? '#000000' : '#666666',
+              boxShadow: activeMode === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+              borderRadius: '10px',
+              marginBottom: '0'
+            }}
+          >
+            <Icon icon={faShoppingCart} style={{ marginRight: '0.5rem' }} />
+            Pending Orders ({pendingOrders.length})
+          </ToggleButton>
+        </div>
+      )}
+
+      {/* Pending Orders View */}
+      {user && activeMode === 'pending' && (
+        <StepContainer>
+          <StepHeader>
             <div style={{ 
               minWidth: '32px', 
               height: '32px', 
@@ -1182,170 +980,183 @@ const CustomPage = () => {
               fontSize: '1.2rem'
             }}>📋</div>
             <h2>Your Pending Customized Products</h2>
-          </StepHeader>          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <ToggleButton onClick={() => setShowPendingSection(!showPendingSection)}>
-              {showPendingSection ? 'Hide' : 'Show'} Pending Orders ({pendingOrders.length})
+          </StepHeader>
+
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+            <ToggleButton 
+              onClick={fetchPendingOrders} 
+              disabled={loadingPending}
+              style={{
+                background: '#f8f9fa',
+                color: '#666666',
+                borderRadius: '8px',
+                marginBottom: '0'
+              }}
+            >
+              {loadingPending ? <Icon icon={faSpinner} spin /> : '🔄'} Refresh Orders
             </ToggleButton>
-              {showPendingSection && (
-              <ToggleButton onClick={fetchPendingOrders} disabled={loadingPending}>
-                {loadingPending ? <Icon icon={faSpinner} spin /> : '🔄'} Refresh
-              </ToggleButton>
-            )}
           </div>
 
-          {showPendingSection && (
-            <div>
-              {loadingPending ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <Icon icon={faSpinner} spin size="3x" />
-                  <p style={{ marginTop: '1rem', color: '#666666', fontSize: '0.875rem' }}>Loading your orders...</p>
-                </div>
-              ) : pendingOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-                  <Icon icon={faTshirt} size="3x" />
-                  <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>No pending custom orders yet.</p>
-                  <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Submit your first custom design below!</p>
-                </div>
-              ) : (                <div>
-                  {pendingOrders && pendingOrders.length > 0 ? pendingOrders
-                    .filter(order => order && order.custom_order_id) // Filter out invalid orders
-                    .map((order) => (
-                    <PendingOrderCard key={order.custom_order_id}>
-                      <OrderHeader>
-                        <OrderId>Order #{order.custom_order_id}</OrderId>
-                        <OrderStatus status={order.status}>{order.status}</OrderStatus>
-                      </OrderHeader>
-                      
-                      <OrderDetails>
+          <div>
+            {loadingPending ? (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <Icon icon={faSpinner} spin size="2x" />
+                <p style={{ marginTop: '1rem', color: '#666666', fontSize: '0.875rem' }}>Loading your orders...</p>
+              </div>
+            ) : pendingOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
+                <Icon icon={faTshirt} size="2x" />
+                <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>No pending custom orders yet.</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Switch to Design Studio to submit your first custom design!</p>
+              </div>
+            ) : (
+              <div>
+                {pendingOrders && pendingOrders.length > 0 ? pendingOrders
+                  .filter(order => order && order.custom_order_id) // Filter out invalid orders
+                  .map((order) => (
+                  <PendingOrderCard key={order.custom_order_id}>
+                    <OrderHeader>
+                      <OrderId>Order #{order.custom_order_id}</OrderId>
+                      <OrderStatus status={order.status}>{order.status}</OrderStatus>
+                    </OrderHeader>
+                    
+                    <OrderDetails>
+                      <DetailItem>
+                        <strong>Product:</strong> {order.product_name || order.product_type}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Size:</strong> {order.size}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Color:</strong> {order.color}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Quantity:</strong> {order.quantity}
+                      </DetailItem>
+                      {order.urgency && (
                         <DetailItem>
-                          <strong>Product:</strong> {order.product_name || order.product_type}
-                        </DetailItem>
-                        <DetailItem>
-                          <strong>Size:</strong> {order.size}
-                        </DetailItem>
-                        <DetailItem>
-                          <strong>Color:</strong> {order.color}
-                        </DetailItem>                        <DetailItem>
-                          <strong>Quantity:</strong> {order.quantity}
-                        </DetailItem>
-                        {order.urgency && (
-                          <DetailItem>
-                            <strong>Urgency:</strong> {order.urgency.replace('_', ' ')}
-                          </DetailItem>
-                        )}                        <DetailItem>
-                          <strong>Estimated Price:</strong> ₱{parseFloat(order.estimated_price)?.toLocaleString() || 'TBD'}
-                        </DetailItem>{order.final_price && order.final_price > 0 && (
-                          <DetailItem>
-                            <strong>Final Price:</strong> ₱{parseFloat(order.final_price)?.toLocaleString() || 'TBD'}
-                          </DetailItem>
-                        )}
-                        <DetailItem>
-                          <strong>Submitted:</strong> {new Date(order.created_at).toLocaleDateString()}
-                        </DetailItem>
-                      </OrderDetails>
-                      
-                      {order.special_instructions && (
-                        <DetailItem style={{ marginTop: '0.75rem' }}>
-                          <strong>Special Instructions:</strong> {order.special_instructions}
+                          <strong>Urgency:</strong> {order.urgency.replace('_', ' ')}
                         </DetailItem>
                       )}
-                      
-                      {order.admin_notes && (
-                        <DetailItem style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fafafa', borderRadius: '4px' }}>
-                          <strong>Admin Notes:</strong> {order.admin_notes}
+                      <DetailItem>
+                        <strong>Estimated Price:</strong> ₱{parseFloat(order.estimated_price)?.toLocaleString() || 'TBD'}
+                      </DetailItem>
+                      {order.final_price && order.final_price > 0 && (
+                        <DetailItem>
+                          <strong>Final Price:</strong> ₱{parseFloat(order.final_price)?.toLocaleString() || 'TBD'}
                         </DetailItem>
-                      )}                    </PendingOrderCard>
-                  )) : <div>No valid orders found</div>}
-                </div>
-              )}
-            </div>
-          )}
+                      )}
+                      <DetailItem>
+                        <strong>Submitted:</strong> {new Date(order.created_at).toLocaleDateString()}
+                      </DetailItem>
+                    </OrderDetails>
+                    
+                    {order.special_instructions && (
+                      <DetailItem style={{ marginTop: '0.75rem' }}>
+                        <strong>Special Instructions:</strong> {order.special_instructions}
+                      </DetailItem>
+                    )}
+                    
+                    {order.admin_notes && (
+                      <DetailItem style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fafafa', borderRadius: '4px' }}>
+                        <strong>Admin Notes:</strong> {order.admin_notes}
+                      </DetailItem>
+                    )}
+                  </PendingOrderCard>
+                )) : <div>No valid orders found</div>}
+              </div>
+            )}
+          </div>
         </StepContainer>
       )}
 
-      {submitStatus.message && (
-        submitStatus.type === 'error' ? (
-          <ErrorMessage>
-            <Icon icon={faTimes} /> {submitStatus.message}
-          </ErrorMessage>
-        ) : (
-          <SuccessMessage>
-            <Icon icon={faCheck} /> {submitStatus.message}
-          </SuccessMessage>
-        )
-      )}
+      {/* Customization Form View */}
+      {activeMode === 'customize' && (
+        <>
+          {submitStatus.message && (
+            submitStatus.type === 'error' ? (
+              <ErrorMessage>
+                <Icon icon={faTimes} /> {submitStatus.message}
+              </ErrorMessage>
+            ) : (
+              <SuccessMessage>
+                <Icon icon={faCheck} /> {submitStatus.message}
+              </SuccessMessage>
+            )
+          )}
 
-      {/* Step 1: Product Selection */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">1</div>
-          <h2>Choose Your Product</h2>
-        </StepHeader>
-        <ProductGrid>
-          {Object.entries(productTypes).map(([key, product]) => {
-            const IconComponent = product.icon;
-            return (
-              <ProductCard
-                key={key}
-                selected={selectedProduct === key}
-                onClick={() => handleProductSelect(key)}
-              >
-                <div className="icon">                  <IconComponent 
-                    color={selectedProduct === key ? '#ffffff' : '#000000'} 
-                    size={60} 
-                  />
-                </div>
-                <h3>{product.name}</h3>
-                <div className="price">₱{product.price?.toLocaleString() || 'TBD'}</div>
-              </ProductCard>
-            );
-          })}
-        </ProductGrid>
-      </StepContainer>
+          {/* Step 1: Product Selection */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">1</div>
+              <h2>Choose Your Product</h2>
+            </StepHeader>
+            <ProductGrid>
+              {Object.entries(productTypes).map(([key, product]) => {
+                const IconComponent = product.icon;
+                return (
+                  <ProductCard
+                    key={key}
+                    selected={selectedProduct === key}
+                    onClick={() => handleProductSelect(key)}
+                  >
+                    <div className="icon">
+                      <IconComponent 
+                        color={selectedProduct === key ? '#ffffff' : '#000000'} 
+                        size={40} 
+                      />
+                    </div>
+                    <h3>{product.name}</h3>
+                    <div className="price">₱{product.price?.toLocaleString() || 'TBD'}</div>
+                  </ProductCard>
+                );
+              })}
+            </ProductGrid>
+          </StepContainer>
 
-      {/* Step 2: Design Upload */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">2</div>
-          <h2>Upload Your Design</h2>
-        </StepHeader>
-        <ImageUploadSection>
-          <Icon icon={faCloudUploadAlt} size="3x" />
-          <h3>Drop your design files here or click to browse</h3>
-          <p>Upload up to 10 images (JPG, PNG, GIF). Maximum 10MB per file.</p>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageUpload}
-            style={{ display: 'none' }}
-            id="imageUpload"
-          />
-          <UploadButton as="label" htmlFor="imageUpload">
-            <Icon icon={faImage} />
-            Select Images
-          </UploadButton>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
-            {uploadedImages.length}/10 images uploaded
-          </p>
-        </ImageUploadSection>
+          {/* Step 2: Design Upload */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">2</div>
+              <h2>Upload Your Design</h2>
+            </StepHeader>
+            <ImageUploadSection>
+              <Icon icon={faCloudUploadAlt} size="2x" />
+              <h3>Drop your design files here or click to browse</h3>
+              <p>Upload up to 10 images (JPG, PNG, GIF). Maximum 10MB per file.</p>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+                id="imageUpload"
+              />
+              <UploadButton as="label" htmlFor="imageUpload">
+                <Icon icon={faImage} />
+                Select Images
+              </UploadButton>
+              <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+                {uploadedImages.length}/10 images uploaded
+              </p>
+            </ImageUploadSection>
 
-        {uploadedImages.length > 0 && (
-          <ImagePreviewGrid>
-            {uploadedImages.map((image) => (
-              <ImagePreview key={image.id}>
-                <img src={image.preview} alt="Design preview" />
-                <button className="remove-btn" onClick={() => removeImage(image.id)}>
-                  <Icon icon={faTimes} />
-                </button>
-              </ImagePreview>
-            ))}
-          </ImagePreviewGrid>
-        )}
-      </StepContainer>
+            {uploadedImages.length > 0 && (
+              <ImagePreviewGrid>
+                {uploadedImages.map((image) => (
+                  <ImagePreview key={image.id}>
+                    <img src={image.preview} alt="Design preview" />
+                    <button className="remove-btn" onClick={() => removeImage(image.id)}>
+                      <Icon icon={faTimes} />
+                    </button>
+                  </ImagePreview>
+                ))}
+              </ImagePreviewGrid>
+            )}
+          </StepContainer>
 
-      {/* Step 3: Product Details */}
-      <StepContainer>
+          {/* Step 3: Product Details */}
+          <StepContainer>
         <StepHeader>
           <div className="step-number">3</div>
           <h2>Product Customization</h2>
@@ -1422,204 +1233,208 @@ const CustomPage = () => {
             />
           </FormGroup>
         </FormGrid>
-      </StepContainer>
+          </StepContainer>
 
-      {/* Step 4: Customer Information */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">4</div>
-          <h2>Customer Information</h2>
-        </StepHeader>
-        <FormGrid>
-          <FormGroup>
-            <Label>
-              <Icon icon={faUser} /> Full Name
-            </Label>
-            <Input
-              type="text"
-              name="customerName"
-              value={formData.customerName}
-              onChange={handleInputChange}
-              placeholder="Enter your full name"
-              required
-            />
-          </FormGroup>          <FormGroup>
-            <Label>
-              <Icon icon={faPhone} /> Phone Number
-            </Label>
-            <Input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="Enter your phone number"
-              required
-            />
-          </FormGroup>
-        </FormGrid>
-      </StepContainer>
+          {/* Step 4: Customer Information */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">4</div>
+              <h2>Customer Information</h2>
+            </StepHeader>
+            <FormGrid>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faUser} /> Full Name
+                </Label>
+                <Input
+                  type="text"
+                  name="customerName"
+                  value={formData.customerName}
+                  onChange={handleInputChange}
+                  placeholder="Enter your full name"
+                  required
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faPhone} /> Phone Number
+                </Label>
+                <Input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="Enter your phone number"
+                  required
+                />
+              </FormGroup>
+            </FormGrid>
+          </StepContainer>
 
-      {/* Step 5: Shipping Information */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">5</div>
-          <h2>Shipping Information</h2>
-        </StepHeader>        <div style={{ 
-          background: '#fafafa', 
-          border: '1px solid #e5e5e5', 
-          borderRadius: '4px', 
-          padding: '1rem', 
-          marginBottom: '2rem',
-          color: '#000000',
-          fontSize: '0.875rem'
-        }}>
-          <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all custom orders.
-        </div>
-        
-        <FormGrid>
-          <FormGroup>
-            <Label>
-              <Icon icon={faMapMarkerAlt} /> Province
-            </Label>
-            <Select
-              name="province"
-              value={formData.province}
-              onChange={handleInputChange}
-              disabled
-            >
-              <option value="Metro Manila">Metro Manila</option>
-            </Select>
-          </FormGroup>
+          {/* Step 5: Shipping Information */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">5</div>
+              <h2>Shipping Information</h2>
+            </StepHeader>
+            <div style={{ 
+              background: '#fafafa', 
+              border: '1px solid #e5e5e5', 
+              borderRadius: '4px', 
+              padding: '1rem', 
+              marginBottom: '2rem',
+              color: '#000000',
+              fontSize: '0.875rem'
+            }}>
+              <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all custom orders.
+            </div>
+            
+            <FormGrid>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faMapMarkerAlt} /> Province
+                </Label>
+                <Select
+                  name="province"
+                  value={formData.province}
+                  onChange={handleInputChange}
+                  disabled
+                >
+                  <option value="Metro Manila">Metro Manila</option>
+                </Select>
+              </FormGroup>
 
-          <FormGroup>
-            <Label>City/Municipality</Label>
-            <Select
-              name="city"
-              value={formData.city}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select City</option>
-              {metroManilaCities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </Select>
-          </FormGroup>
+              <FormGroup>
+                <Label>City/Municipality</Label>
+                <Select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select City</option>
+                  {metroManilaCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </Select>
+              </FormGroup>
 
-          <FormGroup className="full-width">
-            <Label>Street Address / House Number</Label>
-            <Input
-              type="text"
-              name="streetAddress"
-              value={formData.streetAddress}
-              onChange={handleInputChange}
-              placeholder="Enter complete street address and house/building number"
-              required
-            />
-          </FormGroup>
+              <FormGroup className="full-width">
+                <Label>Street Address / House Number</Label>
+                <Input
+                  type="text"
+                  name="streetAddress"
+                  value={formData.streetAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter complete street address and house/building number"
+                  required
+                />
+              </FormGroup>
 
-          <FormGroup>
-            <Label>House/Unit Number (Optional)</Label>
-            <Input
-              type="text"
-              name="houseNumber"
-              value={formData.houseNumber}
-              onChange={handleInputChange}
-              placeholder="Unit/House number"
-            />
-          </FormGroup>
+              <FormGroup>
+                <Label>House/Unit Number (Optional)</Label>
+                <Input
+                  type="text"
+                  name="houseNumber"
+                  value={formData.houseNumber}
+                  onChange={handleInputChange}
+                  placeholder="Unit/House number"
+                />
+              </FormGroup>
 
-          <FormGroup>
-            <Label>Barangay (Optional)</Label>
-            <Input
-              type="text"
-              name="barangay"
-              value={formData.barangay}
-              onChange={handleInputChange}
-              placeholder="Barangay"
-            />
-          </FormGroup>
+              <FormGroup>
+                <Label>Barangay (Optional)</Label>
+                <Input
+                  type="text"
+                  name="barangay"
+                  value={formData.barangay}
+                  onChange={handleInputChange}
+                  placeholder="Barangay"
+                />
+              </FormGroup>
 
-          <FormGroup>
-            <Label>Postal Code (Optional)</Label>
-            <Input
-              type="text"
-              name="postalCode"
-              value={formData.postalCode}
-              onChange={handleInputChange}
-              placeholder="e.g., 1234"
-              maxLength="4"
-              pattern="[0-9]{4}"
-            />
-          </FormGroup>
-        </FormGrid>
-      </StepContainer>
+              <FormGroup>
+                <Label>Postal Code (Optional)</Label>
+                <Input
+                  type="text"
+                  name="postalCode"
+                  value={formData.postalCode}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 1234"
+                  maxLength="4"
+                  pattern="[0-9]{4}"
+                />
+              </FormGroup>
+            </FormGrid>
+          </StepContainer>
 
-      {/* Order Summary */}
-      {selectedProduct && (
-        <OrderSummary>
-          <h3 style={{ margin: '0 0 1.5rem 0', color: '#000000', fontSize: '1rem', fontWeight: '400' }}>Order Summary</h3>
-          <SummaryRow>
-            <span>Product Type:</span>
-            <span>{productTypes[selectedProduct].name}</span>
-          </SummaryRow>
-          {formData.productName && (
-            <SummaryRow>
-              <span>Product Name:</span>
-              <span>{formData.productName}</span>
-            </SummaryRow>
+          {/* Order Summary */}
+          {selectedProduct && (
+            <OrderSummary>
+              <h3 style={{ margin: '0 0 1.5rem 0', color: '#000000', fontSize: '1rem', fontWeight: '400' }}>Order Summary</h3>
+              <SummaryRow>
+                <span>Product Type:</span>
+                <span>{productTypes[selectedProduct].name}</span>
+              </SummaryRow>
+              {formData.productName && (
+                <SummaryRow>
+                  <span>Product Name:</span>
+                  <span>{formData.productName}</span>
+                </SummaryRow>
+              )}
+              {formData.size && (
+                <SummaryRow>
+                  <span>Size:</span>
+                  <span>{formData.size}</span>
+                </SummaryRow>
+              )}
+              {formData.color && (
+                <SummaryRow>
+                  <span>Color:</span>
+                  <span>{formData.color}</span>
+                </SummaryRow>
+              )}
+              <SummaryRow>
+                <span>Quantity:</span>
+                <span>{formData.quantity}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Unit Price:</span>
+                <span>₱{productTypes[selectedProduct]?.price?.toLocaleString() || 'TBD'}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Design Images:</span>
+                <span>{uploadedImages.length} uploaded</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Shipping:</span>
+                <span>Free</span>
+              </SummaryRow>
+              <SummaryRow className="total">
+                <span>Total Estimated Price:</span>
+                <span>₱{calculateTotal()?.toLocaleString() || 'TBD'}</span>
+              </SummaryRow>
+            </OrderSummary>
           )}
-          {formData.size && (
-            <SummaryRow>
-              <span>Size:</span>
-              <span>{formData.size}</span>
-            </SummaryRow>
-          )}
-          {formData.color && (
-            <SummaryRow>
-              <span>Color:</span>
-              <span>{formData.color}</span>
-            </SummaryRow>
-          )}
-          <SummaryRow>
-            <span>Quantity:</span>
-            <span>{formData.quantity}</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Unit Price:</span>
-            <span>₱{productTypes[selectedProduct]?.price?.toLocaleString() || 'TBD'}</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Design Images:</span>
-            <span>{uploadedImages.length} uploaded</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Shipping:</span>
-            <span>Free</span>
-          </SummaryRow>
-          <SummaryRow className="total">
-            <span>Total Estimated Price:</span>
-            <span>₱{calculateTotal()?.toLocaleString() || 'TBD'}</span>
-          </SummaryRow>
-        </OrderSummary>
+
+          <SubmitButton 
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedProduct}
+          >
+            {isSubmitting ? (
+              <>
+                <Icon icon={faSpinner} spin />
+                Submitting Order...
+              </>
+            ) : (
+              <>
+                <Icon icon={faShoppingCart} />
+                Submit Custom Order
+              </>
+            )}
+          </SubmitButton>
+        </>
       )}
-
-      <SubmitButton 
-        onClick={handleSubmit}
-        disabled={isSubmitting || !selectedProduct}
-      >
-        {isSubmitting ? (
-          <>
-            <Icon icon={faSpinner} spin />
-            Submitting Order...
-          </>
-        ) : (
-          <>
-            <Icon icon={faShoppingCart} />
-            Submit Custom Order
-          </>
-        )}
-      </SubmitButton>
     </PageContainer>
   );
 };

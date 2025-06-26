@@ -5,7 +5,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faSearch, faTimes, faFilter, faSort } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 import { useStock } from '../context/StockContext';
-import StockStatusWidget from '../components/StockStatusWidget';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -1223,7 +1222,6 @@ const ProductsPage = () => {
                 <Header>
                     <Title>Our Collection</Title>
                     <Subtitle>Discover our carefully curated selection of premium products crafted with exceptional quality and attention to detail</Subtitle>
-                    <StockStatusWidget />
                 </Header>
                 
                 {/* Search Section */}

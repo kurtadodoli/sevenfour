@@ -59,8 +59,8 @@ const ModalActions = styled.div`
 const ActionButton = styled.button`
   padding: 8px 16px;
   border: 1px solid #1a1a1a;
-  background: ${props => props.primary ? '#1a1a1a' : 'white'};
-  color: ${props => props.primary ? 'white' : '#1a1a1a'};
+  background: ${props => props.$primary ? '#1a1a1a' : 'white'};
+  color: ${props => props.$primary ? 'white' : '#1a1a1a'};
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
@@ -70,7 +70,7 @@ const ActionButton = styled.button`
   gap: 8px;
   
   &:hover {
-    background: ${props => props.primary ? '#333' : '#f5f5f5'};
+    background: ${props => props.$primary ? '#333' : '#f5f5f5'};
   }
 `;
 
@@ -137,7 +137,7 @@ const InvoiceModal = ({
       }
       
       // Make authenticated request to get PDF
-      const response = await fetch(`http://localhost:3001/api/orders/invoice/${invoiceId}/pdf`, {
+      const response = await fetch(`http://localhost:5000/api/orders/invoice/${invoiceId}/pdf`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

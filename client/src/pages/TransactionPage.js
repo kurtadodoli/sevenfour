@@ -634,9 +634,7 @@ const TabsContainer = styled.div`
   margin-bottom: 1px;
 `;
 
-const Tab = styled.button.withConfig({
-  shouldForwardProp: (prop) => prop !== 'active',
-})`
+const Tab = styled.button`
   flex: 1;
   padding: 16px 24px;
   background: ${props => props.active ? '#000000' : '#ffffff'};
@@ -721,6 +719,79 @@ const ReasonBox = styled.div`
     color: #666666;
     line-height: 1.5;
   }
+`;
+
+const ProductDetailsBox = styled.div`
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 16px;
+  margin: 16px 0;
+  
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+`;
+
+const ProductItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ProductImage = styled.img`
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f8f9fa;
+`;
+
+const ProductInfo = styled.div`
+  flex: 1;
+  
+  .name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    margin-bottom: 4px;
+  }
+  
+  .details {
+    font-size: 12px;
+    color: #666666;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .price {
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    text-align: right;
+  }
+`;
+
+const ProductVariant = styled.span`
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #666666;
 `;
 
 const RequestActions = styled.div`
@@ -1766,6 +1837,41 @@ const TransactionPage = () => {
                       <h4>Cancellation Reason</h4>
                       <p>{request.reason}</p>
                     </ReasonBox>
+                    
+                    {/* Product Details Section */}
+                    {request.order_items && request.order_items.length > 0 && (
+                      <ProductDetailsBox>
+                        <h4>
+                          <FontAwesomeIcon icon={faShoppingBag} />
+                          Order Items ({request.order_items.length})
+                        </h4>
+                        {request.order_items.map((item, index) => (
+                          <ProductItem key={index}>
+                            <ProductImage 
+                              src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
+                              alt={item.product_name || item.productname}
+                              onError={(e) => {
+                                e.target.src = '/placeholder-image.png';
+                              }}
+                            />
+                            <ProductInfo>
+                              <div className="name">
+                                {item.product_name || item.productname || 'Unknown Product'}
+                              </div>
+                              <div className="details">
+                                <span>Qty: <strong>{item.quantity}</strong></span>
+                                {item.size && <ProductVariant>{item.size}</ProductVariant>}
+                                {item.color && <ProductVariant>{item.color}</ProductVariant>}
+                                <span>Price: <strong>{formatCurrency(item.product_price)}</strong></span>
+                              </div>
+                            </ProductInfo>
+                            <div className="price">
+                              {formatCurrency(item.subtotal || (item.product_price * item.quantity))}
+                            </div>
+                          </ProductItem>
+                        ))}
+                      </ProductDetailsBox>
+                    )}
                     
                     {request.admin_notes && (
                       <ReasonBox>

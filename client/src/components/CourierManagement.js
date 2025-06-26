@@ -187,9 +187,7 @@ const ActionButtons = styled.div`
   justify-content: flex-end;
 `;
 
-const ActionButton = styled.button.withConfig({
-  shouldForwardProp: (prop) => prop !== 'danger',
-})`
+const ActionButton = styled.button`
   background: ${props => props.danger ? '#dc3545' : '#f8f9fa'};
   color: ${props => props.danger ? '#ffffff' : '#000000'};
   border: 1px solid ${props => props.danger ? '#dc3545' : '#d0d0d0'};

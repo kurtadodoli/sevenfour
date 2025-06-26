@@ -1,87 +1,181 @@
 const axios = require('axios');
 
-async function testCompleteUserFlow() {
-  try {
-    console.log('🧪 Testing Complete User Flow for Custom Orders\n');
-
-    // 1. Test user login simulation (check if users exist)
-    console.log('1. Testing user authentication endpoints...');
-    
+async function testCompleteOrderCancellationFlow() {
     try {
-      const loginResponse = await axios.post('http://localhost:3001/api/auth/login', {
-        email: 'juan@example.com',
-        password: 'password123'
-      });
-      console.log('✅ Login test successful');
+        console.log('🧪 Testing complete order → cancellation → stock restoration flow...\n');
+        
+        // Login as regular user first
+        const userLoginResponse = await axios.post('http://localhost:5000/api/users/login', {
+            email: 'testadmin@example.com',  // Using admin as user for simplicity
+            password: 'admin123'
+        });
+        
+        if (!userLoginResponse.data.success) {
+            console.log('❌ User login failed');
+            return;
+        }
+        
+        const userToken = userLoginResponse.data.token;
+        console.log('✅ User logged in');
+        
+        // Step 1: Check stock before order
+        console.log('📊 STEP 1: Checking stock before order...');
+        const stockResponse1 = await axios.get('http://localhost:5000/api/maintenance/products', {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        const product = stockResponse1.data.find(p => p.productname && p.productname.includes('Strive Forward'));
+        if (!product) {
+            console.log('❌ Strive Forward product not found');
+            return;
+        }
+        
+        const beforeSizes = JSON.parse(product.sizes);
+        const beforeLBlack = beforeSizes.find(s => s.size === 'L')?.colorStocks.find(c => c.color === 'Black')?.stock;
+        console.log(`Before order - L/Black stock: ${beforeLBlack}`);
+        console.log(`Before order - Total available: ${product.total_available_stock}`);
+        console.log(`Before order - Total reserved: ${product.total_reserved_stock}`);
+        
+        // Step 2: Add item to cart
+        console.log('\n🛒 STEP 2: Adding item to cart...');
+        const addToCartResponse = await axios.post('http://localhost:5000/api/cart/add', {
+            product_id: product.product_id,
+            quantity: 3,
+            size: 'L',
+            color: 'Black'
+        }, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        if (!addToCartResponse.data.success) {
+            console.log('❌ Failed to add to cart:', addToCartResponse.data.message);
+            return;
+        }
+        console.log('✅ Added 3 x L/Black to cart');
+        
+        // Step 3: Create order
+        console.log('\n📝 STEP 3: Creating order...');
+        const orderData = {
+            shippingAddress: {
+                street_number: '123',
+                barangay: 'Test Barangay',
+                municipality: 'Test City',
+                province: 'Test Province'
+            },
+            contactPhone: '09123456789',
+            paymentMethod: 'Cash on Delivery',
+            notes: 'Test order for cancellation testing'
+        };
+        
+        const createOrderResponse = await axios.post('http://localhost:5000/api/orders', orderData, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        if (!createOrderResponse.data.success) {
+            console.log('❌ Failed to create order:', createOrderResponse.data.message);
+            return;
+        }
+        
+        const orderId = createOrderResponse.data.data.orderId;
+        const orderNumber = createOrderResponse.data.data.orderNumber;
+        console.log(`✅ Order created: ${orderNumber} (ID: ${orderId})`);
+        
+        // Step 4: Confirm order (as admin)
+        console.log('\n✅ STEP 4: Confirming order...');
+        const confirmResponse = await axios.put(`http://localhost:5000/api/orders/${orderId}/confirm`, {}, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        if (!confirmResponse.data.success) {
+            console.log('❌ Failed to confirm order:', confirmResponse.data.message);
+            return;
+        }
+        console.log('✅ Order confirmed - stock should be reserved');
+        
+        // Step 5: Check stock after confirmation
+        console.log('\n📊 STEP 5: Checking stock after confirmation...');
+        const stockResponse2 = await axios.get('http://localhost:5000/api/maintenance/products', {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        const productAfterConfirm = stockResponse2.data.find(p => p.product_id === product.product_id);
+        const afterConfirmSizes = JSON.parse(productAfterConfirm.sizes);
+        const afterConfirmLBlack = afterConfirmSizes.find(s => s.size === 'L')?.colorStocks.find(c => c.color === 'Black')?.stock;
+        
+        console.log(`After confirmation - L/Black stock: ${afterConfirmLBlack} (was ${beforeLBlack})`);
+        console.log(`After confirmation - Total available: ${productAfterConfirm.total_available_stock} (was ${product.total_available_stock})`);
+        console.log(`After confirmation - Total reserved: ${productAfterConfirm.total_reserved_stock} (was ${product.total_reserved_stock})`);
+        
+        // Step 6: Request cancellation
+        console.log('\n❌ STEP 6: Requesting cancellation...');
+        const cancelRequestResponse = await axios.post(`http://localhost:5000/api/orders/${orderId}/cancel`, {
+            reason: 'Testing cancellation flow - please approve'
+        }, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        if (!cancelRequestResponse.data.success) {
+            console.log('❌ Failed to request cancellation:', cancelRequestResponse.data.message);
+            return;
+        }
+        
+        const cancellationRequestId = cancelRequestResponse.data.data.cancellationRequestId;
+        console.log(`✅ Cancellation requested (Request ID: ${cancellationRequestId})`);
+        
+        // Step 7: Approve cancellation (as admin)
+        console.log('\n✅ STEP 7: Approving cancellation...');
+        const approveResponse = await axios.put(`http://localhost:5000/api/orders/cancellation-requests/${cancellationRequestId}`, {
+            action: 'approve',
+            adminNotes: 'Approved for testing stock restoration'
+        }, {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        if (!approveResponse.data.success) {
+            console.log('❌ Failed to approve cancellation:', approveResponse.data.message);
+            return;
+        }
+        console.log('✅ Cancellation approved');
+        
+        if (approveResponse.data.data?.stockUpdateEvent) {
+            const stockEvent = approveResponse.data.data.stockUpdateEvent;
+            console.log(`Stock restored: ${stockEvent.stockRestored}`);
+            if (stockEvent.stockRestorations) {
+                stockEvent.stockRestorations.forEach(restoration => {
+                    console.log(`  - ${restoration.product} (${restoration.size}/${restoration.color}): +${restoration.quantityRestored} → ${restoration.newAvailableStock} available`);
+                });
+            }
+        }
+        
+        // Step 8: Check final stock
+        console.log('\n📊 STEP 8: Checking final stock after cancellation...');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for DB update
+        
+        const stockResponse3 = await axios.get('http://localhost:5000/api/maintenance/products', {
+            headers: { 'Authorization': `Bearer ${userToken}` }
+        });
+        
+        const productFinal = stockResponse3.data.find(p => p.product_id === product.product_id);
+        const finalSizes = JSON.parse(productFinal.sizes);
+        const finalLBlack = finalSizes.find(s => s.size === 'L')?.colorStocks.find(c => c.color === 'Black')?.stock;
+        
+        console.log(`Final - L/Black stock: ${finalLBlack}`);
+        console.log(`Final - Total available: ${productFinal.total_available_stock}`);
+        console.log(`Final - Total reserved: ${productFinal.total_reserved_stock}`);
+        
+        // Summary
+        console.log('\n📈 SUMMARY:');
+        console.log(`L/Black Stock: ${beforeLBlack} → ${afterConfirmLBlack} → ${finalLBlack}`);
+        console.log(`Total Available: ${product.total_available_stock} → ${productAfterConfirm.total_available_stock} → ${productFinal.total_available_stock}`);
+        console.log(`Total Reserved: ${product.total_reserved_stock} → ${productAfterConfirm.total_reserved_stock} → ${productFinal.total_reserved_stock}`);
+        
+        const stockRestored = finalLBlack === beforeLBlack;
+        console.log(`\n${stockRestored ? '✅ SUCCESS' : '❌ FAILED'}: Stock restoration ${stockRestored ? 'working correctly' : 'not working'}!`);
+        
     } catch (error) {
-      console.log('ℹ️  Login endpoint test (expected to fail without proper password)');
+        console.error('❌ Error:', error.response?.data || error.message);
     }
-
-    // 2. Test fetching custom orders for a user
-    console.log('\n2. Testing custom orders retrieval...');
-    const ordersResponse = await axios.get('http://localhost:3001/api/user-designs/juan@example.com');
-    console.log(`✅ Orders API: Found ${ordersResponse.data.data.length} orders for juan@example.com`);
-    
-    if (ordersResponse.data.data.length > 0) {
-      const firstOrder = ordersResponse.data.data[0];
-      console.log(`📄 Sample order: ${firstOrder.firstName} ${firstOrder.lastName} - ${firstOrder.productName || firstOrder.product_name}`);
-    }    // 3. Test creating a new custom order
-    console.log('\n3. Testing new custom order creation...');
-    const newOrderData = {
-      firstName: 'Test',
-      lastName: 'Customer',
-      email: 'testcustomer@example.com',
-      customerPhone: '09123456789',
-      productType: 't-shirts',
-      productName: 'Custom Test Shirt',
-      productColor: 'Navy Blue',
-      productSize: 'L',
-      quantity: 1,
-      additionalInfo: 'Final verification test order',
-      shippingAddress: '123 Test Street',
-      municipality: 'Makati',
-      barangay: 'Test Barangay',
-      postalCode: '1200'
-    };
-
-    try {
-      // For testing without file upload, let's skip the POST test for now
-      console.log('ℹ️  Skipping order creation test (requires file upload)');
-      
-    } catch (createError) {
-      console.log('❌ Order creation failed:', createError.response?.data?.message || createError.message);
-    }
-
-    // 4. Test user separation - different user shouldn't see others' orders
-    console.log('\n4. Testing user separation...');
-    const user1Orders = await axios.get('http://localhost:3001/api/user-designs/juan@example.com');
-    const user2Orders = await axios.get('http://localhost:3001/api/user-designs/testcustomer@example.com');
-    
-    console.log(`✅ User separation verified:`);
-    console.log(`   - juan@example.com: ${user1Orders.data.data.length} orders`);
-    console.log(`   - testcustomer@example.com: ${user2Orders.data.data.length} orders`);
-
-    // 5. Test cancelled orders endpoint
-    console.log('\n5. Testing cancelled orders endpoint...');
-    try {
-      const cancelledResponse = await axios.get('http://localhost:3001/api/user-designs-cancelled/juan@example.com');
-      console.log(`✅ Cancelled orders API: ${cancelledResponse.data.data.length} cancelled orders`);
-    } catch (error) {
-      console.log('ℹ️  Cancelled orders endpoint test completed');
-    }
-
-    console.log('\n🎉 All tests completed successfully!');
-    console.log('\n📋 Summary:');
-    console.log('✅ Database migration completed - all orders linked to users');
-    console.log('✅ API endpoints working correctly');
-    console.log('✅ User separation implemented');
-    console.log('✅ New order creation with proper user linkage');
-    console.log('✅ Frontend debug panel removed');
-    console.log('\n🚀 Custom orders system is ready for production use!');
-
-  } catch (error) {
-    console.error('❌ Test Error:', error.message);
-  }
 }
 
-testCompleteUserFlow();
+// Run the test
+testCompleteOrderCancellationFlow();

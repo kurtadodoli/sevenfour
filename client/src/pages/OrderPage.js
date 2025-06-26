@@ -21,6 +21,7 @@ import {
   faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
+import TopBar from '../components/TopBar';
 
 // Philippine address data - Metro Manila only
 const philippineAddressData = {
@@ -31,86 +32,56 @@ const philippineAddressData = {
   ]
 };
 
-// Styled Components with Glassmorphic Design
+// Modern Minimalist Styled Components
 const PageContainer = styled.div`
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(200, 200, 200, 0.1) 0%, transparent 50%);
-    pointer-events: none;
-  }
+  min-height: 100vh;
+  background-color: #ffffff;
 `;
 
 const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
-  position: relative;
-  z-index: 2;
-  box-sizing: border-box;
+  padding: 80px 24px 40px;
   
-  @media (max-width: 1440px) {
-    max-width: 1200px;
-  }
-    @media (max-width: 768px) {
-    padding: 15px;
+  @media (max-width: 768px) {
+    padding: 80px 16px 40px;
   }
 `;
 
 const Header = styled.div`
-  margin-bottom: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 20px;
+  margin-bottom: 32px;
 `;
 
 const Title = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 300;
+  font-size: 32px;
+  font-weight: 700;
   color: #000000;
-  margin: 0;
-  background: linear-gradient(135deg, #000000 0%, #333333 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
   display: flex;
   align-items: center;
   gap: 16px;
   
-  svg {
-    color: #000000;
-    -webkit-text-fill-color: #000000;
-  }  
   @media (max-width: 768px) {
-    font-size: 2rem;
+    font-size: 28px;
   }
+`;
+
+const Subtitle = styled.p`
+  font-size: 16px;
+  color: #666666;
+  margin: 0;
+  font-weight: 400;
 `;
 
 const TabContainer = styled.div`
   display: flex;
-  gap: 4px;
-  margin-bottom: 40px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  gap: 8px;
+  margin-bottom: 32px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 4px;
   width: fit-content;
 `;
 
@@ -119,22 +90,16 @@ const Tab = styled.button.withConfig({
 })`
   padding: 12px 24px;
   border: none;
-  background: ${props => props.active ? 
-    'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
-    'transparent'
-  };
+  background: ${props => props.active ? '#000000' : 'transparent'};
   color: ${props => props.active ? '#ffffff' : '#666666'};
   font-weight: 500;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   font-size: 14px;
   
   &:hover {
-    background: ${props => props.active ? 
-      'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
-      'rgba(0, 0, 0, 0.05)'
-    };
+    background: ${props => props.active ? '#000000' : '#f5f5f5'};
     color: ${props => props.active ? '#ffffff' : '#000000'};
   }
 `;
@@ -142,128 +107,121 @@ const Tab = styled.button.withConfig({
 const Content = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 40px;
+  gap: 32px;
   
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 24px;
   }
 `;
 
 const CartSection = styled.div`
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+    border-color: #cccccc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const CheckoutSection = styled.div`
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 24px;
   height: fit-content;
   position: sticky;
   top: 100px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+    border-color: #cccccc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 1.5rem;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 600;
   color: #000000;
-  margin: 0 0 24px 0;
+  margin: 0 0 20px 0;
   display: flex;
   align-items: center;
   gap: 12px;  
+  
   svg {
     color: #666666;
   }
 `;
 
 const OrderSummary = styled.div`
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
 `;
 
 const SummaryRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   font-size: 14px;
   color: #666666;
   
   &.total {
-    font-size: 1.2rem;
+    font-size: 18px;
     font-weight: 600;
     color: #000000;
-    border-top: 1px solid rgba(255, 255, 255, 0.3);
-    padding-top: 16px;
-    margin-top: 16px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 12px;
+    margin-top: 12px;
   }
 `;
 
 const Button = styled.button`
   width: 100%;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  background: #000000;
   color: #ffffff;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   
   &:hover {
-    background: linear-gradient(135deg, #333333 0%, #555555 100%);
-    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
-    transform: translateY(-1px);
+    background: #333333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
   
   &:disabled {
-    background: rgba(0, 0, 0, 0.3);
+    background: #cccccc;
+    color: #666666;
     cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
   }
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 60px 32px;
-  color: #999999;
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  color: #666666;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   margin: 20px 0;
   
   svg {
     margin-bottom: 20px;
-    opacity: 0.4;
     color: #cccccc;
   }
   
@@ -277,40 +235,19 @@ const EmptyState = styled.div`
 const OrderList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 `;
 
 const OrderCard = styled.div`
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.1) 50%, transparent 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
+  transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
-    
-    &::before {
-      opacity: 1;
-    }
+    border-color: #cccccc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -318,7 +255,7 @@ const OrderHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
 `;
@@ -326,13 +263,13 @@ const OrderHeader = styled.div`
 const OrderNumber = styled.h3`
   margin: 0;
   color: #000000;
-  font-size: 1.1rem;
+  font-size: 18px;
   font-weight: 600;
 `;
 
 const OrderStatus = styled.span`
   padding: 6px 12px;
-  border-radius: 20px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -341,19 +278,19 @@ const OrderStatus = styled.span`
   ${props => {
     switch (props.status) {
       case 'pending':
-        return 'background: rgba(255, 193, 7, 0.2); color: #856404; border: 1px solid rgba(255, 193, 7, 0.3);';
+        return 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;';
       case 'confirmed':
-        return 'background: rgba(13, 202, 240, 0.2); color: #0c5460; border: 1px solid rgba(13, 202, 240, 0.3);';
+        return 'background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;';
       case 'processing':
-        return 'background: rgba(25, 135, 84, 0.2); color: #155724; border: 1px solid rgba(25, 135, 84, 0.3);';
+        return 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
       case 'shipped':
-        return 'background: rgba(13, 110, 253, 0.2); color: #004085; border: 1px solid rgba(13, 110, 253, 0.3);';
+        return 'background: #cce5ff; color: #004085; border: 1px solid #99d1ff;';
       case 'delivered':
-        return 'background: rgba(25, 135, 84, 0.2); color: #155724; border: 1px solid rgba(25, 135, 84, 0.3);';
+        return 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
       case 'cancelled':
-        return 'background: rgba(220, 53, 69, 0.2); color: #721c24; border: 1px solid rgba(220, 53, 69, 0.3);';
+        return 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
       default:
-        return 'background: rgba(108, 117, 125, 0.2); color: #383d41; border: 1px solid rgba(108, 117, 125, 0.3);';
+        return 'background: #e2e3e5; color: #383d41; border: 1px solid #d1ecf1;';
     }
   }}
 `;
@@ -387,41 +324,31 @@ const ActionButton = styled.button.withConfig({
   shouldForwardProp: (prop) => prop !== 'primary',
 })`
   padding: 8px 16px;
-  border: 1px solid ${props => props.primary ? 'transparent' : 'rgba(0, 0, 0, 0.2)'};
-  background: ${props => props.primary ? 
-    'linear-gradient(135deg, #000000 0%, #333333 100%)' : 
-    'rgba(255, 255, 255, 0.9)'
-  };
-  backdrop-filter: blur(10px);
-  color: ${props => props.primary ? '#ffffff' : '#000000'};
-  border-radius: 8px;
+  border: 1px solid ${props => props.primary ? '#000000' : '#e0e0e0'};
+  background: ${props => props.primary ? '#000000' : '#ffffff'};
+  color: ${props => props.primary ? '#ffffff' : '#333333'};
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    background: ${props => props.primary ? 
-      'linear-gradient(135deg, #333333 0%, #555555 100%)' : 
-      'rgba(255, 255, 255, 1)'
-    };
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px);
+    background: ${props => props.primary ? '#333333' : '#f5f5f5'};
+    border-color: ${props => props.primary ? '#333333' : '#cccccc'};
   }
   
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
   }
 `;
 
 const RemoveButton = styled.button`
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  background: #dc3545;
   border: none;
   color: white;
   cursor: pointer;
@@ -429,7 +356,7 @@ const RemoveButton = styled.button`
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,15 +364,13 @@ const RemoveButton = styled.button`
   height: 40px;
   
   &:hover {
-    transform: translateY(-1px);
+    background: #c82333;
     box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
-    background: linear-gradient(135deg, #c82333 0%, #a02030 100%);
   }
   
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
     box-shadow: none;
   }
 `;
@@ -467,7 +392,7 @@ const ModalOverlay = styled.div`
 
 const Modal = styled.div`
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   max-width: 500px;
   width: 100%;
   max-height: 90vh;
@@ -479,24 +404,24 @@ const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 30px;
+  padding: 20px 24px;
   border-bottom: 1px solid #e0e0e0;
-  background: #f8f9fa;
+  background: #fafafa;
   
   h2 {
     margin: 0;
-    color: #1a1a1a;
+    color: #000000;
     font-size: 20px;
     font-weight: 600;
   }
 `;
 
 const ModalContent = styled.div`
-  padding: 30px;
+  padding: 24px;
   
   p {
     margin: 0 0 20px 0;
-    color: #333;
+    color: #333333;
     line-height: 1.5;
   }
 `;
@@ -505,13 +430,13 @@ const ModalActions = styled.div`
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  margin-top: 30px;
+  margin-top: 24px;
 `;
 
 const CloseButton = styled.button`
   background: none;
   border: none;
-  color: #666;
+  color: #666666;
   font-size: 18px;
   cursor: pointer;
   padding: 5px;
@@ -519,7 +444,7 @@ const CloseButton = styled.button`
   
   &:hover {
     background: #f0f0f0;
-    color: #1a1a1a;
+    color: #000000;
   }
 `;
 
@@ -541,17 +466,17 @@ const CancelReasonTextarea = styled.textarea`
   }
   
   &::placeholder {
-    color: #999;
+    color: #999999;
   }
 `;
 
 // Order Items Display Components
 const OrderItems = styled.div`
-  margin: 20px 0;
+  margin: 16px 0;
   padding: 16px;
-  background: rgba(248, 249, 250, 0.8);
+  background: #fafafa;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
 `;
 
 const OrderItemsHeader = styled.div`
@@ -574,7 +499,7 @@ const OrderItem = styled.div`
   padding: 8px;
   background: white;
   border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid #e0e0e0;
 `;
 
 const OrderItemImage = styled.img`
@@ -582,7 +507,7 @@ const OrderItemImage = styled.img`
   height: 50px;
   object-fit: cover;
   border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
 `;
 
 const OrderItemDetails = styled.div`
@@ -612,18 +537,17 @@ const OrderItemPrice = styled.div`
 `;
 
 const ShippingSection = styled.div`
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 24px;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
 `;
 
 const AddressGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: 16px;
   
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -637,7 +561,7 @@ const AddressGrid = styled.div`
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  margin-bottom: 1rem;
+  margin-bottom: 16px;
   
   &.full-width {
     grid-column: 1 / -1;
@@ -645,53 +569,53 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  margin-bottom: 0.5rem;
-  color: #555;
+  margin-bottom: 8px;
+  color: #333333;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 14px;
 `;
 
 const Select = styled.select`
-  padding: 0.75rem;
-  border: 2px solid rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  background: #ffffff;
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
   
   &:disabled {
-    background: rgba(240, 240, 240, 0.9);
+    background: #f5f5f5;
     cursor: not-allowed;
     opacity: 0.6;
   }
   
   option {
-    padding: 0.5rem;
+    padding: 8px;
   }
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  border: 2px solid rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
-  transition: all 0.3s ease;
+  background: #ffffff;
+  font-size: 14px;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
   
   &::placeholder {
-    color: #999;
+    color: #999999;
   }
 `;
 
@@ -701,16 +625,15 @@ const CartItem = styled.div`
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   margin-bottom: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border-color: #cccccc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -719,7 +642,7 @@ const ItemImage = styled.img`
   height: 80px;
   object-fit: cover;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
 `;
 
 const ItemDetails = styled.div`
@@ -731,7 +654,7 @@ const ItemDetails = styled.div`
 
 const ItemName = styled.h3`
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 18px;
   font-weight: 600;
   color: #000000;
 `;
@@ -744,11 +667,12 @@ const ItemSpecs = styled.div`
 
 const ItemBadge = styled.span`
   padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.1);
+  background: #f5f5f5;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
   color: #666666;
+  border: 1px solid #e0e0e0;
 `;
 
 const QuantityControls = styled.div`
@@ -761,19 +685,18 @@ const QuantityControls = styled.div`
 const QuantityButton = styled.button`
   width: 32px;
   height: 32px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  border: 1px solid #e0e0e0;
+  background: #ffffff;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:hover:not(:disabled) {
-    background: rgba(0, 0, 0, 0.1);
-    border-color: rgba(0, 0, 0, 0.3);
+    background: #f5f5f5;
+    border-color: #cccccc;
   }
   
   &:disabled {
@@ -797,7 +720,7 @@ const ItemPrice = styled.div`
 `;
 
 const Price = styled.span`
-  font-size: 1.2rem;
+  font-size: 20px;
   font-weight: 600;
   color: #000000;
 `;
@@ -806,22 +729,22 @@ const TextArea = styled.textarea`
   width: 100%;
   min-height: 80px;
   padding: 12px;
-  border: 2px solid rgba(0, 0, 0, 0.1);
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.9);
+  background: #ffffff;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: #000000;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
   }
   
   &::placeholder {
-    color: #999;
+    color: #999999;
   }
 `;
 
@@ -854,7 +777,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [cancelReason, setCancelReason] = useState('');
     const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
-  const { updateMultipleProductsStock, getProductStock } = useStock(); // Get stock context
+  const { updateMultipleProductsStock } = useStock(); // Get stock context
   
   const fetchOrders = useCallback(async () => {
     try {
@@ -1360,10 +1283,8 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                         <OrderItemDetails>
                           <OrderItemName>{item.productname || 'Unknown Product'}</OrderItemName>
                           <OrderItemMeta>
-                            {(item.color || item.productcolor) && `Color: ${item.color || item.productcolor}`}
-                            {(item.color || item.productcolor) && (item.size || item.product_type) && ' • '}
-                            {item.size && `Size: ${item.size}`}
-                            {item.size && item.product_type && ' • '}
+                            {item.productcolor && `Color: ${item.productcolor}`}
+                            {item.productcolor && item.product_type && ' • '}
                             {item.product_type && `Type: ${item.product_type}`}
                           </OrderItemMeta>
                           <OrderItemMeta>Qty: {item.quantity}</OrderItemMeta>
@@ -1446,12 +1367,16 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
 
   return (
     <PageContainer>
+      <TopBar />
       <ContentWrapper>
         <Header>
           <Title>
             <FontAwesomeIcon icon={faShoppingBag} />
             Order Management
           </Title>
+          <Subtitle>
+            Manage your shopping cart and view order history
+          </Subtitle>
         </Header>          <TabContainer>
           <Tab 
             active={activeTab === 'cart'} 

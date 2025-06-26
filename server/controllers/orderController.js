@@ -1677,6 +1677,32 @@ exports.getCancellationRequests = async (req, res) => {
             LIMIT ${limitNum} OFFSET ${offset}
         `, whereParams);
         
+        // For each cancellation request, get the order items (product details)
+        for (let i = 0; i < requests.length; i++) {
+            const request = requests[i];
+            
+            const [orderItems] = await connection.execute(`
+                SELECT 
+                    oi.product_id,
+                    oi.product_name,
+                    oi.quantity,
+                    oi.color,
+                    oi.size,
+                    oi.product_price,
+                    oi.subtotal,
+                    p.productname,
+                    p.productimage,
+                    p.productdescription
+                FROM order_items oi
+                JOIN orders o ON oi.invoice_id = o.invoice_id
+                LEFT JOIN products p ON oi.product_id = p.product_id
+                WHERE o.id = ?
+            `, [request.order_id]);
+            
+            // Add order items to the request object
+            requests[i].order_items = orderItems;
+        }
+        
         // Get total count using only where parameters (no pagination)
         const [countResult] = await connection.execute(`
             SELECT COUNT(*) as total
@@ -1794,6 +1820,7 @@ exports.processCancellationRequest = async (req, res) => {
                     console.log('Order was confirmed - restoring inventory...');
                     
                     // Get the order items to restore inventory with variant details
+                    // First try to get items with valid products (JOIN with products table)
                     const [orderItems] = await connection.execute(`
                         SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname, 
                                p.total_available_stock, p.total_reserved_stock
@@ -1803,20 +1830,74 @@ exports.processCancellationRequest = async (req, res) => {
                         WHERE o.id = ?
                     `, [request.order_id]);
                     
-                    console.log(`Found ${orderItems.length} items in cancelled order`);
+                    // Also check for orphaned order items (items with invalid product_id)
+                    const [orphanedItems] = await connection.execute(`
+                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, oi.product_name,
+                               'orphaned' as productname, 0 as total_available_stock, 0 as total_reserved_stock
+                        FROM order_items oi
+                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        LEFT JOIN products p ON oi.product_id = p.product_id
+                        WHERE o.id = ? AND p.product_id IS NULL
+                    `, [request.order_id]);
                     
-                    // Restore inventory - add back cancelled quantities to both variant and product level
+                    console.log(`Found ${orderItems.length} valid items and ${orphanedItems.length} orphaned items in cancelled order`);
+                    
+                    if (orphanedItems.length > 0) {
+                        console.log('⚠️ WARNING: Found orphaned order items (product_id not in products table):');
+                        orphanedItems.forEach(item => {
+                            console.log(`  - Product ID ${item.product_id}: ${item.product_name} (${item.color}/${item.size}) x${item.quantity}`);
+                        });
+                        console.log('These items will be skipped for stock restoration due to missing product data.');
+                    }
+                    
+                    // Log each item details before restoration
                     for (const item of orderItems) {
-                        // First restore the variant stock
+                        console.log(`Order Item: ${item.productname} - Size: "${item.size}" Color: "${item.color}" Qty: ${item.quantity}`);
+                        
+                        // Check current variant stock before restoration
+                        const [currentVariant] = await connection.execute(`
+                            SELECT stock_quantity, available_quantity, reserved_quantity
+                            FROM product_variants 
+                            WHERE product_id = ? AND size = ? AND color = ?
+                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                        
+                        if (currentVariant.length > 0) {
+                            console.log(`Before restoration - Stock: ${currentVariant[0].stock_quantity}, Available: ${currentVariant[0].available_quantity}, Reserved: ${currentVariant[0].reserved_quantity}`);
+                        } else {
+                            console.log(`⚠️ No variant found for ${item.productname} Size: "${item.size || 'N/A'}" Color: "${item.color || 'Default'}"`);
+                        }
+                    }
+                    
+                    // Restore inventory - subtract from reserved_quantity and recalculate available_quantity
+                    for (const item of orderItems) {
+                        // Restore the variant stock by reducing reserved quantity
+                        // Use the same fallback logic as during order confirmation
                         await connection.execute(`
                             UPDATE product_variants 
-                            SET stock_quantity = stock_quantity + ?,
-                                available_quantity = available_quantity + ?,
+                            SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
                                 last_updated = CURRENT_TIMESTAMP
-                            WHERE product_id = ? AND color = ? AND size = ?
-                        `, [item.quantity, item.quantity, item.product_id, item.color, item.size]);
+                            WHERE product_id = ? AND size = ? AND color = ?
+                        `, [item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
                         
-                        console.log(`Restored variant stock for ${item.productname} ${item.color} ${item.size}: +${item.quantity} units`);
+                        // Recalculate available_quantity based on stock_quantity - reserved_quantity
+                        await connection.execute(`
+                            UPDATE product_variants 
+                            SET available_quantity = stock_quantity - reserved_quantity
+                            WHERE product_id = ? AND size = ? AND color = ?
+                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                        
+                        console.log(`Restored variant stock for ${item.productname} ${item.color || 'Default'} ${item.size || 'N/A'}: released ${item.quantity} reserved units`);
+                        
+                        // Check variant stock after restoration for verification
+                        const [updatedVariant] = await connection.execute(`
+                            SELECT stock_quantity, available_quantity, reserved_quantity
+                            FROM product_variants 
+                            WHERE product_id = ? AND size = ? AND color = ?
+                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                        
+                        if (updatedVariant.length > 0) {
+                            console.log(`After restoration - Stock: ${updatedVariant[0].stock_quantity}, Available: ${updatedVariant[0].available_quantity}, Reserved: ${updatedVariant[0].reserved_quantity}`);
+                        }
                         
                         // Record stock movement for variant restoration
                         await connection.execute(`
@@ -1827,44 +1908,18 @@ exports.processCancellationRequest = async (req, res) => {
                         `, [
                             item.product_id, 
                             item.quantity, 
-                            item.size, 
+                            item.size || 'N/A', 
                             request.order_id, 
                             req.user?.user_id || null,
-                            `Order cancelled - restored ${item.quantity} units for ${item.productname} ${item.size}/${item.color}`
+                            `Order cancelled - released ${item.quantity} reserved units for ${item.productname} ${item.size || 'N/A'}/${item.color || 'Default'}`
                         ]);
                     }
                     
                     // Now sync product-level totals from variants
                     console.log('Syncing product-level stock from variants...');
                     for (const item of orderItems) {
-                        await connection.execute(`
-                            UPDATE products p
-                            SET total_stock = (
-                                SELECT COALESCE(SUM(pv.stock_quantity), 0) 
-                                FROM product_variants pv 
-                                WHERE pv.product_id = p.product_id
-                            ),
-                            total_available_stock = (
-                                SELECT COALESCE(SUM(pv.available_quantity), 0) 
-                                FROM product_variants pv 
-                                WHERE pv.product_id = p.product_id
-                            ),
-                            total_reserved_stock = (
-                                SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
-                                FROM product_variants pv 
-                                WHERE pv.product_id = p.product_id
-                            ),
-                            stock_status = CASE 
-                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
-                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
-                                WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
-                                ELSE 'in_stock'
-                            END,
-                            last_stock_update = CURRENT_TIMESTAMP
-                            WHERE product_id = ?
-                        `, [item.product_id]);
-                        
-                        console.log(`Synced stock totals for ${item.productname}`);
+                        await syncAllStockFields(connection, item.product_id);
+                        console.log(`Synced all stock fields for ${item.productname}`);
                     }
                 } else {
                     console.log(`Order was in '${originalStatus}' status - no stock to restore (stock was never subtracted)`);
