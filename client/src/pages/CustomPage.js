@@ -15,7 +15,6 @@ import {
   faTshirt,
   faRulerCombined
 } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
 
 // Custom SVG Icons for clothing types
 const ShortsIcon = ({ color = 'currentColor', size = 48 }) => (
@@ -262,19 +261,26 @@ const ImageUploadSection = styled.div`
 `;
 
 const UploadButton = styled.button`
-  background: #000000;
-  color: white;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #495057;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
+  padding: 0.875rem 1.75rem;
+  border-radius: 10px;
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   
   &:hover {
-    background: #333333;
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
 `;
 
@@ -427,28 +433,36 @@ const SummaryRow = styled.div`
 
 const SubmitButton = styled.button`
   width: 100%;
-  background: #000000;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%);
   color: white;
   border: none;
-  padding: 1rem 2rem;
-  border-radius: 4px;
+  padding: 1.25rem 2rem;
+  border-radius: 12px;
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   margin-top: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   
   &:hover:not(:disabled) {
-    background: #333333;
+    background: linear-gradient(135deg, #333333 0%, #555555 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
   }
   
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -562,23 +576,32 @@ const DetailItem = styled.div`
 
 const ToggleButton = styled.button`
   background: none;
-  border: 1px solid #e5e5e5;
-  color: #000000;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border: none;
+  color: #666666;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: 2rem;
+  transition: all 0.3s ease;
+  position: relative;
   
   &:hover {
-    border-color: #000000;
-    background: #fafafa;
+    color: #000000;
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
 const CustomPage = () => {
-  const navigate = useNavigate();
   const [selectedProduct, setSelectedProduct] = useState('');
   const [uploadedImages, setUploadedImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -586,7 +609,7 @@ const CustomPage = () => {
   const [submitStatus, setSubmitStatus] = useState({ type: '', message: '' });
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
-  const [showPendingSection, setShowPendingSection] = useState(true);
+  const [activeMode, setActiveMode] = useState('customize'); // 'customize' or 'pending'
 
   const [formData, setFormData] = useState({
     // Product details
@@ -643,11 +666,11 @@ const CustomPage = () => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      console.log('📡 Making request to: http://localhost:3001/api/custom-orders/my-orders');
+      console.log('📡 Making request to: http://localhost:5000/api/custom-orders/my-orders');
       console.log('   This will fetch orders for email:', user?.email);
       console.log('   Headers:', headers);
       
-      const response = await fetch('http://localhost:3001/api/custom-orders/my-orders', {
+      const response = await fetch('http://localhost:5000/api/custom-orders/my-orders', {
         method: 'GET',
         headers
       });
@@ -832,7 +855,7 @@ const CustomPage = () => {
         ...(token && { 'Authorization': `Bearer ${token}` })
       };
 
-      const response = await fetch('http://localhost:3001/api/custom-orders', {
+      const response = await fetch('http://localhost:5000/api/custom-orders', {
         method: 'POST',
         headers,
         body: submitFormData
@@ -868,8 +891,8 @@ const CustomPage = () => {
           fetchPendingOrders();
         }, 1000);
         
-        // Auto-show the pending section after successful submission
-        setShowPendingSection(true);
+        // Auto-switch to pending orders view after successful submission
+        setActiveMode('pending');
 
       } else {
         setSubmitStatus({
@@ -899,9 +922,52 @@ const CustomPage = () => {
         <p>Create your perfect custom clothing with our design studio. Upload your designs and we'll bring them to life!</p>
       </Header>
 
-      {/* Pending Customized Products Section */}
+      {/* Mode Toggle Buttons */}
       {user && (
-        <StepContainer>          <StepHeader>
+        <div style={{ 
+          display: 'flex', 
+          gap: '0.5rem', 
+          marginBottom: '3rem', 
+          justifyContent: 'center',
+          background: '#f8f9fa',
+          borderRadius: '12px',
+          padding: '0.25rem',
+          width: 'fit-content',
+          margin: '0 auto 3rem auto'
+        }}>
+          <ToggleButton 
+            onClick={() => setActiveMode('customize')}
+            style={{ 
+              background: activeMode === 'customize' ? '#ffffff' : 'transparent',
+              color: activeMode === 'customize' ? '#000000' : '#666666',
+              boxShadow: activeMode === 'customize' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+              borderRadius: '10px',
+              marginBottom: '0'
+            }}
+          >
+            <Icon icon={faTshirt} style={{ marginRight: '0.5rem' }} />
+            Design Studio
+          </ToggleButton>
+          <ToggleButton 
+            onClick={() => setActiveMode('pending')}
+            style={{ 
+              background: activeMode === 'pending' ? '#ffffff' : 'transparent',
+              color: activeMode === 'pending' ? '#000000' : '#666666',
+              boxShadow: activeMode === 'pending' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
+              borderRadius: '10px',
+              marginBottom: '0'
+            }}
+          >
+            <Icon icon={faShoppingCart} style={{ marginRight: '0.5rem' }} />
+            Pending Orders ({pendingOrders.length})
+          </ToggleButton>
+        </div>
+      )}
+
+      {/* Pending Orders View */}
+      {user && activeMode === 'pending' && (
+        <StepContainer>
+          <StepHeader>
             <div style={{ 
               minWidth: '32px', 
               height: '32px', 
@@ -914,170 +980,183 @@ const CustomPage = () => {
               fontSize: '1.2rem'
             }}>📋</div>
             <h2>Your Pending Customized Products</h2>
-          </StepHeader>          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-            <ToggleButton onClick={() => setShowPendingSection(!showPendingSection)}>
-              {showPendingSection ? 'Hide' : 'Show'} Pending Orders ({pendingOrders.length})
+          </StepHeader>
+
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+            <ToggleButton 
+              onClick={fetchPendingOrders} 
+              disabled={loadingPending}
+              style={{
+                background: '#f8f9fa',
+                color: '#666666',
+                borderRadius: '8px',
+                marginBottom: '0'
+              }}
+            >
+              {loadingPending ? <Icon icon={faSpinner} spin /> : '🔄'} Refresh Orders
             </ToggleButton>
-              {showPendingSection && (
-              <ToggleButton onClick={fetchPendingOrders} disabled={loadingPending}>
-                {loadingPending ? <Icon icon={faSpinner} spin /> : '🔄'} Refresh
-              </ToggleButton>
-            )}
           </div>
 
-          {showPendingSection && (
-            <div>
-              {loadingPending ? (
-                <div style={{ textAlign: 'center', padding: '2rem' }}>
-                  <Icon icon={faSpinner} spin size="2x" />
-                  <p style={{ marginTop: '1rem', color: '#666666', fontSize: '0.875rem' }}>Loading your orders...</p>
-                </div>
-              ) : pendingOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-                  <Icon icon={faTshirt} size="2x" />
-                  <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>No pending custom orders yet.</p>
-                  <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Submit your first custom design below!</p>
-                </div>
-              ) : (                <div>
-                  {pendingOrders && pendingOrders.length > 0 ? pendingOrders
-                    .filter(order => order && order.custom_order_id) // Filter out invalid orders
-                    .map((order) => (
-                    <PendingOrderCard key={order.custom_order_id}>
-                      <OrderHeader>
-                        <OrderId>Order #{order.custom_order_id}</OrderId>
-                        <OrderStatus status={order.status}>{order.status}</OrderStatus>
-                      </OrderHeader>
-                      
-                      <OrderDetails>
+          <div>
+            {loadingPending ? (
+              <div style={{ textAlign: 'center', padding: '2rem' }}>
+                <Icon icon={faSpinner} spin size="2x" />
+                <p style={{ marginTop: '1rem', color: '#666666', fontSize: '0.875rem' }}>Loading your orders...</p>
+              </div>
+            ) : pendingOrders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
+                <Icon icon={faTshirt} size="2x" />
+                <p style={{ marginTop: '1rem', fontSize: '0.875rem' }}>No pending custom orders yet.</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Switch to Design Studio to submit your first custom design!</p>
+              </div>
+            ) : (
+              <div>
+                {pendingOrders && pendingOrders.length > 0 ? pendingOrders
+                  .filter(order => order && order.custom_order_id) // Filter out invalid orders
+                  .map((order) => (
+                  <PendingOrderCard key={order.custom_order_id}>
+                    <OrderHeader>
+                      <OrderId>Order #{order.custom_order_id}</OrderId>
+                      <OrderStatus status={order.status}>{order.status}</OrderStatus>
+                    </OrderHeader>
+                    
+                    <OrderDetails>
+                      <DetailItem>
+                        <strong>Product:</strong> {order.product_name || order.product_type}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Size:</strong> {order.size}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Color:</strong> {order.color}
+                      </DetailItem>
+                      <DetailItem>
+                        <strong>Quantity:</strong> {order.quantity}
+                      </DetailItem>
+                      {order.urgency && (
                         <DetailItem>
-                          <strong>Product:</strong> {order.product_name || order.product_type}
-                        </DetailItem>
-                        <DetailItem>
-                          <strong>Size:</strong> {order.size}
-                        </DetailItem>
-                        <DetailItem>
-                          <strong>Color:</strong> {order.color}
-                        </DetailItem>                        <DetailItem>
-                          <strong>Quantity:</strong> {order.quantity}
-                        </DetailItem>
-                        {order.urgency && (
-                          <DetailItem>
-                            <strong>Urgency:</strong> {order.urgency.replace('_', ' ')}
-                          </DetailItem>
-                        )}                        <DetailItem>
-                          <strong>Estimated Price:</strong> ₱{parseFloat(order.estimated_price)?.toLocaleString() || 'TBD'}
-                        </DetailItem>{order.final_price && order.final_price > 0 && (
-                          <DetailItem>
-                            <strong>Final Price:</strong> ₱{parseFloat(order.final_price)?.toLocaleString() || 'TBD'}
-                          </DetailItem>
-                        )}
-                        <DetailItem>
-                          <strong>Submitted:</strong> {new Date(order.created_at).toLocaleDateString()}
-                        </DetailItem>
-                      </OrderDetails>
-                      
-                      {order.special_instructions && (
-                        <DetailItem style={{ marginTop: '0.75rem' }}>
-                          <strong>Special Instructions:</strong> {order.special_instructions}
+                          <strong>Urgency:</strong> {order.urgency.replace('_', ' ')}
                         </DetailItem>
                       )}
-                      
-                      {order.admin_notes && (
-                        <DetailItem style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fafafa', borderRadius: '4px' }}>
-                          <strong>Admin Notes:</strong> {order.admin_notes}
+                      <DetailItem>
+                        <strong>Estimated Price:</strong> ₱{parseFloat(order.estimated_price)?.toLocaleString() || 'TBD'}
+                      </DetailItem>
+                      {order.final_price && order.final_price > 0 && (
+                        <DetailItem>
+                          <strong>Final Price:</strong> ₱{parseFloat(order.final_price)?.toLocaleString() || 'TBD'}
                         </DetailItem>
-                      )}                    </PendingOrderCard>
-                  )) : <div>No valid orders found</div>}
-                </div>
-              )}
-            </div>
-          )}
+                      )}
+                      <DetailItem>
+                        <strong>Submitted:</strong> {new Date(order.created_at).toLocaleDateString()}
+                      </DetailItem>
+                    </OrderDetails>
+                    
+                    {order.special_instructions && (
+                      <DetailItem style={{ marginTop: '0.75rem' }}>
+                        <strong>Special Instructions:</strong> {order.special_instructions}
+                      </DetailItem>
+                    )}
+                    
+                    {order.admin_notes && (
+                      <DetailItem style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fafafa', borderRadius: '4px' }}>
+                        <strong>Admin Notes:</strong> {order.admin_notes}
+                      </DetailItem>
+                    )}
+                  </PendingOrderCard>
+                )) : <div>No valid orders found</div>}
+              </div>
+            )}
+          </div>
         </StepContainer>
       )}
 
-      {submitStatus.message && (
-        submitStatus.type === 'error' ? (
-          <ErrorMessage>
-            <Icon icon={faTimes} /> {submitStatus.message}
-          </ErrorMessage>
-        ) : (
-          <SuccessMessage>
-            <Icon icon={faCheck} /> {submitStatus.message}
-          </SuccessMessage>
-        )
-      )}
+      {/* Customization Form View */}
+      {activeMode === 'customize' && (
+        <>
+          {submitStatus.message && (
+            submitStatus.type === 'error' ? (
+              <ErrorMessage>
+                <Icon icon={faTimes} /> {submitStatus.message}
+              </ErrorMessage>
+            ) : (
+              <SuccessMessage>
+                <Icon icon={faCheck} /> {submitStatus.message}
+              </SuccessMessage>
+            )
+          )}
 
-      {/* Step 1: Product Selection */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">1</div>
-          <h2>Choose Your Product</h2>
-        </StepHeader>
-        <ProductGrid>
-          {Object.entries(productTypes).map(([key, product]) => {
-            const IconComponent = product.icon;
-            return (
-              <ProductCard
-                key={key}
-                selected={selectedProduct === key}
-                onClick={() => handleProductSelect(key)}
-              >
-                <div className="icon">                  <IconComponent 
-                    color={selectedProduct === key ? '#ffffff' : '#000000'} 
-                    size={40} 
-                  />
-                </div>
-                <h3>{product.name}</h3>
-                <div className="price">₱{product.price?.toLocaleString() || 'TBD'}</div>
-              </ProductCard>
-            );
-          })}
-        </ProductGrid>
-      </StepContainer>
+          {/* Step 1: Product Selection */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">1</div>
+              <h2>Choose Your Product</h2>
+            </StepHeader>
+            <ProductGrid>
+              {Object.entries(productTypes).map(([key, product]) => {
+                const IconComponent = product.icon;
+                return (
+                  <ProductCard
+                    key={key}
+                    selected={selectedProduct === key}
+                    onClick={() => handleProductSelect(key)}
+                  >
+                    <div className="icon">
+                      <IconComponent 
+                        color={selectedProduct === key ? '#ffffff' : '#000000'} 
+                        size={40} 
+                      />
+                    </div>
+                    <h3>{product.name}</h3>
+                    <div className="price">₱{product.price?.toLocaleString() || 'TBD'}</div>
+                  </ProductCard>
+                );
+              })}
+            </ProductGrid>
+          </StepContainer>
 
-      {/* Step 2: Design Upload */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">2</div>
-          <h2>Upload Your Design</h2>
-        </StepHeader>
-        <ImageUploadSection>
-          <Icon icon={faCloudUploadAlt} size="2x" />
-          <h3>Drop your design files here or click to browse</h3>
-          <p>Upload up to 10 images (JPG, PNG, GIF). Maximum 10MB per file.</p>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageUpload}
-            style={{ display: 'none' }}
-            id="imageUpload"
-          />
-          <UploadButton as="label" htmlFor="imageUpload">
-            <Icon icon={faImage} />
-            Select Images
-          </UploadButton>
-          <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
-            {uploadedImages.length}/10 images uploaded
-          </p>
-        </ImageUploadSection>
+          {/* Step 2: Design Upload */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">2</div>
+              <h2>Upload Your Design</h2>
+            </StepHeader>
+            <ImageUploadSection>
+              <Icon icon={faCloudUploadAlt} size="2x" />
+              <h3>Drop your design files here or click to browse</h3>
+              <p>Upload up to 10 images (JPG, PNG, GIF). Maximum 10MB per file.</p>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+                id="imageUpload"
+              />
+              <UploadButton as="label" htmlFor="imageUpload">
+                <Icon icon={faImage} />
+                Select Images
+              </UploadButton>
+              <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+                {uploadedImages.length}/10 images uploaded
+              </p>
+            </ImageUploadSection>
 
-        {uploadedImages.length > 0 && (
-          <ImagePreviewGrid>
-            {uploadedImages.map((image) => (
-              <ImagePreview key={image.id}>
-                <img src={image.preview} alt="Design preview" />
-                <button className="remove-btn" onClick={() => removeImage(image.id)}>
-                  <Icon icon={faTimes} />
-                </button>
-              </ImagePreview>
-            ))}
-          </ImagePreviewGrid>
-        )}
-      </StepContainer>
+            {uploadedImages.length > 0 && (
+              <ImagePreviewGrid>
+                {uploadedImages.map((image) => (
+                  <ImagePreview key={image.id}>
+                    <img src={image.preview} alt="Design preview" />
+                    <button className="remove-btn" onClick={() => removeImage(image.id)}>
+                      <Icon icon={faTimes} />
+                    </button>
+                  </ImagePreview>
+                ))}
+              </ImagePreviewGrid>
+            )}
+          </StepContainer>
 
-      {/* Step 3: Product Details */}
-      <StepContainer>
+          {/* Step 3: Product Details */}
+          <StepContainer>
         <StepHeader>
           <div className="step-number">3</div>
           <h2>Product Customization</h2>
@@ -1154,266 +1233,207 @@ const CustomPage = () => {
             />
           </FormGroup>
         </FormGrid>
-      </StepContainer>
+          </StepContainer>
 
-      {/* Step 4: Customer Information */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">4</div>
-          <h2>Customer Information</h2>
-        </StepHeader>
-        <FormGrid>
-          <FormGroup>
-            <Label>
-              <Icon icon={faUser} /> Full Name
-            </Label>
-            <Input
-              type="text"
-              name="customerName"
-              value={formData.customerName}
-              onChange={handleInputChange}
-              placeholder="Enter your full name"
-              required
-            />
-          </FormGroup>          <FormGroup>
-            <Label>
-              <Icon icon={faPhone} /> Phone Number
-            </Label>
-            <Input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              placeholder="Enter your phone number"
-              required
-            />
-          </FormGroup>
-        </FormGrid>
-      </StepContainer>
+          {/* Step 4: Customer Information */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">4</div>
+              <h2>Customer Information</h2>
+            </StepHeader>
+            <FormGrid>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faUser} /> Full Name
+                </Label>
+                <Input
+                  type="text"
+                  name="customerName"
+                  value={formData.customerName}
+                  onChange={handleInputChange}
+                  placeholder="Enter your full name"
+                  required
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faPhone} /> Phone Number
+                </Label>
+                <Input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="Enter your phone number"
+                  required
+                />
+              </FormGroup>
+            </FormGrid>
+          </StepContainer>
 
-      {/* Step 5: Shipping Information */}
-      <StepContainer>
-        <StepHeader>
-          <div className="step-number">5</div>
-          <h2>Shipping Information</h2>
-        </StepHeader>        <div style={{ 
-          background: '#fafafa', 
-          border: '1px solid #e5e5e5', 
-          borderRadius: '4px', 
-          padding: '1rem', 
-          marginBottom: '2rem',
-          color: '#000000',
-          fontSize: '0.875rem'
-        }}>
-          <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all custom orders.
-        </div>
-        
-        <FormGrid>
-          <FormGroup>
-            <Label>
-              <Icon icon={faMapMarkerAlt} /> Province
-            </Label>
-            <Select
-              name="province"
-              value={formData.province}
-              onChange={handleInputChange}
-              disabled
-            >
-              <option value="Metro Manila">Metro Manila</option>
-            </Select>
-          </FormGroup>
-
-          <FormGroup>
-            <Label>City/Municipality</Label>
-            <Select
-              name="city"
-              value={formData.city}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select City</option>
-              {metroManilaCities.map(city => (
-                <option key={city} value={city}>{city}</option>
-              ))}
-            </Select>
-          </FormGroup>
-
-          <FormGroup className="full-width">
-            <Label>Street Address / House Number</Label>
-            <Input
-              type="text"
-              name="streetAddress"
-              value={formData.streetAddress}
-              onChange={handleInputChange}
-              placeholder="Enter complete street address and house/building number"
-              required
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>House/Unit Number (Optional)</Label>
-            <Input
-              type="text"
-              name="houseNumber"
-              value={formData.houseNumber}
-              onChange={handleInputChange}
-              placeholder="Unit/House number"
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Barangay (Optional)</Label>
-            <Input
-              type="text"
-              name="barangay"
-              value={formData.barangay}
-              onChange={handleInputChange}
-              placeholder="Barangay"
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label>Postal Code (Optional)</Label>
-            <Input
-              type="text"
-              name="postalCode"
-              value={formData.postalCode}
-              onChange={handleInputChange}
-              placeholder="e.g., 1234"
-              maxLength="4"
-              pattern="[0-9]{4}"
-            />
-          </FormGroup>
-        </FormGrid>
-      </StepContainer>
-
-      {/* Order Summary */}
-      {selectedProduct && (
-        <OrderSummary>
-          <h3 style={{ margin: '0 0 1.5rem 0', color: '#000000', fontSize: '1rem', fontWeight: '400' }}>Order Summary</h3>
-          <SummaryRow>
-            <span>Product Type:</span>
-            <span>{productTypes[selectedProduct].name}</span>
-          </SummaryRow>
-          {formData.productName && (
-            <SummaryRow>
-              <span>Product Name:</span>
-              <span>{formData.productName}</span>
-            </SummaryRow>
-          )}
-          {formData.size && (
-            <SummaryRow>
-              <span>Size:</span>
-              <span>{formData.size}</span>
-            </SummaryRow>
-          )}
-          {formData.color && (
-            <SummaryRow>
-              <span>Color:</span>
-              <span>{formData.color}</span>
-            </SummaryRow>
-          )}
-          <SummaryRow>
-            <span>Quantity:</span>
-            <span>{formData.quantity}</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Unit Price:</span>
-            <span>₱{productTypes[selectedProduct]?.price?.toLocaleString() || 'TBD'}</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Design Images:</span>
-            <span>{uploadedImages.length} uploaded</span>
-          </SummaryRow>
-          <SummaryRow>
-            <span>Shipping:</span>
-            <span>Free</span>
-          </SummaryRow>
-          <SummaryRow className="total">
-            <span>Total Estimated Price:</span>
-            <span>₱{calculateTotal()?.toLocaleString() || 'TBD'}</span>
-          </SummaryRow>
-        </OrderSummary>
-      )}
-
-      <SubmitButton 
-        onClick={handleSubmit}
-        disabled={isSubmitting || !selectedProduct}
-      >
-        {isSubmitting ? (
-          <>
-            <Icon icon={faSpinner} spin />
-            Submitting Order...
-          </>
-        ) : (
-          <>
-            <Icon icon={faShoppingCart} />
-            Submit Custom Order
-          </>
-        )}
-      </SubmitButton>
-
-      {/* Pending Orders Section */}
-      {user && (
-        <div style={{ marginTop: '4rem' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '400', color: '#000000', marginBottom: '1.5rem' }}>
-            Your Pending Orders
-          </h2>
-
-          {loadingPending ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-              <Icon icon={faSpinner} spin size="2x" />
-              <p style={{ marginTop: '1rem' }}>Loading your pending orders...</p>
+          {/* Step 5: Shipping Information */}
+          <StepContainer>
+            <StepHeader>
+              <div className="step-number">5</div>
+              <h2>Shipping Information</h2>
+            </StepHeader>
+            <div style={{ 
+              background: '#fafafa', 
+              border: '1px solid #e5e5e5', 
+              borderRadius: '4px', 
+              padding: '1rem', 
+              marginBottom: '2rem',
+              color: '#000000',
+              fontSize: '0.875rem'
+            }}>
+              <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all custom orders.
             </div>
-          ) : (
-            <div>
-              {pendingOrders.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem', color: '#666666' }}>
-                  <Icon icon={faShoppingCart} size="2x" />
-                  <p style={{ marginTop: '1rem' }}>You have no pending orders.</p>
-                </div>              ) : (
-                pendingOrders
-                  .filter(order => order && order._id) // Filter out invalid orders
-                  .map(order => (
-                  <PendingOrderCard key={order._id}>
-                    <OrderHeader>
-                      <OrderId>
-                        Order ID: {order._id}
-                      </OrderId>
-                      <OrderStatus status={order.status}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </OrderStatus>
-                    </OrderHeader>
+            
+            <FormGrid>
+              <FormGroup>
+                <Label>
+                  <Icon icon={faMapMarkerAlt} /> Province
+                </Label>
+                <Select
+                  name="province"
+                  value={formData.province}
+                  onChange={handleInputChange}
+                  disabled
+                >
+                  <option value="Metro Manila">Metro Manila</option>
+                </Select>
+              </FormGroup>
 
-                    <OrderDetails>
-                      <DetailItem>
-                        <strong>Product:</strong> {order.productName}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Size:</strong> {order.size}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Color:</strong> {order.color}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Quantity:</strong> {order.quantity}
-                      </DetailItem>                      <DetailItem>
-                        <strong>Unit Price:</strong> ₱{order.price?.toLocaleString() || 'TBD'}
-                      </DetailItem>
-                      <DetailItem>
-                        <strong>Total:</strong> ₱{order.total?.toLocaleString() || 'TBD'}
-                      </DetailItem>
-                    </OrderDetails>
+              <FormGroup>
+                <Label>City/Municipality</Label>
+                <Select
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select City</option>
+                  {metroManilaCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </Select>
+              </FormGroup>
 
-                    <ToggleButton onClick={() => navigate(`/orders/${order._id}`)}>
-                      View Order Details
-                    </ToggleButton>
-                  </PendingOrderCard>
-                ))
+              <FormGroup className="full-width">
+                <Label>Street Address / House Number</Label>
+                <Input
+                  type="text"
+                  name="streetAddress"
+                  value={formData.streetAddress}
+                  onChange={handleInputChange}
+                  placeholder="Enter complete street address and house/building number"
+                  required
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>House/Unit Number (Optional)</Label>
+                <Input
+                  type="text"
+                  name="houseNumber"
+                  value={formData.houseNumber}
+                  onChange={handleInputChange}
+                  placeholder="Unit/House number"
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Barangay (Optional)</Label>
+                <Input
+                  type="text"
+                  name="barangay"
+                  value={formData.barangay}
+                  onChange={handleInputChange}
+                  placeholder="Barangay"
+                />
+              </FormGroup>
+
+              <FormGroup>
+                <Label>Postal Code (Optional)</Label>
+                <Input
+                  type="text"
+                  name="postalCode"
+                  value={formData.postalCode}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 1234"
+                  maxLength="4"
+                  pattern="[0-9]{4}"
+                />
+              </FormGroup>
+            </FormGrid>
+          </StepContainer>
+
+          {/* Order Summary */}
+          {selectedProduct && (
+            <OrderSummary>
+              <h3 style={{ margin: '0 0 1.5rem 0', color: '#000000', fontSize: '1rem', fontWeight: '400' }}>Order Summary</h3>
+              <SummaryRow>
+                <span>Product Type:</span>
+                <span>{productTypes[selectedProduct].name}</span>
+              </SummaryRow>
+              {formData.productName && (
+                <SummaryRow>
+                  <span>Product Name:</span>
+                  <span>{formData.productName}</span>
+                </SummaryRow>
               )}
-            </div>
+              {formData.size && (
+                <SummaryRow>
+                  <span>Size:</span>
+                  <span>{formData.size}</span>
+                </SummaryRow>
+              )}
+              {formData.color && (
+                <SummaryRow>
+                  <span>Color:</span>
+                  <span>{formData.color}</span>
+                </SummaryRow>
+              )}
+              <SummaryRow>
+                <span>Quantity:</span>
+                <span>{formData.quantity}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Unit Price:</span>
+                <span>₱{productTypes[selectedProduct]?.price?.toLocaleString() || 'TBD'}</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Design Images:</span>
+                <span>{uploadedImages.length} uploaded</span>
+              </SummaryRow>
+              <SummaryRow>
+                <span>Shipping:</span>
+                <span>Free</span>
+              </SummaryRow>
+              <SummaryRow className="total">
+                <span>Total Estimated Price:</span>
+                <span>₱{calculateTotal()?.toLocaleString() || 'TBD'}</span>
+              </SummaryRow>
+            </OrderSummary>
           )}
-        </div>
+
+          <SubmitButton 
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedProduct}
+          >
+            {isSubmitting ? (
+              <>
+                <Icon icon={faSpinner} spin />
+                Submitting Order...
+              </>
+            ) : (
+              <>
+                <Icon icon={faShoppingCart} />
+                Submit Custom Order
+              </>
+            )}
+          </SubmitButton>
+        </>
       )}
     </PageContainer>
   );

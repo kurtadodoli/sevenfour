@@ -1291,11 +1291,14 @@ const ProductsPage = () => {
             return [...new Set(variants.map(v => v.size).filter(Boolean))];
         }
         return sizes || [];
-    };    const getAvailableColors = (product) => {
+    };
+    const getAvailableColors = (product) => {
         const variants = parseSizeColorVariants(product.sizeColorVariants);
         
         if (variants && variants.length > 0) {
-            return [...new Set(variants.map(v => v.color).filter(Boolean))];
+            // Fix: get all unique colors from colorStocks arrays
+            const allColors = variants.flatMap(v => (v.colorStocks || []).map(cs => cs.color));
+            return [...new Set(allColors.filter(Boolean))];
         }
         return [];
     };

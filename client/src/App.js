@@ -45,7 +45,6 @@ import SearchPage from './pages/SearchPage'; // Import SearchPage
 import CustomPage from './pages/CustomPage'; // Import CustomPage
 
 import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
-import DebugTransactionPage from './pages/DebugTransactionPage'; // Import DebugTransactionPage
 import RegistrationPage from './pages/RegistrationPage'; // Import RegistrationPage
 
 // Components
@@ -118,7 +117,6 @@ const Layout = () => {
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/registration" element={<RegistrationPage />} />
             <Route path="/transactions" element={<TransactionPage />} />
-            <Route path="/debug-transactions" element={<DebugTransactionPage />} />
             <Route path="/search" element={<SearchPage />} />
           </Route>
           

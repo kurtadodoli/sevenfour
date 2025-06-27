@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
     const [error, setError] = useState(null);
     
     // API base URL (using the imported api instance now)
-    const API_BASE_URL = 'http://localhost:3001';    const logout = useCallback(() => {
+    const API_BASE_URL = 'http://localhost:5000';    const logout = useCallback(() => {
         console.log('AuthContext: Logout initiated, clearing all user data');
         localStorage.removeItem('token');
         setCurrentUser(null);

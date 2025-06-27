@@ -16,7 +16,7 @@ const DashboardPage = () => {
     const fetchUserLogs = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch('http://localhost:3001/api/admin/user-logs-test', {
+            const response = await fetch('http://localhost:5000/api/admin/user-logs-test', {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -37,7 +37,7 @@ const DashboardPage = () => {
         setLoading(true);
         try {
             // First try the existing inventory report endpoint
-            let response = await fetch('http://localhost:3001/api/admin/inventory-report', {
+            let response = await fetch('http://localhost:5000/api/admin/inventory-report', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ const DashboardPage = () => {
             // If that fails, try the products endpoint instead
             if (!response.ok) {
                 console.log('Inventory report endpoint not available, using products endpoint');
-                response = await fetch('http://localhost:3001/api/maintenance/products', {
+                response = await fetch('http://localhost:5000/api/maintenance/products', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                         'Content-Type': 'application/json'
@@ -87,7 +87,7 @@ const DashboardPage = () => {
 
         setDeletingUserId(userId);
         try {
-            const response = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+            const response = await fetch(`http://localhost:5000/api/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -793,7 +793,9 @@ const ReportButton = styled.button`
     }
 `;
 
-const ReportIcon = styled.span`
+const ReportIcon = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
     font-size: 1.2rem;
     width: 1.5rem;
     text-align: center;
@@ -1308,7 +1310,9 @@ const ChartTitle = styled.h3`
     letter-spacing: 0.5px;
 `;
 
-const PieChartContainer = styled.div`
+const PieChartContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'adminPercentage',
+})`
     position: relative;
     width: 180px;
     height: 180px;

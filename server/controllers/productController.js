@@ -16,43 +16,44 @@ const ensureDirectoryExists = async (dir) => {
 // Get all active products
 exports.getActiveProducts = async (req, res) => {
   try {
-    console.log('getActiveProducts called');
+    console.log('getActiveProducts called - fetching from database');
     
-    // Return hardcoded products for immediate testing
-    const dummyProducts = [
-      {
-        product_id: 1,
-        name: 'Classic T-Shirt',
-        description: 'A comfortable classic cotton t-shirt',
-        price: 29.99,
-        category: 'T-Shirts',
-        brand: 'Seven Four',
-        status: 'active',
-        stock_status: 'in_stock',
-        is_featured: true,
-        is_archived: false,
-        colors: ['Black', 'White', 'Red'],
-        sizes: ['S', 'M', 'L', 'XL']
-      },
-      {
-        product_id: 2,
-        name: 'Basketball Shorts',
-        description: 'Lightweight basketball shorts',
-        price: 34.99,
-        category: 'Shorts',
-        brand: 'Seven Four',
-        status: 'active',
-        stock_status: 'in_stock',
-        is_featured: false,
-        is_archived: false,
-        colors: ['Black', 'Blue'],
-        sizes: ['M', 'L', 'XL']
-      }
-    ];
+    // Query the database directly without complex joins
+    const products = await query(`
+      SELECT 
+        id,
+        product_id,
+        productname as name,
+        name as alt_name,
+        productdescription as description,
+        description as alt_description,
+        productprice as price,
+        price as alt_price,
+        productsize as size,
+        productcolor as color,
+        product_type as category,
+        category as alt_category,
+        productquantity as quantity,
+        total_stock,
+        total_available_stock,
+        productstatus as status,
+        status as alt_status,
+        stock_status,
+        is_archived,
+        created_at,
+        updated_at
+      FROM products 
+      WHERE (productstatus = 'active' OR status = 'active') 
+        AND (is_archived = 0 OR is_archived IS NULL)
+      ORDER BY created_at DESC
+    `);
+    
+    console.log(`Found ${products.length} active products from database`);
     
     return res.json({ 
       success: true, 
-      products: dummyProducts 
+      data: products,
+      products: products // Also include in products field for compatibility
     });
   } catch (error) {
     console.error('Error fetching active products:', error);
@@ -72,13 +73,41 @@ exports.getAllProducts = async (req, res) => {
     // Verify admin role
     console.log('User requesting products:', req.user);
     
-    const products = await Product.getAll(true); // true to include archived products
-    console.log('Products fetched:', products.length);
+    // Query the database directly without complex joins
+    const products = await query(`
+      SELECT 
+        id,
+        product_id,
+        productname as name,
+        name as alt_name,
+        productdescription as description,
+        description as alt_description,
+        productprice as price,
+        price as alt_price,
+        productsize as size,
+        productcolor as color,
+        product_type as category,
+        category as alt_category,
+        productquantity as quantity,
+        total_stock,
+        total_available_stock,
+        productstatus as status,
+        status as alt_status,
+        stock_status,
+        is_archived,
+        created_at,
+        updated_at
+      FROM products 
+      ORDER BY created_at DESC
+    `);
+    
+    console.log(`Found ${products.length} total products from database`);
     
     return res.status(200).json({
       success: true,
       message: 'All products retrieved successfully',
-      data: products
+      data: products,
+      products: products // Also include in products field for compatibility
     });
   } catch (error) {
     console.error('Error fetching all products:', error);

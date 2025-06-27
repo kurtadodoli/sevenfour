@@ -763,7 +763,7 @@ const RegistrationPage = () => {
       }
 
       console.log('Fetching users with token...');
-      const response = await fetch('http://localhost:3001/api/users', {
+      const response = await fetch('http://localhost:5000/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -804,7 +804,7 @@ const RegistrationPage = () => {
       }
 
       console.log('Fetching products with token...');
-      const response = await fetch('http://localhost:3001/api/maintenance/products', {
+      const response = await fetch('http://localhost:5000/api/maintenance/products', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -887,7 +887,7 @@ const RegistrationPage = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -966,7 +966,7 @@ const RegistrationPage = () => {
         });
       }
 
-      const response = await fetch('http://localhost:3001/api/maintenance/products', {
+      const response = await fetch('http://localhost:5000/api/maintenance/products', {
         method: 'POST',
         body: formData,
       });

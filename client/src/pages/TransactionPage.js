@@ -11,7 +11,10 @@ import {
   faExclamationTriangle,
   faCheck,
   faPalette,
-  faShoppingBag
+  faShoppingBag,
+  faDownload,
+  faExpand,
+  faImage
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -64,7 +67,9 @@ const StatsContainer = styled.div`
   overflow: hidden;
 `;
 
-const StatCard = styled.div`
+const StatCard = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'color',
+})`
   background: #ffffff;
   padding: 32px 24px;
   text-align: center;
@@ -332,7 +337,9 @@ const OrderDetails = styled.div`
   }
 `;
 
-const StatusBadge = styled.span`
+const StatusBadge = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'status',
+})`
   padding: 8px 14px;
   border-radius: 6px;
   font-size: 12px;
@@ -413,7 +420,9 @@ const ActionsContainer = styled.div`
   align-items: center;
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['compact', 'loading', 'variant'].includes(prop),
+})`
   min-width: ${props => props.compact ? '40px' : '120px'};
   height: ${props => props.compact ? '40px' : '44px'};
   border: 1px solid;
@@ -634,7 +643,9 @@ const TabsContainer = styled.div`
   margin-bottom: 1px;
 `;
 
-const Tab = styled.button`
+const Tab = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   flex: 1;
   padding: 16px 24px;
   background: ${props => props.active ? '#000000' : '#ffffff'};
@@ -719,6 +730,261 @@ const ReasonBox = styled.div`
     color: #666666;
     line-height: 1.5;
   }
+`;
+
+const ProductDetailsBox = styled.div`
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 16px;
+  margin: 16px 0;
+  
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #000000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+`;
+
+const ProductItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ProductImage = styled.img`
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    border-color: #007bff;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+  }
+`;
+
+// Enhanced Image Gallery Components
+const ImageGallery = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+`;
+
+const ImageContainer = styled.div`
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8f9fa;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ImagePreview = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  
+  ${ImageContainer}:hover & {
+    transform: scale(1.1);
+  }
+`;
+
+const ImageOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(0, 0, 0, 0.3), rgba(0, 123, 255, 0.3));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  ${ImageContainer}:hover & {
+    opacity: 1;
+  }
+`;
+
+const ImageAction = styled.button`
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #333;
+  
+  &:hover {
+    background: white;
+    transform: scale(1.1);
+    color: #007bff;
+  }
+`;
+
+// Image Modal Components
+const ImageModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  backdrop-filter: blur(5px);
+`;
+
+const ImageModalContent = styled.div`
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+`;
+
+const ImageModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+`;
+
+const ImageModalTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+`;
+
+const ImageModalActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ModalButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'primary',
+})`
+  background: ${props => props.primary ? '#007bff' : '#6c757d'};
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.primary ? '#0056b3' : '#545b62'};
+    transform: translateY(-1px);
+  }
+`;
+
+const ModalImageContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  min-height: 400px;
+  max-height: 70vh;
+  overflow: hidden;
+`;
+
+const ModalImage = styled.img`
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+`;
+
+const ImagePlaceholder = styled.div`
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 20px;
+  border: 2px dashed #dee2e6;
+`;
+
+const ProductInfo = styled.div`
+  flex: 1;
+  
+  .name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    margin-bottom: 4px;
+  }
+  
+  .details {
+    font-size: 12px;
+    color: #666666;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .price {
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    text-align: right;
+  }
+`;
+
+const ProductVariant = styled.span`
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #666666;
 `;
 
 const RequestActions = styled.div`
@@ -874,6 +1140,12 @@ const TransactionPage = () => {
   // Custom design requests state
   const [customDesignRequests, setCustomDesignRequests] = useState([]);
   const [designRequestsLoading, setDesignRequestsLoading] = useState(false);
+  const [designSearchTerm, setDesignSearchTerm] = useState('');
+  
+  // Image modal state
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedImageName, setSelectedImageName] = useState('');
   const [processingDesignRequest, setProcessingDesignRequest] = useState(null);
   const [designAdminNotes, setDesignAdminNotes] = useState('');
   const [showDesignProcessingModal, setShowDesignProcessingModal] = useState(false);
@@ -1089,6 +1361,49 @@ const TransactionPage = () => {
       
       if (response.data.success) {
         toast.success(response.data.message);
+        
+        // If cancellation was approved and stock was restored, trigger stock update events
+        if (action === 'approve' && response.data.data?.stockUpdateEvent?.stockRestored) {
+          const stockEvent = response.data.data.stockUpdateEvent;
+          console.log('📦 Cancellation approved - stock restored, triggering inventory updates...', stockEvent);
+          
+          // Trigger localStorage event for inventory pages to refresh
+          localStorage.setItem('stock_updated', JSON.stringify({
+            type: 'order_cancelled',
+            timestamp: new Date().toISOString(),
+            orderId: stockEvent.orderId,
+            productIds: stockEvent.productIds || [],
+            stockRestorations: stockEvent.stockRestorations || []
+          }));
+          
+          // Remove the flag immediately to allow future updates
+          localStorage.removeItem('stock_updated');
+          
+          // Also dispatch a custom event for components that might not use localStorage
+          window.dispatchEvent(new CustomEvent('stockUpdated', {
+            detail: {
+              type: 'order_cancelled',
+              orderId: stockEvent.orderId,
+              productIds: stockEvent.productIds || [],
+              restoredQuantities: stockEvent.stockRestorations || []
+            }
+          }));
+          
+          // Show detailed stock restoration information
+          if (stockEvent.stockRestorations && stockEvent.stockRestorations.length > 0) {
+            const restorationDetails = stockEvent.stockRestorations.map(item => 
+              `• ${item.product} (${item.size}/${item.color}): +${item.quantityRestored} units → ${item.newAvailableStock} available`
+            ).join('\n');
+            
+            toast.success(
+              `✅ Order cancelled and inventory restored:\n\n${restorationDetails}`,
+              { autoClose: 8000 }
+            );
+          }
+        } else if (action === 'approve') {
+          console.log('📝 Cancellation approved but no stock restoration needed');
+        }
+        
         setShowProcessingModal(false);
         setProcessingRequest(null);
         setAdminNotes('');
@@ -1196,9 +1511,40 @@ const TransactionPage = () => {
   const closeDesignProcessingModal = () => {
     setShowDesignProcessingModal(false);
     setProcessingDesignRequest(null);
-    setDesignAdminNotes('');
+    setDesignAdminNotes('');  };
+  
+  // Image handling functions
+  const handleImageView = (imageSrc, imageName) => {
+    setSelectedImage(imageSrc);
+    setSelectedImageName(imageName || 'Image');
+    setShowImageModal(true);
   };
   
+  const handleImageDownload = async (imageSrc, imageName) => {
+    try {
+      const response = await fetch(imageSrc);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = imageName || 'image.jpg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Image downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading image:', error);
+      toast.error('Failed to download image');
+    }
+  };
+  
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setSelectedImage(null);
+    setSelectedImageName('');
+  };
+
   useEffect(() => {
     console.log('🔄 TransactionPage useEffect triggered');
     console.log('User:', user);
@@ -1554,21 +1900,34 @@ const TransactionPage = () => {
                           gap: '16px'
                         }}>
                           {/* Product Image */}
-                          {item.productimage && (
-                            <img 
-                              src={`http://localhost:3001/uploads/${item.productimage}`}
-                              alt={item.productname || 'Product'}
-                              style={{
-                                width: '60px',
-                                height: '60px',
-                                objectFit: 'cover',
-                                borderRadius: '8px',
-                                border: '1px solid #dee2e6'
-                              }}
-                              onError={(e) => {
-                                e.target.src = 'http://localhost:3001/images/placeholder.svg';
-                              }}
-                            />
+                          {item.productimage ? (
+                            <ImageContainer onClick={() => handleImageView(`http://localhost:5000/uploads/${item.productimage}`, item.productname)}>
+                              <ProductImage 
+                                src={`http://localhost:5000/uploads/${item.productimage}`}
+                                alt={item.productname || 'Product'}
+                                onError={(e) => {
+                                  e.target.src = 'http://localhost:5000/images/placeholder.svg';
+                                }}
+                              />
+                              <ImageOverlay>
+                                <ImageAction onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImageView(`http://localhost:5000/uploads/${item.productimage}`, item.productname);
+                                }}>
+                                  <FontAwesomeIcon icon={faExpand} size="sm" />
+                                </ImageAction>
+                                <ImageAction onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleImageDownload(`http://localhost:5000/uploads/${item.productimage}`, `${item.productname || 'product'}.jpg`);
+                                }}>
+                                  <FontAwesomeIcon icon={faDownload} size="sm" />
+                                </ImageAction>
+                              </ImageOverlay>
+                            </ImageContainer>
+                          ) : (
+                            <ImagePlaceholder>
+                              <FontAwesomeIcon icon={faImage} />
+                            </ImagePlaceholder>
                           )}
                           
                           {/* Product Details */}
@@ -1722,6 +2081,41 @@ const TransactionPage = () => {
                       <p>{request.reason}</p>
                     </ReasonBox>
                     
+                    {/* Product Details Section */}
+                    {request.order_items && request.order_items.length > 0 && (
+                      <ProductDetailsBox>
+                        <h4>
+                          <FontAwesomeIcon icon={faShoppingBag} />
+                          Order Items ({request.order_items.length})
+                        </h4>
+                        {request.order_items.map((item, index) => (
+                          <ProductItem key={index}>
+                            <ProductImage 
+                              src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
+                              alt={item.product_name || item.productname}
+                              onError={(e) => {
+                                e.target.src = '/placeholder-image.png';
+                              }}
+                            />
+                            <ProductInfo>
+                              <div className="name">
+                                {item.product_name || item.productname || 'Unknown Product'}
+                              </div>
+                              <div className="details">
+                                <span>Qty: <strong>{item.quantity}</strong></span>
+                                {item.size && <ProductVariant>{item.size}</ProductVariant>}
+                                {item.color && <ProductVariant>{item.color}</ProductVariant>}
+                                <span>Price: <strong>{formatCurrency(item.product_price)}</strong></span>
+                              </div>
+                            </ProductInfo>
+                            <div className="price">
+                              {formatCurrency(item.subtotal || (item.product_price * item.quantity))}
+                            </div>
+                          </ProductItem>
+                        ))}
+                      </ProductDetailsBox>
+                    )}
+                    
                     {request.admin_notes && (
                       <ReasonBox>
                         <h4>Admin Notes</h4>
@@ -1781,7 +2175,14 @@ const TransactionPage = () => {
             {/* Design Request Controls */}
             <ControlsSection>
               <ControlsGrid>
-                <div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <SearchInput
+                    type="text"
+                    placeholder="Search custom design requests..."
+                    value={designSearchTerm}
+                    onChange={(e) => setDesignSearchTerm(e.target.value)}
+                    style={{ minWidth: '300px' }}
+                  />
                   <RefreshButton onClick={fetchCustomDesignRequests} disabled={designRequestsLoading}>
                     <FontAwesomeIcon icon={faRefresh} />
                     {designRequestsLoading ? 'Loading...' : 'Refresh'}
@@ -1795,13 +2196,37 @@ const TransactionPage = () => {
               <div style={{ textAlign: 'center', padding: '40px' }}>
                 <p>Loading custom design requests...</p>
               </div>
-            ) : customDesignRequests.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px' }}>
-                <FontAwesomeIcon icon={faInfoCircle} size="3x" style={{ color: '#ddd', marginBottom: '16px' }} />
-                <p>No custom design requests found.</p>
-              </div>
-            ) : (
-              customDesignRequests.map(request => (
+            ) : (() => {
+              // Filter custom design requests based on search term
+              const filteredRequests = customDesignRequests.filter(request => {
+                if (!designSearchTerm) return true;
+                
+                const searchLower = designSearchTerm.toLowerCase();
+                return (
+                  request.custom_order_id?.toString().includes(searchLower) ||
+                  request.product_display_name?.toLowerCase().includes(searchLower) ||
+                  request.customer_name?.toLowerCase().includes(searchLower) ||
+                  request.customer_email?.toLowerCase().includes(searchLower) ||
+                  request.status?.toLowerCase().includes(searchLower) ||
+                  request.status_display?.toLowerCase().includes(searchLower) ||
+                  request.size?.toLowerCase().includes(searchLower) ||
+                  request.color?.toLowerCase().includes(searchLower) ||
+                  request.special_instructions?.toLowerCase().includes(searchLower)
+                );
+              });
+
+              return filteredRequests.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <FontAwesomeIcon icon={faInfoCircle} size="3x" style={{ color: '#ddd', marginBottom: '16px' }} />
+                  <p>
+                    {designSearchTerm ? 
+                      `No custom design requests found matching "${designSearchTerm}".` : 
+                      'No custom design requests found.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                filteredRequests.map(request => (
                 <CancellationRequestCard key={request.custom_order_id}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div>
@@ -1846,38 +2271,42 @@ const TransactionPage = () => {
                   {request.images && request.images.length > 0 && (
                     <div style={{ marginBottom: '16px' }}>
                       <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Design Images ({request.images.length})</h4>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <ImageGallery>
                         {request.images.map((image, idx) => (
-                          <div key={idx} style={{ 
-                            width: '100px', 
-                            height: '100px', 
-                            border: '1px solid #ddd',
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            background: '#f5f5f5',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <img 
+                          <ImageContainer 
+                            key={idx} 
+                            onClick={() => handleImageView(`/uploads/custom-orders/${image.filename}`, image.original_filename)}
+                          >
+                            <ImagePreview 
                               src={`/uploads/custom-orders/${image.filename}`}
                               alt={image.original_filename}
-                              style={{ 
-                                maxWidth: '100%', 
-                                maxHeight: '100%', 
-                                objectFit: 'cover' 
-                              }}
                               onError={(e) => {
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'block';
                               }}
                             />
-                            <div style={{ display: 'none', fontSize: '12px', color: '#666', textAlign: 'center' }}>
+                            <div style={{ display: 'none', fontSize: '12px', color: '#666', textAlign: 'center', padding: '8px' }}>
+                              <FontAwesomeIcon icon={faImage} size="2x" style={{ marginBottom: '8px', opacity: 0.5 }} />
+                              <br />
                               Image not found
                             </div>
-                          </div>
+                            <ImageOverlay>
+                              <ImageAction onClick={(e) => {
+                                e.stopPropagation();
+                                handleImageView(`/uploads/custom-orders/${image.filename}`, image.original_filename);
+                              }}>
+                                <FontAwesomeIcon icon={faExpand} size="sm" />
+                              </ImageAction>
+                              <ImageAction onClick={(e) => {
+                                e.stopPropagation();
+                                handleImageDownload(`/uploads/custom-orders/${image.filename}`, image.original_filename || `design-${idx + 1}.jpg`);
+                              }}>
+                                <FontAwesomeIcon icon={faDownload} size="sm" />
+                              </ImageAction>
+                            </ImageOverlay>
+                          </ImageContainer>
                         ))}
-                      </div>
+                      </ImageGallery>
                     </div>
                   )}
 
@@ -1944,8 +2373,9 @@ const TransactionPage = () => {
                       </ActionButton>
                     </RequestActions>
                   )}</CancellationRequestCard>
-              ))
-            )}
+                ))
+              );
+            })()}
           </>
         )}
         
@@ -2047,6 +2477,47 @@ const TransactionPage = () => {
               </div>
             </ProcessingModalContent>
           </ProcessingModal>
+        )}
+        
+        {/* Image Modal */}
+        {showImageModal && (
+          <ImageModal onClick={closeImageModal}>
+            <ImageModalContent onClick={(e) => e.stopPropagation()}>
+              <ImageModalHeader>
+                <ImageModalTitle>{selectedImageName}</ImageModalTitle>
+                <ImageModalActions>
+                  <ModalButton onClick={() => handleImageDownload(selectedImage, selectedImageName)}>
+                    <FontAwesomeIcon icon={faDownload} />
+                    Download
+                  </ModalButton>
+                  <ModalButton onClick={closeImageModal}>
+                    <FontAwesomeIcon icon={faTimes} />
+                    Close
+                  </ModalButton>
+                </ImageModalActions>
+              </ImageModalHeader>
+              <ModalImageContainer>
+                <ModalImage 
+                  src={selectedImage} 
+                  alt={selectedImageName}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+                <div style={{ 
+                  display: 'none', 
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  color: '#666',
+                  fontSize: '14px'
+                }}>
+                  <FontAwesomeIcon icon={faImage} size="3x" style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  Image could not be loaded
+                </div>
+              </ModalImageContainer>
+            </ImageModalContent>
+          </ImageModal>
         )}
       </ContentWrapper>
     </PageContainer>

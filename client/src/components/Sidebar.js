@@ -16,6 +16,7 @@ const SidebarContainer = styled.div`
   z-index: 1000;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   overflow-y: auto;
+  overflow-x: hidden;
   transition: width 0.3s ease;
   
   &::-webkit-scrollbar {

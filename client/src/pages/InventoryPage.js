@@ -6,7 +6,6 @@ import {
   faBoxes, 
   faExclamationTriangle, 
   faSearch,
-  faPlus,
   faChartLine,
   faRefresh,
   faWarning,
@@ -223,9 +222,9 @@ const FilterSelect = styled.select`
 
 const ActionButton = styled.button`
   padding: 12px 20px;
-  background: ${props => props.primary ? '#000000' : '#ffffff'};
-  color: ${props => props.primary ? '#ffffff' : '#333333'};
-  border: 1px solid ${props => props.primary ? '#000000' : '#e0e0e0'};
+  background: ${props => props.$primary ? '#000000' : '#ffffff'};
+  color: ${props => props.$primary ? '#ffffff' : '#333333'};
+  border: 1px solid ${props => props.$primary ? '#000000' : '#e0e0e0'};
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -237,8 +236,8 @@ const ActionButton = styled.button`
   white-space: nowrap;
   
   &:hover {
-    background: ${props => props.primary ? '#333333' : '#f5f5f5'};
-    border-color: ${props => props.primary ? '#333333' : '#cccccc'};
+    background: ${props => props.$primary ? '#333333' : '#f5f5f5'};
+    border-color: ${props => props.$primary ? '#333333' : '#cccccc'};
   }
   
   &:disabled {
@@ -587,7 +586,7 @@ const StockLabel = styled.div`
 `;
 
 const InventoryPage = () => {
-  const { stockData, loading: stockLoading, lastUpdate, fetchStockData, getStockStats } = useStock();
+  const { lastUpdate, fetchStockData } = useStock();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -598,7 +597,6 @@ const InventoryPage = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [variants, setVariants] = useState([]);
 
   // Fetch products with detailed size/color information from maintenance API (same as MaintenancePage)
   const fetchProducts = useCallback(async () => {
@@ -609,7 +607,7 @@ const InventoryPage = () => {
       console.log('🔄 Fetching products from maintenance API (authoritative source)...');
       
       // Use only the maintenance API for consistent data
-      const response = await fetch('http://localhost:3001/api/maintenance/products', {
+      const response = await fetch('http://localhost:5000/api/maintenance/products', {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -967,7 +965,7 @@ const InventoryPage = () => {
             <FontAwesomeIcon icon={faExclamationTriangle} size="3x" style={{ marginBottom: '16px', color: '#666666' }} />
             <h3>Failed to Load Inventory</h3>
             <p>{error}</p>
-            <ActionButton primary onClick={handleRefresh}>
+            <ActionButton $primary onClick={handleRefresh}>
               <FontAwesomeIcon icon={faRefresh} />
               Try Again
             </ActionButton>
@@ -1075,21 +1073,6 @@ const InventoryPage = () => {
               <option value="low">Low Stock</option>
               <option value="normal">Normal Stock</option>
             </FilterSelect>
-
-            <ActionButton onClick={handleRefresh} style={{ 
-              backgroundColor: '#28a745', 
-              borderColor: '#28a745',
-              color: 'white',
-              fontWeight: '600'
-            }}>
-              <FontAwesomeIcon icon={faRefresh} />
-              Refresh Stock
-            </ActionButton>
-
-            <ActionButton primary>
-              <FontAwesomeIcon icon={faPlus} />
-              Add Product
-            </ActionButton>
           </ControlsGrid>
         </ControlsSection>
 

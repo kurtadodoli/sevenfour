@@ -88,7 +88,9 @@ const StatusTimeline = styled.div`
     gap: 2rem;
 `;
 
-const TimelineItem = styled.div`
+const TimelineItem = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
     display: flex;
     align-items: flex-start;
     gap: 1rem;

@@ -635,7 +635,7 @@ const ProductDetailsPage = () => {
             setLoading(true);
             
             // Use the maintenance API endpoint that includes all enhanced fields and structure
-            const response = await fetch(`http://localhost:3001/api/maintenance/products`);
+            const response = await fetch(`http://localhost:5000/api/maintenance/products`);
             
             if (response.ok) {
                 const products = await response.json();
@@ -657,7 +657,7 @@ const ProductDetailsPage = () => {
                     setProduct(foundProduct);
                     
                     // Fetch product images using the maintenance API endpoint
-                    const imagesResponse = await fetch(`http://localhost:3001/api/maintenance/products/${foundProduct.product_id || foundProduct.id}/images`);
+                    const imagesResponse = await fetch(`http://localhost:5000/api/maintenance/products/${foundProduct.product_id || foundProduct.id}/images`);
                     if (imagesResponse.ok) {
                         const images = await imagesResponse.json();
                         setProductImages(images);
@@ -698,6 +698,34 @@ const ProductDetailsPage = () => {
     useEffect(() => {
         fetchProduct();
     }, [fetchProduct]);
+
+    // Listen for stock updates from order cancellations and other stock changes
+    useEffect(() => {
+        const handleStockUpdate = (event) => {
+            // Only refresh if this is the product being viewed
+            if (event.detail && event.detail.productIds && event.detail.productIds.includes(parseInt(id))) {
+                console.log('📦 Stock update detected for current product in ProductDetailsPage, refreshing...', event.detail);
+                fetchProduct();
+            }
+        };
+
+        const handleStorageChange = (e) => {
+            if (e.key === 'stock_updated') {
+                console.log('📦 Stock updated via localStorage, refreshing product details...');
+                fetchProduct();
+            }
+        };
+
+        // Listen for custom stock update events (from cancellation approvals, etc.)
+        window.addEventListener('stockUpdated', handleStockUpdate);
+        // Listen for cross-tab stock updates
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('stockUpdated', handleStockUpdate);
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [fetchProduct, id]);
 
     // Parse sizes data
     const parseSizes = (sizesData) => {
@@ -1162,7 +1190,7 @@ const ProductDetailsPage = () => {
                             <>
                                 <MainImageContainer>
                                     <ProductImage
-                                        src={`http://localhost:3001/uploads/${productImages[currentImageIndex]?.image_filename}`}
+                                        src={`http://localhost:5000/uploads/${productImages[currentImageIndex]?.image_filename}`}
                                         alt={product.productname}
                                     />
                                     
@@ -1193,7 +1221,7 @@ const ProductDetailsPage = () => {
                                         {productImages.map((image, index) => (
                                             <Thumbnail
                                                 key={image.image_id}
-                                                src={`http://localhost:3001/uploads/${image.image_filename}`}
+                                                src={`http://localhost:5000/uploads/${image.image_filename}`}
                                                 alt={`${product.productname} ${index + 1}`}
                                                 active={index === currentImageIndex}
                                                 onClick={() => setCurrentImageIndex(index)}
@@ -1205,7 +1233,7 @@ const ProductDetailsPage = () => {
                         ) : product.productimage ? (
                             <MainImageContainer>
                                 <ProductImage
-                                    src={`http://localhost:3001/uploads/${product.productimage}`}
+                                    src={`http://localhost:5000/uploads/${product.productimage}`}
                                     alt={product.productname}
                                 />
                             </MainImageContainer>

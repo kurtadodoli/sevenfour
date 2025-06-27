@@ -41,7 +41,9 @@ const SideNav = styled.div`
   height: fit-content;
 `;
 
-const NavItem = styled.div`
+const NavItem = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   padding: 0.75rem 1rem;
   cursor: pointer;
   border-radius: 4px;
@@ -117,7 +119,9 @@ const TextArea = styled.textarea`
   resize: vertical;
 `;
 
-const ToggleSwitch = styled.div`
+const ToggleSwitch = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   display: flex;
   align-items: center;
   
@@ -167,8 +171,8 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  background-color: ${props => props.primary ? '#000' : '#f5f5f5'};
-  color: ${props => props.primary ? '#fff' : '#333'};
+  background-color: ${props => props.$primary ? '#000' : '#f5f5f5'};
+  color: ${props => props.$primary ? '#fff' : '#333'};
   border: none;
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
@@ -176,7 +180,7 @@ const Button = styled.button`
   cursor: pointer;
   
   &:hover {
-    background-color: ${props => props.primary ? '#333' : '#e0e0e0'};
+    background-color: ${props => props.$primary ? '#333' : '#e0e0e0'};
   }
 `;
 
@@ -376,7 +380,7 @@ const SettingsPage = () => {
                 
                 <ButtonGroup>
                   <Button type="button" onClick={() => setSettings({...settings})}>Cancel</Button>
-                  <Button primary type="submit">Save Changes</Button>
+                  <Button $primary type="submit">Save Changes</Button>
                 </ButtonGroup>
               </Form>
             </>
@@ -442,7 +446,7 @@ const SettingsPage = () => {
                 
                 <ButtonGroup>
                   <Button type="button" onClick={() => setSettings({...settings})}>Cancel</Button>
-                  <Button primary type="submit">Save Changes</Button>
+                  <Button $primary type="submit">Save Changes</Button>
                 </ButtonGroup>
               </Form>
             </>
@@ -520,7 +524,7 @@ const SettingsPage = () => {
                 
                 <ButtonGroup>
                   <Button type="button" onClick={() => setSettings({...settings})}>Cancel</Button>
-                  <Button primary type="submit">Save Changes</Button>
+                  <Button $primary type="submit">Save Changes</Button>
                 </ButtonGroup>
               </Form>
             </>
@@ -628,7 +632,7 @@ const SettingsPage = () => {
                 
                 <ButtonGroup>
                   <Button type="button" onClick={() => setSettings({...settings})}>Cancel</Button>
-                  <Button primary type="submit">Save Changes</Button>
+                  <Button $primary type="submit">Save Changes</Button>
                 </ButtonGroup>
               </Form>
             </>
