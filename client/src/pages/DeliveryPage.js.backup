@@ -1743,9 +1743,8 @@ const DeliveryPage = () => {
       return new Date(a.created_at) - new Date(b.created_at);
     });
   }, [orders]);
-  // Fetch all orders and delivery data using enhanced API
-  useEffect(() => {
-    const fetchData = async () => {
+  // Fetch confirmed orders from TransactionPage database
+  useEffect(() => {    const fetchData = async () => {
       try {
         setLoading(true);
         console.log('🔄 DeliveryPage: Fetching orders using enhanced API...');
@@ -1764,6 +1763,10 @@ const DeliveryPage = () => {
           
           setOrders(processedOrders);
           console.log(`✅ DeliveryPage: ${processedOrders.length} orders loaded from enhanced API`);
+        } else {
+          console.log('⚠️ DeliveryPage: Enhanced API failed, falling back to legacy method...');
+          // Fallback to the original method if enhanced API fails
+          await fetchDataLegacy();
         }
         
         // Fetch delivery schedules using enhanced API
@@ -1779,21 +1782,68 @@ const DeliveryPage = () => {
           const calendarData = calendarResponse.data.data;
           console.log('✅ DeliveryPage: Calendar data loaded:', calendarData);
           setDeliverySchedules(calendarData.calendar || []);
+        } else {
+          console.log('⚠️ DeliveryPage: Enhanced calendar API failed, falling back...');
+          // Fallback to legacy delivery schedules
+          await fetchDeliverySchedulesLegacy();
         }
         
         // Fetch couriers
         await fetchCouriers();
         
       } catch (error) {
-        console.error('🔥 DeliveryPage: Enhanced API error:', error);
-        setPopup({
-          show: true,
-          title: 'Error',
-          message: 'Failed to load delivery data. Please refresh the page.',
-          type: 'error'
-        });
+        console.error('🔥 DeliveryPage: Enhanced API error, falling back to legacy:', error);
+        // Fallback to legacy methods
+        await fetchDataLegacy();
+        await fetchDeliverySchedulesLegacy();
+        await fetchCouriers();
       } finally {
         setLoading(false);
+      }
+    };
+
+    // Legacy fallback functions
+    const fetchDataLegacy = async () => {
+      console.log('🔄 DeliveryPage: Using legacy data fetching...');
+      
+      let allOrders = [];
+      
+      // Fetch regular confirmed orders
+      console.log('📦 DeliveryPage: Fetching regular confirmed orders...');
+      const ordersResponse = await api.get('/orders/confirmed');
+      if (ordersResponse.data.success) {
+        console.log('✅ DeliveryPage: Raw orders data:', ordersResponse.data.data);
+        
+        const ordersData = ordersResponse.data.data.map(order => {
+          console.log(`📦 DeliveryPage - Order ${order.order_number} items:`, order.items);
+          console.log(`🔍 DEBUG: Order ${order.order_number} - Backend delivery_status: ${order.delivery_status}`);
+          
+          return {
+            ...order,
+            priority: calculatePriority(order),
+            customerName: `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
+            items: order.items || order.order_items || [],
+            order_type: 'regular'
+          };
+        });
+        allOrders = [...ordersData];
+        console.log(`✅ DeliveryPage: ${ordersData.length} regular orders loaded`);
+      }
+      
+      // Continue with rest of legacy logic...
+      setOrders(allOrders);
+    };
+    
+    const fetchDeliverySchedulesLegacy = async () => {
+      console.log('📅 DeliveryPage: Using legacy delivery schedules...');
+      // Legacy delivery schedules fetching logic
+      try {
+        const schedulesResponse = await api.get('/delivery/schedules');
+        if (schedulesResponse.data.success) {
+          setDeliverySchedules(schedulesResponse.data.schedules || []);
+        }
+      } catch (error) {
+        console.log('⚠️ Legacy delivery schedules failed:', error);
       }
     };
 

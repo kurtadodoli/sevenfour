@@ -1566,7 +1566,7 @@ exports.getUserOrdersWithItems = async (req, res) => {
         console.log('=== GET USER ORDERS WITH ITEMS ===');
         console.log('User ID from token:', req.user.id);
         
-        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details
+        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details and delivery status
         const [orders] = await connection.execute(`
             SELECT 
                 o.*,
@@ -1581,12 +1581,21 @@ exports.getUserOrdersWithItems = async (req, res) => {
                 u.email as user_email,
                 cr.status as cancellation_status,
                 cr.reason as cancellation_reason,
-                cr.created_at as cancellation_requested_at
+                cr.created_at as cancellation_requested_at,
+                ds.delivery_status,
+                ds.delivery_date as scheduled_delivery_date,
+                ds.delivery_time_slot as scheduled_delivery_time,
+                ds.delivery_notes,
+                ds.courier_id,
+                c.name as courier_name,
+                c.phone_number as courier_phone
             FROM orders o
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
             LEFT JOIN users u ON o.user_id = u.user_id
             LEFT JOIN cancellation_requests cr ON o.id = cr.order_id AND cr.status = 'pending'
+            LEFT JOIN delivery_schedules ds ON o.id = ds.order_id
+            LEFT JOIN couriers c ON ds.courier_id = c.id
             WHERE o.user_id = ?
             ORDER BY o.order_date DESC
         `, [req.user.id]);

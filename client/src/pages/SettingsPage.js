@@ -41,7 +41,9 @@ const SideNav = styled.div`
   height: fit-content;
 `;
 
-const NavItem = styled.div`
+const NavItem = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   padding: 0.75rem 1rem;
   cursor: pointer;
   border-radius: 4px;
@@ -117,7 +119,9 @@ const TextArea = styled.textarea`
   resize: vertical;
 `;
 
-const ToggleSwitch = styled.div`
+const ToggleSwitch = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
   display: flex;
   align-items: center;
   

@@ -18,7 +18,8 @@ import {
   faPlus,
   faClipboardList,
   faTrash,
-  faTimes
+  faTimes,
+  faTruck
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 import TopBar from '../components/TopBar';
@@ -39,9 +40,13 @@ const PageContainer = styled.div`
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 80px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
   
   @media (max-width: 768px) {
     padding: 80px 16px 40px;
@@ -50,6 +55,8 @@ const ContentWrapper = styled.div`
 
 const Header = styled.div`
   margin-bottom: 32px;
+  text-align: center;
+  width: 100%;
 `;
 
 const Title = styled.h1`
@@ -60,6 +67,7 @@ const Title = styled.h1`
   letter-spacing: -0.5px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   
   @media (max-width: 768px) {
@@ -83,6 +91,8 @@ const TabContainer = styled.div`
   border-radius: 8px;
   padding: 4px;
   width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
 `;
 
 const Tab = styled.button.withConfig({
@@ -108,10 +118,14 @@ const Content = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 32px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
   
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
     gap: 24px;
+    max-width: 800px;
   }
 `;
 
@@ -236,6 +250,9 @@ const OrderList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 `;
 
 const OrderCard = styled.div`
@@ -748,6 +765,103 @@ const TextArea = styled.textarea`
   }
 `;
 
+// Delivery Tracking Components
+const DeliveryTrackingSection = styled.div`
+  margin: 16px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%);
+  border-radius: 8px;
+  border: 1px solid #e1f5fe;
+`;
+
+const DeliveryTrackingHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  
+  h4 {
+    margin: 0;
+    color: #1976d2;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  
+  svg {
+    color: #1976d2;
+  }
+`;
+
+const DeliveryStatusBadge = styled.span`
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  ${props => {
+    switch (props.status) {
+      case 'pending':
+        return 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;';
+      case 'scheduled':
+        return 'background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;';
+      case 'in_transit':
+        return 'background: #000000; color: #ffffff; border: 1px solid #333333;';
+      case 'delivered':
+        return 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+      case 'delayed':
+        return 'background: #fce4ec; color: #880e4f; border: 1px solid #f8bbd9;';
+      case 'cancelled':
+        return 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
+      default:
+        return 'background: #e2e3e5; color: #383d41; border: 1px solid #d1ecf1;';
+    }
+  }}
+`;
+
+const DeliveryInfo = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  font-size: 13px;
+  
+  .delivery-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    
+    .label {
+      color: #666666;
+      font-weight: 500;
+    }
+    
+    .value {
+      color: #000000;
+      font-weight: 400;
+    }
+  }
+`;
+
+const CourierInfo = styled.div`
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  border: 1px solid rgba(25, 118, 210, 0.2);
+  font-size: 12px;
+  
+  .courier-name {
+    font-weight: 600;
+    color: #1976d2;
+    margin-bottom: 2px;
+  }
+  
+  .courier-phone {
+    color: #666666;
+  }
+`;
+
 const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -790,7 +904,17 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       
       if (response.data.success) {
         const ordersData = response.data.data || [];
-        setOrders(ordersData);
+        
+        // Filter out any test/sample orders to prevent them from appearing
+        const filteredOrders = ordersData.filter(order => {
+          const orderNumber = order.order_number || '';
+          const isTestOrder = orderNumber.toLowerCase().includes('test') || 
+                             orderNumber.toLowerCase().includes('sample') ||
+                             orderNumber.startsWith('TEST_');
+          return !isTestOrder;
+        });
+        
+        setOrders(filteredOrders);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -1019,207 +1143,240 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     }
   };
   const renderCartTab = () => (
-    <Content>
-      <CartSection>
-        <SectionTitle>
-          <FontAwesomeIcon icon={faShoppingBag} />
-          Shopping Cart ({cartCount} items)
-        </SectionTitle>
-        {cartItems.length === 0 ? (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      width: '100%',
+      padding: '0 24px'
+    }}>
+      {cartItems.length === 0 ? (
+        <div style={{ 
+          maxWidth: '600px', 
+          width: '100%',
+          textAlign: 'center'
+        }}>
+          <SectionTitle style={{ 
+            justifyContent: 'center',
+            marginBottom: '32px' 
+          }}>
+            <FontAwesomeIcon icon={faShoppingBag} />
+            Shopping Cart ({cartCount} items)
+          </SectionTitle>
           <EmptyState>
             <FontAwesomeIcon icon={faShoppingBag} size="3x" />
             <p>Your cart is empty</p>
           </EmptyState>
-        ) : (
-          <div>
-            {cartItems.map((item) => (
-              <CartItem key={item.id}>                <ItemImage 
-                  src={item.main_image ? `http://localhost:5000/uploads/${item.main_image}` : 'http://localhost:5000/images/placeholder.svg'} 
-                  alt={item.name}
-                  onError={(e) => {
-                    e.target.src = 'http://localhost:5000/images/placeholder.svg';
-                  }}
-                /><ItemDetails>
-                  <ItemName>{item.name}</ItemName>                  <ItemSpecs>
-                    <ItemBadge>Color: {item.color}</ItemBadge>
-                    <ItemBadge>Size: {item.size}</ItemBadge>
-                  </ItemSpecs>
-                  <QuantityControls>
-                    <QuantityButton 
-                      onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                      disabled={cartLoading}
-                    >
-                      <FontAwesomeIcon icon={faMinus} size="xs" />
-                    </QuantityButton>
-                    <QuantityDisplay>{item.quantity}</QuantityDisplay>
-                    <QuantityButton 
-                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                      disabled={cartLoading}
-                    >
-                      <FontAwesomeIcon icon={faPlus} size="xs" />
-                    </QuantityButton>
-                  </QuantityControls>
-                </ItemDetails>
-                <ItemPrice>
-                  <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
-                </ItemPrice>
-                <RemoveButton 
-                  onClick={() => handleRemoveItem(item.id, item.name)}
-                  disabled={cartLoading}
-                >
-                  <FontAwesomeIcon icon={faTrash} size="sm" />
-                </RemoveButton>
-              </CartItem>
-            ))}
-          </div>
-        )}
-      </CartSection>
-        {cartItems.length > 0 && (
-        <CheckoutSection>
-          <SectionTitle>
-            <FontAwesomeIcon icon={faMoneyBillWave} />
-            Checkout Information
-          </SectionTitle>
-          <FormGroup>
-            <Label><FontAwesomeIcon icon={faUser} /> Full Name</Label>
-            <Input
-              type="text"
-              name="customer_name"
-              value={checkoutForm.customer_name}
-              onChange={handleInputChange}
-              placeholder="Enter your full name"
-            />
-          </FormGroup>
-            <FormGroup>
-            <Label><FontAwesomeIcon icon={faPhone} /> Contact Phone</Label>
-            <Input
-              type="tel"
-              name="customer_phone"
-              value={checkoutForm.customer_phone}
-              onChange={handleInputChange}
-              placeholder="Enter your phone number"
-              required
-            />
-          </FormGroup>          <ShippingSection>
-            <SectionTitle>📍 Shipping Address (Metro Manila Only)</SectionTitle>
-            <div style={{ 
-              background: '#e3f2fd', 
-              border: '1px solid #2196f3', 
-              borderRadius: '8px', 
-              padding: '12px', 
-              marginBottom: '20px',
-              fontSize: '14px',
-              color: '#1976d2'
-            }}>
-              <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
+        </div>
+      ) : (
+        <Content>
+          <CartSection>
+            <SectionTitle>
+              <FontAwesomeIcon icon={faShoppingBag} />
+              Shopping Cart ({cartCount} items)
+            </SectionTitle>
+            <div>
+              {cartItems.map((item) => (
+                <CartItem key={item.id}>
+                  <ItemImage 
+                    src={item.main_image ? `http://localhost:5000/uploads/${item.main_image}` : 'http://localhost:5000/images/placeholder.svg'} 
+                    alt={item.name}
+                    onError={(e) => {
+                      e.target.src = 'http://localhost:5000/images/placeholder.svg';
+                    }}
+                  />
+                  <ItemDetails>
+                    <ItemName>{item.name}</ItemName>
+                    <ItemSpecs>
+                      <ItemBadge>Color: {item.color}</ItemBadge>
+                      <ItemBadge>Size: {item.size}</ItemBadge>
+                    </ItemSpecs>
+                    <QuantityControls>
+                      <QuantityButton 
+                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                        disabled={cartLoading}
+                      >
+                        <FontAwesomeIcon icon={faMinus} size="xs" />
+                      </QuantityButton>
+                      <QuantityDisplay>{item.quantity}</QuantityDisplay>
+                      <QuantityButton 
+                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                        disabled={cartLoading}
+                      >
+                        <FontAwesomeIcon icon={faPlus} size="xs" />
+                      </QuantityButton>
+                    </QuantityControls>
+                  </ItemDetails>
+                  <ItemPrice>
+                    <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
+                  </ItemPrice>
+                  <RemoveButton 
+                    onClick={() => handleRemoveItem(item.id, item.name)}
+                    disabled={cartLoading}
+                  >
+                    <FontAwesomeIcon icon={faTrash} size="sm" />
+                  </RemoveButton>
+                </CartItem>
+              ))}
             </div>
-            
-            <AddressGrid>              <FormGroup>
-                <Label htmlFor="province">Province *</Label>
-                <Select
-                  id="province"
-                  name="province"
-                  value={checkoutForm.province}
-                  onChange={handleInputChange}
-                  required
-                  disabled
-                >
-                  <option value="Metro Manila">Metro Manila</option>
-                </Select>
-              </FormGroup>
-
+          </CartSection>
+          {cartItems.length > 0 && (
+            <CheckoutSection>
+              <SectionTitle>
+                <FontAwesomeIcon icon={faMoneyBillWave} />
+                Checkout Information
+              </SectionTitle>
               <FormGroup>
-                <Label htmlFor="city">City/Municipality *</Label>
-                <Select
-                  id="city"
-                  name="city"
-                  value={checkoutForm.city}
-                  onChange={handleInputChange}
-                  required
-                  disabled={!checkoutForm.province}
-                >
-                  <option value="">Select City</option>
-                  {availableCities.map(city => (
-                    <option key={city} value={city}>
-                      {city}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-
-              <FormGroup className="full-width">
-                <Label htmlFor="street_address">Street Address / House Number *</Label>
+                <Label><FontAwesomeIcon icon={faUser} /> Full Name</Label>
                 <Input
                   type="text"
-                  id="street_address"
-                  name="street_address"
-                  value={checkoutForm.street_address}
+                  name="customer_name"
+                  value={checkoutForm.customer_name}
                   onChange={handleInputChange}
-                  placeholder="Enter complete street address, house/building number"
+                  placeholder="Enter your full name"
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label><FontAwesomeIcon icon={faPhone} /> Contact Phone</Label>
+                <Input
+                  type="tel"
+                  name="customer_phone"
+                  value={checkoutForm.customer_phone}
+                  onChange={handleInputChange}
+                  placeholder="Enter your phone number"
                   required
                 />
               </FormGroup>
+              <ShippingSection>
+                <SectionTitle>📍 Shipping Address (Metro Manila Only)</SectionTitle>
+                <div style={{ 
+                  background: '#e3f2fd', 
+                  border: '1px solid #2196f3', 
+                  borderRadius: '8px', 
+                  padding: '12px', 
+                  marginBottom: '20px',
+                  fontSize: '14px',
+                  color: '#1976d2'
+                }}>
+                  <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
+                </div>
+                
+                <AddressGrid>
+                  <FormGroup>
+                    <Label htmlFor="province">Province *</Label>
+                    <Select
+                      id="province"
+                      name="province"
+                      value={checkoutForm.province}
+                      onChange={handleInputChange}
+                      required
+                      disabled
+                    >
+                      <option value="Metro Manila">Metro Manila</option>
+                    </Select>
+                  </FormGroup>
 
+                  <FormGroup>
+                    <Label htmlFor="city">City/Municipality *</Label>
+                    <Select
+                      id="city"
+                      name="city"
+                      value={checkoutForm.city}
+                      onChange={handleInputChange}
+                      required
+                      disabled={!checkoutForm.province}
+                    >
+                      <option value="">Select City</option>
+                      {availableCities.map(city => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+
+                  <FormGroup className="full-width">
+                    <Label htmlFor="street_address">Street Address / House Number *</Label>
+                    <Input
+                      type="text"
+                      id="street_address"
+                      name="street_address"
+                      value={checkoutForm.street_address}
+                      onChange={handleInputChange}
+                      placeholder="Enter complete street address, house/building number"
+                      required
+                    />
+                  </FormGroup>
+
+                  <FormGroup>
+                    <Label htmlFor="postal_code">Postal Code</Label>
+                    <Input
+                      type="text"
+                      id="postal_code"
+                      name="postal_code"
+                      value={checkoutForm.postal_code}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 1234"
+                      maxLength="4"
+                      pattern="[0-9]{4}"
+                    />
+                  </FormGroup>
+                </AddressGrid>
+              </ShippingSection>
+              
               <FormGroup>
-                <Label htmlFor="postal_code">Postal Code</Label>
-                <Input
-                  type="text"
-                  id="postal_code"
-                  name="postal_code"
-                  value={checkoutForm.postal_code}
+                <Label>Order Notes (Optional)</Label>
+                <TextArea
+                  name="notes"
+                  value={checkoutForm.notes}
                   onChange={handleInputChange}
-                  placeholder="e.g., 1234"
-                  maxLength="4"
-                  pattern="[0-9]{4}"
+                  placeholder="Any special instructions for your order"
                 />
               </FormGroup>
-            </AddressGrid>
-          </ShippingSection>
-          
-          <FormGroup>
-            <Label>Order Notes (Optional)</Label>
-            <TextArea
-              name="notes"
-              value={checkoutForm.notes}
-              onChange={handleInputChange}
-              placeholder="Any special instructions for your order"
-            />
-          </FormGroup>
-          
-          <OrderSummary>
-            <SummaryRow>
-              <span>Subtotal:</span>
-              <span>₱{cartTotal.toFixed(2)}</span>
-            </SummaryRow>
-            <SummaryRow>
-              <span>Shipping:</span>
-              <span>Free</span>
-            </SummaryRow>
-            <SummaryRow className="total">
-              <span>Total:</span>
-              <span>₱{cartTotal.toFixed(2)}</span>
-            </SummaryRow>
-          </OrderSummary>
-          
-          <Button 
-            onClick={handleCheckout}
-            disabled={loading || cartLoading || cartItems.length === 0}
-          >
-            {loading ? (
-              <FontAwesomeIcon icon={faSpinner} spin />
-            ) : (
-              <FontAwesomeIcon icon={faMoneyBillWave} />
-            )}
-            Place Order (Cash on Delivery)
-          </Button>
-        </CheckoutSection>
+              
+              <OrderSummary>
+                <SummaryRow>
+                  <span>Subtotal:</span>
+                  <span>₱{cartTotal.toFixed(2)}</span>
+                </SummaryRow>
+                <SummaryRow>
+                  <span>Shipping:</span>
+                  <span>Free</span>
+                </SummaryRow>
+                <SummaryRow className="total">
+                  <span>Total:</span>
+                  <span>₱{cartTotal.toFixed(2)}</span>
+                </SummaryRow>
+              </OrderSummary>
+              
+              <Button 
+                onClick={handleCheckout}
+                disabled={loading || cartLoading || cartItems.length === 0}
+              >
+                {loading ? (
+                  <FontAwesomeIcon icon={faSpinner} spin />
+                ) : (
+                  <FontAwesomeIcon icon={faMoneyBillWave} />
+                )}
+                Place Order (Cash on Delivery)
+              </Button>
+            </CheckoutSection>
+          )}
+        </Content>
       )}
-    </Content>
+    </div>
   );
   
   const renderOrdersTab = () => (
-    <div>
-      <SectionTitle>
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      width: '100%'
+    }}>
+      <SectionTitle style={{ 
+        textAlign: 'center',
+        marginBottom: '32px'
+      }}>
         <FontAwesomeIcon icon={faClipboardList} />
         My Orders {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
       </SectionTitle>
@@ -1230,19 +1387,27 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           background: 'rgba(255, 255, 255, 0.5)',
           backdropFilter: 'blur(10px)',
           borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          maxWidth: '400px',
+          margin: '0 auto'
         }}>
           <FontAwesomeIcon icon={faSpinner} spin size="2x" color="#666" />
           <p style={{ marginTop: '1rem', color: '#666', fontSize: '14px' }}>Loading your orders...</p>
         </div>
       ) : orders.length === 0 ? (
-        <EmptyState>
-          <FontAwesomeIcon icon={faShoppingBag} size="3x" />
-          <p>No orders found</p>
-          <p style={{ fontSize: '14px', marginTop: '8px', opacity: '0.7' }}>
-            Your order history will appear here once you make a purchase
-          </p>
-        </EmptyState>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'center',
+          width: '100%'
+        }}>
+          <EmptyState>
+            <FontAwesomeIcon icon={faShoppingBag} size="3x" />
+            <p>No orders found</p>
+            <p style={{ fontSize: '14px', marginTop: '8px', opacity: '0.7' }}>
+              Your order history will appear here once you make a purchase
+            </p>
+          </EmptyState>
+        </div>
       ) : (
         <OrderList>
           {orders.map((order) => (
@@ -1296,6 +1461,62 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                     ))}
                   </OrderItemsList>
                 </OrderItems>
+              )}
+
+              {/* Delivery Tracking Section */}
+              {(order.delivery_status || order.scheduled_delivery_date) && (
+                <DeliveryTrackingSection>
+                  <DeliveryTrackingHeader>
+                    <FontAwesomeIcon icon={faTruck} />
+                    <h4>Delivery Tracking</h4>
+                    <DeliveryStatusBadge status={order.delivery_status || 'pending'}>
+                      {(order.delivery_status || 'pending').replace('_', ' ')}
+                    </DeliveryStatusBadge>
+                  </DeliveryTrackingHeader>
+                  
+                  <DeliveryInfo>
+                    <div className="delivery-item">
+                      <span className="label">Delivery Status:</span>
+                      <span className="value">
+                        {order.delivery_status ? 
+                          order.delivery_status.charAt(0).toUpperCase() + 
+                          order.delivery_status.slice(1).replace('_', ' ') : 
+                          'Pending'
+                        }
+                      </span>
+                    </div>
+                    
+                    {order.scheduled_delivery_date && (
+                      <div className="delivery-item">
+                        <span className="label">Scheduled Date:</span>
+                        <span className="value">
+                          {new Date(order.scheduled_delivery_date).toLocaleDateString()}
+                          {order.scheduled_delivery_time && ` at ${order.scheduled_delivery_time}`}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {order.delivery_notes && (
+                      <div className="delivery-item">
+                        <span className="label">Delivery Notes:</span>
+                        <span className="value">{order.delivery_notes}</span>
+                      </div>
+                    )}
+                  </DeliveryInfo>
+                  
+                  {order.courier_name && (
+                    <CourierInfo>
+                      <div className="courier-name">
+                        📦 Courier: {order.courier_name}
+                      </div>
+                      {order.courier_phone && (
+                        <div className="courier-phone">
+                          📞 Contact: {order.courier_phone}
+                        </div>
+                      )}
+                    </CourierInfo>
+                  )}
+                </DeliveryTrackingSection>
               )}
 
               <OrderActions>

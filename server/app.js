@@ -205,6 +205,7 @@ const customOrdersRoutes = require('./routes/custom-orders');
 const customDesignsRoutes = require('./routes/custom-designs');
 const searchRoutes = require('./routes/api/search');
 const deliveryRoutes = require('./routes/delivery');
+const deliveryEnhancedRoutes = require('./routes/deliveryEnhanced');
 const courierRoutes = require('./routes/couriers');
 
 app.use('/api/auth', authRoutes);
@@ -225,7 +226,8 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/custom-orders', customOrdersRoutes);
 app.use('/api/custom-designs', customDesignsRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/api/delivery', deliveryRoutes);
+app.use('/delivery', deliveryRoutes); // Legacy delivery routes
+app.use('/delivery-enhanced', deliveryEnhancedRoutes); // New enhanced delivery routes
 app.use('/api/couriers', courierRoutes);
 app.use('/health', healthCheckRoutes);
 

@@ -793,7 +793,9 @@ const ReportButton = styled.button`
     }
 `;
 
-const ReportIcon = styled.span`
+const ReportIcon = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'active',
+})`
     font-size: 1.2rem;
     width: 1.5rem;
     text-align: center;
@@ -1308,7 +1310,9 @@ const ChartTitle = styled.h3`
     letter-spacing: 0.5px;
 `;
 
-const PieChartContainer = styled.div`
+const PieChartContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== 'adminPercentage',
+})`
     position: relative;
     width: 180px;
     height: 180px;

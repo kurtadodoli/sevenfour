@@ -127,7 +127,7 @@ const ResetPasswordPage = () => {
         if (otp.length === 6 && /^\d{6}$/.test(otp)) {
             setIsVerifying(true);
             try {
-                const response = await axios.post('http://localhost:3001/api/auth/verify-otp', {
+                const response = await axios.post('http://localhost:5000/api/auth/verify-otp', {
                     email: formData.email,
                     otp: otp
                 });
@@ -188,7 +188,7 @@ const ResetPasswordPage = () => {
         }
 
         try {
-            const response = await axios.post('http://localhost:3001/api/auth/reset-password', {
+            const response = await axios.post('http://localhost:5000/api/auth/reset-password', {
                 email: formData.email,
                 otp: formData.resetCode,
                 newPassword: formData.newPassword
@@ -226,7 +226,7 @@ const ResetPasswordPage = () => {
         setMessage('');
 
         try {
-            const response = await axios.post('http://localhost:3001/api/auth/resend-otp', {
+            const response = await axios.post('http://localhost:5000/api/auth/resend-otp', {
                 email: formData.email
             });
 
