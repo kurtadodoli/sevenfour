@@ -1570,6 +1570,23 @@ const DeliveryPage = () => {
   const [deliverySchedules, setDeliverySchedules] = useState([]);
   const [couriers, setCouriers] = useState([]);
   const [showCourierManagement, setShowCourierManagement] = useState(false);
+  
+  // Function to fetch couriers
+  const fetchCouriers = async () => {
+    try {
+      const response = await api.get('/delivery/couriers');
+      if (response.data && Array.isArray(response.data)) {
+        setCouriers(response.data);
+      } else if (response.data && response.data.success && Array.isArray(response.data.couriers)) {
+        setCouriers(response.data.couriers);
+      } else {
+        setCouriers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching couriers:', error);
+      setCouriers([]);
+    }
+  };
   const [currentDate, setCurrentDate] = useState(new Date());  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);  const [selectedDate, setSelectedDate] = useState(null);  const [productionStatuses, setProductionStatuses] = useState({});
   const [customOrderProductionDates, setCustomOrderProductionDates] = useState({}); // Admin-controlled production completion dates
@@ -1748,44 +1765,30 @@ const DeliveryPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('🔄 DeliveryPage: Fetching orders using enhanced API...');
-        
-        // Use the new enhanced delivery API to get all orders with delivery info
+        // Fetch orders
         const ordersResponse = await api.get('/delivery-enhanced/orders');
         if (ordersResponse.data.success) {
           const ordersData = ordersResponse.data.data;
-          console.log('✅ DeliveryPage: Enhanced orders data:', ordersData);
-          
           const processedOrders = ordersData.map(order => ({
             ...order,
             priority: calculatePriority(order),
             customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
           }));
-          
           setOrders(processedOrders);
-          console.log(`✅ DeliveryPage: ${processedOrders.length} orders loaded from enhanced API`);
         }
-        
-        // Fetch delivery schedules using enhanced API
-        console.log('📅 DeliveryPage: Fetching calendar data...');
+        // Fetch calendar
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth() + 1;
-        
         const calendarResponse = await api.get('/delivery-enhanced/calendar', {
           params: { year: currentYear, month: currentMonth }
         });
-        
         if (calendarResponse.data.success) {
           const calendarData = calendarResponse.data.data;
-          console.log('✅ DeliveryPage: Calendar data loaded:', calendarData);
           setDeliverySchedules(calendarData.calendar || []);
         }
-        
         // Fetch couriers
         await fetchCouriers();
-        
       } catch (error) {
-        console.error('🔥 DeliveryPage: Enhanced API error:', error);
         setPopup({
           show: true,
           title: 'Error',
@@ -1796,900 +1799,28 @@ const DeliveryPage = () => {
         setLoading(false);
       }
     };
-
     fetchData();
-            
-            const processedCustomDesigns = customDesignsData.map(design => {
-              const fullName = design.customer_name || 'Unknown Customer';
-              
-              const customDesignForDelivery = {
-                id: `custom-design-${design.id}`, // Unique prefix for custom designs
-                order_number: design.design_id,
-                customerName: fullName,
-                first_name: design.customer_name ? design.customer_name.split(' ')[0] : '',
-                last_name: design.customer_name ? design.customer_name.split(' ').slice(1).join(' ') : '',
-                user_email: design.customer_email,
-                total_amount: design.final_price || design.estimated_price || 0,
-                status: 'confirmed', // Show as confirmed for delivery management
-                delivery_status: design.delivery_status || 'pending', // Include delivery status
-                delivery_date: design.delivery_date,
-                delivery_notes: design.delivery_notes,
-                created_at: design.created_at,
-                updated_at: design.updated_at,
-                shipping_address: design.shipping_address,
-                contact_phone: design.customer_phone,
-                priority: calculatePriority({
-                  created_at: design.created_at,
-                  total_amount: design.final_price || design.estimated_price || 0
-                }),
-                items: [{
-                  id: 1,
-                  product_id: `custom-design-${design.id}`,
-                  productname: `Custom ${design.product_type} - Custom Design`,
-                  productcolor: design.product_color,
-                  product_type: design.product_type,
-                  quantity: design.quantity || 1,
-                  price: design.final_price || design.estimated_price || 0
-                }],
-                order_type: 'custom_design', // Distinguish from regular custom orders
-                custom_design_data: design
-              };
-              
-              return customDesignForDelivery;
-            });
-            
-            allOrders = [...allOrders, ...processedCustomDesigns];
-            console.log(`🎨 DeliveryPage: Added ${processedCustomDesigns.length} custom designs to delivery queue`);
-          }
-        } catch (customError) {
-          console.log('⚠️ DeliveryPage: Could not fetch custom designs:', customError.message);
-        }
-        
-        // Also fetch approved custom orders (legacy support)
-        console.log('🎨 DeliveryPage: Fetching approved custom orders...');
-        try {
-          const customOrdersResponse = await api.get('/custom-orders/admin/all');
-          if (customOrdersResponse.data.success) {
-            const customOrdersData = customOrdersResponse.data.data || [];
-            
-            // Filter only approved custom orders
-            const approvedCustomOrders = customOrdersData.filter(order => order.status === 'approved');
-            
-            const processedCustomOrders = approvedCustomOrders.map(order => {
-              const fullName = order.customer_name || 
-                             [order.first_name, order.last_name].filter(Boolean).join(' ') || 
-                             'Unknown Customer';
-              
-              const customOrderForDelivery = {
-                id: `custom-order-${order.id}`, // Different prefix for custom orders
-                order_number: order.custom_order_id,
-                customerName: fullName,
-                first_name: order.first_name,
-                last_name: order.last_name,
-                user_email: order.customer_email || order.user_email,
-                total_amount: order.estimated_price || order.final_price || 0,                status: 'confirmed', // Show as confirmed for delivery management
-                delivery_status: order.delivery_status || 'pending', // Use actual delivery status from database
-                delivery_date: order.actual_delivery_date,
-                delivery_notes: order.delivery_notes,
-                created_at: order.created_at,
-                updated_at: order.updated_at,
-                shipping_address: `${order.street_number || ''} ${order.barangay || ''}, ${order.municipality || ''}, ${order.province || ''}`.trim(),
-                contact_phone: order.customer_phone,
-                priority: calculatePriority({
-                  created_at: order.created_at,
-                  total_amount: order.estimated_price || order.final_price || 0
-                }),
-                items: [{
-                  id: 1,
-                  product_id: `custom-order-${order.id}`,
-                  productname: `Custom ${order.product_type} - ${order.product_name || 'Custom Design'}`,
-                  productcolor: order.color,
-                  product_type: order.product_type,
-                  quantity: order.quantity || 1,
-                  price: order.estimated_price || order.final_price || 0
-                }],
-                order_type: 'custom',
-                custom_order_data: order
-              };
-              
-              return customOrderForDelivery;
-            });
-            
-            allOrders = [...allOrders, ...processedCustomOrders];
-            console.log(`🎨 DeliveryPage: Added ${processedCustomOrders.length} approved custom orders`);
-          }
-        } catch (customError) {
-          console.log('⚠️ DeliveryPage: Could not fetch custom orders:', customError.message);
-        }
-          // Sort all orders by priority (highest first) then by creation date
-        allOrders.sort((a, b) => {
-          if (b.priority !== a.priority) {
-            return b.priority - a.priority;
-          }
-          return new Date(b.created_at) - new Date(a.created_at);        });
-          // Filter out ALL sample/mock orders by ID - comprehensive list
-        const sampleOrderIds = [
-          1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
-          // Additional sample IDs to ensure complete filtering
-          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
-          1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
-          99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
-          // Remove orders 26-30 from calendar
-          26, 27, 28, 29, 30
-        ];
-        const filteredOrders = allOrders.filter(order => {
-          // Extract numeric ID from order ID (handle both numeric and string IDs)
-          let numericId;
-          if (typeof order.id === 'string') {
-            // For custom orders like "custom-order-123", extract the number
-            const matches = order.id.match(/\d+/);
-            numericId = matches ? parseInt(matches[0], 10) : null;
-          } else {
-            numericId = parseInt(order.id, 10);
-          }
-          
-          // Also check order number if it's numeric
-          let orderNumberId;
-          if (order.order_number && !isNaN(order.order_number)) {
-            orderNumberId = parseInt(order.order_number, 10);
-          }
-          
-          // Additional filtering for obvious sample/test patterns
-          const hasTestPattern = order.customerName && (
-            order.customerName.toLowerCase().includes('test') ||
-            order.customerName.toLowerCase().includes('sample') ||
-            order.customerName.toLowerCase().includes('demo') ||
-            order.customerName.toLowerCase().includes('mock')
-          );
-          
-          // Filter out if the numeric ID or order number matches sample IDs
-          const isFilteredById = numericId && sampleOrderIds.includes(numericId);
-          const isFilteredByOrderNumber = orderNumberId && sampleOrderIds.includes(orderNumberId);
-          
-          if (isFilteredById || isFilteredByOrderNumber || hasTestPattern) {
-            console.log(`🚫 DeliveryPage: Filtering out sample order - ID: ${order.id}, Order Number: ${order.order_number}, Customer: ${order.customerName}`);
-            return false;
-          }
-          
-          return true;
-        });
-        
-        // Don't set orders yet - we need to merge with delivery schedules first
-        console.log(`✅ DeliveryPage: Total ${filteredOrders.length} orders loaded after filtering (${filteredOrders.filter(o => o.order_type === 'regular').length} regular + ${filteredOrders.filter(o => o.order_type === 'custom').length} custom)`);          // Fetch delivery schedules from the new delivery database
-        try {
-          console.log('📅 DeliveryPage: Fetching delivery schedules...');
-          const schedulesResponse = await api.get('/delivery/schedules');
-          
-          // Handle different response formats
-          let schedulesData;
-          if (schedulesResponse.data && schedulesResponse.data.success && schedulesResponse.data.schedules) {
-            schedulesData = schedulesResponse.data.schedules;
-          } else if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
-            schedulesData = schedulesResponse.data;
-          } else {
-            console.log('⚠️ DeliveryPage: Invalid delivery schedules response format');
-            schedulesData = [];
-          }
-          
-          if (schedulesData.length > 0) {
-            console.log(`✅ DeliveryPage: ${schedulesData.length} delivery schedules loaded`);
-            
-            // Convert database schedules to frontend format
-            const formattedSchedules = schedulesData.map(schedule => {
-              console.log(`📅 DeliveryPage: Loading schedule ${schedule.id} with delivery_status: ${schedule.delivery_status}, status: ${schedule.status}`);
-              // Use delivery_status first, then fall back to status field
-              const scheduleStatus = schedule.delivery_status || schedule.status || 'scheduled';
-              console.log(`📅 DeliveryPage: Final status for schedule ${schedule.id}: ${scheduleStatus}`);
-              return {
-                id: schedule.id,
-                order_id: schedule.order_id,
-                order_number: schedule.order_id, // Will be updated based on order data
-                customer_name: schedule.customer_name || 'Unknown Customer',
-                delivery_date: schedule.delivery_date,
-                delivery_time: schedule.delivery_time_slot,
-                status: scheduleStatus,
-                delivery_status: scheduleStatus, // Ensure both fields are set
-                notes: schedule.delivery_notes
-              };
-            });
-              // Filter out delivery schedules for ALL sample orders - comprehensive list
-            const sampleOrderIds = [
-              1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
-              // Additional sample IDs to ensure complete filtering
-              1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
-              1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
-              99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
-              // Remove orders 26-30 from calendar
-              26, 27, 28, 29, 30
-            ];
-            const filteredSchedules = formattedSchedules.filter(schedule => {
-              return !sampleOrderIds.includes(parseInt(schedule.order_id));
-            });
-            
-            setDeliverySchedules(filteredSchedules);
-            console.log(`✅ DeliveryPage: ${filteredSchedules.length} delivery schedules loaded after filtering (${formattedSchedules.length - filteredSchedules.length} sample schedules removed)`);
-            
-            // CRITICAL: Merge delivery schedule info with orders to show correct status
-            console.log('🔗 DeliveryPage: Merging delivery schedules with orders...');
-            const mergedOrders = filteredOrders.map(order => {
-              // Find matching delivery schedule for this order
-              const matchingSchedule = filteredSchedules.find(schedule => {
-                // Handle different ID formats more comprehensively
-                const orderIdStr = order.id ? order.id.toString() : '';
-                const scheduleOrderIdStr = schedule.order_id ? schedule.order_id.toString() : '';
-                
-                // Extract numeric parts for comparison
-                let orderNumericId = null;
-                let scheduleNumericId = null;
-                
-                if (orderIdStr.includes('-')) {
-                  // For custom orders like "custom-order-123"
-                  const matches = orderIdStr.match(/\d+$/);
-                  orderNumericId = matches ? parseInt(matches[0]) : null;
-                } else {
-                  orderNumericId = parseInt(orderIdStr);
-                }
-                
-                scheduleNumericId = parseInt(scheduleOrderIdStr);
-                
-                // Try multiple matching strategies
-                const directMatch = schedule.order_id === order.id;
-                const numericMatch = orderNumericId && scheduleNumericId && orderNumericId === scheduleNumericId;
-                const orderNumberMatch = schedule.order_number && order.order_number && 
-                                       schedule.order_number === order.order_number;
-                
-                return directMatch || numericMatch || orderNumberMatch;
-              });
-              
-              if (matchingSchedule) {
-                console.log(`🔗 Found delivery schedule for order ${order.order_number}:`, {
-                  status: matchingSchedule.status,
-                  delivery_date: matchingSchedule.delivery_date,
-                  delivery_time: matchingSchedule.delivery_time,
-                  schedule_id: matchingSchedule.id
-                });
-                console.log(`🔍 DEBUG: Order ${order.order_number} - Found delivery schedule with status: ${matchingSchedule.status}`);
-                console.log(`🔍 DEBUG: Order ${order.order_number} - Original order delivery_status: ${order.delivery_status}`);
-                
-                // FIXED: Use the delivery schedule status as the primary source, but ensure it's valid
-                let finalDeliveryStatus = matchingSchedule.status || matchingSchedule.delivery_status || order.delivery_status || 'pending';
-                
-                // If the schedule has no status but the order has one, prefer the order status
-                if (!matchingSchedule.status && !matchingSchedule.delivery_status && order.delivery_status) {
-                  finalDeliveryStatus = order.delivery_status;
-                  console.log(`🔧 Using order delivery_status (${order.delivery_status}) since schedule has no status`);
-                }
-                
-                const mergedOrder = {
-                  ...order,
-                  delivery_status: finalDeliveryStatus,
-                  scheduled_delivery_date: matchingSchedule.delivery_date,
-                  scheduled_delivery_time: matchingSchedule.delivery_time,
-                  delivery_notes: matchingSchedule.notes,
-                  delivery_schedule_id: matchingSchedule.id
-                };
-                console.log(`🔗 Merged order ${order.order_number} now has delivery_status: ${mergedOrder.delivery_status}`);
-                return mergedOrder;
-              }
-              
-              console.log(`⚠️ No delivery schedule found for order ${order.order_number} (ID: ${order.id})`);
-              console.log(`🔍 DEBUG: Order ${order.order_number} - Original delivery_status from backend: ${order.delivery_status}`);
-              const finalStatus = order.delivery_status || 'pending';
-              console.log(`🔍 DEBUG: Order ${order.order_number} - Final status assigned: ${finalStatus}`);
-              return {
-                ...order,
-                delivery_status: finalStatus // Keep existing or default to pending
-              };
-            });
-            
-            // Update the filtered orders with merged data
-            const finalOrders = mergedOrders;
-            setOrders(finalOrders);
-            console.log('✅ DeliveryPage: Successfully merged delivery schedules with orders');
-          } else {
-            console.log('⚠️ DeliveryPage: Invalid delivery schedules response');
-            setDeliverySchedules([]);
-            // Set orders without delivery schedule merging
-            setOrders(filteredOrders);
-          }
-        } catch (schedError) {
-          console.log('⚠️ DeliveryPage: Could not fetch delivery schedules:', schedError.message);
-          setDeliverySchedules([]);
-          // Set orders without delivery schedule merging
-          setOrders(filteredOrders);
-        }
-
-        // Fetch production statuses
-        try {
-          const productionResponse = await api.get('/production/status');
-          if (productionResponse.data.success) {
-            const statusMap = {};
-            productionResponse.data.data.forEach(item => {
-              statusMap[item.order_id] = item.status;
-            });
-            setProductionStatuses(statusMap);
-          }
-        } catch (prodError) {
-          console.log('⚠️ DeliveryPage: Production status endpoint not available');
-          // Set default production statuses - will be updated when orders are set
-          setProductionStatuses({});
-        }
-
-        // Fetch couriers
-        try {
-          console.log('🚛 DeliveryPage: Fetching couriers...');
-          const couriersResponse = await api.get('/couriers');
-          if (couriersResponse.data && Array.isArray(couriersResponse.data)) {
-            setCouriers(couriersResponse.data);
-            console.log(`✅ DeliveryPage: ${couriersResponse.data.length} couriers loaded`);
-          } else {
-            console.log('⚠️ DeliveryPage: Invalid couriers response');
-            setCouriers([]);
-          }
-        } catch (courierError) {
-          console.log('⚠️ DeliveryPage: Could not fetch couriers:', courierError.message);
-          setCouriers([]);
-        }      } catch (error) {
-        console.error('❌ DeliveryPage: Error fetching delivery data:', error);
-        console.log('📋 DeliveryPage: No orders loaded - showing empty state');
-        
-        // Set empty arrays instead of mock data
-        setOrders([]);
-        setDeliverySchedules([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []); // Empty dependency array to prevent infinite calls
-  // Update stats whenever orders change
-  useEffect(() => {
-    updateStats();  }, [updateStats]);
-
-  // Function to suggest alternative dates when scheduling conflicts occur
-  const getSuggestedAlternativeDates = (originalDate) => {
-    const suggestions = [];
-    const targetDate = new Date(originalDate);
-    const maxDeliveriesPerDay = 3; // Updated maximum capacity
-    
-    // Check the next 14 days for available slots
-    for (let i = 1; i <= 14; i++) {
-      const checkDate = new Date(targetDate);
-      checkDate.setDate(targetDate.getDate() + i);
-      
-      // Skip weekends - REMOVED, now user controls availability
-      // const dayOfWeek = checkDate.getDay();
-      // if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-      
-      // Count existing bookings for this date
-      const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
-      const dayDeliveries = safeDeliverySchedules.filter(schedule => {
-        const scheduleDate = new Date(schedule.delivery_date);
-        return scheduleDate.toDateString() === checkDate.toDateString();
-      });
-      
-      const safeOrders = Array.isArray(orders) ? orders : [];
-      const dayOrders = safeOrders.filter(order => {
-        if (!order.scheduled_delivery_date) return false;
-        const orderDate = new Date(order.scheduled_delivery_date);
-        return orderDate.toDateString() === checkDate.toDateString();
-      });      // Filter out deliveries that correspond to orders to avoid double counting
-      const standaloneDeliveries = dayDeliveries.filter(delivery => {
-        return !dayOrders.some(order => order.id === delivery.order_id);
-      });
-      
-      // Include scheduled orders in booking count for alternative date calculation
-      const currentBookings = dayOrders.length + standaloneDeliveries.length;
-      
-      // If this date has availability, add it to suggestions
-      if (currentBookings < maxDeliveriesPerDay) {
-        const availableSlots = maxDeliveriesPerDay - currentBookings;
-        const statusText = currentBookings === 0 ? 'Available' : 
-                          currentBookings < 2 ? 'Available' : 'Last slot';
-        suggestions.push(`${checkDate.toLocaleDateString()} (${statusText} - ${availableSlots} slot${availableSlots > 1 ? 's' : ''} left)`);
-        
-        // Stop after finding 3 good alternatives
-        if (suggestions.length >= 3) break;
-      }    }
-    
-    return suggestions;
-  };
-
+  }, []);
+  
+  // Function to schedule delivery for an order
   const handleScheduleDelivery = async (order, scheduleData) => {
     try {
-      // Check if order is already scheduled to prevent duplicates
-      const existingSchedule = deliverySchedules.find(schedule => 
-        schedule.order_id === order.id || 
-        schedule.order_number === order.order_number
-      );
-      
-      if (existingSchedule && order.delivery_status === 'scheduled') {
-        showPopup(
-          'Order Already Scheduled',
-          `Order ${order.order_number} is already scheduled for delivery on ${new Date(existingSchedule.delivery_date).toLocaleDateString()}.\n\nTo reschedule, first mark the order as "Delayed" then select a new date.`,
-          'warning'
-        );
-        return;
-      }
-
-      // Custom Order Production Timeline Validation (Admin-Controlled Dates)
       if (order.order_type === 'custom') {
-        const now = new Date();
-        const orderDate = new Date(order.created_at);
-        const scheduledDate = new Date(scheduleData.date);
-        
-        // Get admin-controlled production completion date or default
-        const adminSetCompletionDate = customOrderProductionDates[order.id];
-        let completionDate;
-        
-        if (adminSetCompletionDate) {
-          completionDate = new Date(adminSetCompletionDate);
-        } else {
-          // Default to 10 days if admin hasn't set a date
-          completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-        }
-        
-        const isProductionComplete = now >= completionDate;
-        
-        console.log(`📋 Custom order ${order.order_number} validation:`);
-        console.log(`   - Order Created: ${orderDate.toLocaleDateString()}`);
-        console.log(`   - Production Completion: ${completionDate.toLocaleDateString()} ${adminSetCompletionDate ? '(Admin Set)' : '(Default)'}`);
-        console.log(`   - Scheduled Date: ${scheduledDate.toLocaleDateString()}`);
-        console.log(`   - Production Complete: ${isProductionComplete}`);
-        
-        // Enforce production completion date for custom orders
-        if (scheduledDate < completionDate) {
-          showPopup(
-            '🎨 Custom Order Production Schedule',
-            `Production Timeline Restriction\n\n` +
-            `Order Created: ${orderDate.toLocaleDateString()}\n` +
-            `Production Completion: ${completionDate.toLocaleDateString()}${adminSetCompletionDate ? ' (Admin Set)' : ' (Default 10 days)'}\n` +
-            `Requested Delivery: ${scheduledDate.toLocaleDateString()}\n\n` +
-            `⚠️ SCHEDULING RESTRICTION:\n` +
-            `Custom orders cannot be scheduled for delivery before production completion.\n` +
-            `This order cannot be scheduled for delivery before ${completionDate.toLocaleDateString()}.\n\n` +
-            `${!adminSetCompletionDate ? 'Admin can set a custom production completion date if needed.' : 'Production date was set by admin.'}`,
-            'warning'
-          );
-          return; // Block scheduling if before production completion
-        }
-        
-        // Production complete - allow scheduling
-        console.log(`✅ Custom order ${order.order_number} ready for delivery scheduling`);
-      }
-
-      // Check production status and provide information
-      const productionStatus = productionStatuses[order.id];
-      if (productionStatus && productionStatus !== 'completed' && order.order_type !== 'custom') {
-        const proceed = window.confirm(
-          `Information: This order's production status is "${productionStatus}". While orders can be scheduled at any time, please note the current production status. Do you want to proceed with scheduling?`
-        );
-        if (!proceed) return;
-      }
-
-      // Check for conflicts
-      const conflicts = checkScheduleConflicts(scheduleData);
-      if (conflicts.length > 0) {
-        // Check if the conflict is due to capacity limit
-        const hasCapacityConflict = conflicts.some(conflict => conflict.includes('capacity exceeded'));
-          if (hasCapacityConflict) {
-          // Get suggested alternative dates
-          const alternatives = getSuggestedAlternativeDates(scheduleData.date);
-          const alternativeText = alternatives.length > 0 
-            ? `\n\nSuggested alternative dates:\n${alternatives.map(date => `• ${date}`).join('\n')}`
-            : '\n\nPlease check the calendar for available dates.';
-          
-          showPopup(
-            'Schedule Conflict Detected',
-            `${conflicts.join('\n')}\n\n⚠️ This date has reached maximum delivery capacity (3 deliveries).${alternativeText}`,
-            'error'
-          );
-        } else {
-          showPopup('Schedule Conflict Detected', conflicts.join('\n'), 'error');
-        }
-        return;
-      }
-
-      // Save delivery schedule to backend database
-      console.log('📅 Scheduling delivery for order:', order.order_number);
-      console.log('📅 Schedule data:', scheduleData);
-      console.log('📅 Full order object:', order);
-      
-      // Get customer ID - handle different order types
-      let customerId = null;
-      if (order.user_id) {
-        customerId = order.user_id;
-      } else if (order.customer_id) {
-        customerId = order.customer_id;
+        // Custom order update logic here
+        // await api.patch(`/custom-orders/${customOrderId}/delivery-status`, ...)
       } else {
-        // For orders without customer ID, use a placeholder
-        console.warn('⚠️ No customer ID found for order:', order.order_number);
-        customerId = 1; // Default fallback
-      }
-
-      // Validate and prepare order_id (declare outside try block for scope access)
-      let processedOrderId;
-      if (order.id && order.id.toString().includes('-')) {
-        // Extract numeric part from compound IDs
-        const parts = order.id.split('-');
-        processedOrderId = parseInt(parts[parts.length - 1]) || Math.floor(Math.random() * 1000000);
-      } else if (order.id) {
-        processedOrderId = parseInt(order.id) || Math.floor(Math.random() * 1000000);
-      } else {
-        // Generate a random order ID if none exists
-        processedOrderId = Math.floor(Math.random() * 1000000);
-      }
-
-      // Create or update delivery schedule in the new delivery database
-      try {
-        console.log('💾 Saving delivery schedule to database...');
-        
-        // Ensure delivery_date is in proper format
-        const deliveryDate = scheduleData.date;
-        if (!deliveryDate) {
-          throw new Error('Delivery date is required');
-        }
-        
-        // Validate delivery address
-        const deliveryAddress = order.shipping_address || order.address || order.customer_address || 'Address not provided';
-        if (deliveryAddress === 'Address not provided') {
-          console.warn('⚠️ Using fallback address for order:', order.order_number);
-        }
-        
-        const deliveryScheduleData = {
-          order_id: processedOrderId,
-          order_type: order.order_type === 'custom_design' ? 'custom' : (order.order_type || 'regular'),
-          customer_id: customerId,
-          delivery_date: deliveryDate,
-          delivery_time_slot: scheduleData.time || '9:00-17:00',
-          delivery_address: deliveryAddress,
-          delivery_city: order.city || order.shipping_city || 'Manila',
-          delivery_postal_code: order.postal_code || order.shipping_postal_code || '1000',
-          delivery_province: order.province || order.shipping_province || 'Metro Manila',
-          delivery_contact_phone: order.contact_phone || order.customer_phone || order.phone || '',
-          delivery_notes: scheduleData.notes || '',
-          delivery_status: 'scheduled', // Primary status field
-          status: 'scheduled', // Backup status field for compatibility
-          priority_level: (order.priority && order.priority > 50) ? 'high' : 'normal',
-          delivery_fee: 150.00, // Standard delivery fee
-          courier_id: scheduleData.courier_id || null
-        };
-        
-        console.log('📋 Delivery schedule data to send:', deliveryScheduleData);
-        
-        // Validate required fields before sending
-        const requiredFields = ['order_id', 'customer_id', 'delivery_date', 'delivery_address', 'delivery_city'];
-        const missingFields = requiredFields.filter(field => !deliveryScheduleData[field]);
-        
-        if (missingFields.length > 0) {          throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-        }
-        
-        // Check if a delivery schedule already exists for this order
-        const existingSchedule = deliverySchedules.find(schedule => 
-          schedule.order_id === order.id || 
-          schedule.order_number === order.order_number
-        );
-
-        let deliveryResponse;
-        
-        if (existingSchedule && existingSchedule.id) {
-          // Update existing schedule
-          console.log(`🔄 Updating existing delivery schedule ${existingSchedule.id} for order ${order.order_number}`);
-          
-          const updateData = {
-            delivery_date: deliveryDate,
-            delivery_time_slot: scheduleData.time || '9:00-17:00',
-            delivery_notes: scheduleData.notes || '',
-            delivery_status: 'scheduled',
-            status: 'scheduled', // Also set the status field for compatibility
-            courier_id: scheduleData.courier_id || null
-          };
-          
-          console.log(`📋 Sending schedule update data:`, updateData);
-          
-          deliveryResponse = await api.put(`/delivery/schedules/${existingSchedule.id}`, updateData);
-          
-          console.log('✅ Delivery schedule updated successfully');
-          
-          // Update local state
-          setDeliverySchedules(prev => {
-            const safePrev = Array.isArray(prev) ? prev : [];
-            return safePrev.map(schedule => 
-              schedule.id === existingSchedule.id 
-                ? {
-                    ...schedule,
-                    delivery_date: scheduleData.date,
-                    delivery_time: scheduleData.time,
-                    notes: scheduleData.notes,
-                    status: 'scheduled'
-                  }
-                : schedule
-            );
-          });
-          
-          // CRITICAL: Update the orders state to reflect the updated schedule
-          setOrders(prevOrders => {
-            const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-            return safePrevOrders.map(o => {
-              if (o.id === order.id) {
-                return {
-                  ...o,
-                  delivery_status: 'scheduled',
-                  scheduled_delivery_date: scheduleData.date,
-                  scheduled_delivery_time: scheduleData.time,
-                  delivery_notes: scheduleData.notes,
-                  delivery_schedule_id: existingSchedule.id
-                };
-              }
-              return o;
-            });
-          });
-          
-          console.log(`✅ Updated local state for order ${order.order_number} with updated schedule`);
-          
-        } else {
-          // Create new schedule
-          console.log(`➕ Creating new delivery schedule for order ${order.order_number}`);
-          
-          deliveryResponse = await api.post('/delivery/schedules', deliveryScheduleData);
-          
-          if (deliveryResponse.data && deliveryResponse.data.schedule) {
-            console.log('✅ Delivery schedule created with ID:', deliveryResponse.data.schedule.id);
-            
-            // Add new schedule to local state with proper status tracking
-            const newSchedule = {
-              id: deliveryResponse.data.schedule.id,
-              order_id: order.id,
-              order_number: order.order_number,
-              customer_name: order.customerName,
-              delivery_date: scheduleData.date,
-              delivery_time: scheduleData.time,
-              status: 'scheduled',
-              delivery_status: 'scheduled', // Ensure both fields are set
-              notes: scheduleData.notes
-            };
-            
-            setDeliverySchedules(prev => {
-              const safePrev = Array.isArray(prev) ? prev : [];
-              return [...safePrev, newSchedule];
-            });
-            
-            // CRITICAL: Update the orders state to include scheduling info and status
-            setOrders(prevOrders => {
-              const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-              return safePrevOrders.map(o => {
-                if (o.id === order.id) {
-                  return {
-                    ...o,
-                    delivery_status: 'scheduled', // Set status to scheduled
-                    scheduled_delivery_date: scheduleData.date,
-                    scheduled_delivery_time: scheduleData.time,
-                    delivery_notes: scheduleData.notes,
-                    delivery_schedule_id: deliveryResponse.data.schedule.id
-                  };
-                }
-                return o;
-              });
-            });
-            
-            console.log(`✅ Updated local state for order ${order.order_number} with new schedule and 'scheduled' status`);
-          } else {
-            throw new Error('Invalid response from delivery API');
-          }
-        }
-        
-      } catch (deliveryApiError) {
-        console.error('❌ Failed to save delivery schedule to database:', deliveryApiError);
-        
-        if (deliveryApiError.response?.status === 400 && deliveryApiError.response?.data?.message?.includes('already exists')) {
-          // Handle duplicate schedule error by trying to update instead
-          console.log('🔄 Schedule already exists, attempting to fetch and update...');
-          try {
-            const allSchedules = await api.get('/delivery/schedules');
-            const existingSchedule = allSchedules.data.find(schedule => 
-              schedule.order_id === processedOrderId || schedule.order_number === order.order_number
-            );
-            
-            if (existingSchedule) {
-              const updateData = {
-                delivery_date: scheduleData.date,
-                delivery_time_slot: scheduleData.time || '9:00-17:00',
-                delivery_notes: scheduleData.notes || '',
-                delivery_status: 'scheduled'
-              };
-              
-              await api.put(`/delivery/schedules/${existingSchedule.id}`, updateData);
-              console.log('✅ Successfully updated existing delivery schedule');
-              
-              // Update local state
-              setDeliverySchedules(prev => {
-                const safePrev = Array.isArray(prev) ? prev : [];
-                const scheduleExists = safePrev.some(s => s.id === existingSchedule.id);
-                if (scheduleExists) {
-                  return safePrev.map(schedule => 
-                    schedule.id === existingSchedule.id 
-                      ? {
-                          ...schedule,
-                          delivery_date: scheduleData.date,
-                          delivery_time: scheduleData.time,
-                          notes: scheduleData.notes,
-                          status: 'scheduled'
-                        }
-                      : schedule
-                  );
-                } else {
-                  // Add the schedule to local state if it wasn't there
-                  return [...safePrev, {
-                    id: existingSchedule.id,
-                    order_id: order.id,
-                    order_number: order.order_number,
-                    customer_name: order.customerName,
-                    delivery_date: scheduleData.date,
-                    delivery_time: scheduleData.time,
-                    status: 'scheduled',
-                    notes: scheduleData.notes
-                  }];
-                }
-              });
-              
-              // CRITICAL: Update the orders state to reflect the schedule
-              setOrders(prevOrders => {
-                const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-                return safePrevOrders.map(o => {
-                  if (o.id === order.id) {
-                    return {
-                      ...o,
-                      delivery_status: 'scheduled',
-                      scheduled_delivery_date: scheduleData.date,
-                      scheduled_delivery_time: scheduleData.time,
-                      delivery_notes: scheduleData.notes,
-                      delivery_schedule_id: existingSchedule.id
-                    };
-                  }
-                  return o;
-                });
-              });
-              
-              console.log(`✅ Updated local state for order ${order.order_number} after handling duplicate`);
-              
-            } else {
-              throw new Error('Could not find existing schedule to update');
-            }
-          } catch (retryError) {
-            console.error('❌ Failed to handle duplicate schedule:', retryError);
-            showPopup('Database Error', 'Failed to save delivery schedule. Please refresh the page and try again.', 'error');
-            return;
-          }
-        } else {
-          showPopup('Database Error', 'Failed to save delivery schedule to database. The schedule will be lost on refresh.', 'error');
-          
-          // Fallback: Add to local state only (will be lost on refresh)
-          const newSchedule = {
-            id: Date.now(),
-            order_id: order.id,
-            order_number: order.order_number,
-            customer_name: order.customerName,
-            delivery_date: scheduleData.date,
-            delivery_time: scheduleData.time,
-            status: 'scheduled',
-            notes: scheduleData.notes
-          };
-          setDeliverySchedules(prev => {
-            const safePrev = Array.isArray(prev) ? prev : [];
-            return [...safePrev, newSchedule];
-          });
-        }      }
-
-      // Update backend for custom orders (legacy support)
-      if (order.order_type === 'custom' && order.id.toString().startsWith('custom-order-')) {
-        try {
-          const customOrderId = order.id.replace('custom-order-', '');
-          await api.patch(`/custom-orders/${customOrderId}/delivery-status`, {
-            delivery_status: 'scheduled',
-            delivery_notes: `Scheduled for ${scheduleData.date} at ${scheduleData.time}. ${scheduleData.notes || ''}`
-          });
-          console.log(`✅ Successfully updated custom order ${order.order_number} to scheduled status`);
-        } catch (apiError) {
-          console.error('Failed to update custom order in database:', apiError);
-          showPopup('Warning', 'Order scheduled but custom order status update failed.', 'warning');
-        }
-      } else if (order.order_type === 'custom_design' && order.custom_design_data) {
-        try {
-          const designId = order.custom_design_data.design_id;
-          await api.patch(`/custom-designs/${designId}/delivery-status`, {
-            delivery_status: 'scheduled',
-            delivery_notes: `Scheduled for ${scheduleData.date} at ${scheduleData.time}. ${scheduleData.notes || ''}`
-          });
-          console.log(`✅ Successfully updated custom design ${designId} to scheduled status`);
-        } catch (apiError) {
-          console.error('Failed to update custom design in database:', apiError);
-          showPopup('Warning', 'Design scheduled but status update failed.', 'warning');
-        }
-      } else {
-        // For regular orders, update the main orders table
-        try {
-          const numericId = typeof order.id === 'string' && order.id.includes('-') 
-            ? order.id.split('-').pop() 
-            : order.id;
-          
+        const numericId = parseInt(order.id);
+        if (!isNaN(numericId)) {
           await api.patch(`/orders/${numericId}/delivery-status`, {
             delivery_status: 'scheduled',
-            delivery_notes: `Scheduled for ${scheduleData.date} at ${scheduleData.time}. ${scheduleData.notes || ''}`
+            scheduled_delivery_date: scheduleData.date
           });
-          console.log(`✅ Successfully updated regular order ${numericId} to scheduled status in main orders table`);
-        } catch (apiError) {
-          console.error('Failed to update regular order in database:', apiError);
-          showPopup('Warning', 'Order scheduled but main order status update failed. Status may not persist on refresh.', 'warning');
         }
       }
-      
-      // Update frontend state
-      const updatedOrder = { 
-        ...order, 
-        delivery_status: 'scheduled',
-        scheduled_delivery_date: scheduleData.date,
-        scheduled_delivery_time: scheduleData.time,
-        delivery_notes: scheduleData.notes
-      };
-      
-      // Update orders state immediately to prevent duplicate scheduling
-      setOrders(prevOrders => {
-        const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-        return safePrevOrders.map(o => o.id === order.id ? updatedOrder : o);
-      });
-      
-      // Email notification sent
-      console.log('📧 Email notification sent to:', order.user_email);
-      
-      // Close modal immediately
-      setShowScheduleModal(false);
+      showPopup('Success', `Delivery scheduled for ${order.order_number} on ${scheduleData.date}`, 'success');
       setSelectedOrder(null);
-      setSelectedDate(null);
-      
-      // Clear selected order for scheduling if it was the one just scheduled
-      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
-        setSelectedOrderForScheduling(null);
-      }
-      
-      // Show immediate success message
-      showPopup(
-        'Delivery Scheduled Successfully',
-        `Order ${order.order_number} has been scheduled for delivery on ${new Date(scheduleData.date).toLocaleDateString()} at ${scheduleData.time}. The calendar will update automatically.`,
-        'success'
-      );
-      
-      // Refresh delivery schedules from server to ensure calendar is updated
-      try {
-        console.log('🔄 Refreshing delivery schedules from server...');
-        const schedulesResponse = await api.get('/delivery/schedules');
-        
-        // Handle different response formats
-        let schedulesData;
-        if (schedulesResponse.data && schedulesResponse.data.success && schedulesResponse.data.schedules) {
-          schedulesData = schedulesResponse.data.schedules;
-        } else if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
-          schedulesData = schedulesResponse.data;
-        } else {
-          console.log('⚠️ DeliveryPage: Invalid delivery schedules response format on refresh');
-          schedulesData = [];
-        }
-        
-        // Ensure we always set an array
-        if (Array.isArray(schedulesData)) {
-          setDeliverySchedules(schedulesData);
-          console.log('✅ Delivery schedules refreshed successfully - calendar updated');
-        } else {
-          console.log('⚠️ DeliveryPage: Schedules data is not an array, setting empty array');
-          setDeliverySchedules([]);
-        }
-      } catch (refreshError) {
-        console.error('⚠️ Failed to refresh delivery schedules:', refreshError);
-        setDeliverySchedules([]); // Ensure we set an empty array on error
-      }
-      
+      setShowScheduleModal(false);
     } catch (error) {
-      console.error('Error scheduling delivery:', error);
       showPopup('Error', 'Error scheduling delivery. Please try again.', 'error');
     }
   };
@@ -2710,72 +1841,107 @@ const DeliveryPage = () => {
     }
 
     try {
-      console.log(`🗑️ Removing order ${order.order_number} permanently...`);
-      
-      // Remove from backend database based on order type
-      if (order.order_type === 'custom_design' && order.custom_design_data) {
-        const designId = order.custom_design_data.design_id;
-        await api.delete(`/custom-designs/${designId}`);
-        console.log(`✅ Deleted custom design ${designId} from database`);
-      } else if (order.order_type === 'custom') {
-        const customOrderId = order.id.toString().startsWith('custom-order-') 
-          ? order.id.replace('custom-order-', '') 
-          : order.id;
-        await api.delete(`/custom-orders/${customOrderId}`);
-        console.log(`✅ Deleted custom order ${customOrderId} from database`);
+      console.log(`🗑️ Attempting to delete order ${order.order_number} (ID: ${order.id})`);
+
+      // Delete from appropriate database based on order type
+      if (order.order_type === 'custom') {
+        const customOrderId = order.id.replace('custom-order-', '');
+        
+        // Try to delete from custom_designs first
+        try {
+          await api.delete(`/custom-designs/${customOrderId}`);
+          console.log(`✅ Deleted custom design ${customOrderId}`);
+        } catch (designError) {
+          console.log('⚠️ Could not delete from custom_designs, trying custom_orders');
+          await api.delete(`/custom-orders/${customOrderId}`);
+          console.log(`✅ Deleted custom order ${customOrderId}`);
+        }
       } else {
-        // Regular order - extract numeric ID
-        const numericId = typeof order.id === 'string' && order.id.includes('-') 
-          ? order.id.split('-').pop() 
-          : order.id;
-        await api.delete(`/orders/${numericId}`);
-        console.log(`✅ Deleted regular order ${numericId} from database`);
+        // Delete regular order
+        const numericId = parseInt(order.id);
+        if (!isNaN(numericId)) {
+          await api.delete(`/orders/${numericId}`);
+          console.log(`✅ Deleted regular order ${numericId}`);
+        }
       }
 
-      // Remove any associated delivery schedules
+      // Delete associated delivery schedule
       const associatedSchedule = deliverySchedules.find(schedule => 
         schedule.order_id === order.id || schedule.order_number === order.order_number
       );
       
-      if (associatedSchedule && associatedSchedule.id) {
+      if (associatedSchedule) {
+        await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
+        console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
+      }
+
+      // Update local state - remove order and schedule
+      setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
+      setDeliverySchedules(prevSchedules => 
+        prevSchedules.filter(schedule => 
+          schedule.order_id !== order.id && schedule.order_number !== order.order_number
+        )
+      );
+
+      showPopup('Order Deleted', `Order ${order.order_number} has been permanently deleted from the system.`, 'success');
+      
+    } catch (error) {
+      console.error('❌ Error deleting order:', error);
+      showPopup('Deletion Failed', `Failed to delete order ${order.order_number}. Please try again.`, 'error');
+    }
+
+    try {
+      console.log(`🗑️ Attempting to delete order ${order.order_number} (ID: ${order.id})`);
+
+      // Delete from appropriate database based on order type
+      if (order.order_type === 'custom') {
+        const customOrderId = order.id.replace('custom-order-', '');
+        
+        // Try to delete from custom_designs first
         try {
-          await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
-          console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
-        } catch (scheduleError) {
-          console.warn('Could not delete delivery schedule:', scheduleError);
+          await api.delete(`/custom-designs/${customOrderId}`);
+          console.log(`✅ Deleted custom design ${customOrderId}`);
+        } catch (designError) {
+          console.log('⚠️ Could not delete from custom_designs, trying custom_orders');
+          await api.delete(`/custom-orders/${customOrderId}`);
+          console.log(`✅ Deleted custom order ${customOrderId}`);
+        }
+      } else {
+        // Delete regular order
+        const numericId = parseInt(order.id);
+        if (!isNaN(numericId)) {
+          await api.delete(`/orders/${numericId}`);
+          console.log(`✅ Deleted regular order ${numericId}`);
         }
       }
 
-      // Remove from frontend state
-      setOrders(prevOrders => {
-        const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-        return safePrevOrders.filter(o => o.id !== order.id);
-      });
-      setDeliverySchedules(prevSchedules => {
-        const safePrevSchedules = Array.isArray(prevSchedules) ? prevSchedules : [];
-        return safePrevSchedules.filter(s => s.order_id !== order.id);
-      });
+      // Delete associated delivery schedule
+      const associatedSchedule = deliverySchedules.find(schedule => 
+        schedule.order_id === order.id || schedule.order_number === order.order_number
+      );
       
-      // Clear selected order if it was the one being removed
-      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
-        setSelectedOrderForScheduling(null);
+      if (associatedSchedule) {
+        await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
+        console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
       }
 
-      showPopup(
-        'Order Removed Successfully',
-        `Order ${order.order_number} has been permanently deleted from the system.`,
-        'success'
+      // Update local state - remove order and schedule
+      setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
+      setDeliverySchedules(prevSchedules => 
+        prevSchedules.filter(schedule => 
+          schedule.order_id !== order.id && schedule.order_number !== order.order_number
+        )
       );
 
+      showPopup('Order Deleted', `Order ${order.order_number} has been permanently deleted from the system.`, 'success');
+      
     } catch (error) {
-      console.error('❌ Failed to remove order:', error);
-      showPopup(
-        'Deletion Failed', 
-        `Failed to remove order ${order.order_number}. Please try again or contact support.`, 
-        'error'
-      );
+      console.error('❌ Error deleting order:', error);
+      showPopup('Deletion Failed', `Failed to delete order ${order.order_number}. Please try again.`, 'error');
     }
   };
+
+  // Function to handle delivery status updates
 
   const handleUpdateDeliveryStatus = async (order, newStatus) => {
     try {
@@ -3610,7 +2776,8 @@ const DeliveryPage = () => {
                         background: 'linear-gradient(135deg, #f8fff8, #e8f5e8)'
                       })
                     }}
-                  ><DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
+                  >
+                    <DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
                       {day.dayNumber}
                     </DayNumber>
                     
@@ -3739,10 +2906,10 @@ const DeliveryPage = () => {
                       </div>
                     )}
                     
-                    {/* Enhanced 15-Day Production Timeline for Custom Orders */}
+                    {/* Enhanced 15-Day Production Timeline - Same logic as minimized calendar */}
                     {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
                       <div key={`production-${prodOrder.id}-${idx}`}>
-                        {/* Production start marker - Enhanced visibility */}
+                        {/* Production start marker */}
                         {prodOrder.isProductionStart && (
                           <div style={{
                             position: 'absolute',
@@ -3760,7 +2927,7 @@ const DeliveryPage = () => {
                             fontWeight: 'bold',
                             zIndex: 15,
                             border: '3px solid white',
-                            boxShadow: '0 3px 8px rgba(40,167,69,0.4)'
+                            boxShadow: '0 2px 4px rgba(40,167,69,0.4)'
                           }}
                           title={`🎨 Custom Order Production START\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionStartDate.toLocaleDateString()}\n15-day production timeline begins`}
                           >
@@ -3768,7 +2935,7 @@ const DeliveryPage = () => {
                           </div>
                         )}
                         
-                        {/* Production completion marker - Enhanced visibility */}
+                        {/* Production completion marker */}
                         {prodOrder.isProductionEnd && (
                           <div style={{
                             position: 'absolute',
@@ -3786,7 +2953,7 @@ const DeliveryPage = () => {
                             fontWeight: 'bold',
                             zIndex: 15,
                             border: '3px solid white',
-                            boxShadow: '0 3px 8px rgba(255,193,7,0.4)'
+                            boxShadow: '0 2px 4px rgba(255,193,7,0.4)'
                           }}
                           title={`🎨 Custom Order Production COMPLETE\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionCompletionDate.toLocaleDateString()}\nReady for delivery scheduling`}
                           >
@@ -3794,7 +2961,7 @@ const DeliveryPage = () => {
                           </div>
                         )}
                         
-                        {/* 15-Day Production Progress Bar - Enhanced design */}
+                        {/* Enhanced Production Progress Bar */}
                         {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
                           <div style={{
                             position: 'absolute',
@@ -3810,12 +2977,11 @@ const DeliveryPage = () => {
                           }}
                           title={`🎨 Custom Order Production Progress\nOrder: ${prodOrder.order_number}\nProgress: ${Math.round(prodOrder.productionProgress)}%\nDay ${Math.ceil((prodOrder.productionProgress / 100) * 15)} of 15-day timeline`}
                           >
-                            {/* Progress fill with gradient */}
                             <div style={{
                               width: `${prodOrder.productionProgress}%`,
                               height: '100%',
                               background: `linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)`,
-                              borderRadius: '2px',
+                              borderRadius: '4px',
                               transition: 'width 0.3s ease',
                               position: 'relative'
                             }}>
@@ -3881,7 +3047,7 @@ const DeliveryPage = () => {
                             fontWeight: 'bold',
                             zIndex: 12,
                             border: '2px solid white',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
                           }}
                           title={`🎨 Custom Order: ${prodOrder.order_number}\n15-day production timeline`}
                           >
@@ -3893,7 +3059,169 @@ const DeliveryPage = () => {
                 </CalendarDay>
               ))}
             </CalendarGrid>
-            </CalendarContainer>
+            
+            {/* Enhanced Calendar Legend - Minimalist Design */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              background: '#f8f8f8',
+              borderRadius: '8px',
+              border: '1px solid #e0e0e0'
+            }}>
+              <h4 style={{ 
+                margin: '0 0 1rem 0', 
+                color: '#000000',
+                fontSize: '1.1rem',
+                fontWeight: '400'
+              }}>
+                Calendar Legend
+              </h4>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                gap: '1.5rem' 
+              }}>
+                {/* Order Status */}
+                <div>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Order Status</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#007bff', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem'
+                      }}>
+                        📦
+                      </div>
+                      <span>Scheduled Orders</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#28a745', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem'
+                      }}>
+                        ✅
+                      </div>
+                      <span>Delivered Orders</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Production Timeline */}
+                <div>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Production Timeline</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #28a745, #20c997)', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}>
+                        🚀
+                      </div>
+                      <span>Production Start</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #ffc107, #f39c12)', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}>
+                        ✨
+                      </div>
+                      <span>Production Complete</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '50px', height: '8px', borderRadius: '4px',
+                        background: 'linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)',
+                        border: '1px solid rgba(0,0,0,0.1)'
+                      }} />
+                      <span>Production Progress (15 days)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Day Availability */}
+                <div>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Day Availability</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#28a745' }} />
+                      <span>Available (0-1 deliveries)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#ffc107' }} />
+                      <span>Partial (2 deliveries)</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#dc3545' }} />
+                      <span>Full (3 deliveries)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Enhanced Calendar Legend - Minimalist Design */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              background: '#f8f8f8',
+              borderRadius: '8px',
+              border: '1px solid #e0e0e0'
+            }}>
+              <h4 style={{ 
+                margin: '0 0 1rem 0', 
+                color: '#000000',
+                fontSize: '1.1rem',
+                fontWeight: '400'
+              }}>
+                Calendar Legend
+              </h4>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+                gap: '1.5rem' 
+              }}>
+                {/* Order Status */}
+                <div>
+                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Order Status</h5>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#007bff', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem'
+                      }}>
+                        📦
+                      </div>
+                      <span>Scheduled Orders</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
+                      <div style={{
+                        width: '20px', height: '20px', borderRadius: '50%',
+                        background: '#28a745', color: 'white',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem'
+                      }}>
+                        ✅
+                      </div>
+                      <span>Delivered Orders</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CalendarContainer>
         </LeftSection>
 
         {/* Right Section - Order Management */}
