@@ -179,6 +179,24 @@ const StatusBadge = styled.span`
       default: return '#495057';
     }
   }};
+
+  .icon {
+    color: #000000 !important;
+  }
+`;
+
+const DeliveryCount = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: ${props => props.count > 0 ? '#fff3cd' : '#d4edda'};
+  color: ${props => props.count > 0 ? '#856404' : '#155724'};
+  border: 1px solid ${props => props.count > 0 ? '#ffeaa7' : '#c3e6cb'};
+  margin-top: 0.25rem;
 `;
 
 const ActionButtons = styled.div`
@@ -254,12 +272,89 @@ const CourierManagement = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const [showCourierModal, setShowCourierModal] = useState(false);
   const [editingCourier, setEditingCourier] = useState(null);
+  const [activeDeliveries, setActiveDeliveries] = useState({}); // Track active deliveries per courier
 
   useEffect(() => {
     if (isOpen) {
       loadCouriers();
+      loadActiveDeliveries();
     }
   }, [isOpen]);
+
+  const loadActiveDeliveries = async () => {
+    console.log('🔍 loadActiveDeliveries called - starting detection...');
+    try {
+      // Try multiple endpoints to get active delivery data
+      let deliveryCounts = {};
+      
+      // Method 1: Check original delivery schedules (what backend deletion checks)
+      console.log('📊 Method 1: Checking /delivery/schedules...');
+      try {
+        // Use direct fetch since this endpoint is not under /api
+        const schedulesResponse = await fetch('http://localhost:5000/delivery/schedules');
+        const rawData = await schedulesResponse.json();
+        console.log('📊 Raw schedules response:', rawData);
+        
+        const schedules = Array.isArray(rawData) ? rawData : rawData.schedules || [];
+        
+        console.log(`📊 Parsed schedules: ${schedules.length} items`);
+        console.log('📊 Original delivery schedules:', schedules);
+        
+        schedules.forEach(schedule => {
+          // Include all active delivery statuses to match backend logic
+          const activeStatuses = ['pending', 'scheduled', 'in_transit', 'delayed'];
+          const status = schedule.delivery_status || schedule.status;
+          
+          console.log(`📦 Processing schedule ${schedule.id}: Courier ${schedule.courier_id}, Status: ${status}`);
+          
+          if (schedule.courier_id && status && activeStatuses.includes(status.toLowerCase())) {
+            deliveryCounts[schedule.courier_id] = (deliveryCounts[schedule.courier_id] || 0) + 1;
+            console.log(`  ✅ ACTIVE delivery for courier ${schedule.courier_id}: ${status} (Schedule ID: ${schedule.id})`);
+          }
+        });
+        
+        console.log('📊 After Method 1, deliveryCounts:', deliveryCounts);
+      } catch (scheduleError) {
+        console.log('⚠️ Could not fetch delivery schedules:', scheduleError);
+      }
+      
+      // Method 2: Check enhanced delivery orders
+      console.log('📊 Method 2: Checking /delivery-enhanced/orders...');
+      try {
+        const ordersResponse = await api.get('/delivery-enhanced/orders');
+        console.log('📊 Enhanced orders response:', ordersResponse.data);
+        
+        if (ordersResponse.data.success && ordersResponse.data.data) {
+          const orders = ordersResponse.data.data;
+          console.log(`📊 Enhanced orders: ${orders.length} items`);
+          
+          orders.forEach(order => {
+            // Include all active delivery statuses: pending, scheduled, in_transit, delayed
+            const activeStatuses = ['pending', 'scheduled', 'in_transit', 'delayed'];
+            const status = order.delivery_status || order.status;
+            
+            console.log(`📦 Processing order ${order.order_id || order.id}: Courier ${order.courier_id}, Status: ${status}`);
+            
+            if (order.courier_id && status && activeStatuses.includes(status.toLowerCase())) {
+              deliveryCounts[order.courier_id] = (deliveryCounts[order.courier_id] || 0) + 1;
+              console.log(`  ✅ ACTIVE order for courier ${order.courier_id}: ${status} (Order ID: ${order.order_id || order.id})`);
+            }
+          });
+        }
+        
+        console.log('📊 After Method 2, deliveryCounts:', deliveryCounts);
+      } catch (ordersError) {
+        console.log('⚠️ Could not fetch enhanced orders:', ordersError);
+      }
+      
+      console.log('📊 Final active delivery counts before setState:', deliveryCounts);
+      setActiveDeliveries(deliveryCounts);
+      console.log('📊 setActiveDeliveries called with:', deliveryCounts);
+    } catch (error) {
+      console.error('❌ Error loading active deliveries:', error);
+      // Don't show error for this, it's not critical
+    }
+  };
 
   const loadCouriers = async () => {
     try {
@@ -276,13 +371,26 @@ const CourierManagement = ({ isOpen, onClose }) => {
   };
 
   const handleAddCourier = () => {
+    console.log('➕ handleAddCourier called - clearing editingCourier');
     setEditingCourier(null);
     setShowCourierModal(true);
   };
 
   const handleEditCourier = (courier) => {
+    console.log('🔧 handleEditCourier called with:', courier);
     setEditingCourier(courier);
     setShowCourierModal(true);
+  };
+
+  const updateCourierStatus = async (courierId, updates) => {
+    try {
+      await api.put(`/couriers/${courierId}`, updates);
+      await loadCouriers();
+      await loadActiveDeliveries();
+    } catch (error) {
+      console.error('Error updating courier status:', error);
+      throw error;
+    }
   };
 
   const handleSaveCourier = async (courierData) => {
@@ -305,17 +413,87 @@ const CourierManagement = ({ isOpen, onClose }) => {
   };
 
   const handleDeleteCourier = async (courierId, courierName) => {
-    if (!window.confirm(`Are you sure you want to delete courier "${courierName}"?`)) {
+    console.log(`🗑️ Attempting to delete courier ${courierId} (${courierName})`);
+    
+    // Refresh active deliveries before deletion attempt
+    console.log('🔄 Refreshing active deliveries before deletion...');
+    await loadActiveDeliveries();
+    
+    // Small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    console.log(`📊 Current active deliveries state:`, activeDeliveries);
+    
+    const activeCount = activeDeliveries[courierId] || 0;
+    console.log(`📦 Active deliveries for courier ${courierId}: ${activeCount}`);
+    
+    // Enhanced confirmation with active delivery info
+    const confirmMessage = activeCount > 0 
+      ? `⚠️ Cannot Delete Courier\n\n` +
+        `Courier "${courierName}" has ${activeCount} active delivery(ies).\n\n` +
+        `You must first:\n` +
+        `• Complete all active deliveries, OR\n` +
+        `• Reassign deliveries to another courier\n\n` +
+        `Would you like to set this courier to "offline" status instead?\n` +
+        `(This prevents new assignments while keeping delivery history)`
+      : `Are you sure you want to delete courier "${courierName}"?\n\n` +
+        `This action cannot be undone.`;
+
+    if (activeCount > 0) {
+      // Courier has active deliveries - offer offline option
+      const result = window.confirm(confirmMessage);
+      if (result) {
+        try {
+          await updateCourierStatus(courierId, { status: 'offline' });
+          alert(`Courier "${courierName}" has been set to offline status.`);
+          await loadActiveDeliveries(); // Refresh delivery counts
+        } catch (offlineError) {
+          console.error('Error setting courier offline:', offlineError);
+          alert('Failed to update courier status. Please try again.');
+        }
+      }
+      return;
+    }
+
+    // No active deliveries detected - proceed with deletion, but handle API rejection gracefully
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
+      console.log(`🗑️ Proceeding with deletion of courier ${courierId}`);
       await api.delete(`/couriers/${courierId}`);
       await loadCouriers();
+      await loadActiveDeliveries(); // Refresh delivery counts
+      alert(`Courier "${courierName}" has been successfully deleted.`);
     } catch (error) {
       console.error('Error deleting courier:', error);
       if (error.response?.status === 400) {
-        alert('Cannot delete courier with active deliveries.');
+        const errorMessage = error.response?.data?.message || 'Cannot delete courier with active deliveries.';
+        
+        // The API detected active deliveries that our frontend missed - offer solutions
+        const offerOffline = window.confirm(
+          `❌ Deletion Failed\n\n` +
+          `Server reports: ${errorMessage}\n\n` +
+          `It appears this courier has active deliveries that weren't detected by the interface.\n\n` +
+          `Solutions:\n` +
+          `1. Refresh the page and check delivery schedules\n` +
+          `2. Complete or reassign active deliveries\n` +
+          `3. Set courier to "offline" status instead\n\n` +
+          `Would you like to set this courier to "offline" status now?\n` +
+          `(This prevents new assignments while keeping delivery history)`
+        );
+        
+        if (offerOffline) {
+          try {
+            await updateCourierStatus(courierId, { status: 'offline' });
+            alert(`Courier "${courierName}" has been set to offline status.`);
+            await loadActiveDeliveries(); // Refresh delivery counts
+          } catch (offlineError) {
+            console.error('Error setting courier offline:', offlineError);
+            alert('Failed to update courier status. Please try again or refresh the page.');
+          }
+        }
       } else {
         alert('Failed to delete courier. Please try again.');
       }
@@ -347,11 +525,28 @@ const CourierManagement = ({ isOpen, onClose }) => {
           <ActionBar>
             <div>
               <strong>{couriers.length}</strong> courier{couriers.length !== 1 ? 's' : ''} registered
+              {Object.keys(activeDeliveries).length > 0 && (
+                <span style={{ marginLeft: '1rem', color: '#666', fontSize: '0.9rem' }}>
+                  • {Object.values(activeDeliveries).reduce((sum, count) => sum + count, 0)} active deliveries
+                </span>
+              )}
             </div>
-            <AddButton onClick={handleAddCourier}>
-              <FontAwesomeIcon icon={faPlus} />
-              Add New Courier
-            </AddButton>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <AddButton 
+                onClick={async () => {
+                  await loadCouriers();
+                  await loadActiveDeliveries();
+                }}
+                style={{ background: '#f8f9fa', color: '#000000', border: '1px solid #d0d0d0' }}
+              >
+                <FontAwesomeIcon icon={faEdit} />
+                Refresh Data
+              </AddButton>
+              <AddButton onClick={handleAddCourier}>
+                <FontAwesomeIcon icon={faPlus} />
+                Add New Courier
+              </AddButton>
+            </div>
           </ActionBar>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -388,11 +583,15 @@ const CourierManagement = ({ isOpen, onClose }) => {
                       {courier.vehicle_type} • Max {courier.max_deliveries_per_day}/day
                     </InfoItem>
                     
-                    <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
                       <StatusBadge status={courier.status}>
-                        <FontAwesomeIcon icon={getStatusIcon(courier.status)} />
+                        <FontAwesomeIcon icon={getStatusIcon(courier.status)} className="icon" />
                         {courier.status.charAt(0).toUpperCase() + courier.status.slice(1)}
                       </StatusBadge>
+                      
+                      <DeliveryCount count={activeDeliveries[courier.id] || 0}>
+                        📦 {activeDeliveries[courier.id] || 0} active delivery(ies)
+                      </DeliveryCount>
                     </div>
                   </CourierInfo>
 

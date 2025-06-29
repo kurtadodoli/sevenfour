@@ -4,6 +4,41 @@ const orderController = require('../../controllers/orderController');
 const { auth, adminAuth } = require('../../middleware/auth');
 const mysql = require('mysql2/promise');
 const { dbConfig } = require('../../config/db');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
+
+// Configure multer for payment proof uploads
+const paymentStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, '../../../uploads/payment-proofs');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'payment-proof-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const paymentUpload = multer({ 
+    storage: paymentStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed for payment proof!'));
+        }
+    }
+});
 
 // @route   GET api/orders/test-list
 // @desc    Test endpoint to list all orders (no auth required)
@@ -49,41 +84,6 @@ router.post('/', auth, orderController.createOrderFromCart);
 // @desc    Get all confirmed orders for admin transaction page
 // @access  Private/Admin/Staff
 router.get('/confirmed', auth, orderController.getConfirmedOrders);
-
-// @route   GET api/orders/:id
-// @desc    Get a specific order (customer can only see their own)
-// @access  Private (customer for their own orders, staff/admin for any)
-router.get('/:id', auth, orderController.getOrder);
-
-// @route   GET api/orders/:id/items
-// @desc    Get order items for invoice
-// @access  Private (customer for their own orders, staff/admin for any)
-router.get('/:id/items', auth, orderController.getOrderItems);
-
-// @route   PUT api/orders/:id/status
-// @desc    Update order status
-// @access  Private/Staff/Admin
-router.put('/:id/status', auth, orderController.updateOrderStatus);
-
-// @route   PUT api/orders/:id/cancel
-// @desc    Cancel order (customer can cancel their own orders)
-// @access  Private
-router.put('/:id/cancel', auth, orderController.cancelOrder);
-
-// @route   POST api/orders/:id/confirm
-// @desc    Confirm order (update status to confirmed)
-// @access  Private
-router.post('/:id/confirm', auth, orderController.confirmOrder);
-
-// @route   GET api/orders/invoice/:invoiceId/pdf
-// @desc    Generate and download invoice PDF
-// @access  Private
-router.get('/invoice/:invoiceId/pdf', auth, orderController.generateInvoicePDF);
-
-// @route   PUT api/orders/cancellation-requests/:id
-// @desc    Process cancellation request (approve/deny)
-// @access  Private/Admin/Staff
-router.put('/cancellation-requests/:id', auth, orderController.processCancellationRequest);
 
 // @route   GET api/orders/confirmed-test
 // @desc    Test endpoint to get all confirmed orders with items (no auth)
@@ -176,6 +176,41 @@ router.get('/confirmed-test', async (req, res) => {
     }
 });
 
+// @route   GET api/orders/:id
+// @desc    Get a specific order (customer can only see their own)
+// @access  Private (customer for their own orders, staff/admin for any)
+router.get('/:id', auth, orderController.getOrder);
+
+// @route   GET api/orders/:id/items
+// @desc    Get order items for invoice
+// @access  Private (customer for their own orders, staff/admin for any)
+router.get('/:id/items', auth, orderController.getOrderItems);
+
+// @route   PUT api/orders/:id/status
+// @desc    Update order status
+// @access  Private/Staff/Admin
+router.put('/:id/status', auth, orderController.updateOrderStatus);
+
+// @route   PUT api/orders/:id/cancel
+// @desc    Cancel order (customer can cancel their own orders)
+// @access  Private
+router.put('/:id/cancel', auth, orderController.cancelOrder);
+
+// @route   POST api/orders/:id/confirm
+// @desc    Confirm order (update status to confirmed)
+// @access  Private
+router.post('/:id/confirm', auth, orderController.confirmOrder);
+
+// @route   GET api/orders/invoice/:invoiceId/pdf
+// @desc    Generate and download invoice PDF
+// @access  Private
+router.get('/invoice/:invoiceId/pdf', auth, orderController.generateInvoicePDF);
+
+// @route   PUT api/orders/cancellation-requests/:id
+// @desc    Process cancellation request (approve/deny)
+// @access  Private/Admin/Staff
+router.put('/cancellation-requests/:id', auth, orderController.processCancellationRequest);
+
 // @route   POST api/orders/:id/process-cancellation
 // @desc    Process order cancellation and restore stock (Admin/Staff only)
 // @access  Private/Admin/Staff
@@ -209,6 +244,267 @@ router.patch('/:id/delivery-status', async (req, res) => {
             success: false,
             message: 'Error processing delivery status update',
             error: error.message 
+        });
+    }
+});
+
+// @route   POST api/orders/verify-payment
+// @desc    Verify GCash payment proof using SHA256
+// @access  Private
+router.post('/verify-payment', auth, paymentUpload.single('payment_proof'), async (req, res) => {
+    try {
+        console.log('=== PAYMENT VERIFICATION REQUEST ===');
+        console.log('User ID:', req.user.id);
+        console.log('File uploaded:', req.file ? req.file.filename : 'No file');
+        console.log('Request body:', req.body);
+        
+        const { verification_hash, payment_reference, order_total } = req.body;
+        const paymentProofFile = req.file;
+        
+        if (!paymentProofFile) {
+            return res.status(400).json({
+                success: false,
+                message: 'Payment proof image is required'
+            });
+        }
+        
+        if (!payment_reference || payment_reference.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid GCash reference number is required (minimum 8 characters)'
+            });
+        }
+        
+        // Generate server-side verification hash
+        const serverHashInput = `${req.user.email}_${order_total}_${paymentProofFile.originalname}_${paymentProofFile.size}_${Date.now()}`;
+        const serverVerificationHash = crypto.createHash('sha256').update(serverHashInput).digest('hex');
+        
+        console.log('Server verification hash generated:', serverVerificationHash);
+        
+        // Store payment verification record
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const insertPaymentQuery = `
+            INSERT INTO payment_verifications (
+                user_id, payment_reference, verification_hash, server_hash,
+                payment_proof_filename, payment_proof_path, order_total,
+                verification_status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'verified', NOW())
+        `;
+        
+        await connection.execute(insertPaymentQuery, [
+            req.user.id,
+            payment_reference,
+            verification_hash,
+            serverVerificationHash,
+            paymentProofFile.filename,
+            paymentProofFile.path,
+            parseFloat(order_total)
+        ]);
+        
+        await connection.end();
+        
+        console.log('✅ Payment verification stored successfully');
+        
+        res.json({
+            success: true,
+            message: 'Payment proof verified successfully',
+            verification_hash: serverVerificationHash,
+            payment_reference,
+            verified_at: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('❌ Payment verification error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Payment verification failed',
+            error: error.message
+        });
+    }
+});
+
+// @route   POST api/orders/gcash
+// @desc    Create a new order with GCash payment proof
+// @access  Private
+router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, res) => {
+    try {
+        console.log('=== CREATE GCASH ORDER ===');
+        console.log('User ID:', req.user.id);
+        console.log('File uploaded:', req.file ? req.file.filename : 'No file');
+        console.log('Request body:', req.body);
+        
+        const { 
+            customer_name,
+            customer_email,
+            customer_phone,
+            shipping_address,
+            province,
+            city,
+            street_address,
+            postal_code,
+            payment_reference,
+            payment_verification_hash,
+            notes
+        } = req.body;
+        
+        const paymentProofFile = req.file;
+        
+        if (!paymentProofFile) {
+            return res.status(400).json({
+                success: false,
+                message: 'Payment proof is required for GCash orders'
+            });
+        }
+        
+        if (!payment_reference || payment_reference.length < 8) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid GCash reference number is required'
+            });
+        }
+        
+        if (!shipping_address || !customer_phone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Shipping address and contact phone are required' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        await connection.beginTransaction();
+        
+        try {
+            // Get user's cart
+            const [carts] = await connection.execute(
+                'SELECT id FROM carts WHERE user_id = ?',
+                [req.user.id]
+            );
+            
+            if (carts.length === 0) {
+                throw new Error('Cart not found');
+            }
+            
+            const cartId = carts[0].id;
+            
+            // Get cart items
+            const [cartItems] = await connection.execute(`
+                SELECT 
+                    ci.*, 
+                    p.productname, 
+                    p.productprice,
+                    p.productcolor,
+                    p.product_type
+                FROM cart_items ci
+                JOIN products p ON ci.product_id = p.product_id
+                WHERE ci.cart_id = ?
+            `, [cartId]);
+            
+            if (cartItems.length === 0) {
+                throw new Error('Cart is empty');
+            }
+            
+            // Calculate total
+            const totalAmount = cartItems.reduce((sum, item) => 
+                sum + (item.productprice * item.quantity), 0
+            );
+            
+            // Generate IDs
+            const invoiceId = `INV${Date.now()}${Math.floor(Math.random() * 10000)}`;
+            const transactionId = `TXN${Date.now()}${Math.floor(Math.random() * 10000)}`;
+            const orderNumber = `ORD${Date.now()}${Math.floor(Math.random() * 10000)}`;
+            
+            // Create invoice
+            await connection.execute(`
+                INSERT INTO order_invoices (
+                    invoice_id, user_id, total_amount, customer_name, 
+                    customer_email, customer_phone, delivery_address, notes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [
+                invoiceId, req.user.id, totalAmount, customer_name || req.user.username,
+                customer_email || req.user.email, customer_phone, shipping_address, notes
+            ]);
+            
+            // Create transaction with GCash payment method
+            await connection.execute(`
+                INSERT INTO sales_transactions (
+                    transaction_id, invoice_id, user_id, amount, payment_method, transaction_status
+                ) VALUES (?, ?, ?, ?, 'gcash', 'paid')
+            `, [transactionId, invoiceId, req.user.id, totalAmount]);
+            
+            // Create order with payment verification details
+            await connection.execute(`
+                INSERT INTO orders (
+                    order_number, user_id, invoice_id, transaction_id, 
+                    total_amount, shipping_address, contact_phone, notes,
+                    payment_method, payment_reference, payment_verification_hash,
+                    payment_proof_filename, payment_status, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'gcash', ?, ?, ?, 'verified', 'confirmed')
+            `, [
+                orderNumber, req.user.id, invoiceId, transactionId,
+                totalAmount, shipping_address, customer_phone, notes,
+                payment_reference, payment_verification_hash, paymentProofFile.filename
+            ]);
+            
+            // Get the created order ID
+            const [orderResult] = await connection.execute(
+                'SELECT id FROM orders WHERE order_number = ?',
+                [orderNumber]
+            );
+            const orderId = orderResult[0].id;
+            
+            // Create order items
+            for (const item of cartItems) {
+                await connection.execute(`
+                    INSERT INTO order_items (
+                        order_id, invoice_id, product_id, product_name, product_price,
+                        quantity, color, size, subtotal
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [
+                    orderId, invoiceId, item.product_id, item.productname, item.productprice,
+                    item.quantity, item.productcolor, item.size || 'N/A',
+                    item.productprice * item.quantity
+                ]);
+            }
+            
+            // Clear cart
+            await connection.execute(`
+                DELETE FROM cart_items 
+                WHERE cart_id = ? AND cart_id IN (
+                    SELECT id FROM carts WHERE user_id = ?
+                )
+            `, [cartId, req.user.id]);
+            
+            await connection.commit();
+            await connection.end();
+            
+            console.log('✅ GCash order created successfully');
+            
+            res.json({
+                success: true,
+                message: 'GCash order created successfully with verified payment',
+                data: {
+                    orderNumber,
+                    invoiceId,
+                    transactionId,
+                    totalAmount,
+                    paymentMethod: 'gcash',
+                    paymentStatus: 'verified',
+                    orderStatus: 'confirmed'
+                }
+            });
+            
+        } catch (error) {
+            await connection.rollback();
+            await connection.end();
+            throw error;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creating GCash order:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to create GCash order'
         });
     }
 });

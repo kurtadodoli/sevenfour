@@ -192,9 +192,9 @@ async function createDeliverySchema() {
     const [scheduleCount] = await connection.execute('SELECT COUNT(*) as count FROM delivery_schedules_enhanced');
     
     console.log('\n📊 Database Summary:');
-    console.log(`👥 Couriers: ${courierCount2[0][0].count}`);
-    console.log(`📅 Calendar entries: ${calendarCount[0][0].count}`);
-    console.log(`🚚 Delivery schedules: ${scheduleCount[0][0].count}`);
+    console.log(`👥 Couriers: ${courierCount2[0].count}`);
+    console.log(`📅 Calendar entries: ${calendarCount[0].count}`);
+    console.log(`🚚 Delivery schedules: ${scheduleCount[0].count}`);
     
   } catch (error) {
     console.error('❌ Error creating delivery schema:', error);

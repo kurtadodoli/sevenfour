@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStock } from '../context/StockContext';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
+import crypto from 'crypto-js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faShoppingBag, 
@@ -19,7 +20,11 @@ import {
   faClipboardList,
   faTrash,
   faTimes,
-  faTruck
+  faTruck,
+  faUpload,
+  faCreditCard,
+  faShieldAlt,
+  faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 import TopBar from '../components/TopBar';
@@ -873,12 +878,19 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     city: '',
     street_address: '',
     postal_code: '',
-    payment_method: 'cash_on_delivery',
-    notes: ''
+    payment_method: 'gcash',
+    notes: '',
+    payment_proof: null,
+    payment_reference: ''
   });
   
   // Add state for managing city options
   const [availableCities, setAvailableCities] = useState([]);
+  
+  // Payment proof upload state
+  const [paymentProofFile, setPaymentProofFile] = useState(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState(null);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   
   // Invoice modal state
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -889,7 +901,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderData, setCancelOrderData] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
-    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
+    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading, setCartItems } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
   const { updateMultipleProductsStock } = useStock(); // Get stock context
   
@@ -925,7 +937,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'orders') {
+    if (activeTab === 'orders' || activeTab === 'myorders') {
       fetchOrders();
     }
   }, [activeTab, fetchOrders, user]);
@@ -982,7 +994,27 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
         return;
       }
 
+      // Validate payment proof is uploaded
+      if (!paymentProofFile) {
+        toast.error('Please upload GCash payment proof before proceeding');
+        return;
+      }
+
+      // Validate payment reference
+      if (!checkoutForm.payment_reference || checkoutForm.payment_reference.length < 8) {
+        toast.error('Please enter a valid GCash reference number (at least 8 characters)');
+        return;
+      }
+
       setLoading(true);
+      
+      // First verify payment proof
+      const verificationResult = await verifyPaymentProof(checkoutForm, paymentProofFile);
+      
+      if (!verificationResult.verified) {
+        toast.error('Payment verification failed. Please check your payment proof and try again.');
+        return;
+      }
       
       // Combine address fields into shipping_address for backend compatibility
       const combinedAddress = [
@@ -992,22 +1024,30 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
         checkoutForm.postal_code
       ].filter(Boolean).join(', ');
       
-      const orderData = {
-        ...checkoutForm,
-        shipping_address: combinedAddress,
-        contact_phone: checkoutForm.customer_phone,
-        address_details: {
-          province: checkoutForm.province,
-          city: checkoutForm.city,
-          street_address: checkoutForm.street_address,
-          postal_code: checkoutForm.postal_code
-        }
-      };
+      // Create FormData for order with payment proof
+      const formData = new FormData();
+      formData.append('customer_name', checkoutForm.customer_name);
+      formData.append('customer_email', checkoutForm.customer_email);
+      formData.append('customer_phone', checkoutForm.customer_phone);
+      formData.append('shipping_address', combinedAddress);
+      formData.append('province', checkoutForm.province);
+      formData.append('city', checkoutForm.city);
+      formData.append('street_address', checkoutForm.street_address);
+      formData.append('postal_code', checkoutForm.postal_code);
+      formData.append('payment_method', 'gcash');
+      formData.append('payment_reference', checkoutForm.payment_reference);
+      formData.append('payment_verification_hash', verificationResult.verificationHash);
+      formData.append('notes', checkoutForm.notes);
+      formData.append('payment_proof', paymentProofFile);
       
-      const response = await api.post('/orders', orderData);
+      const response = await api.post('/orders/gcash', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       
       if (response.data.success) {
-        toast.success('Order created successfully!');
+        toast.success('Order created successfully with verified payment!');
         setActiveTab('orders');
         setCheckoutForm({
           customer_name: user?.username || '',
@@ -1017,10 +1057,14 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           city: '',
           street_address: '',
           postal_code: '',
-          payment_method: 'cash_on_delivery',
-          notes: ''
+          payment_method: 'gcash',
+          notes: '',
+          payment_proof: null,
+          payment_reference: ''
         });
         setAvailableCities([]); // Reset cities
+        setPaymentProofFile(null);
+        setPaymentProofPreview(null);
         fetchOrders();
       }
     } catch (error) {
@@ -1082,12 +1126,6 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     }
   };
 
-  const closeCancelModal = () => {
-    setShowCancelModal(false);
-    setCancelOrderData(null);
-    setCancelReason('');
-  };
-
   const downloadInvoice = async (invoiceId) => {
     try {
       const response = await api.get(`/orders/invoice/${invoiceId}/pdf`, {
@@ -1142,229 +1180,342 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       }
     }
   };
-  const renderCartTab = () => (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      width: '100%',
-      padding: '0 24px'
-    }}>
-      {cartItems.length === 0 ? (
-        <div style={{ 
-          maxWidth: '600px', 
-          width: '100%',
-          textAlign: 'center'
-        }}>
-          <SectionTitle style={{ 
-            justifyContent: 'center',
-            marginBottom: '32px' 
+  const renderCartTab = () => {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        width: '100%',
+        padding: '0 24px'
+      }}>
+        {/* TEMP: Add test cart item button for demo */}
+        <button onClick={() => setCartItems([
+          {
+            id: 1,
+            name: 'Test T-Shirt',
+            price: 299.99,
+            quantity: 1,
+            color: 'Black',
+            size: 'Medium',
+            main_image: ''
+          }
+        ])} style={{marginBottom: 16, padding: 8, background: '#007CCC', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer'}}>Add Test Cart Item</button>
+        {cartItems.length === 0 ? (
+          <div style={{ 
+            maxWidth: '600px', 
+            width: '100%',
+            textAlign: 'center'
           }}>
-            <FontAwesomeIcon icon={faShoppingBag} />
-            Shopping Cart ({cartCount} items)
-          </SectionTitle>
-          <EmptyState>
-            <FontAwesomeIcon icon={faShoppingBag} size="3x" />
-            <p>Your cart is empty</p>
-          </EmptyState>
-        </div>
-      ) : (
-        <Content>
-          <CartSection>
-            <SectionTitle>
+            <SectionTitle style={{ 
+              justifyContent: 'center',
+              marginBottom: '32px' 
+            }}>
               <FontAwesomeIcon icon={faShoppingBag} />
               Shopping Cart ({cartCount} items)
             </SectionTitle>
-            <div>
-              {cartItems.map((item) => (
-                <CartItem key={item.id}>
-                  <ItemImage 
-                    src={item.main_image ? `http://localhost:5000/uploads/${item.main_image}` : 'http://localhost:5000/images/placeholder.svg'} 
-                    alt={item.name}
-                    onError={(e) => {
-                      e.target.src = 'http://localhost:5000/images/placeholder.svg';
-                    }}
-                  />
-                  <ItemDetails>
-                    <ItemName>{item.name}</ItemName>
-                    <ItemSpecs>
-                      <ItemBadge>Color: {item.color}</ItemBadge>
-                      <ItemBadge>Size: {item.size}</ItemBadge>
-                    </ItemSpecs>
-                    <QuantityControls>
-                      <QuantityButton 
-                        onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                        disabled={cartLoading}
-                      >
-                        <FontAwesomeIcon icon={faMinus} size="xs" />
-                      </QuantityButton>
-                      <QuantityDisplay>{item.quantity}</QuantityDisplay>
-                      <QuantityButton 
-                        onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                        disabled={cartLoading}
-                      >
-                        <FontAwesomeIcon icon={faPlus} size="xs" />
-                      </QuantityButton>
-                    </QuantityControls>
-                  </ItemDetails>
-                  <ItemPrice>
-                    <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
-                  </ItemPrice>
-                  <RemoveButton 
-                    onClick={() => handleRemoveItem(item.id, item.name)}
-                    disabled={cartLoading}
-                  >
-                    <FontAwesomeIcon icon={faTrash} size="sm" />
-                  </RemoveButton>
-                </CartItem>
-              ))}
-            </div>
-          </CartSection>
-          {cartItems.length > 0 && (
-            <CheckoutSection>
+            <EmptyState>
+              <FontAwesomeIcon icon={faShoppingBag} size="3x" />
+              <p>Your cart is empty</p>
+            </EmptyState>
+          </div>
+        ) : (
+          <Content>
+            <CartSection>
               <SectionTitle>
-                <FontAwesomeIcon icon={faMoneyBillWave} />
-                Checkout Information
+                <FontAwesomeIcon icon={faShoppingBag} />
+                Shopping Cart ({cartCount} items)
               </SectionTitle>
-              <FormGroup>
-                <Label><FontAwesomeIcon icon={faUser} /> Full Name</Label>
-                <Input
-                  type="text"
-                  name="customer_name"
-                  value={checkoutForm.customer_name}
-                  onChange={handleInputChange}
-                  placeholder="Enter your full name"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label><FontAwesomeIcon icon={faPhone} /> Contact Phone</Label>
-                <Input
-                  type="tel"
-                  name="customer_phone"
-                  value={checkoutForm.customer_phone}
-                  onChange={handleInputChange}
-                  placeholder="Enter your phone number"
-                  required
-                />
-              </FormGroup>
-              <ShippingSection>
-                <SectionTitle>📍 Shipping Address (Metro Manila Only)</SectionTitle>
-                <div style={{ 
-                  background: '#e3f2fd', 
-                  border: '1px solid #2196f3', 
-                  borderRadius: '8px', 
-                  padding: '12px', 
-                  marginBottom: '20px',
-                  fontSize: '14px',
-                  color: '#1976d2'
-                }}>
-                  <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
-                </div>
-                
-                <AddressGrid>
-                  <FormGroup>
-                    <Label htmlFor="province">Province *</Label>
-                    <Select
-                      id="province"
-                      name="province"
-                      value={checkoutForm.province}
-                      onChange={handleInputChange}
-                      required
-                      disabled
-                    >
-                      <option value="Metro Manila">Metro Manila</option>
-                    </Select>
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label htmlFor="city">City/Municipality *</Label>
-                    <Select
-                      id="city"
-                      name="city"
-                      value={checkoutForm.city}
-                      onChange={handleInputChange}
-                      required
-                      disabled={!checkoutForm.province}
-                    >
-                      <option value="">Select City</option>
-                      {availableCities.map(city => (
-                        <option key={city} value={city}>
-                          {city}
-                        </option>
-                      ))}
-                    </Select>
-                  </FormGroup>
-
-                  <FormGroup className="full-width">
-                    <Label htmlFor="street_address">Street Address / House Number *</Label>
-                    <Input
-                      type="text"
-                      id="street_address"
-                      name="street_address"
-                      value={checkoutForm.street_address}
-                      onChange={handleInputChange}
-                      placeholder="Enter complete street address, house/building number"
-                      required
+              <div>
+                {cartItems.map((item) => (
+                  <CartItem key={item.id}>
+                    <ItemImage 
+                      src={item.main_image ? `http://localhost:5000/uploads/${item.main_image}` : 'http://localhost:5000/images/placeholder.svg'} 
+                      alt={item.name}
+                      onError={(e) => {
+                        e.target.src = 'http://localhost:5000/images/placeholder.svg';
+                      }}
                     />
-                  </FormGroup>
-
-                  <FormGroup>
-                    <Label htmlFor="postal_code">Postal Code</Label>
-                    <Input
-                      type="text"
-                      id="postal_code"
-                      name="postal_code"
-                      value={checkoutForm.postal_code}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 1234"
-                      maxLength="4"
-                      pattern="[0-9]{4}"
-                    />
-                  </FormGroup>
-                </AddressGrid>
-              </ShippingSection>
-              
-              <FormGroup>
-                <Label>Order Notes (Optional)</Label>
-                <TextArea
-                  name="notes"
-                  value={checkoutForm.notes}
-                  onChange={handleInputChange}
-                  placeholder="Any special instructions for your order"
-                />
-              </FormGroup>
-              
-              <OrderSummary>
-                <SummaryRow>
-                  <span>Subtotal:</span>
-                  <span>₱{cartTotal.toFixed(2)}</span>
-                </SummaryRow>
-                <SummaryRow>
-                  <span>Shipping:</span>
-                  <span>Free</span>
-                </SummaryRow>
-                <SummaryRow className="total">
-                  <span>Total:</span>
-                  <span>₱{cartTotal.toFixed(2)}</span>
-                </SummaryRow>
-              </OrderSummary>
-              
-              <Button 
-                onClick={handleCheckout}
-                disabled={loading || cartLoading || cartItems.length === 0}
-              >
-                {loading ? (
-                  <FontAwesomeIcon icon={faSpinner} spin />
-                ) : (
+                    <ItemDetails>
+                      <ItemName>{item.name}</ItemName>
+                      <ItemSpecs>
+                        <ItemBadge>Color: {item.color}</ItemBadge>
+                        <ItemBadge>Size: {item.size}</ItemBadge>
+                      </ItemSpecs>
+                      <QuantityControls>
+                        <QuantityButton 
+                          onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                          disabled={cartLoading}
+                        >
+                          <FontAwesomeIcon icon={faMinus} size="xs" />
+                        </QuantityButton>
+                        <QuantityDisplay>{item.quantity}</QuantityDisplay>
+                        <QuantityButton 
+                          onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                          disabled={cartLoading}
+                        >
+                          <FontAwesomeIcon icon={faPlus} size="xs" />
+                        </QuantityButton>
+                      </QuantityControls>
+                    </ItemDetails>
+                    <ItemPrice>
+                      <Price>₱{(item.price * item.quantity).toFixed(2)}</Price>
+                    </ItemPrice>
+                    <RemoveButton 
+                      onClick={() => handleRemoveItem(item.id, item.name)}
+                      disabled={cartLoading}
+                    >
+                      <FontAwesomeIcon icon={faTrash} size="sm" />
+                    </RemoveButton>
+                  </CartItem>
+                ))}
+              </div>
+            </CartSection>
+            {cartItems.length > 0 && (
+              <CheckoutSection>
+                <SectionTitle>
                   <FontAwesomeIcon icon={faMoneyBillWave} />
-                )}
-                Place Order (Cash on Delivery)
-              </Button>
-            </CheckoutSection>
-          )}
-        </Content>
-      )}
-    </div>
-  );
+                  Checkout Information
+                </SectionTitle>
+                
+                {/* Important Payment Notice */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)', 
+                  color: 'white',
+                  padding: '16px', 
+                  borderRadius: '8px', 
+                  marginBottom: '24px',
+                  border: '2px solid #ff4757',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
+                    🚨 PAYMENT REQUIRED BEFORE ORDER COMPLETION 🚨
+                  </div>
+                  <div style={{ fontSize: '14px', opacity: '0.9' }}>
+                    You must upload GCash payment proof and enter reference number to place your order
+                  </div>
+                </div>
+                <FormGroup>
+                  <Label><FontAwesomeIcon icon={faUser} /> Full Name</Label>
+                  <Input
+                    type="text"
+                    name="customer_name"
+                    value={checkoutForm.customer_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter your full name"
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label><FontAwesomeIcon icon={faPhone} /> Contact Phone</Label>
+                  <Input
+                    type="tel"
+                    name="customer_phone"
+                    value={checkoutForm.customer_phone}
+                    onChange={handleInputChange}
+                    placeholder="Enter your phone number"
+                    required
+                  />
+                </FormGroup>
+                
+                {/* GCash Payment Section - Moved to top for visibility */}
+                <PaymentSection>
+                  <PaymentHeader>
+                    <FontAwesomeIcon icon={faCreditCard} size="lg" />
+                    <h3>GCash Payment (Required)</h3>
+                  </PaymentHeader>
+                  
+                  <PaymentInfo>
+                    <div className="gcash-number">📱 GCash Number: 0917-123-4567</div>
+                    <div className="gcash-name">Account Name: Seven Four Clothing</div>
+                    <div className="amount">Total Amount: ₱{(cartTotal || 0).toFixed(2)}</div>
+                  </PaymentInfo>
+                  
+                  <div style={{ marginBottom: '16px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)' }}>
+                    <strong>Payment Instructions:</strong>
+                    <ol style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                      <li>Send ₱{(cartTotal || 0).toFixed(2)} to the GCash number above</li>
+                      <li>Take a screenshot of your payment confirmation</li>
+                      <li>Enter your GCash reference number below</li>
+                      <li>Upload the payment proof screenshot</li>
+                    </ol>
+                  </div>
+                  
+                  <FormGroup style={{ marginBottom: '16px' }}>
+                    <Label style={{ color: 'white' }}>
+                      <FontAwesomeIcon icon={faShieldAlt} /> GCash Reference Number *
+                    </Label>
+                    <Input
+                      type="text"
+                      name="payment_reference"
+                      value={checkoutForm.payment_reference}
+                      onChange={handleInputChange}
+                      placeholder="Enter your GCash reference number"
+                      required
+                      style={{ background: 'rgba(255, 255, 255, 0.9)' }}
+                    />
+                  </FormGroup>
+                  
+                  <PaymentProofUpload onClick={() => document.getElementById('payment-proof-upload').click()}>
+                    <input
+                      type="file"
+                      id="payment-proof-upload"
+                      accept="image/*"
+                      onChange={handlePaymentProofUpload}
+                    />
+                    <FontAwesomeIcon icon={faUpload} size="2x" style={{ marginBottom: '8px' }} />
+                    <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                      {paymentProofFile ? 'Payment Proof Uploaded ✅' : 'Upload Payment Proof *'}
+                    </div>
+                    <div style={{ fontSize: '14px', opacity: '0.8' }}>
+                      {paymentProofFile ? paymentProofFile.name : 'Click to upload screenshot (JPG, PNG - Max 5MB)'}
+                    </div>
+                  </PaymentProofUpload>
+                  
+                  {paymentProofPreview && (
+                    <PaymentProofPreview>
+                      <img src={paymentProofPreview} alt="Payment proof preview" />
+                    </PaymentProofPreview>
+                  )}
+                  
+                  {isVerifyingPayment && (
+                    <VerificationStatus className="pending">
+                      <FontAwesomeIcon icon={faSpinner} spin />
+                      Verifying payment proof...
+                    </VerificationStatus>
+                  )}
+                </PaymentSection>
+                <ShippingSection>
+                  <SectionTitle>📍 Shipping Address (Metro Manila Only)</SectionTitle>
+                  <div style={{ 
+                    background: '#e3f2fd', 
+                    border: '1px solid #2196f3', 
+                    borderRadius: '8px', 
+                    padding: '12px', 
+                    marginBottom: '20px',
+                    fontSize: '14px',
+                    color: '#1976d2'
+                  }}>
+                    <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
+                  </div>
+                  
+                  <AddressGrid>
+                    <FormGroup>
+                      <Label htmlFor="province">Province *</Label>
+                      <Select
+                        id="province"
+                        name="province"
+                        value={checkoutForm.province}
+                        onChange={handleInputChange}
+                        required
+                        disabled
+                      >
+                        <option value="Metro Manila">Metro Manila</option>
+                      </Select>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label htmlFor="city">City/Municipality *</Label>
+                      <Select
+                        id="city"
+                        name="city"
+                        value={checkoutForm.city}
+                        onChange={handleInputChange}
+                        required
+                        disabled={!checkoutForm.province}
+                      >
+                        <option value="">Select City</option>
+                        {availableCities.map(city => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormGroup>
+
+                    <FormGroup className="full-width">
+                      <Label htmlFor="street_address">Street Address / House Number *</Label>
+                      <Input
+                        type="text"
+                        id="street_address"
+                        name="street_address"
+                        value={checkoutForm.street_address}
+                        onChange={handleInputChange}
+                        placeholder="Enter complete street address, house/building number"
+                        required
+                      />
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label htmlFor="postal_code">Postal Code</Label>
+                      <Input
+                        type="text"
+                        id="postal_code"
+                        name="postal_code"
+                        value={checkoutForm.postal_code}
+                        onChange={handleInputChange}
+                        placeholder="e.g., 1234"
+                        maxLength="4"
+                        pattern="[0-9]{4}"
+                      />
+                    </FormGroup>
+                  </AddressGrid>
+                </ShippingSection>
+                
+                <FormGroup>
+                  <Label>Order Notes (Optional)</Label>
+                  <TextArea
+                    name="notes"
+                    value={checkoutForm.notes}
+                    onChange={handleInputChange}
+                    placeholder="Any special instructions for your order"
+                  />
+                </FormGroup>
+                
+                <OrderSummary>
+                  <SummaryRow>
+                    <span>Subtotal:</span>
+                    <span>₱{cartTotal.toFixed(2)}</span>
+                  </SummaryRow>
+                  <SummaryRow>
+                    <span>Shipping:</span>
+                    <span>Free</span>
+                  </SummaryRow>
+                  <SummaryRow className="total">
+                    <span>Total:</span>
+                    <span>₱{cartTotal.toFixed(2)}</span>
+                  </SummaryRow>
+                </OrderSummary>
+                
+                <Button 
+                  onClick={handleCheckout}
+                  disabled={loading || cartLoading || cartItems.length === 0 || !paymentProofFile || !checkoutForm.payment_reference}
+                  style={{
+                    background: (!paymentProofFile || !checkoutForm.payment_reference) ? 
+                      'linear-gradient(135deg, #dc3545 0%, #c82333 100%)' : 
+                      'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                    opacity: (!paymentProofFile || !checkoutForm.payment_reference) ? 0.7 : 1
+                  }}
+                >
+                  {loading ? (
+                    <FontAwesomeIcon icon={faSpinner} spin />
+                  ) : (!paymentProofFile || !checkoutForm.payment_reference) ? (
+                    <>
+                      <FontAwesomeIcon icon={faExclamationTriangle} />
+                      Complete Payment First
+                    </>
+                  ) : (
+                    <>
+                      <FontAwesomeIcon icon={faMoneyBillWave} />
+                      Complete Order (Payment Verified)
+                    </>
+                  )}
+                </Button>
+              </CheckoutSection>
+            )}
+          </Content>
+        )}
+      </div>
+    );
+  };
   
   const renderOrdersTab = () => (
     <div style={{ 
@@ -1425,7 +1576,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                   <strong>Total:</strong> ₱{parseFloat(order.total_amount).toFixed(2)}
                 </OrderInfo>
                 <OrderInfo>
-                  <strong>Payment:</strong> {order.payment_method || 'Cash on Delivery'}
+                  <strong>Payment:</strong> {order.payment_method === 'gcash' ? 'GCash' : (order.payment_method || 'GCash')}
                 </OrderInfo>
                 <OrderInfo>
                   <strong>Status:</strong> {order.transaction_status || 'Pending'}
@@ -1586,6 +1737,263 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
 
 
 
+  // New function for Payment tab - shows payment-related information
+  const renderMyOrdersTab = () => (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center',
+      width: '100%'
+    }}>
+      <SectionTitle style={{ 
+        textAlign: 'center',
+        marginBottom: '32px'
+      }}>
+        <FontAwesomeIcon icon={faMoneyBillWave} />
+        Payment Information {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
+      </SectionTitle>
+      
+      {/* Payment Methods Section */}
+      <div style={{ 
+        width: '100%', 
+        maxWidth: '800px', 
+        background: '#ffffff',
+        border: '1px solid #e0e0e0',
+        borderRadius: '8px',
+        padding: '24px',
+        marginBottom: '24px'
+      }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#000000', fontSize: '18px', fontWeight: '600' }}>
+          Available Payment Methods
+        </h3>
+        
+        <div style={{ display: 'grid', gap: '16px' }}>
+          {/* GCash Payment */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '16px',
+            background: '#f8f9fa',
+            border: '2px solid #007CCC',
+            borderRadius: '8px'
+          }}>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 4px 0', color: '#000000', fontSize: '16px', fontWeight: '600' }}>
+                � GCash Payment
+              </h4>
+              <p style={{ margin: 0, color: '#666666', fontSize: '14px' }}>
+                Pay instantly using GCash mobile wallet. Upload payment proof for verification.
+              </p>
+            </div>
+            <span style={{
+              padding: '4px 8px',
+              background: '#007CCC',
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              ACTIVE
+            </span>
+          </div>
+          
+          {/* Future Payment Methods */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '16px',
+            background: '#f8f9fa',
+            border: '1px solid #e0e0e0',
+            borderRadius: '8px',
+            opacity: '0.6'
+          }}>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 4px 0', color: '#000000', fontSize: '16px', fontWeight: '600' }}>
+                💳 Online Payment
+              </h4>
+              <p style={{ margin: 0, color: '#666666', fontSize: '14px' }}>
+                Credit/Debit cards, GCash, PayMaya (Coming Soon)
+              </p>
+            </div>
+            <span style={{
+              padding: '4px 8px',
+              background: '#6c757d',
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: '600'
+            }}>
+              COMING SOON
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Payment History Section */}
+      <div style={{ 
+        width: '100%', 
+        maxWidth: '800px', 
+        background: '#ffffff',
+        border: '1px solid #e0e0e0',
+        borderRadius: '8px',
+        padding: '24px'
+      }}>
+        <h3 style={{ margin: '0 0 16px 0', color: '#000000', fontSize: '18px', fontWeight: '600' }}>
+          Payment History
+        </h3>
+        
+        {loading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            color: '#666666'
+          }}>
+            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+            <p style={{ marginTop: '1rem', fontSize: '14px' }}>Loading payment history...</p>
+          </div>
+        ) : orders.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center',
+            padding: '2rem',
+            color: '#666666'
+          }}>
+            <FontAwesomeIcon icon={faMoneyBillWave} size="2x" style={{ marginBottom: '16px' }} />
+            <p>No payment history found</p>
+            <p style={{ fontSize: '14px', marginTop: '8px', opacity: '0.7' }}>
+              Your payment transactions will appear here once you make purchases
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {orders.slice(0, 5).map((order) => (
+              <div key={order.id} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                background: '#f8f9fa',
+                border: '1px solid #e0e0e0',
+                borderRadius: '6px'
+              }}>
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#000000' }}>
+                    Order #{order.order_number}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666666' }}>
+                    {new Date(order.order_date).toLocaleDateString()} • GCash Payment
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: '600', fontSize: '16px', color: '#000000' }}>
+                    ₱{parseFloat(order.total_amount).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '12px', color: order.status === 'delivered' ? '#28a745' : '#6c757d' }}>
+                    {order.status === 'delivered' ? 'Paid' : 'Pending'}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {orders.length > 5 && (
+              <div style={{ 
+                textAlign: 'center', 
+                marginTop: '16px',
+                padding: '12px',
+                color: '#666666',
+                fontSize: '14px'
+              }}>
+                Showing recent 5 transactions. View "My Orders" tab for complete history.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+
+
+  // Payment proof handling functions
+  const handlePaymentProofUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      
+      setPaymentProofFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPaymentProofPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+      
+      // Update form data
+      setCheckoutForm(prev => ({
+        ...prev,
+        payment_proof: file
+      }));
+      
+      toast.success('Payment proof uploaded successfully');
+    }
+  };
+
+  const generatePaymentHash = (orderData, file) => {
+    // Create a unique hash using order details and file info
+    const hashInput = `${orderData.customer_email}_${orderData.total_amount}_${file.name}_${file.size}_${file.lastModified}`;
+    return crypto.SHA256(hashInput).toString();
+  };
+
+  const verifyPaymentProof = async (orderData, proofFile) => {
+    try {
+      setIsVerifyingPayment(true);
+      
+      // Generate verification hash
+      const verificationHash = generatePaymentHash(orderData, proofFile);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('payment_proof', proofFile);
+      formData.append('verification_hash', verificationHash);
+      formData.append('payment_reference', checkoutForm.payment_reference);
+      formData.append('order_total', cartTotal.toFixed(2));
+      
+      // Send to backend for verification
+      const response = await api.post('/orders/verify-payment', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        toast.success('Payment proof verified successfully!');
+        return { verified: true, verificationHash };
+      } else {
+        toast.error('Payment verification failed');
+        return { verified: false, error: response.data.message };
+      }
+      
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      toast.error('Failed to verify payment proof');
+      return { verified: false, error: error.message };
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
+
+
   return (
     <PageContainer>
       <TopBar />
@@ -1596,7 +2004,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
             Order Management
           </Title>
           <Subtitle>
-            Manage your shopping cart and view order history
+            Manage your shopping cart, view your orders, and handle payments
           </Subtitle>
         </Header>          <TabContainer>
           <Tab 
@@ -1609,11 +2017,17 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
             active={activeTab === 'orders'} 
             onClick={() => setActiveTab('orders')}
           >
-            Order History
+            My Orders
+          </Tab>
+          <Tab 
+            active={activeTab === 'myorders'} 
+            onClick={() => setActiveTab('myorders')}
+          >
+            Payment
           </Tab>
         </TabContainer>
         
-        {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
+        {activeTab === 'cart' ? renderCartTab() : (activeTab === 'orders' ? renderOrdersTab() : renderMyOrdersTab())}
           {/* Invoice Modal */}
         <InvoiceModal
           isOpen={showInvoiceModal}
@@ -1670,3 +2084,112 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
 };
 
 export default OrderPage;
+
+// GCash Payment Proof Components
+const PaymentSection = styled.div`
+  margin-bottom: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #007CCC 0%, #00B4E5 100%);
+  border-radius: 12px;
+  border: 2px solid #e1f5fe;
+  color: white;
+`;
+
+const PaymentHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  
+  h3 {
+    margin: 0;
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+  }
+`;
+
+const PaymentInfo = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  
+  .gcash-number {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+  }
+  
+  .gcash-name {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  
+  .amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: #FFD700;
+    margin-top: 8px;
+  }
+`;
+
+const PaymentProofUpload = styled.div`
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
+  }
+  
+  input[type="file"] {
+    display: none;
+  }
+`;
+
+const PaymentProofPreview = styled.div`
+  margin-top: 16px;
+  
+  img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const VerificationStatus = styled.div`
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-top: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &.pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+  }
+  
+  &.verified {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  &.failed {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+`;

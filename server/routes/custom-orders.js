@@ -945,7 +945,7 @@ router.patch('/:id/delivery-status', auth, async (req, res) => {
         const { delivery_status, delivery_date, delivery_notes } = req.body;
 
         // Validate delivery status
-        const validStatuses = ['pending', 'scheduled', 'in_transit', 'delivered', 'delayed'];
+        const validStatuses = ['pending', 'scheduled', 'in_transit', 'delivered', 'delayed', 'cancelled'];
         if (!validStatuses.includes(delivery_status)) {
             return res.status(400).json({
                 success: false,
@@ -1010,6 +1010,103 @@ router.patch('/:id/delivery-status', auth, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to update delivery status'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Resolve custom order ID from order number mapping
+router.get('/resolve-mapping/:orderNumber', auth, async (req, res) => {
+    let connection;
+
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+
+        const { orderNumber } = req.params;
+        connection = await mysql.createConnection(dbConfig);
+
+        console.log(`🔍 Resolving mapping for order number: ${orderNumber}`);
+
+        // First check if this exists in the orders table
+        const [ordersResult] = await connection.execute(`
+            SELECT id, order_number, user_id, notes 
+            FROM orders 
+            WHERE order_number = ?
+        `, [orderNumber]);
+
+        if (ordersResult.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found in orders table'
+            });
+        }
+
+        const order = ordersResult[0];
+        console.log(`📋 Found in orders table: ID ${order.id}, Notes: ${order.notes}`);
+
+        // Extract the reference from notes
+        const referenceMatch = order.notes.match(/Reference: (CUSTOM-[A-Z0-9-]+)/);
+        if (!referenceMatch) {
+            return res.status(404).json({
+                success: false,
+                message: 'No custom order reference found in order notes'
+            });
+        }
+
+        const customOrderReference = referenceMatch[1];
+        console.log(`🔍 Looking for custom order with reference: ${customOrderReference}`);
+
+        // Look for this reference in custom_orders table
+        const [customOrdersResult] = await connection.execute(`
+            SELECT id, custom_order_id, customer_name, status, delivery_status 
+            FROM custom_orders 
+            WHERE custom_order_id = ?
+        `, [customOrderReference]);
+
+        if (customOrdersResult.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Matching custom order not found in custom_orders table'
+            });
+        }
+
+        const customOrder = customOrdersResult[0];
+        console.log(`✅ Found matching custom order: ID ${customOrder.id}, Reference: ${customOrder.custom_order_id}`);
+
+        res.json({
+            success: true,
+            message: 'Mapping resolved successfully',
+            data: {
+                orders_table: {
+                    id: order.id,
+                    order_number: order.order_number,
+                    user_id: order.user_id
+                },
+                custom_orders_table: {
+                    id: customOrder.id,
+                    custom_order_id: customOrder.custom_order_id,
+                    customer_name: customOrder.customer_name,
+                    status: customOrder.status,
+                    delivery_status: customOrder.delivery_status
+                },
+                resolved_custom_order_id: customOrder.id
+            }
+        });
+
+    } catch (error) {
+        console.error('Error resolving order mapping:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to resolve order mapping'
         });
     } finally {
         if (connection) {

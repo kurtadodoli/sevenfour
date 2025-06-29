@@ -15,7 +15,6 @@
     "heroku-postbuild": "npm run install-all && npm run build"
   },
   "dependencies": {
-    "axios": "^1.10.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -32,6 +31,7 @@
     "styled-components": "^6.1.18"
   },
   "devDependencies": {
+    "axios": "^1.10.0",
     "concurrently": "^8.2.2",
     "nodemon": "^3.0.1"
   },

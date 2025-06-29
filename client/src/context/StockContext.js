@@ -185,12 +185,14 @@ export const StockProvider = ({ children }) => {
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [fetchStockData, updateProductStock, updateMultipleProductsStock]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Remove dependencies to prevent infinite loop
 
   // Initial fetch
   useEffect(() => {
     fetchStockData();
-  }, [fetchStockData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -199,7 +201,8 @@ export const StockProvider = ({ children }) => {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [fetchStockData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only set up interval once
 
   const value = {
     stockData,

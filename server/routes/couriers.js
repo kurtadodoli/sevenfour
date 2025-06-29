@@ -225,31 +225,64 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Build dynamic update query for only provided fields
+    const updateFields = [];
+    const updateValues = [];
+    
+    if (name !== undefined) {
+      updateFields.push('name = ?');
+      updateValues.push(name);
+    }
+    if (phone_number !== undefined) {
+      updateFields.push('phone_number = ?');
+      updateValues.push(phone_number);
+    }
+    if (email !== undefined) {
+      updateFields.push('email = ?');
+      updateValues.push(email);
+    }
+    if (license_number !== undefined) {
+      updateFields.push('license_number = ?');
+      updateValues.push(license_number);
+    }
+    if (vehicle_type !== undefined) {
+      updateFields.push('vehicle_type = ?');
+      updateValues.push(vehicle_type);
+    }
+    if (status !== undefined) {
+      updateFields.push('status = ?');
+      updateValues.push(status);
+    }
+    if (max_deliveries_per_day !== undefined) {
+      updateFields.push('max_deliveries_per_day = ?');
+      updateValues.push(max_deliveries_per_day);
+    }
+    if (service_areas !== undefined) {
+      updateFields.push('service_areas = ?');
+      updateValues.push(Array.isArray(service_areas) ? JSON.stringify(service_areas) : service_areas);
+    }
+    if (notes !== undefined) {
+      updateFields.push('notes = ?');
+      updateValues.push(notes);
+    }
+    
+    // Always update the timestamp
+    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    
+    if (updateFields.length === 1) { // Only timestamp was added
+      return res.status(400).json({
+        success: false,
+        message: 'No fields provided for update'
+      });
+    }
+
+    // Add courier ID for WHERE clause at the end
+    updateValues.push(courierId);
+
     await db.query(`
-      UPDATE couriers SET
-        name = COALESCE(?, name),
-        phone_number = COALESCE(?, phone_number),
-        email = ?,
-        license_number = ?,
-        vehicle_type = COALESCE(?, vehicle_type),
-        status = COALESCE(?, status),
-        max_deliveries_per_day = COALESCE(?, max_deliveries_per_day),
-        service_areas = ?,
-        notes = ?,
-        updated_at = CURRENT_TIMESTAMP
+      UPDATE couriers SET ${updateFields.join(', ')}
       WHERE id = ?
-    `, [
-      name,
-      phone_number,
-      email,
-      license_number,
-      vehicle_type,
-      status,
-      max_deliveries_per_day,
-      service_areas ? JSON.stringify(service_areas) : null,
-      notes,
-      courierId
-    ]);
+    `, updateValues);
 
     // Fetch updated courier
     const updatedCourier = await db.query(
@@ -290,29 +323,37 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    // Check if courier has active deliveries
+    // Check if courier has active deliveries in both tables
     const activeDeliveries = await db.query(`
       SELECT COUNT(*) as active_count 
       FROM delivery_schedules 
-      WHERE courier_id = ? AND delivery_status IN ('scheduled', 'in_transit')
+      WHERE courier_id = ? AND delivery_status IN ('pending', 'scheduled', 'in_transit', 'delayed')
     `, [courierId]);
 
-    if (activeDeliveries[0].active_count > 0) {
+    const enhancedActiveDeliveries = await db.query(`
+      SELECT COUNT(*) as active_count 
+      FROM delivery_schedules_enhanced 
+      WHERE courier_id = ? AND delivery_status IN ('pending', 'scheduled', 'in_transit', 'delayed')
+    `, [courierId]);
+
+    const totalActiveDeliveries = activeDeliveries[0].active_count + enhancedActiveDeliveries[0].active_count;
+
+    if (totalActiveDeliveries > 0) {
       return res.status(400).json({
         success: false,
         message: 'Cannot delete courier with active deliveries. Please reassign or complete deliveries first.'
       });
     }
 
-    // Soft delete by setting status to inactive
+    // Actually delete the courier record
     await db.query(
-      'UPDATE couriers SET status = "inactive", updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'DELETE FROM couriers WHERE id = ?',
       [courierId]
     );
 
     res.json({
       success: true,
-      message: `Courier ${existingCourier[0].name} has been deactivated`
+      message: `Courier ${existingCourier[0].name} has been permanently deleted`
     });
   } catch (error) {
     console.error('Error deleting courier:', error);
