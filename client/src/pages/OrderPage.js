@@ -901,7 +901,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderData, setCancelOrderData] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
-    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading, setCartItems } = useCart();
+    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading, addToCart } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
   const { updateMultipleProductsStock } = useStock(); // Get stock context
   
@@ -1104,6 +1104,13 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     setShowCancelModal(true);
   };
 
+  // Close cancel modal function
+  const closeCancelModal = () => {
+    setShowCancelModal(false);
+    setCancelOrderData(null);
+    setCancelReason('');
+  };
+
   const confirmCancelOrder = async () => {
     if (!cancelOrderData) return;
     
@@ -1188,18 +1195,6 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
         width: '100%',
         padding: '0 24px'
       }}>
-        {/* TEMP: Add test cart item button for demo */}
-        <button onClick={() => setCartItems([
-          {
-            id: 1,
-            name: 'Test T-Shirt',
-            price: 299.99,
-            quantity: 1,
-            color: 'Black',
-            size: 'Medium',
-            main_image: ''
-          }
-        ])} style={{marginBottom: 16, padding: 8, background: '#007CCC', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer'}}>Add Test Cart Item</button>
         {cartItems.length === 0 ? (
           <div style={{ 
             maxWidth: '600px', 
