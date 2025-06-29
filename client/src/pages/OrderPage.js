@@ -136,20 +136,20 @@ const Content = styled.div`
 
 const CartSection = styled.div`
   background: #ffffff;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #000000;
   border-radius: 8px;
   padding: 24px;
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: #cccccc;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
 `;
 
 const CheckoutSection = styled.div`
   background: #ffffff;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #000000;
   border-radius: 8px;
   padding: 24px;
   height: fit-content;
@@ -158,8 +158,8 @@ const CheckoutSection = styled.div`
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: #cccccc;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
 `;
 
@@ -234,20 +234,21 @@ const EmptyState = styled.div`
   text-align: center;
   padding: 60px 32px;
   color: #666666;
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: #ffffff;
+  border: 2px solid #000000;
   border-radius: 8px;
   margin: 20px 0;
   
   svg {
     margin-bottom: 20px;
-    color: #cccccc;
+    color: #000000;
   }
   
   p {
     font-size: 16px;
     margin: 0;
-    font-weight: 400;
+    font-weight: 500;
+    color: #000000;
   }
 `;
 
@@ -648,14 +649,14 @@ const CartItem = styled.div`
   gap: 16px;
   padding: 20px;
   background: #ffffff;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #000000;
   border-radius: 8px;
   margin-bottom: 16px;
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: #cccccc;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
   }
 `;
 
@@ -664,7 +665,7 @@ const ItemImage = styled.img`
   height: 80px;
   object-fit: cover;
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #000000;
 `;
 
 const ItemDetails = styled.div`
@@ -689,12 +690,12 @@ const ItemSpecs = styled.div`
 
 const ItemBadge = styled.span`
   padding: 4px 8px;
-  background: #f5f5f5;
+  background: #000000;
+  color: #ffffff;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: #666666;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #000000;
 `;
 
 const QuantityControls = styled.div`
@@ -707,18 +708,20 @@ const QuantityControls = styled.div`
 const QuantityButton = styled.button`
   width: 32px;
   height: 32px;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #000000;
   background: #ffffff;
+  color: #000000;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  font-weight: 600;
   
   &:hover:not(:disabled) {
-    background: #f5f5f5;
-    border-color: #cccccc;
+    background: #000000;
+    color: #ffffff;
   }
   
   &:disabled {
@@ -901,7 +904,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelOrderData, setCancelOrderData] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
-    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading, addToCart } = useCart();
+    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
   const { updateMultipleProductsStock } = useStock(); // Get stock context
   
@@ -1730,184 +1733,6 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     </div>
   );
 
-
-
-  // New function for Payment tab - shows payment-related information
-  const renderMyOrdersTab = () => (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center',
-      width: '100%'
-    }}>
-      <SectionTitle style={{ 
-        textAlign: 'center',
-        marginBottom: '32px'
-      }}>
-        <FontAwesomeIcon icon={faMoneyBillWave} />
-        Payment Information {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
-      </SectionTitle>
-      
-      {/* Payment Methods Section */}
-      <div style={{ 
-        width: '100%', 
-        maxWidth: '800px', 
-        background: '#ffffff',
-        border: '1px solid #e0e0e0',
-        borderRadius: '8px',
-        padding: '24px',
-        marginBottom: '24px'
-      }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#000000', fontSize: '18px', fontWeight: '600' }}>
-          Available Payment Methods
-        </h3>
-        
-        <div style={{ display: 'grid', gap: '16px' }}>
-          {/* GCash Payment */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '16px',
-            background: '#f8f9fa',
-            border: '2px solid #007CCC',
-            borderRadius: '8px'
-          }}>
-            <div style={{ flex: 1 }}>
-              <h4 style={{ margin: '0 0 4px 0', color: '#000000', fontSize: '16px', fontWeight: '600' }}>
-                � GCash Payment
-              </h4>
-              <p style={{ margin: 0, color: '#666666', fontSize: '14px' }}>
-                Pay instantly using GCash mobile wallet. Upload payment proof for verification.
-              </p>
-            </div>
-            <span style={{
-              padding: '4px 8px',
-              background: '#007CCC',
-              color: 'white',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '600'
-            }}>
-              ACTIVE
-            </span>
-          </div>
-          
-          {/* Future Payment Methods */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '16px',
-            background: '#f8f9fa',
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            opacity: '0.6'
-          }}>
-            <div style={{ flex: 1 }}>
-              <h4 style={{ margin: '0 0 4px 0', color: '#000000', fontSize: '16px', fontWeight: '600' }}>
-                💳 Online Payment
-              </h4>
-              <p style={{ margin: 0, color: '#666666', fontSize: '14px' }}>
-                Credit/Debit cards, GCash, PayMaya (Coming Soon)
-              </p>
-            </div>
-            <span style={{
-              padding: '4px 8px',
-              background: '#6c757d',
-              color: 'white',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '600'
-            }}>
-              COMING SOON
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Payment History Section */}
-      <div style={{ 
-        width: '100%', 
-        maxWidth: '800px', 
-        background: '#ffffff',
-        border: '1px solid #e0e0e0',
-        borderRadius: '8px',
-        padding: '24px'
-      }}>
-        <h3 style={{ margin: '0 0 16px 0', color: '#000000', fontSize: '18px', fontWeight: '600' }}>
-          Payment History
-        </h3>
-        
-        {loading ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '2rem',
-            color: '#666666'
-          }}>
-            <FontAwesomeIcon icon={faSpinner} spin size="2x" />
-            <p style={{ marginTop: '1rem', fontSize: '14px' }}>Loading payment history...</p>
-          </div>
-        ) : orders.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center',
-            padding: '2rem',
-            color: '#666666'
-          }}>
-            <FontAwesomeIcon icon={faMoneyBillWave} size="2x" style={{ marginBottom: '16px' }} />
-            <p>No payment history found</p>
-            <p style={{ fontSize: '14px', marginTop: '8px', opacity: '0.7' }}>
-              Your payment transactions will appear here once you make purchases
-            </p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {orders.slice(0, 5).map((order) => (
-              <div key={order.id} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 16px',
-                background: '#f8f9fa',
-                border: '1px solid #e0e0e0',
-                borderRadius: '6px'
-              }}>
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '14px', color: '#000000' }}>
-                    Order #{order.order_number}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#666666' }}>
-                    {new Date(order.order_date).toLocaleDateString()} • GCash Payment
-                  </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: '600', fontSize: '16px', color: '#000000' }}>
-                    ₱{parseFloat(order.total_amount).toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: '12px', color: order.status === 'delivered' ? '#28a745' : '#6c757d' }}>
-                    {order.status === 'delivered' ? 'Paid' : 'Pending'}
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {orders.length > 5 && (
-              <div style={{ 
-                textAlign: 'center', 
-                marginTop: '16px',
-                padding: '12px',
-                color: '#666666',
-                fontSize: '14px'
-              }}>
-                Showing recent 5 transactions. View "My Orders" tab for complete history.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-
-
   // Payment proof handling functions
   const handlePaymentProofUpload = (event) => {
     const file = event.target.files[0];
@@ -2014,15 +1839,9 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           >
             My Orders
           </Tab>
-          <Tab 
-            active={activeTab === 'myorders'} 
-            onClick={() => setActiveTab('myorders')}
-          >
-            Payment
-          </Tab>
         </TabContainer>
         
-        {activeTab === 'cart' ? renderCartTab() : (activeTab === 'orders' ? renderOrdersTab() : renderMyOrdersTab())}
+        {activeTab === 'cart' ? renderCartTab() : renderOrdersTab()}
           {/* Invoice Modal */}
         <InvoiceModal
           isOpen={showInvoiceModal}
@@ -2082,12 +1901,12 @@ export default OrderPage;
 
 // GCash Payment Proof Components
 const PaymentSection = styled.div`
+  background: #000000;
+  color: #ffffff;
+  padding: 24px;
+  border-radius: 8px;
   margin-bottom: 24px;
-  padding: 20px;
-  background: linear-gradient(135deg, #007CCC 0%, #00B4E5 100%);
-  border-radius: 12px;
-  border: 2px solid #e1f5fe;
-  color: white;
+  border: 2px solid #333333;
 `;
 
 const PaymentHeader = styled.div`
@@ -2098,93 +1917,96 @@ const PaymentHeader = styled.div`
   
   h3 {
     margin: 0;
-    color: white;
+    color: #ffffff;
     font-size: 18px;
     font-weight: 600;
+  }
+  
+  svg {
+    color: #ffffff;
   }
 `;
 
 const PaymentInfo = styled.div`
   background: rgba(255, 255, 255, 0.1);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: 6px;
   margin-bottom: 16px;
   
   .gcash-number {
-    font-size: 20px;
-    font-weight: 700;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #ffffff;
   }
   
   .gcash-name {
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 14px;
     margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.9);
   }
   
   .amount {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
-    color: #FFD700;
+    color: #ffffff;
     margin-top: 8px;
   }
 `;
 
 const PaymentProofUpload = styled.div`
-  background: rgba(255, 255, 255, 0.1);
   border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 8px;
-  padding: 20px;
+  padding: 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.05);
   
   &:hover {
-    background: rgba(255, 255, 255, 0.15);
     border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.1);
   }
   
   input[type="file"] {
     display: none;
   }
+  
+  svg {
+    color: #ffffff;
+  }
 `;
 
 const PaymentProofPreview = styled.div`
   margin-top: 16px;
+  text-align: center;
   
   img {
-    max-width: 200px;
+    max-width: 100%;
     max-height: 200px;
-    border-radius: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
 `;
 
 const VerificationStatus = styled.div`
   padding: 12px 16px;
-  border-radius: 8px;
+  border-radius: 6px;
   margin-top: 16px;
-  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
   
   &.pending {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
   }
   
-  &.verified {
-    background: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-  }
-  
-  &.failed {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
+  &.success {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
   }
 `;
