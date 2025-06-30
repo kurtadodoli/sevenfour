@@ -201,6 +201,11 @@ router.put('/:id/cancel', auth, orderController.cancelOrder);
 // @access  Private
 router.post('/:id/confirm', auth, orderController.confirmOrder);
 
+// @route   POST api/orders/cancellation-requests
+// @desc    Create a cancellation request
+// @access  Private
+router.post('/cancellation-requests', auth, orderController.createCancellationRequest);
+
 // @route   GET api/orders/invoice/:invoiceId/pdf
 // @desc    Generate and download invoice PDF
 // @access  Private
@@ -258,7 +263,7 @@ router.post('/verify-payment', auth, paymentUpload.single('payment_proof'), asyn
         console.log('File uploaded:', req.file ? req.file.filename : 'No file');
         console.log('Request body:', req.body);
         
-        const { verification_hash, payment_reference, order_total } = req.body;
+        const { payment_reference, order_total } = req.body;
         const paymentProofFile = req.file;
         
         if (!paymentProofFile) {
@@ -295,7 +300,7 @@ router.post('/verify-payment', auth, paymentUpload.single('payment_proof'), asyn
         await connection.execute(insertPaymentQuery, [
             req.user.id,
             payment_reference,
-            verification_hash,
+            'client_generated_hash', // Placeholder for client hash
             serverVerificationHash,
             paymentProofFile.filename,
             paymentProofFile.path,
@@ -429,7 +434,7 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
             await connection.execute(`
                 INSERT INTO sales_transactions (
                     transaction_id, invoice_id, user_id, amount, payment_method, transaction_status
-                ) VALUES (?, ?, ?, ?, 'gcash', 'paid')
+                ) VALUES (?, ?, ?, ?, 'gcash', 'confirmed')
             `, [transactionId, invoiceId, req.user.id, totalAmount]);
             
             // Create order with payment verification details
@@ -439,7 +444,7 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
                     total_amount, shipping_address, contact_phone, notes,
                     payment_method, payment_reference, payment_verification_hash,
                     payment_proof_filename, payment_status, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'gcash', ?, ?, ?, 'verified', 'confirmed')
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'gcash', ?, ?, ?, 'verified', 'pending')
             `, [
                 orderNumber, req.user.id, invoiceId, transactionId,
                 totalAmount, shipping_address, customer_phone, notes,
@@ -453,17 +458,26 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
             );
             const orderId = orderResult[0].id;
             
-            // Create order items
-            for (const item of cartItems) {
+            // Create order items with comprehensive information
+            for (let index = 0; index < cartItems.length; index++) {
+                const item = cartItems[index];
                 await connection.execute(`
                     INSERT INTO order_items (
                         order_id, invoice_id, product_id, product_name, product_price,
-                        quantity, color, size, subtotal
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        quantity, sort_order, color, size, subtotal,
+                        customer_fullname, customer_phone,
+                        gcash_reference_number, payment_proof_image_path,
+                        province, city_municipality, street_address, postal_code,
+                        order_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, item.productcolor, item.size || 'N/A',
-                    item.productprice * item.quantity
+                    item.quantity, index + 1, item.color || item.productcolor, item.size || 'N/A',
+                    item.productprice * item.quantity,
+                    customer_name, customer_phone,
+                    payment_reference, paymentProofFile.path,
+                    province, city, street_address, postal_code,
+                    notes
                 ]);
             }
             
@@ -482,7 +496,7 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
             
             res.json({
                 success: true,
-                message: 'GCash order created successfully with verified payment',
+                message: 'GCash order created successfully with verified payment. Please confirm your order to complete the process.',
                 data: {
                     orderNumber,
                     invoiceId,
@@ -490,7 +504,7 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
                     totalAmount,
                     paymentMethod: 'gcash',
                     paymentStatus: 'verified',
-                    orderStatus: 'confirmed'
+                    orderStatus: 'pending'
                 }
             });
             

@@ -64,13 +64,23 @@ exports.getUserOrders = async (req, res) => {
                 oi.invoice_status,
                 st.transaction_status,
                 st.payment_method,
-                cr.status as cancellation_status,
-                cr.reason as cancellation_reason,
-                cr.created_at as cancellation_requested_at
+                latest_cr.status as cancellation_status,
+                latest_cr.reason as cancellation_reason,
+                latest_cr.created_at as cancellation_requested_at,
+                latest_cr.admin_notes as cancellation_admin_notes,
+                latest_cr.processed_at as cancellation_processed_at
             FROM orders o
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            LEFT JOIN cancellation_requests cr ON o.id = cr.order_id AND cr.status = 'pending'
+            LEFT JOIN (
+                SELECT cr1.*
+                FROM cancellation_requests cr1
+                INNER JOIN (
+                    SELECT order_id, MAX(id) as max_id
+                    FROM cancellation_requests
+                    GROUP BY order_id
+                ) cr2 ON cr1.order_id = cr2.order_id AND cr1.id = cr2.max_id
+            ) latest_cr ON o.id = latest_cr.order_id
             WHERE o.user_id = ?
             ORDER BY o.order_date DESC
         `, [req.user.id]);
@@ -216,17 +226,29 @@ exports.createOrderFromCart = async (req, res) => {
             console.log('Order created with ID:', orderId, 'for user:', req.user.id);
             console.log('=== END CREATE ORDER DEBUG ===');
             
-            // Create order items with proper order_id reference
-            for (const item of cartItems) {
+            // Create order items with proper order_id reference and all required fields
+            for (let index = 0; index < cartItems.length; index++) {
+                const item = cartItems[index];
                 await connection.execute(`
                     INSERT INTO order_items (
                         order_id, invoice_id, product_id, product_name, product_price,
-                        quantity, color, size, subtotal
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        quantity, sort_order, color, size, subtotal, customer_fullname, customer_phone,
+                        gcash_reference_number, payment_proof_image_path, 
+                        province, city_municipality, street_address, postal_code, order_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, item.productcolor, item.size || 'N/A',
-                    item.productprice * item.quantity
+                    item.quantity, index + 1, item.color || item.productcolor, item.size || 'N/A',
+                    item.productprice * item.quantity,
+                    customer_name || req.user.username || 'N/A',
+                    contact_phone || 'N/A',
+                    'COD_ORDER', // Default reference for cash on delivery
+                    'N/A', // No payment proof for COD
+                    'Metro Manila', // Default province
+                    'Manila', // Default city
+                    shipping_address || 'N/A',
+                    '1000', // Default postal code
+                    notes || 'N/A'
                 ]);
             }
             
@@ -338,16 +360,15 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Get the order items to update inventory (with size and color info)
+            // Get the order items to update inventory (using order_id directly)
             console.log('Getting order items for inventory update...');
             const [orderItems] = await connection.execute(`
                 SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
                        p.productname, p.total_available_stock
                 FROM order_items oi
-                JOIN orders o ON oi.invoice_id = o.invoice_id
                 JOIN products p ON oi.product_id = p.product_id
-                WHERE o.id = ? AND o.user_id = ?
-            `, [orderId, userId]);
+                WHERE oi.order_id = ?
+            `, [orderId]);
             
             console.log(`Found ${orderItems.length} items in order`);
             
@@ -421,43 +442,38 @@ exports.confirmOrder = async (req, res) => {
             for (const item of orderItems) {
                 console.log(`Processing item: ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}, Product ID: ${item.product_id}`);
                 
-                // First, try to update the specific variant
+                // Actually subtract from stock_quantity (not just reserve) when confirming order
                 const [variantResult] = await connection.execute(`
                     UPDATE product_variants 
-                    SET reserved_quantity = reserved_quantity + ?,
+                    SET stock_quantity = stock_quantity - ?,
+                        reserved_quantity = GREATEST(0, reserved_quantity - ?),
+                        available_quantity = available_quantity - ?,
                         last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ?
-                `, [item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
+                    WHERE product_id = ? AND size = ? AND color = ? AND stock_quantity >= ?
+                `, [item.quantity, item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
                 
-                console.log(`Variant update affected rows: ${variantResult.affectedRows}`);
-                
-                // Update available_quantity separately to ensure it's calculated correctly
-                await connection.execute(`
-                    UPDATE product_variants 
-                    SET available_quantity = stock_quantity - reserved_quantity
-                    WHERE product_id = ? AND size = ? AND color = ?
-                `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                console.log(`Variant stock subtraction affected rows: ${variantResult.affectedRows}`);
                 
                 if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Updated variant stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units`);
+                    console.log(`✅ Subtracted stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units`);
                     
-                    // Log the stock movement
+                    // Log the stock movement as actual stock reduction
                     await connection.execute(`
                         INSERT INTO stock_movements 
                         (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
-                        VALUES (?, 'OUT', ?, ?, 'Order Confirmation', ?, ?, ?)
+                        VALUES (?, 'OUT', ?, ?, 'Order Confirmed - Stock Deducted', ?, ?, ?)
                     `, [item.product_id, item.quantity, item.size || 'N/A', 
-                        orderId, userId, `Order confirmed - reserved ${item.quantity} units for ${item.productname} ${item.size}/${item.color}`]);
+                        orderId, userId, `Order confirmed - deducted ${item.quantity} units from ${item.productname} ${item.size}/${item.color}`]);
                 } else {
-                    // Fallback to general product stock update
+                    // Fallback to general product stock update - actually subtract from available stock
                     console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
                     await connection.execute(`
                         UPDATE products 
-                        SET total_available_stock = total_available_stock - ?,
-                            total_reserved_stock = COALESCE(total_reserved_stock, 0) + ?,
+                        SET total_available_stock = GREATEST(0, total_available_stock - ?),
+                            productquantity = GREATEST(0, productquantity - ?),
                             last_stock_update = CURRENT_TIMESTAMP
-                        WHERE product_id = ?
-                    `, [item.quantity, item.quantity, item.product_id]);
+                        WHERE product_id = ? AND total_available_stock >= ?
+                    `, [item.quantity, item.quantity, item.product_id, item.quantity]);
                 }
             }
             
@@ -467,7 +483,7 @@ exports.confirmOrder = async (req, res) => {
             // Get unique product IDs from order items
             const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
             
-            // Update each product individually to avoid SQL issues
+            // Update each product individually to recalculate totals
             for (const productId of uniqueProductIds) {
                 await connection.execute(`
                     UPDATE products p
@@ -477,7 +493,7 @@ exports.confirmOrder = async (req, res) => {
                         WHERE pv.product_id = p.product_id
                     ),
                     p.total_available_stock = (
-                        SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) 
+                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
                         FROM product_variants pv 
                         WHERE pv.product_id = p.product_id
                     ),
@@ -487,9 +503,9 @@ exports.confirmOrder = async (req, res) => {
                         WHERE pv.product_id = p.product_id
                     ),
                     p.stock_status = CASE 
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
                         ELSE 'in_stock'
                     END,
                     p.last_stock_update = CURRENT_TIMESTAMP
@@ -523,14 +539,14 @@ exports.confirmOrder = async (req, res) => {
             
             console.log('Transaction update successful');
             
-            // Update invoice status
+            // Update invoice status (avoid collation issue by using the known invoice_id)
             console.log('Executing invoice update query...');
+            const invoiceId = order.invoice_id; // We have this from the order check above
             await connection.execute(`
-                UPDATE order_invoices oi
-                JOIN orders o ON oi.invoice_id = o.invoice_id
-                SET oi.invoice_status = 'sent'
-                WHERE o.id = ? AND o.user_id = ?
-            `, [orderId, userId]);
+                UPDATE order_invoices 
+                SET invoice_status = 'sent'
+                WHERE invoice_id = ?
+            `, [invoiceId]);
             
             console.log('Invoice update successful');
             
@@ -583,7 +599,7 @@ exports.generateInvoicePDF = async (req, res) => {
         const [invoices] = await connection.execute(`
             SELECT oi.*, o.order_number, o.order_date, st.transaction_id, st.transaction_status
             FROM order_invoices oi
-            JOIN orders o ON oi.invoice_id = o.invoice_id
+            JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
             JOIN sales_transactions st ON o.transaction_id = st.transaction_id
             WHERE oi.invoice_id = ? AND oi.user_id = ?
         `, [invoiceId, req.user.id]);
@@ -964,7 +980,7 @@ exports.getConfirmedOrders = async (req, res) => {
                 FROM order_items oit
                 LEFT JOIN products p ON oit.product_id = p.product_id
                 WHERE oit.order_id = ?
-                ORDER BY oit.id
+                ORDER BY oit.sort_order, oit.id
             `, [order.id]);
             
             // Process items to ensure all product details are available
@@ -1168,7 +1184,7 @@ exports.processOrderCancellation = async (req, res) => {
             
             await connection.execute(`
                 UPDATE order_invoices oi
-                JOIN orders o ON oi.invoice_id = o.invoice_id
+                JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
                 SET oi.invoice_status = 'cancelled'
                 WHERE o.id = ?
             `, [orderId]);
@@ -1540,7 +1556,7 @@ exports.getOrderItems = async (req, res) => {
             FROM order_items oi
             LEFT JOIN products p ON oi.product_id = p.product_id
             WHERE oi.invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
-            ORDER BY oi.id
+            ORDER BY oi.sort_order, oi.id
         `, [orderId]);
         
         console.log(`Found ${orderItems.length} items for order ${orderId}`);
@@ -1566,7 +1582,7 @@ exports.getUserOrdersWithItems = async (req, res) => {
         console.log('=== GET USER ORDERS WITH ITEMS ===');
         console.log('User ID from token:', req.user.id);
         
-        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details and delivery status
+        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details, delivery status, and latest cancellation request
         const [orders] = await connection.execute(`
             SELECT 
                 o.*,
@@ -1579,9 +1595,11 @@ exports.getUserOrdersWithItems = async (req, res) => {
                 u.first_name,
                 u.last_name,
                 u.email as user_email,
-                cr.status as cancellation_status,
-                cr.reason as cancellation_reason,
-                cr.created_at as cancellation_requested_at,
+                latest_cr.status as cancellation_request_status,
+                latest_cr.reason as cancellation_reason,
+                latest_cr.created_at as cancellation_requested_at,
+                latest_cr.admin_notes as cancellation_admin_notes,
+                latest_cr.processed_at as cancellation_processed_at,
                 ds.delivery_status,
                 ds.delivery_date as scheduled_delivery_date,
                 ds.delivery_time_slot as scheduled_delivery_time,
@@ -1593,7 +1611,15 @@ exports.getUserOrdersWithItems = async (req, res) => {
             LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
             LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
             LEFT JOIN users u ON o.user_id = u.user_id
-            LEFT JOIN cancellation_requests cr ON o.id = cr.order_id AND cr.status = 'pending'
+            LEFT JOIN (
+                SELECT cr1.*
+                FROM cancellation_requests cr1
+                INNER JOIN (
+                    SELECT order_id, MAX(id) as max_id
+                    FROM cancellation_requests
+                    GROUP BY order_id
+                ) cr2 ON cr1.order_id = cr2.order_id AND cr1.id = cr2.max_id
+            ) latest_cr ON o.id = latest_cr.order_id
             LEFT JOIN delivery_schedules ds ON o.id = ds.order_id
             LEFT JOIN couriers c ON ds.courier_id = c.id
             WHERE o.user_id = ?
@@ -1639,19 +1665,151 @@ exports.getUserOrdersWithItems = async (req, res) => {
     }
 };
 
+// Create a cancellation request
+exports.createCancellationRequest = async (req, res) => {
+    try {
+        const { order_id, order_number, reason } = req.body;
+        const userId = req.user.id;
+        
+        console.log('=== CREATE CANCELLATION REQUEST ===');
+        console.log('User ID:', userId);
+        console.log('Order ID:', order_id);
+        console.log('Order Number:', order_number);
+        console.log('Reason:', reason);
+        
+        // Validate required fields
+        if (!order_id || !reason) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Order ID and reason are required' 
+            });
+        }
+        
+        if (reason.trim().length < 10) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Cancellation reason must be at least 10 characters long' 
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // Check if order exists and belongs to the user
+            const [orderResult] = await connection.execute(`
+                SELECT id, order_number, status, user_id
+                FROM orders 
+                WHERE id = ? AND user_id = ?
+            `, [order_id, userId]);
+            
+            if (orderResult.length === 0) {
+                await connection.end();
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'Order not found or you do not have permission to cancel this order' 
+                });
+            }
+            
+            const order = orderResult[0];
+            
+            // Check if order can be cancelled (pending or confirmed orders)
+            if (!['pending', 'confirmed'].includes(order.status)) {
+                await connection.end();
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Cannot cancel order with status: ${order.status}. Only pending or confirmed orders can be cancelled.` 
+                });
+            }
+            
+            // Check if there's already a cancellation request for this order
+            const [existingRequest] = await connection.execute(`
+                SELECT id, status FROM cancellation_requests 
+                WHERE order_id = ?
+            `, [order_id]);
+            
+            if (existingRequest.length > 0) {
+                await connection.end();
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `A cancellation request already exists for this order (Status: ${existingRequest[0].status})` 
+                });
+            }
+            
+            // Create the cancellation request
+            const [result] = await connection.execute(`
+                INSERT INTO cancellation_requests (
+                    order_id, user_id, order_number, reason, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, 'pending', NOW(), NOW())
+            `, [order_id, userId, order.order_number, reason.trim()]);
+            
+            console.log('✅ Cancellation request created with ID:', result.insertId);
+            
+            // Get the created request details
+            const [newRequest] = await connection.execute(`
+                SELECT cr.*, o.order_number, u.first_name, u.last_name, u.email
+                FROM cancellation_requests cr
+                JOIN orders o ON cr.order_id = o.id
+                JOIN users u ON cr.user_id = u.user_id
+                WHERE cr.id = ?
+            `, [result.insertId]);
+            
+            await connection.end();
+            
+            res.status(201).json({
+                success: true,
+                message: 'Cancellation request submitted successfully. Admin will review your request.',
+                data: newRequest[0]
+            });
+            
+        } catch (dbError) {
+            await connection.end();
+            throw dbError;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creating cancellation request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create cancellation request'
+        });
+    }
+};
+
 // Get all cancellation requests for admin
 exports.getCancellationRequests = async (req, res) => {
     try {
         console.log('=== GET CANCELLATION REQUESTS ===');
-        console.log('User role:', req.user.role);
+        console.log('User role:', req.user?.role);
         
         // Only allow admin/staff to view cancellation requests
-        if (!['admin', 'staff'].includes(req.user.role)) {
+        if (!req.user || !['admin', 'staff'].includes(req.user.role)) {
             return res.status(403).json({ 
                 success: false, 
                 message: 'Access denied - Admin/staff only' 
             });
-        }        const connection = await mysql.createConnection(dbConfig);
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Check if cancellation_requests table exists
+        const [tables] = await connection.execute(
+            "SHOW TABLES LIKE 'cancellation_requests'"
+        );
+        
+        if (tables.length === 0) {
+            console.log('ℹ️ Cancellation requests table does not exist yet');
+            await connection.end();
+            return res.json({
+                success: true,
+                data: [],
+                pagination: {
+                    total: 0,
+                    page: 1,
+                    limit: 20,
+                    pages: 0
+                }
+            });
+        }
         
         const { status = 'all', page = 1, limit = 20 } = req.query;
         const pageNum = parseInt(page) || 1;
@@ -1703,8 +1861,8 @@ exports.getCancellationRequests = async (req, res) => {
                     p.productimage,
                     p.productdescription
                 FROM order_items oi
-                JOIN orders o ON oi.invoice_id = o.invoice_id
-                LEFT JOIN products p ON oi.product_id = p.product_id
+                JOIN orders o ON CAST(oi.invoice_id AS CHAR) = CAST(o.invoice_id AS CHAR)
+                LEFT JOIN products p ON CAST(oi.product_id AS UNSIGNED) = CAST(p.product_id AS UNSIGNED)
                 WHERE o.id = ?
             `, [request.order_id]);
             
@@ -1834,7 +1992,7 @@ exports.processCancellationRequest = async (req, res) => {
                         SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname, 
                                p.total_available_stock, p.total_reserved_stock
                         FROM order_items oi
-                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
                         JOIN products p ON oi.product_id = p.product_id
                         WHERE o.id = ?
                     `, [request.order_id]);
@@ -1844,7 +2002,7 @@ exports.processCancellationRequest = async (req, res) => {
                         SELECT oi.product_id, oi.quantity, oi.color, oi.size, oi.product_name,
                                'orphaned' as productname, 0 as total_available_stock, 0 as total_reserved_stock
                         FROM order_items oi
-                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
                         LEFT JOIN products p ON oi.product_id = p.product_id
                         WHERE o.id = ? AND p.product_id IS NULL
                     `, [request.order_id]);
@@ -1877,25 +2035,34 @@ exports.processCancellationRequest = async (req, res) => {
                         }
                     }
                     
-                    // Restore inventory - subtract from reserved_quantity and recalculate available_quantity
+                    // Restore inventory - add back to stock_quantity that was subtracted during confirmation
                     for (const item of orderItems) {
-                        // Restore the variant stock by reducing reserved quantity
-                        // Use the same fallback logic as during order confirmation
-                        await connection.execute(`
+                        console.log(`Restoring variant stock for ${item.productname} ${item.color || 'Default'}/${item.size || 'N/A'}: adding back ${item.quantity} units`);
+                        
+                        // Restore the variant stock by adding back to stock_quantity and available_quantity
+                        const [variantResult] = await connection.execute(`
                             UPDATE product_variants 
-                            SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
+                            SET stock_quantity = stock_quantity + ?,
+                                available_quantity = available_quantity + ?,
                                 last_updated = CURRENT_TIMESTAMP
                             WHERE product_id = ? AND size = ? AND color = ?
-                        `, [item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
+                        `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
                         
-                        // Recalculate available_quantity based on stock_quantity - reserved_quantity
-                        await connection.execute(`
-                            UPDATE product_variants 
-                            SET available_quantity = stock_quantity - reserved_quantity
-                            WHERE product_id = ? AND size = ? AND color = ?
-                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
+                        if (variantResult.affectedRows > 0) {
+                            console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units`);
+                        } else {
+                            // Fallback to general product stock update
+                            console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
+                            await connection.execute(`
+                                UPDATE products 
+                                SET total_available_stock = total_available_stock + ?,
+                                    productquantity = productquantity + ?,
+                                    last_stock_update = CURRENT_TIMESTAMP
+                                WHERE product_id = ?
+                            `, [item.quantity, item.quantity, item.product_id]);
+                        }
                         
-                        console.log(`Restored variant stock for ${item.productname} ${item.color || 'Default'} ${item.size || 'N/A'}: released ${item.quantity} reserved units`);
+                        console.log(`Restored variant stock for ${item.productname} ${item.color || 'Default'} ${item.size || 'N/A'}: added back ${item.quantity} units`);
                         
                         // Check variant stock after restoration for verification
                         const [updatedVariant] = await connection.execute(`
@@ -1913,14 +2080,14 @@ exports.processCancellationRequest = async (req, res) => {
                             INSERT INTO stock_movements (
                                 product_id, movement_type, quantity, size, reason, 
                                 reference_number, user_id, notes
-                            ) VALUES (?, 'IN', ?, ?, 'Order Cancellation', ?, ?, ?)
+                            ) VALUES (?, 'IN', ?, ?, 'Order Cancellation - Stock Restored', ?, ?, ?)
                         `, [
                             item.product_id, 
                             item.quantity, 
                             item.size || 'N/A', 
                             request.order_id, 
                             req.user?.user_id || null,
-                            `Order cancelled - released ${item.quantity} reserved units for ${item.productname} ${item.size || 'N/A'}/${item.color || 'Default'}`
+                            `Order cancelled - restored ${item.quantity} units to ${item.productname} ${item.size || 'N/A'}/${item.color || 'Default'}`
                         ]);
                     }
                     
@@ -1970,7 +2137,7 @@ exports.processCancellationRequest = async (req, res) => {
                     const [responseOrderItems] = await connection.execute(`
                         SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname
                         FROM order_items oi
-                        JOIN orders o ON oi.invoice_id = o.invoice_id
+                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
                         JOIN products p ON oi.product_id = p.product_id
                         WHERE o.id = ?
                     `, [request.order_id]);
