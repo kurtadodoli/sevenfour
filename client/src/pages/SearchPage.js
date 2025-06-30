@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -9,159 +9,167 @@ import {
   faSpinner,
   faExclamationTriangle,
   faCreditCard,
-  faShoppingBag
+  faShoppingBag,
+  faFilter,
+  faTh,
+  faList,
+  faSortAmountDown
 } from '@fortawesome/free-solid-svg-icons';
 
-// Styled Components - Clean and Modern Design
+// Modern Minimalist Styled Components - Black & White Theme
 const PageContainer = styled.div`
   min-height: 100vh;
-  background: #f8f9fa;
-  padding: 2rem 1rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background: #ffffff;
+  color: #000000;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
 `;
 
 const ContentWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
+  padding: 0 2rem;
 `;
 
 const Header = styled.div`
+  padding: 4rem 0 3rem 0;
+  border-bottom: 1px solid #e0e0e0;
   text-align: center;
   margin-bottom: 3rem;
-  background: white;
-  padding: 3rem 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 `;
 
 const Title = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 1rem;
+  font-size: 3rem;
+  font-weight: 100;
+  margin: 0 0 1rem 0;
+  color: #000000;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   
   @media (max-width: 768px) {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
 `;
 
 const Subtitle = styled.p`
   font-size: 1.1rem;
-  color: #6c757d;
+  color: #666666;
   margin: 0;
-  font-weight: 400;
+  font-weight: 300;
+  max-width: 600px;
+  margin: 0 auto;
 `;
 
-const SearchContainer = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+const SearchSection = styled.div`
   display: flex;
-  gap: 1rem;
-  align-items: center;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-bottom: 2rem;
-  
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 3rem;
+`;
+
+const SearchBarContainer = styled.div`
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 `;
 
 const SearchInput = styled.input`
-  flex: 1;
-  padding: 1rem 1.5rem;
-  border: 2px solid #e9ecef;
+  width: 100%;
+  padding: 1.25rem 1.5rem 1.25rem 3.5rem;
+  border: 2px solid #e0e0e0;
   border-radius: 50px;
-  font-size: 1rem;
+  font-size: 1.1rem;
+  font-weight: 300;
+  background: #ffffff;
+  color: #000000;
   transition: all 0.3s ease;
-  background: #f8f9fa;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
   
   &:focus {
     outline: none;
-    border-color: #007bff;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+    border-color: #000000;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
   }
   
   &::placeholder {
-    color: #6c757d;
-  }
-  
-  @media (max-width: 768px) {
-    width: 100%;
+    color: #999999;
+    font-weight: 300;
   }
 `;
 
-const SearchButton = styled.button`
-  background: linear-gradient(135deg, #007bff, #0056b3);
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 50px;
-  font-size: 1rem;
-  font-weight: 500;
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #666666;
+  font-size: 1.1rem;
+  pointer-events: none;
+`;
+
+const FilterControls = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+`;
+
+const ClearButton = styled.button`
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #666666;
+  font-size: 0.9rem;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-width: 120px;
-  justify-content: center;
   
-  &:hover:not(:disabled) {
-    background: linear-gradient(135deg, #0056b3, #004085);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-  
-  @media (max-width: 768px) {
-    width: 100%;
+  &:hover {
+    background: #000000;
+    color: #ffffff;
+    border-color: #000000;
   }
 `;
-
 const TabsContainer = styled.div`
-  background: white;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   margin-bottom: 2rem;
 `;
 
 const TabsHeader = styled.div`
   display: flex;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
 `;
 
 const TabButton = styled.button`
   flex: 1;
   padding: 1.5rem 2rem;
   border: none;
-  background: ${props => props.$active ? 'white' : 'transparent'};
-  color: ${props => props.$active ? '#007bff' : '#6c757d'};
+  background: ${props => props.$active ? '#ffffff' : 'transparent'};
+  color: ${props => props.$active ? '#000000' : '#666666'};
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: ${props => props.$active ? '500' : '400'};
   cursor: pointer;
   transition: all 0.3s ease;
-  border-bottom: 3px solid ${props => props.$active ? '#007bff' : 'transparent'};
+  border-bottom: 3px solid ${props => props.$active ? '#000000' : 'transparent'};
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   
   &:hover {
-    background: ${props => props.$active ? 'white' : '#e9ecef'};
-    color: ${props => props.$active ? '#007bff' : '#495057'};
+    background: ${props => props.$active ? '#ffffff' : '#f0f0f0'};
+    color: ${props => props.$active ? '#000000' : '#333333'};
   }
 `;
 
@@ -171,12 +179,48 @@ const Tab = ({ active, children, ...props }) => (
   </TabButton>
 );
 
+const ResultsHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 0 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 1rem;
+`;
+
+const ResultsCount = styled.div`
+  font-size: 1rem;
+  color: #666666;
+  font-weight: 300;
+`;
+
+const ViewToggle = styled.div`
+  display: flex;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const ViewButton = styled.button`
+  padding: 0.75rem 1rem;
+  border: none;
+  background: ${props => props.$active ? '#000000' : '#ffffff'};
+  color: ${props => props.$active ? '#ffffff' : '#666666'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: ${props => props.$active ? '#333333' : '#f8f8f8'};
+  }
+`;
+
 const TableContainer = styled.div`
-  background: white;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.05);
 `;
 
 const Table = styled.table`
@@ -186,8 +230,8 @@ const Table = styled.table`
 `;
 
 const TableHeader = styled.thead`
-  background: #f8f9fa;
-  border-bottom: 2px solid #e9ecef;
+  background: #f8f8f8;
+  border-bottom: 2px solid #e0e0e0;
 `;
 
 const TableRow = styled.tr`
@@ -195,7 +239,7 @@ const TableRow = styled.tr`
   transition: all 0.2s ease;
   
   &:hover {
-    background: #f8f9fa;
+    background: #f8f8f8;
   }
   
   &:last-child {
@@ -206,12 +250,12 @@ const TableRow = styled.tr`
 const TableHeaderCell = styled.th`
   padding: 1.2rem 1rem;
   text-align: left;
-  font-weight: 600;
-  color: #495057;
+  font-weight: 500;
+  color: #333333;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #e0e0e0;
   
   &:first-child {
     padding-left: 2rem;
@@ -224,12 +268,13 @@ const TableHeaderCell = styled.th`
 
 const TableCell = styled.td`
   padding: 1rem;
-  color: #495057;
+  color: #333333;
   vertical-align: middle;
+  font-weight: 300;
   
   &:first-child {
     padding-left: 2rem;
-    font-weight: 500;
+    font-weight: 400;
   }
   
   &:last-child {
@@ -238,13 +283,13 @@ const TableCell = styled.td`
 `;
 
 const ActionButton = styled.button`
-  background: linear-gradient(135deg, #28a745, #20c997);
-  color: white;
+  background: #000000;
+  color: #ffffff;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 20px;
+  border-radius: 6px;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -252,9 +297,9 @@ const ActionButton = styled.button`
   gap: 0.3rem;
   
   &:hover {
-    background: linear-gradient(135deg, #20c997, #17a2b8);
+    background: #333333;
     transform: translateY(-1px);
-    box-shadow: 0 3px 10px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
   }
 `;
 
@@ -263,37 +308,42 @@ const LoadingContainer = styled.div`
   justify-content: center;
   align-items: center;
   padding: 4rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: #ffffff;
   flex-direction: column;
   gap: 1rem;
+  color: #666666;
 `;
 
 const EmptyState = styled.div`
   text-align: center;
   padding: 4rem 2rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  color: #6c757d;
+  background: #ffffff;
+  color: #666666;
   
   h3 {
     margin-bottom: 1rem;
-    color: #495057;
+    color: #333333;
+    font-weight: 400;
+    font-size: 1.5rem;
+  }
+  
+  p {
+    font-weight: 300;
+    line-height: 1.6;
   }
 `;
 
 const ErrorMessage = styled.div`
-  background: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #c53030;
   padding: 1rem 1.5rem;
   border-radius: 8px;
   margin-bottom: 1rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-weight: 400;
 `;
 
 const ModalOverlay = styled.div`
@@ -302,7 +352,7 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -311,14 +361,14 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
   padding: 2rem;
   max-width: 600px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 `;
 
 const ModalHeader = styled.div`
@@ -327,13 +377,13 @@ const ModalHeader = styled.div`
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #e0e0e0;
 `;
 
 const ModalTitle = styled.h2`
   font-size: 1.5rem;
-  font-weight: 600;
-  color: #2c3e50;
+  font-weight: 400;
+  color: #000000;
   margin: 0;
   display: flex;
   align-items: center;
@@ -345,14 +395,14 @@ const CloseButton = styled.button`
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #6c757d;
+  color: #666666;
   padding: 0.5rem;
   border-radius: 50%;
   transition: all 0.2s ease;
   
   &:hover {
-    background: #f8f9fa;
-    color: #495057;
+    background: #f8f8f8;
+    color: #000000;
   }
 `;
 
@@ -363,15 +413,16 @@ const DetailGrid = styled.div`
 `;
 
 const DetailItem = styled.div`
-  background: #f8f9fa;
+  background: #f8f8f8;
   padding: 1rem;
   border-radius: 8px;
+  border: 1px solid #e0e0e0;
 `;
 
 const DetailLabel = styled.div`
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #6c757d;
+  font-weight: 500;
+  color: #666666;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 0.5rem;
@@ -379,17 +430,75 @@ const DetailLabel = styled.div`
 
 const DetailValue = styled.div`
   font-size: 0.9rem;
-  color: #2c3e50;
-  font-weight: 500;
+  color: #000000;
+  font-weight: 400;
   word-break: break-word;
 `;
 
+const StatusBadge = styled.span`
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  background-color: ${props => {
+    switch (props.status) {
+      case 'confirmed':
+      case 'completed':
+        return '#000000';
+      case 'pending':
+        return '#f0f0f0';
+      case 'cancelled':
+        return '#f5f5f5';
+      default:
+        return '#e0e0e0';
+    }
+  }};
+  color: ${props => {
+    switch (props.status) {
+      case 'confirmed':
+      case 'completed':
+        return '#ffffff';
+      case 'pending':
+        return '#666666';
+      case 'cancelled':
+        return '#999999';
+      default:
+        return '#333333';
+    }
+  }};
+  border: 1px solid ${props => {
+    switch (props.status) {
+      case 'confirmed':
+      case 'completed':
+        return '#000000';
+      case 'pending':
+        return '#cccccc';
+      case 'cancelled':
+        return '#cccccc';
+      default:
+        return '#e0e0e0';
+    }
+  }};
+`;
+
+const StockBadge = styled.span`
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: ${props => props.inStock ? '#000000' : '#f5f5f5'};
+  color: ${props => props.inStock ? '#ffffff' : '#999999'};
+  border: 1px solid ${props => props.inStock ? '#000000' : '#cccccc'};
+`;
+
 const SearchPage = () => {
-  // State management - All data comes from database only (no mock/sample data)
+  // State management
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('products');
-  const [products, setProducts] = useState([]); // Only real products from products table
-  const [transactions, setTransactions] = useState([]); // Only real orders from orders table
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'grid'
+  const [products, setProducts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
@@ -410,11 +519,9 @@ const SearchPage = () => {
         throw new Error('Authentication required');
       }
 
-      // Fetch products ONLY from the database products table - using basic endpoint
-      let productsData = null;
-      
+      // Fetch products from database
       try {
-        console.log('Attempting to fetch products from database (basic endpoint)...');
+        console.log('Fetching products from database...');
         const productsResponse = await fetch('http://localhost:5000/api/products', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -422,62 +529,33 @@ const SearchPage = () => {
           }
         });
         
-        console.log('Products API response status:', productsResponse.status);
-        
         if (productsResponse.ok) {
-          productsData = await productsResponse.json();
-          console.log('RAW products response from database:', productsData);
+          const productsData = await productsResponse.json();
+          
+          let databaseProducts = [];
+          if (productsData.success && Array.isArray(productsData.data)) {
+            databaseProducts = productsData.data;
+          } else if (productsData.success && Array.isArray(productsData.products)) {
+            databaseProducts = productsData.products;
+          } else if (Array.isArray(productsData.products)) {
+            databaseProducts = productsData.products;
+          } else if (Array.isArray(productsData)) {
+            databaseProducts = productsData;
+          }
+          
+          setProducts(databaseProducts);
+          console.log(`Loaded ${databaseProducts.length} products`);
         } else {
-          const errorText = await productsResponse.text();
-          console.error('Products API failed:', productsResponse.status, errorText);
-          throw new Error(`Database products API failed with status ${productsResponse.status}`);
+          throw new Error(`Products API failed with status ${productsResponse.status}`);
         }
       } catch (fetchError) {
-        console.error('Network error fetching products from database:', fetchError);
-        throw new Error('Could not connect to database products API');
-      }
-
-      if (productsData) {
-        // Extract products from database response - use the correct API structure
-        let databaseProducts = [];
-        
-        if (productsData.success && Array.isArray(productsData.data)) {
-          // Standard API response format: { success: true, data: [...] }
-          databaseProducts = productsData.data;
-        } else if (productsData.success && Array.isArray(productsData.products)) {
-          // Alternative format: { success: true, products: [...] }
-          databaseProducts = productsData.products;
-        } else if (Array.isArray(productsData.products)) {
-          // Alternative format: { products: [...] }
-          databaseProducts = productsData.products;
-        } else if (Array.isArray(productsData)) {
-          // Direct array format
-          databaseProducts = productsData;
-        } else {
-          console.error('Unexpected products data structure:', productsData);
-          console.error('Available keys:', Object.keys(productsData || {}));
-          databaseProducts = [];
-        }
-        
-        console.log('FINAL database products being set:', databaseProducts);
-        console.log('Number of database products:', databaseProducts.length);
-        
-        // Log first product to see its structure
-        if (databaseProducts.length > 0) {
-          console.log('First product structure:', databaseProducts[0]);
-        }
-        
-        setProducts(databaseProducts);
-      } else {
-        console.error('No products data received from database');
+        console.error('Error fetching products:', fetchError);
         setProducts([]);
       }
 
-      // Fetch confirmed orders from the database orders table - using test endpoint
+      // Fetch transactions from database
       try {
-        console.log('Fetching orders with token:', token ? 'Token present' : 'No token');
-        
-        // Use the confirmed-test endpoint which doesn't require admin access
+        console.log('Fetching transactions from database...');
         const ordersResponse = await fetch('http://localhost:5000/api/orders/confirmed-test', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -485,13 +563,9 @@ const SearchPage = () => {
           }
         });
         
-        console.log('Orders API response status:', ordersResponse.status);
-        
         if (ordersResponse.ok) {
           const ordersData = await ordersResponse.json();
-          console.log('Database orders data:', ordersData); // Debug log
           
-          // Extract orders array from confirmed-test endpoint
           let allOrders = [];
           if (ordersData && Array.isArray(ordersData.data)) {
             allOrders = ordersData.data;
@@ -499,32 +573,22 @@ const SearchPage = () => {
             allOrders = ordersData.orders;
           } else if (Array.isArray(ordersData)) {
             allOrders = ordersData;
-          } else {
-            console.warn('Orders data is not in expected array format:', ordersData);
-            console.warn('Available keys:', Object.keys(ordersData || {}));
-            allOrders = [];
           }
           
-          console.log('Extracted orders array:', allOrders);
-          console.log('Number of orders found:', allOrders.length);
-          
-          // Since this endpoint already returns confirmed orders, we don't need to filter again
-          // But let's double-check the status just in case
           const confirmedOrders = allOrders.filter(order => 
             order && (
               order.status === 'confirmed' || 
               order.delivery_status === 'confirmed' ||
               order.status === 'completed' ||
               order.delivery_status === 'completed' ||
-              !order.status // If no status is set, assume it's confirmed since it came from confirmed endpoint
+              !order.status
             )
           );
           
-          console.log('Confirmed orders found:', confirmedOrders.length);
-          
           const databaseTransactions = confirmedOrders.map(order => ({
             id: order.id,
-            customer_name: order.customer_name || order.customerName || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
+            customer_name: order.customer_name || order.customerName || 
+                          `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
             amount: order.total_amount || order.amount || 0,
             transaction_type: 'Transaction',
             status: order.status || order.delivery_status || 'confirmed',
@@ -535,81 +599,60 @@ const SearchPage = () => {
             phone: order.contact_phone || order.phone
           }));
           
-          console.log('Setting confirmed transactions from database only:', databaseTransactions);
           setTransactions(databaseTransactions);
+          console.log(`Loaded ${databaseTransactions.length} transactions`);
         } else {
-          console.warn('Orders API failed with status:', ordersResponse.status);
-          const errorText = await ordersResponse.text();
-          console.warn('Orders API error response:', errorText);
-          
-          // Try the general test endpoint as fallback
-          try {
-            console.log('Trying general test endpoint as fallback...');
-            const testResponse = await fetch('http://localhost:5000/api/orders/test-list', {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            if (testResponse.ok) {
-              const testData = await testResponse.json();
-              console.log('Test endpoint data:', testData);
-              
-              let allOrders = [];
-              if (testData && Array.isArray(testData.data)) {
-                allOrders = testData.data;
-              }
-              
-              const confirmedOrders = allOrders.filter(order => 
-                order && (
-                  order.status === 'confirmed' || 
-                  order.delivery_status === 'confirmed' ||
-                  order.status === 'completed' ||
-                  order.delivery_status === 'completed'
-                )
-              );
-              
-              const databaseTransactions = confirmedOrders.map(order => ({
-                id: order.id,
-                customer_name: order.customer_name || order.customerName || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
-                amount: order.total_amount || order.amount || 0,
-                transaction_type: 'Transaction',
-                status: order.status || order.delivery_status || 'confirmed',
-                created_at: order.created_at || order.order_date,
-                order_number: order.order_number,
-                transaction_number: order.order_number || order.transaction_id,
-                email: order.customer_email || order.user_email || order.email,
-                phone: order.contact_phone || order.phone
-              }));
-              
-              console.log('Setting transactions from test endpoint:', databaseTransactions);
-              setTransactions(databaseTransactions);
-            } else {
-              console.warn('Test endpoint also failed with status:', testResponse.status);
-              const testErrorText = await testResponse.text();
-              console.warn('Test endpoint error response:', testErrorText);
-              setTransactions([]); // No orders available
+          console.warn('Orders API failed, trying fallback...');
+          // Try fallback endpoint
+          const testResponse = await fetch('http://localhost:5000/api/orders/test-list', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
-          } catch (testError) {
-            console.error('Test endpoint error:', testError);
-            setTransactions([]); // No orders available
+          });
+          
+          if (testResponse.ok) {
+            const testData = await testResponse.json();
+            let allOrders = testData && Array.isArray(testData.data) ? testData.data : [];
+            
+            const confirmedOrders = allOrders.filter(order => 
+              order && (
+                order.status === 'confirmed' || 
+                order.delivery_status === 'confirmed' ||
+                order.status === 'completed' ||
+                order.delivery_status === 'completed'
+              )
+            );
+            
+            const databaseTransactions = confirmedOrders.map(order => ({
+              id: order.id,
+              customer_name: order.customer_name || order.customerName || 
+                            `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
+              amount: order.total_amount || order.amount || 0,
+              transaction_type: 'Transaction',
+              status: order.status || order.delivery_status || 'confirmed',
+              created_at: order.created_at || order.order_date,
+              order_number: order.order_number,
+              transaction_number: order.order_number || order.transaction_id,
+              email: order.customer_email || order.user_email || order.email,
+              phone: order.contact_phone || order.phone
+            }));
+            
+            setTransactions(databaseTransactions);
+            console.log(`Loaded ${databaseTransactions.length} transactions from fallback`);
+          } else {
+            setTransactions([]);
           }
         }
       } catch (ordersError) {
-        console.error('Error fetching confirmed orders:', ordersError);
-        setTransactions([]); // No orders available
-        // Don't throw error for orders as it's less critical than products
+        console.error('Error fetching transactions:', ordersError);
+        setTransactions([]);
       }
 
     } catch (err) {
       console.error('Error fetching data:', err);
       if (err.message.includes('Authentication required')) {
         setError('Please log in to view products and orders.');
-      } else if (err.message.includes('Could not connect to database')) {
-        setError('Cannot connect to database. Please ensure the server is running and try again.');
-      } else if (err.message.includes('Database products API failed')) {
-        setError('Database products service is unavailable. Please check the backend server.');
       } else {
         setError(`Failed to fetch data: ${err.message}. Please refresh the page and try again.`);
       }
@@ -619,32 +662,37 @@ const SearchPage = () => {
   };
 
   // Filter data based on search query
-  const filteredProducts = products.filter(product => 
-    !searchQuery || 
-    (product.productname && product.productname.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.product_name && product.product_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.category && product.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.product_type && product.product_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.productcolor && product.productcolor.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.product_color && product.product_color.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.color && product.color.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.productsize && product.productsize.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.product_size && product.product_size.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.size && product.size.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (product.id && product.id.toString().includes(searchQuery)) ||
-    (product.product_id && product.product_id.toString().includes(searchQuery))
-  );
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => 
+      !searchQuery || 
+      (product.productname && product.productname.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.product_name && product.product_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.name && product.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.category && product.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.product_type && product.product_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.productcolor && product.productcolor.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.product_color && product.product_color.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.color && product.color.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.productsize && product.productsize.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.product_size && product.product_size.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.size && product.size.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (product.id && product.id.toString().includes(searchQuery)) ||
+      (product.product_id && product.product_id.toString().includes(searchQuery))
+    );
+  }, [products, searchQuery]);
 
-  const filteredTransactions = transactions.filter(transaction => 
-    !searchQuery || 
-    (transaction.customer_name && transaction.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (transaction.transaction_type && transaction.transaction_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (transaction.order_number && transaction.order_number.toString().includes(searchQuery)) ||
-    (transaction.status && transaction.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (transaction.id && transaction.id.toString().includes(searchQuery)) ||
-    (transaction.email && transaction.email.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => 
+      !searchQuery || 
+      (transaction.customer_name && transaction.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.transaction_type && transaction.transaction_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.order_number && transaction.order_number.toString().includes(searchQuery)) ||
+      (transaction.status && transaction.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.id && transaction.id.toString().includes(searchQuery)) ||
+      (transaction.transaction_id && transaction.transaction_id.toString().includes(searchQuery)) ||
+      (transaction.email && transaction.email.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [transactions, searchQuery]);
 
   // Handle view details
   const handleViewDetails = (item) => {
@@ -658,27 +706,44 @@ const SearchPage = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
+
   return (
     <PageContainer>
       <ContentWrapper>
         <Header>
-          <Title>🔍 Search Products & Transactions</Title>
-          <Subtitle>Search and browse all products and transaction records</Subtitle>
+          <Title>Search</Title>
+          <Subtitle>
+            Discover products and transactions with our advanced search system
+          </Subtitle>
         </Header>
 
-        {/* Search Bar */}
-        <SearchContainer>
-          <SearchInput
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search products by name, category, color, size, ID or transactions by customer, type..."
-          />
-          <SearchButton onClick={() => setSearchQuery('')}>
-            <FontAwesomeIcon icon={faTimes} />
-            Clear
-          </SearchButton>
-        </SearchContainer>
+        {/* Search Section */}
+        <SearchSection>
+          <SearchBarContainer>
+            <SearchIcon>
+              <FontAwesomeIcon icon={faSearch} />
+            </SearchIcon>
+            <SearchInput
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search products by name, category, color, size, or transactions by customer..."
+            />
+          </SearchBarContainer>
+          
+          <FilterControls>
+            {searchQuery && (
+              <ClearButton onClick={clearSearch}>
+                <FontAwesomeIcon icon={faTimes} />
+                Clear Search
+              </ClearButton>
+            )}
+          </FilterControls>
+        </SearchSection>
 
         {error && (
           <ErrorMessage>
@@ -706,6 +771,33 @@ const SearchPage = () => {
             </Tab>
           </TabsHeader>
 
+          {/* Results Header */}
+          <ResultsHeader>
+            <ResultsCount>
+              {activeTab === 'products' 
+                ? `${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''} found`
+                : `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} found`
+              }
+            </ResultsCount>
+            
+            <ViewToggle>
+              <ViewButton 
+                $active={viewMode === 'table'} 
+                onClick={() => setViewMode('table')}
+                title="Table View"
+              >
+                <FontAwesomeIcon icon={faList} />
+              </ViewButton>
+              <ViewButton 
+                $active={viewMode === 'grid'} 
+                onClick={() => setViewMode('grid')}
+                title="Grid View"
+              >
+                <FontAwesomeIcon icon={faTh} />
+              </ViewButton>
+            </ViewToggle>
+          </ResultsHeader>
+
           {/* Products Table */}
           {activeTab === 'products' && (
             <TableContainer>
@@ -717,7 +809,7 @@ const SearchPage = () => {
               ) : filteredProducts.length === 0 ? (
                 <EmptyState>
                   <h3>No products found</h3>
-                  <p>Try adjusting your search criteria</p>
+                  <p>Try adjusting your search criteria or clear the search to see all products</p>
                 </EmptyState>
               ) : (
                 <Table>
@@ -735,35 +827,33 @@ const SearchPage = () => {
                     </TableRow>
                   </TableHeader>
                   <tbody>
-                    {filteredProducts.map((product, index) => (
-                      <TableRow key={product.id || index}>
-                        <TableCell>#{product.id || product.product_id || 'N/A'}</TableCell>
-                        <TableCell>{product.productname || product.product_name || product.name || 'N/A'}</TableCell>
-                        <TableCell>{product.category || product.product_type || 'N/A'}</TableCell>
-                        <TableCell>{product.productcolor || product.product_color || product.color || 'N/A'}</TableCell>
-                        <TableCell>{product.productsize || product.product_size || product.size || 'N/A'}</TableCell>
-                        <TableCell>₱{parseFloat(product.price || product.product_price || 0).toFixed(2)}</TableCell>
-                        <TableCell>{product.stock_quantity || product.total_stock || product.quantity || product.stock || 'N/A'}</TableCell>
-                        <TableCell>
-                          <span style={{
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            backgroundColor: (product.stock_quantity || product.total_stock || product.quantity || 0) > 0 ? '#d4edda' : '#f8d7da',
-                            color: (product.stock_quantity || product.total_stock || product.quantity || 0) > 0 ? '#155724' : '#721c24'
-                          }}>
-                            {(product.stock_quantity || product.total_stock || product.quantity || 0) > 0 ? 'In Stock' : 'Out of Stock'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <ActionButton onClick={() => handleViewDetails(product)}>
-                            <FontAwesomeIcon icon={faEye} />
-                            View
-                          </ActionButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredProducts.map((product, index) => {
+                      const stock = product.stock_quantity || product.total_stock || product.quantity || product.stock || 0;
+                      const isInStock = stock > 0;
+                      
+                      return (
+                        <TableRow key={product.id || index}>
+                          <TableCell>ID: {product.product_id || product.id || 'N/A'}</TableCell>
+                          <TableCell>{product.productname || product.product_name || product.name || 'N/A'}</TableCell>
+                          <TableCell>{product.category || product.product_type || 'N/A'}</TableCell>
+                          <TableCell>{product.productcolor || product.product_color || product.color || 'N/A'}</TableCell>
+                          <TableCell>{product.productsize || product.product_size || product.size || 'N/A'}</TableCell>
+                          <TableCell>₱{parseFloat(product.price || product.product_price || 0).toFixed(2)}</TableCell>
+                          <TableCell>{stock}</TableCell>
+                          <TableCell>
+                            <StockBadge inStock={isInStock}>
+                              {isInStock ? 'In Stock' : 'Out of Stock'}
+                            </StockBadge>
+                          </TableCell>
+                          <TableCell>
+                            <ActionButton onClick={() => handleViewDetails(product)}>
+                              <FontAwesomeIcon icon={faEye} />
+                              View
+                            </ActionButton>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </tbody>
                 </Table>
               )}
@@ -781,14 +871,14 @@ const SearchPage = () => {
               ) : filteredTransactions.length === 0 ? (
                 <EmptyState>
                   <h3>No transactions found</h3>
-                  <p>Try adjusting your search criteria</p>
+                  <p>Try adjusting your search criteria or clear the search to see all transactions</p>
                 </EmptyState>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHeaderCell>Transaction ID</TableHeaderCell>
-                      <TableHeaderCell>Transaction Number</TableHeaderCell>
+                      <TableHeaderCell>Order Number</TableHeaderCell>
                       <TableHeaderCell>Customer</TableHeaderCell>
                       <TableHeaderCell>Amount</TableHeaderCell>
                       <TableHeaderCell>Type</TableHeaderCell>
@@ -799,30 +889,16 @@ const SearchPage = () => {
                   </TableHeader>
                   <tbody>
                     {filteredTransactions.map((transaction, index) => (
-                      <TableRow key={transaction.id || index}>
-                        <TableCell>#{transaction.id}</TableCell>
+                      <TableRow key={transaction.transaction_id || transaction.id || index}>
+                        <TableCell>{transaction.transaction_id || transaction.id || 'N/A'}</TableCell>
                         <TableCell>{transaction.order_number || transaction.transaction_number || 'N/A'}</TableCell>
                         <TableCell>{transaction.customer_name || 'N/A'}</TableCell>
                         <TableCell>₱{parseFloat(transaction.amount || 0).toFixed(2)}</TableCell>
                         <TableCell>{transaction.transaction_type || 'Order'}</TableCell>
                         <TableCell>
-                          <span style={{
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '500',
-                            textTransform: 'capitalize',
-                            backgroundColor: 
-                              transaction.status === 'confirmed' || transaction.status === 'completed' ? '#d4edda' :
-                              transaction.status === 'pending' ? '#fff3cd' :
-                              transaction.status === 'cancelled' ? '#f8d7da' : '#e2e3e5',
-                            color: 
-                              transaction.status === 'confirmed' || transaction.status === 'completed' ? '#155724' :
-                              transaction.status === 'pending' ? '#856404' :
-                              transaction.status === 'cancelled' ? '#721c24' : '#6c757d'
-                          }}>
+                          <StatusBadge status={transaction.status}>
                             {transaction.status || 'pending'}
-                          </span>
+                          </StatusBadge>
                         </TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>
                         <TableCell>

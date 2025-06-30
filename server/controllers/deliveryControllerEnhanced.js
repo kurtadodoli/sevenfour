@@ -130,31 +130,36 @@ class DeliveryController {
   // =============================================
   
   /**
-   * Get all orders available for delivery scheduling
+   * Get all orders available for delivery scheduling (separated by type)
    */
   static async getOrdersForDelivery(req, res) {
     let connection;
     try {
+      console.log('🚚 Enhanced Delivery: Fetching orders for delivery...');
       connection = await mysql.createConnection(dbConfig);
       
-      // Get regular orders from orders table
+      // Get regular orders from orders table (including custom orders that are stored there)
+      console.log('📦 Fetching orders from orders table...');
       const [regularOrders] = await connection.execute(`
         SELECT 
           o.id,
           o.order_number,
-          o.customer_name,
-          o.customer_email,
-          o.customer_phone,
+          oi.customer_name,
+          oi.customer_email,
+          o.contact_phone as customer_phone,
           o.total_amount,
           o.status,
           o.order_date,
           o.shipping_address,
-          o.shipping_city,
-          o.shipping_province,
-          o.shipping_postal_code,
-          o.shipping_phone,
-          o.shipping_notes,
-          'regular' as order_type,
+          COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(o.shipping_address, ',', -3), ',', 1), 'Unknown City') as shipping_city,
+          COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(o.shipping_address, ',', -2), ',', 1), 'Metro Manila') as shipping_province,
+          '' as shipping_postal_code,
+          o.contact_phone as shipping_phone,
+          o.notes as shipping_notes,
+          CASE 
+            WHEN o.order_number LIKE '%CUSTOM%' OR o.notes LIKE '%Custom Order%' THEN 'custom'
+            ELSE 'regular'
+          END as order_type,
           ds.delivery_status,
           ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
@@ -163,64 +168,34 @@ class DeliveryController {
           c.name as courier_name,
           c.phone_number as courier_phone
         FROM orders o
+        LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
         LEFT JOIN delivery_schedules_enhanced ds ON o.id = ds.order_id AND ds.order_type = 'regular'
         LEFT JOIN couriers c ON ds.courier_id = c.id
         WHERE o.status IN ('confirmed', 'processing')
         ORDER BY o.order_date DESC
       `);
       
-      // Get custom designs approved for delivery
-      const [customDesigns] = await connection.execute(`
-        SELECT 
-          CONCAT('custom-design-', cd.id) as id,
-          cd.design_id as order_number,
-          cd.customer_name,
-          cd.customer_email,
-          cd.customer_phone,
-          cd.final_price as total_amount,
-          cd.status,
-          cd.created_at as order_date,
-          cd.shipping_address,
-          cd.shipping_city,
-          cd.shipping_province,
-          cd.shipping_postal_code,
-          cd.shipping_phone,
-          cd.shipping_notes,
-          'custom_design' as order_type,
-          cd.delivery_status,
-          cd.delivery_date as scheduled_delivery_date,
-          ds.delivery_time_slot as scheduled_delivery_time,
-          ds.delivery_notes,
-          ds.id as delivery_schedule_id,
-          c.name as courier_name,
-          c.phone_number as courier_phone
-        FROM custom_designs cd
-        LEFT JOIN delivery_schedules_enhanced ds ON cd.id = ds.order_id AND ds.order_type = 'custom_design'
-        LEFT JOIN couriers c ON ds.courier_id = c.id
-        WHERE cd.status = 'approved'
-        ORDER BY cd.created_at DESC
-      `);
-      
-      // Get custom orders approved for delivery
+      // Get custom orders from custom_orders table
+      console.log('🎨 Fetching custom orders...');
       const [customOrders] = await connection.execute(`
         SELECT 
-          CONCAT('custom-order-', co.id) as id,
+          co.id,
           co.custom_order_id as order_number,
           co.customer_name,
           co.customer_email,
           co.customer_phone,
-          co.final_price as total_amount,
+          COALESCE(co.final_price, co.estimated_price, 0) as total_amount,
           co.status,
           co.created_at as order_date,
-          co.shipping_address,
-          co.shipping_city,
-          co.shipping_province,
-          co.shipping_postal_code,
-          co.shipping_phone,
-          co.shipping_notes,
+          CONCAT(co.street_number, ', ', co.municipality, ', ', co.province) as shipping_address,
+          co.municipality as shipping_city,
+          co.province as shipping_province,
+          co.postal_code as shipping_postal_code,
+          co.customer_phone as shipping_phone,
+          co.special_instructions as shipping_notes,
           'custom_order' as order_type,
-          co.delivery_status,
-          co.delivery_date as scheduled_delivery_date,
+          ds.delivery_status,
+          ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
           ds.delivery_notes,
           ds.id as delivery_schedule_id,
@@ -229,82 +204,141 @@ class DeliveryController {
         FROM custom_orders co
         LEFT JOIN delivery_schedules_enhanced ds ON co.id = ds.order_id AND ds.order_type = 'custom_order'
         LEFT JOIN couriers c ON ds.courier_id = c.id
-        WHERE co.status = 'approved'
+        WHERE co.status IN ('approved', 'completed')
         ORDER BY co.created_at DESC
       `);
       
-      // Combine all orders
-      const allOrders = [...regularOrders, ...customDesigns, ...customOrders];
+      // Get custom designs from custom_designs table
+      console.log('🎨 Fetching custom designs...');
+      const [customDesigns] = await connection.execute(`
+        SELECT 
+          cd.id,
+          cd.design_id as order_number,
+          cd.customer_name,
+          cd.customer_email,
+          cd.customer_phone,
+          COALESCE(cd.final_price, cd.estimated_price, 0) as total_amount,
+          cd.status,
+          cd.created_at as order_date,
+          CONCAT(cd.street_address, ', ', cd.city, ', Metro Manila') as shipping_address,
+          cd.city as shipping_city,
+          'Metro Manila' as shipping_province,
+          cd.postal_code as shipping_postal_code,
+          cd.customer_phone as shipping_phone,
+          cd.additional_info as shipping_notes,
+          'custom_design' as order_type,
+          ds.delivery_status,
+          ds.delivery_date as scheduled_delivery_date,
+          ds.delivery_time_slot as scheduled_delivery_time,
+          ds.delivery_notes,
+          ds.id as delivery_schedule_id,
+          c.name as courier_name,
+          c.phone_number as courier_phone
+        FROM custom_designs cd
+        LEFT JOIN delivery_schedules_enhanced ds ON cd.id = ds.order_id AND ds.order_type = 'custom_design'
+        LEFT JOIN couriers c ON ds.courier_id = c.id
+        WHERE cd.status IN ('approved', 'in_production', 'ready_for_pickup', 'completed')
+        ORDER BY cd.created_at DESC
+      `);
       
-      // Get order items for each order
-      for (let order of allOrders) {
-        if (order.order_type === 'regular') {
-          const [items] = await connection.execute(`
-            SELECT 
-              oi.*,
-              p.productname,
-              p.productdescription,
-              p.productcolor,
-              p.product_type,
-              p.productimage
-            FROM order_items oi
-            LEFT JOIN products p ON oi.product_id = p.product_id
-            WHERE oi.order_id = ?
+      console.log(`✅ Found ${regularOrders.length} regular orders`);
+      console.log(`✅ Found ${customOrders.length} custom orders`);
+      console.log(`✅ Found ${customDesigns.length} custom designs`);
+      
+      // Get order items for regular orders
+      for (let order of regularOrders) {
+        const [items] = await connection.execute(`
+          SELECT 
+            oi.*,
+            p.productname,
+            p.productcolor,
+            p.product_type,
+            p.productimage
+          FROM order_items oi
+          LEFT JOIN products p ON oi.product_id = p.product_id
+          WHERE oi.order_id = ?
+        `, [order.id]);
+        order.items = items;
+      }
+      
+      // Get items for custom orders (they use a different structure)
+      for (let order of customOrders) {
+        // Get the actual fields from the fetched order for custom order items
+        const fetchedOrder = customOrders.find(co => co.id === order.id);
+        if (fetchedOrder) {
+          // Use a query to get the detailed custom order data
+          const [customOrderDetails] = await connection.execute(`
+            SELECT * FROM custom_orders WHERE id = ?
           `, [order.id]);
-          order.items = items;
-        } else if (order.order_type === 'custom_design') {
-          // For custom designs, create a mock item
-          const designId = order.id.replace('custom-design-', '');
-          const [designDetails] = await connection.execute(`
-            SELECT product_type, product_color, quantity, final_price 
-            FROM custom_designs 
-            WHERE id = ?
-          `, [designId]);
           
-          if (designDetails.length > 0) {
-            const design = designDetails[0];
+          if (customOrderDetails.length > 0) {
+            const details = customOrderDetails[0];
             order.items = [{
-              id: 1,
-              product_name: `Custom ${design.product_type}`,
-              product_color: design.product_color,
-              quantity: design.quantity || 1,
-              unit_price: design.final_price,
-              total_price: design.final_price
-            }];
-          }
-        } else if (order.order_type === 'custom_order') {
-          // For custom orders, create a mock item
-          const customOrderId = order.id.replace('custom-order-', '');
-          const [orderDetails] = await connection.execute(`
-            SELECT product_type, product_color, quantity, final_price 
-            FROM custom_orders 
-            WHERE id = ?
-          `, [customOrderId]);
-          
-          if (orderDetails.length > 0) {
-            const customOrder = orderDetails[0];
-            order.items = [{
-              id: 1,
-              product_name: `Custom ${customOrder.product_type}`,
-              product_color: customOrder.product_color,
-              quantity: customOrder.quantity || 1,
-              unit_price: customOrder.final_price,
-              total_price: customOrder.final_price
+              id: order.id,
+              order_id: order.id,
+              product_name: `Custom ${details.product_type || 'Product'} - ${details.product_name || ''}`,
+              product_price: order.total_amount,
+              quantity: details.quantity || 1,
+              color: details.color,
+              size: details.size,
+              subtotal: order.total_amount,
+              productname: `Custom ${details.product_type || 'Product'}`,
+              productcolor: details.color,
+              product_type: details.product_type,
+              productimage: null
             }];
           }
         }
       }
       
+      // Get items for custom designs
+      for (let order of customDesigns) {
+        // Get the actual fields from the fetched order for custom design items
+        const [customDesignDetails] = await connection.execute(`
+          SELECT * FROM custom_designs WHERE id = ?
+        `, [order.id]);
+        
+        if (customDesignDetails.length > 0) {
+          const details = customDesignDetails[0];
+          order.items = [{
+            id: order.id,
+            order_id: order.id,
+            product_name: `Custom Design - ${details.product_type || 'Product'}`,
+            product_price: order.total_amount,
+            quantity: details.quantity || 1,
+            color: details.product_color,
+            size: details.product_size,
+            subtotal: order.total_amount,
+            productname: `Custom Design - ${details.product_type || 'Product'}`,
+            productcolor: details.product_color,
+            product_type: details.product_type,
+            productimage: null // Could add design images here if available
+          }];
+        }
+      }
+      
+      // Combine all orders for backward compatibility but keep them separated
+      const allOrders = [...regularOrders, ...customOrders, ...customDesigns];
+      
+      // Calculate summary statistics
+      const totalScheduled = allOrders.filter(o => o.delivery_status && o.delivery_status !== 'pending').length;
+      const totalPending = allOrders.filter(o => !o.delivery_status || o.delivery_status === 'pending').length;
+      
       res.json({
         success: true,
-        data: allOrders,
+        data: allOrders, // Combined list for backward compatibility
+        separatedData: {
+          regularOrders: regularOrders,
+          customOrders: customOrders,
+          customDesigns: customDesigns
+        },
         summary: {
           total: allOrders.length,
           regular: regularOrders.length,
-          custom_designs: customDesigns.length,
           custom_orders: customOrders.length,
-          scheduled: allOrders.filter(o => o.delivery_status && o.delivery_status !== 'pending').length,
-          pending: allOrders.filter(o => !o.delivery_status || o.delivery_status === 'pending').length
+          custom_designs: customDesigns.length,
+          scheduled: totalScheduled,
+          pending: totalPending
         }
       });
       
@@ -330,55 +364,146 @@ class DeliveryController {
   static async scheduleDelivery(req, res) {
     let connection;
     try {
+      console.log('🚀 Schedule delivery called with body:', req.body);
+      
       const {
         order_id,
+        order_number,
         order_type,
+        customer_id,
+        customer_name,
+        customer_email,
+        customer_phone,
         delivery_date,
         delivery_time_slot,
-        courier_id,
+        delivery_address,
+        delivery_city,
+        delivery_province,
+        delivery_postal_code,
+        delivery_contact_phone,
         delivery_notes,
-        priority_level
+        courier_id,
+        priority_level,
+        delivery_fee,
+        calendar_color,
+        display_icon
       } = req.body;
       
+      console.log('📋 Extracted parameters:', { order_id, order_type, delivery_date });
+      
+      // Validate required fields
+      if (!order_id || !order_type || !delivery_date) {
+        console.log('❌ Missing required fields');
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields: order_id, order_type, and delivery_date are required'
+        });
+      }
+      
       connection = await mysql.createConnection(dbConfig);
+      console.log('✅ Database connection established');
       
       // Get order details based on type
       let orderDetails;
       if (order_type === 'regular') {
         const [orders] = await connection.execute(`
-          SELECT * FROM orders WHERE id = ?
+          SELECT o.*, 
+                 CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                 u.email as customer_email,
+                 u.phone as customer_phone,
+                 o.shipping_address,
+                 o.contact_phone as shipping_phone
+          FROM orders o
+          LEFT JOIN users u ON o.user_id = u.user_id 
+          WHERE o.id = ?
         `, [order_id]);
         orderDetails = orders[0];
+        console.log('📅 Found regular order:', orderDetails ? 'YES' : 'NO');
       } else if (order_type === 'custom_design') {
         const [designs] = await connection.execute(`
           SELECT *, design_id as order_number FROM custom_designs WHERE id = ?
         `, [order_id.replace('custom-design-', '')]);
         orderDetails = designs[0];
+        console.log('📅 Found custom design:', orderDetails ? 'YES' : 'NO');
       } else if (order_type === 'custom_order') {
         const [customOrders] = await connection.execute(`
           SELECT *, custom_order_id as order_number FROM custom_orders WHERE id = ?
         `, [order_id.replace('custom-order-', '')]);
         orderDetails = customOrders[0];
+        console.log('📅 Found custom order:', orderDetails ? 'YES' : 'NO');
       }
       
       if (!orderDetails) {
+        console.log('❌ Order not found for ID:', order_id, 'Type:', order_type);
         return res.status(404).json({
           success: false,
           message: 'Order not found'
         });
       }
       
+      console.log('📋 Debugging schedule delivery request...');
+      console.log('Order ID:', order_id, 'Type:', order_type);
+      console.log('Order details found:', orderDetails ? 'YES' : 'NO');
+      if (orderDetails) {
+        console.log('Order details keys:', Object.keys(orderDetails));
+      }
+      
+      // Extract delivery location information from shipping address
+      let deliveryCity = 'Unknown City';
+      let deliveryProvince = 'Metro Manila';
+      
+      if (orderDetails.shipping_address) {
+        const addressParts = orderDetails.shipping_address.split(',');
+        if (addressParts.length >= 2) {
+          deliveryCity = addressParts[addressParts.length - 3]?.trim() || 'Unknown City';
+          deliveryProvince = addressParts[addressParts.length - 2]?.trim() || 'Metro Manila';
+        }
+      }
+      
+      // Prepare SQL parameters with explicit null checks and defaults
+      const sqlParams = [
+        order_id || null,
+        order_number || orderDetails.order_number || `ORDER-${order_id}`,
+        order_type || 'regular',
+        customer_id || orderDetails.customer_id || orderDetails.user_id || null,
+        customer_name || orderDetails.customer_name || orderDetails.customerName || 'Unknown Customer',
+        customer_email || orderDetails.customer_email || orderDetails.customerEmail || null,
+        customer_phone || orderDetails.customer_phone || orderDetails.customerPhone || orderDetails.contact_phone || null,
+        delivery_date || null,
+        delivery_time_slot || null,
+        delivery_address || orderDetails.shipping_address || orderDetails.shippingAddress || 'No address provided',
+        delivery_city || deliveryCity || 'Unknown City',
+        delivery_province || deliveryProvince || 'Metro Manila',
+        delivery_postal_code || null,
+        delivery_contact_phone || orderDetails.shipping_phone || orderDetails.customer_phone || orderDetails.contact_phone || null,
+        delivery_notes || '',
+        courier_id || null,
+        priority_level || 'normal',
+        delivery_fee || 0.00,
+        null, // scheduled_at - will be set to CURRENT_TIMESTAMP by default
+        null, // dispatched_at
+        null, // delivered_at
+        calendar_color || '#007bff',
+        display_icon || '📅'
+      ];
+      
+      console.log('📋 SQL Parameters:');
+      sqlParams.forEach((param, index) => {
+        console.log(`  ${index}: ${param} (${typeof param})`);
+      });
+      
       // Create delivery schedule
       const [result] = await connection.execute(`
         INSERT INTO delivery_schedules_enhanced (
-          order_id, order_number, order_type,
+          order_id, order_number, order_type, customer_id,
           customer_name, customer_email, customer_phone,
           delivery_date, delivery_time_slot, delivery_status,
           delivery_address, delivery_city, delivery_province, delivery_postal_code,
           delivery_contact_phone, delivery_notes,
-          courier_id, priority_level,
+          courier_id, priority_level, delivery_fee,
+          scheduled_at, dispatched_at, delivered_at,
           calendar_color, display_icon
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
         delivery_date = VALUES(delivery_date),
         delivery_time_slot = VALUES(delivery_time_slot),
@@ -387,29 +512,16 @@ class DeliveryController {
         delivery_notes = VALUES(delivery_notes),
         priority_level = VALUES(priority_level),
         updated_at = CURRENT_TIMESTAMP
-      `, [
-        order_type === 'regular' ? order_id : order_id.replace(/^custom-(design|order)-/, ''),
-        orderDetails.order_number,
-        order_type,
-        orderDetails.customer_name,
-        orderDetails.customer_email,
-        orderDetails.customer_phone,
-        delivery_date,
-        delivery_time_slot,
-        orderDetails.shipping_address,
-        orderDetails.shipping_city,
-        orderDetails.shipping_province,
-        orderDetails.shipping_postal_code,
-        orderDetails.shipping_phone || orderDetails.customer_phone,
-        delivery_notes,
-        courier_id,
-        priority_level || 'normal',
-        this.getStatusColor('scheduled'),
-        this.getStatusIcon('scheduled')
-      ]);
+      `, sqlParams);
       
       // Update delivery status in source table
-      if (order_type === 'custom_design') {
+      if (order_type === 'regular') {
+        await connection.execute(`
+          UPDATE orders 
+          SET delivery_status = 'scheduled', scheduled_delivery_date = ?, delivery_notes = ?
+          WHERE id = ?
+        `, [delivery_date, delivery_notes, order_id]);
+      } else if (order_type === 'custom_design') {
         await connection.execute(`
           UPDATE custom_designs 
           SET delivery_status = 'scheduled', delivery_date = ?, delivery_notes = ?
@@ -430,8 +542,8 @@ class DeliveryController {
         WHERE calendar_date = ?
       `, [delivery_date]);
       
-      // Log status change
-      await this.logStatusChange(connection, result.insertId, order_id, null, 'scheduled', 'Order scheduled for delivery', req.user?.id, req.user?.username);
+      // Log status change (temporarily disabled for testing)
+      // await this.logStatusChange(connection, result.insertId, order_id, null, 'scheduled', 'Order scheduled for delivery', req.user?.id || null, req.user?.username || 'system');
       
       res.json({
         success: true,
@@ -513,7 +625,13 @@ class DeliveryController {
       ]);
       
       // Update status in source table
-      if (schedule.order_type === 'custom_design') {
+      if (schedule.order_type === 'regular') {
+        await connection.execute(`
+          UPDATE orders 
+          SET delivery_status = ?, delivery_notes = ?
+          WHERE id = ?
+        `, [delivery_status, delivery_notes, schedule.order_id]);
+      } else if (schedule.order_type === 'custom_design') {
         await connection.execute(`
           UPDATE custom_designs 
           SET delivery_status = ?, delivery_notes = ?
@@ -553,6 +671,55 @@ class DeliveryController {
     }
   }
   
+  /**
+   * Remove order from delivery management
+   * This doesn't delete the order but removes it from delivery scheduling
+   */
+  static async removeOrderFromDelivery(req, res) {
+    let connection;
+    try {
+      const { orderId } = req.params;
+      
+      connection = await mysql.createConnection(dbConfig);
+      
+      // Remove any delivery schedules for this order
+      const [deleteSchedules] = await connection.execute(`
+        DELETE FROM delivery_schedules_enhanced 
+        WHERE order_id = ?
+      `, [orderId]);
+      
+      // Log the removal for audit purposes
+      await connection.execute(`
+        INSERT INTO delivery_status_history 
+        (delivery_schedule_id, order_id, previous_status, new_status, changed_by_user_id, changed_by_name, status_notes, created_at)
+        VALUES (?, ?, 'scheduled', 'removed_from_delivery', ?, 'System', 'Order removed from delivery management', NOW())
+      `, [0, orderId, 1]); // Using delivery_schedule_id 0 for system operations and user ID 1
+      
+      console.log(`✅ Removed order ${orderId} from delivery management`);
+      
+      res.json({
+        success: true,
+        message: `Order ${orderId} removed from delivery management`,
+        data: {
+          orderId: orderId,
+          schedulesRemoved: deleteSchedules.affectedRows
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error removing order from delivery:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error removing order from delivery management',
+        error: error.message
+      });
+    } finally {
+      if (connection) {
+        await connection.end();
+      }
+    }
+  }
+
   // =============================================
   // HELPER METHODS
   // =============================================

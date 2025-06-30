@@ -683,6 +683,21 @@ const CustomPage = () => {
         console.log('   Orders count:', result.count);
         console.log('   Orders data length:', result.data ? result.data.length : 0);
         
+        // Debug: Log each order to see available fields including images
+        if (result.data && result.data.length > 0) {
+          console.log('🖼️ Checking image fields in orders:');
+          result.data.forEach((order, index) => {
+            console.log(`   Order ${index + 1}:`, {
+              id: order.custom_order_id,
+              design_images: order.design_images,
+              images: order.images,
+              image_urls: order.image_urls,
+              files: order.files,
+              attachments: order.attachments
+            });
+          });
+        }
+        
         // The API returns data in result.data, not result.customOrders
         setPendingOrders(result.data || []);
         console.log('✅ Pending orders updated in state');
@@ -1019,6 +1034,152 @@ const CustomPage = () => {
                       <OrderId>Order #{order.custom_order_id}</OrderId>
                       <OrderStatus status={order.status}>{order.status}</OrderStatus>
                     </OrderHeader>
+                    
+                    {/* Custom Design Images Section */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <DetailItem style={{ marginBottom: '0.5rem' }}>
+                        <strong>🎨 Custom Design Images:</strong>
+                      </DetailItem>
+                      {(() => {
+                        console.log('🖼️ Order image debug:', {
+                          orderId: order.custom_order_id,
+                          images: order.images,
+                          imageCount: order.image_count,
+                          designImages: order.design_images,
+                          hasImages: order.images && order.images.length > 0
+                        });
+                        return null;
+                      })()}
+                      {order.images && order.images.length > 0 ? (
+                        <ImagePreviewGrid style={{ marginTop: '0.5rem', gap: '0.75rem' }}>
+                          {order.images.map((image, index) => {
+                            // Construct the correct image URL based on the API response structure
+                            const imageUrl = `http://localhost:5000/uploads/custom-orders/${image.filename}`;
+                            console.log(`🖼️ Image ${index + 1} URL:`, imageUrl, 'Image object:', image);
+                            
+                            return (
+                              <ImagePreview 
+                                key={index}
+                                style={{ 
+                                  position: 'relative',
+                                  cursor: 'pointer',
+                                  border: '2px solid #e0e0e0',
+                                  borderRadius: '8px',
+                                  overflow: 'hidden',
+                                  minHeight: '120px',
+                                  backgroundColor: '#f8f9fa',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = '#007bff';
+                                  e.currentTarget.style.transform = 'scale(1.02)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = '#e0e0e0';
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                }}
+                                onClick={() => {
+                                  // Open image in new tab for full view
+                                  window.open(imageUrl, '_blank');
+                                }}
+                              >
+                                <img
+                                  src={imageUrl}
+                                  alt={`Custom design ${index + 1}`}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                  }}
+                                  onLoad={() => {
+                                    console.log(`✅ Image ${index + 1} loaded successfully:`, imageUrl);
+                                  }}
+                                  onError={(e) => {
+                                    console.log('❌ Failed to load image:', imageUrl);
+                                    console.log('Trying alternative paths for:', image);
+                                    
+                                    // Try alternative paths based on the multer upload configuration
+                                    const altUrls = [
+                                      `http://localhost:5000/uploads/custom-designs/${image.filename}`,
+                                      `http://localhost:5000/uploads/${image.filename}`,
+                                      `http://localhost:5000/images/${image.filename}`,
+                                      // Fallback to original filename if different
+                                      `http://localhost:5000/uploads/custom-orders/${image.original_filename}`,
+                                      `http://localhost:5000/uploads/custom-designs/${image.original_filename}`
+                                    ];
+                                    
+                                    if (!e.target.dataset.retryIndex) {
+                                      e.target.dataset.retryIndex = '0';
+                                    }
+                                    
+                                    const retryIndex = parseInt(e.target.dataset.retryIndex);
+                                    if (retryIndex < altUrls.length) {
+                                      console.log(`🔄 Trying alternative URL ${retryIndex + 1}:`, altUrls[retryIndex]);
+                                      e.target.src = altUrls[retryIndex];
+                                      e.target.dataset.retryIndex = (retryIndex + 1).toString();
+                                    } else {
+                                      console.log('❌ All alternative URLs failed');
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }
+                                  }}
+                                />
+                              <div style={{
+                                display: 'none',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: '#f5f5f5',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexDirection: 'column',
+                                fontSize: '0.75rem',
+                                color: '#666666',
+                                border: '1px dashed #cccccc'
+                              }}>
+                                <FontAwesomeIcon icon={faImage} size="2x" style={{ marginBottom: '0.5rem', color: '#cccccc' }} />
+                                <span>Design {index + 1}</span>
+                                <span style={{ fontSize: '0.625rem', marginTop: '0.25rem', textAlign: 'center' }}>
+                                  Image unavailable<br/>Click to open
+                                </span>
+                              </div>
+                              <div style={{
+                                position: 'absolute',
+                                bottom: '4px',
+                                right: '4px',
+                                background: 'rgba(0, 0, 0, 0.8)',
+                                color: 'white',
+                                padding: '3px 7px',
+                                borderRadius: '12px',
+                                fontSize: '0.625rem',
+                                fontWeight: '600'
+                              }}>
+                                {index + 1}
+                              </div>
+                            </ImagePreview>
+                          );
+                          })}
+                        </ImagePreviewGrid>
+                      ) : (
+                        <div style={{
+                          padding: '1.5rem',
+                          background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                          border: '2px dashed #dee2e6',
+                          borderRadius: '12px',
+                          textAlign: 'center',
+                          color: '#6c757d',
+                          fontSize: '0.875rem'
+                        }}>
+                          <FontAwesomeIcon icon={faImage} size="2x" style={{ marginBottom: '0.75rem', color: '#adb5bd' }} />
+                          <div style={{ fontWeight: '500', marginBottom: '0.25rem' }}>No design images available</div>
+                          <div style={{ fontSize: '0.75rem', opacity: '0.8' }}>
+                            Design images will appear here once uploaded
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     
                     <OrderDetails>
                       <DetailItem>

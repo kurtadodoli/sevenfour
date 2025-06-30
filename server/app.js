@@ -207,6 +207,7 @@ const searchRoutes = require('./routes/api/search');
 const deliveryRoutes = require('./routes/delivery');
 const deliveryEnhancedRoutes = require('./routes/deliveryEnhanced');
 const courierRoutes = require('./routes/couriers');
+const testDeliveryRoutes = require('./routes/testDelivery');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -226,10 +227,13 @@ app.use('/api/inventory', inventoryRoutes);
 app.use('/api/custom-orders', customOrdersRoutes);
 app.use('/api/custom-designs', customDesignsRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/delivery', deliveryRoutes); // Legacy delivery routes
-app.use('/delivery-enhanced', deliveryEnhancedRoutes); // New enhanced delivery routes
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/delivery-enhanced', deliveryEnhancedRoutes);
 app.use('/api/couriers', courierRoutes);
-app.use('/health', healthCheckRoutes);
+app.use('/api/test-delivery', testDeliveryRoutes);
+
+// Test delivery routes (temporary for debugging)
+app.use('/api/test-delivery', testDeliveryRoutes);
 
 // Simple test route
 app.get('/api/test', (req, res) => {
@@ -805,6 +809,17 @@ app.post('/api/test-confirm-order/:orderId', async (req, res) => {
       message: 'Test confirm failed: ' + error.message
     });
   }
+});
+
+// Test delivery scheduling endpoint (no auth)
+app.post('/api/test-schedule', (req, res) => {
+  console.log('🧪 TEST SCHEDULE ENDPOINT HIT');
+  console.log('Request body:', req.body);
+  res.json({
+    success: true,
+    message: 'Test schedule endpoint working!',
+    data: req.body
+  });
 });
 
 // Error handling middleware

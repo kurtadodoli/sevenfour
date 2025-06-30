@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faUser, faPhone, faEnvelope } from '@fortawesome/free-solid-svg-icons';
@@ -199,6 +199,23 @@ const CourierModal = ({ isOpen, onClose, onSave, editingCourier = null }) => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form when editingCourier changes
+  useEffect(() => {
+    console.log('📝 CourierModal useEffect - editingCourier changed:', editingCourier);
+    setFormData({
+      name: editingCourier?.name || '',
+      phone_number: editingCourier?.phone_number || '',
+      email: editingCourier?.email || '',
+      license_number: editingCourier?.license_number || '',
+      vehicle_type: editingCourier?.vehicle_type || 'motorcycle',
+      max_deliveries_per_day: editingCourier?.max_deliveries_per_day || 10,
+      service_areas: editingCourier?.service_areas || '',
+      notes: editingCourier?.notes || ''
+    });
+    setErrors({});
+    setIsSubmitting(false);
+  }, [editingCourier]);
 
   if (!isOpen) return null;
 

@@ -1113,71 +1113,77 @@ const getDisplayStatus = (status) => {
 };
 
 const TransactionPage = () => {
-  // NOTE: This page displays ALL confirmed orders from ALL users in the database
-  // It does NOT filter by current user - it shows transactions from every customer
-  const { currentUser: user } = useAuth(); // Get current user (renamed for consistency)
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     approved: 0,
+    processing: 0,
+    shipped: 0,
+    delivered: 0,
     rejected: 0,
     totalAmount: 0
   });
   
-  // Cancellation requests state
-  const [activeTab, setActiveTab] = useState('orders');  const [cancellationRequests, setCancellationRequests] = useState([]);
+  // Cancellation request states
+  const [cancellationRequests, setCancellationRequests] = useState([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
-  const [processingRequest, setProcessingRequest] = useState(null);
-  const [adminNotes, setAdminNotes] = useState('');
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [selectedCancellationRequest, setSelectedCancellationRequest] = useState(null);
+  const [processingCancellation, setProcessingCancellation] = useState(false);
+  
+  // Custom design processing states
+  const [showDesignModal, setShowDesignModal] = useState(false);
+  const [selectedDesignRequest, setSelectedDesignRequest] = useState(null);
+  const [processingDesign, setProcessingDesign] = useState(false);
+  
+  // Add missing state hooks for ESLint errors
   const [showProcessingModal, setShowProcessingModal] = useState(false);
-  
-  // Custom design requests state
-  const [customDesignRequests, setCustomDesignRequests] = useState([]);
+  const [processingRequest, setProcessingRequest] = useState(null);
   const [designRequestsLoading, setDesignRequestsLoading] = useState(false);
-  const [designSearchTerm, setDesignSearchTerm] = useState('');
-  
-  // Image modal state
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImageName, setSelectedImageName] = useState('');
-  const [processingDesignRequest, setProcessingDesignRequest] = useState(null);
+  const [customDesignRequests, setCustomDesignRequests] = useState([]);
+  const [buttonLoading, setButtonLoading] = useState({});
   const [designAdminNotes, setDesignAdminNotes] = useState('');
   const [showDesignProcessingModal, setShowDesignProcessingModal] = useState(false);
-  const [buttonLoading, setButtonLoading] = useState({}); // Track loading state for individual buttons
+  const [processingDesignRequest, setProcessingDesignRequest] = useState(null);
+  const [designSearchTerm, setDesignSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('orders');
+  
+  // Add missing state variables
+  const [adminNotes, setAdminNotes] = useState('');
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageName, setImageName] = useState('');
+  
+  const { user } = useAuth();
+
   // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 TransactionPage: Fetching ALL confirmed orders and approved custom orders...');
-      console.log('User:', user);
+      console.log('🔄 Fetching transactions...');
       
-      // Fetch regular confirmed orders
-      console.log('📦 Fetching regular confirmed orders...');
-      const ordersResponse = await api.get('/orders/confirmed');
-      
-      // Fetch approved custom orders
-      console.log('🎨 Fetching approved custom orders...');
-      const customOrdersResponse = await api.get('/custom-orders/admin/all');
-      
-      console.log('Regular orders response:', ordersResponse.data);
-      console.log('Custom orders response:', customOrdersResponse.data);
+      // Fetch both regular orders and custom orders
+      const [ordersResponse, customOrdersResponse] = await Promise.all([
+        api.get('/orders/confirmed'),
+        api.get('/custom-orders/approved')
+      ]);
       
       let allTransactions = [];
       
-      // Process regular confirmed orders
+      // Process confirmed regular orders
       if (ordersResponse.data.success) {
-        console.log('✅ Regular confirmed orders fetched successfully');
+        console.log('✅ Regular orders fetched successfully');
         const ordersData = ordersResponse.data.data || [];
         
         const processedOrders = ordersData.map(order => {
-          const fullName = [order.first_name, order.last_name].filter(Boolean).join(' ') || 
-                         order.customer_name || 
+          const fullName = order.customer_name || 
+                         [order.first_name, order.last_name].filter(Boolean).join(' ') || 
                          'Unknown Customer';
           
           return {
@@ -1185,7 +1191,7 @@ const TransactionPage = () => {
             order_number: order.order_number,
             transaction_id: order.transaction_id,
             customer_name: fullName,
-            customer_email: order.user_email || order.customer_email,
+            customer_email: order.customer_email || order.user_email,
             user_email: order.user_email,
             first_name: order.first_name,
             last_name: order.last_name,
@@ -1280,52 +1286,8 @@ const TransactionPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);// Match OrderPage pattern
-  
-  const calculateStats = (data) => {
-    const stats = {
-      total: data.length,
-      pending: data.filter(t => t.status === 'pending').length,
-      approved: data.filter(t => t.status === 'confirmed').length,
-      processing: data.filter(t => t.status === 'processing').length,
-      shipped: data.filter(t => t.status === 'shipped').length,
-      delivered: data.filter(t => t.status === 'delivered').length,
-      rejected: data.filter(t => t.status === 'cancelled').length,
-      totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || t.amount || 0), 0)
-    };
-    setStats(stats);
-  };
+  }, [user]);
 
-  // View transaction details
-  const viewTransaction = (transaction) => {
-    setSelectedTransaction(transaction);
-    setShowModal(true);
-  };  // Filter transactions
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.user_email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const transactionStatus = transaction.status || 'pending';
-    const matchesStatus = statusFilter === 'all' || transactionStatus === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Format currency
-  const formatCurrency = (amount) => {
-    return `₱${parseFloat(amount || 0).toFixed(2)}`;
-  };
-  // Format date
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-  
   // Fetch cancellation requests
   const fetchCancellationRequests = useCallback(async () => {
     try {
@@ -1516,7 +1478,7 @@ const TransactionPage = () => {
   // Image handling functions
   const handleImageView = (imageSrc, imageName) => {
     setSelectedImage(imageSrc);
-    setSelectedImageName(imageName || 'Image');
+    setImageName(imageName || 'Image');
     setShowImageModal(true);
   };
   
@@ -1542,26 +1504,77 @@ const TransactionPage = () => {
   const closeImageModal = () => {
     setShowImageModal(false);
     setSelectedImage(null);
-    setSelectedImageName('');
+    setImageName('');
   };
 
   useEffect(() => {
-    console.log('🔄 TransactionPage useEffect triggered');
-    console.log('User:', user);
-    console.log('User role:', user?.role);
-    console.log('Active tab:', activeTab);
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  useEffect(() => {
+    fetchCancellationRequests();
+  }, [fetchCancellationRequests]);
+
+  const calculateStats = (data) => {
+    const stats = {
+      total: data.length,
+      pending: data.filter(t => t.status === 'pending').length,
+      approved: data.filter(t => t.status === 'confirmed').length,
+      processing: data.filter(t => t.status === 'processing').length,
+      shipped: data.filter(t => t.status === 'shipped').length,
+      delivered: data.filter(t => t.status === 'delivered').length,
+      rejected: data.filter(t => t.status === 'cancelled').length,
+      totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || t.amount || 0), 0)
+    };
+    setStats(stats);
+  };
+
+  // View transaction details
+  const viewTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowModal(true);
+  };
+
+  // Filter transactions
+  const filteredTransactions = transactions.filter(transaction => {
+    const matchesSearch = transaction.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.customer_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         transaction.user_email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Match OrderPage pattern - call fetchTransactions for orders tab
-    if (activeTab === 'orders') {
-      fetchTransactions();
-    }
-    if (activeTab === 'cancellations') {
-      fetchCancellationRequests();
-    }
-    if (activeTab === 'design-requests') {
-      fetchCustomDesignRequests();
-    }
-  }, [activeTab, fetchTransactions, fetchCancellationRequests, fetchCustomDesignRequests, user]);
+    const transactionStatus = transaction.status || 'pending';
+    const matchesStatus = statusFilter === 'all' || transactionStatus === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    return `₱${parseFloat(amount || 0).toFixed(2)}`;
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Get display status
+  const getDisplayStatus = (status) => {
+    const statusMap = {
+      'pending': 'Pending',
+      'confirmed': 'Confirmed',
+      'processing': 'Processing',
+      'shipped': 'Shipped',
+      'delivered': 'Delivered',
+      'cancelled': 'Cancelled'
+    };
+    return statusMap[status] || status;
+  };
+
   return (
     <PageContainer>
       <ContentWrapper>
@@ -1860,294 +1873,149 @@ const TransactionPage = () => {
         </TransactionsTable>
         </div>
 
-        {/* Transaction Details Modal */}
-        {showModal && selectedTransaction && (
-          <ModalOverlay onClick={() => setShowModal(false)}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-              <ModalHeader>
-                <h2>Transaction Details</h2>
-                <CloseButton onClick={() => setShowModal(false)}>
-                  <FontAwesomeIcon icon={faTimes} />
-                </CloseButton>
-              </ModalHeader>                <ModalContent>
-                <div style={{ marginBottom: '24px' }}>
-                  <h3>Order Information</h3>
-                  <p><strong>Order Number:</strong> {selectedTransaction.order_number}</p>
-                  <p><strong>Transaction ID:</strong> {selectedTransaction.transaction_id}</p>                  <p><strong>Order Status:</strong> <StatusBadge status={selectedTransaction.order_status}>{getDisplayStatus(selectedTransaction.order_status)}</StatusBadge></p>
-                  <p><strong>Transaction Status:</strong> <StatusBadge status={selectedTransaction.transaction_status}>{getDisplayStatus(selectedTransaction.transaction_status)}</StatusBadge></p>
-                  <p><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.amount || selectedTransaction.total_amount || selectedTransaction.invoice_total)}</p>
-                  <p><strong>Payment Method:</strong> {selectedTransaction.payment_method || 'Cash on Delivery'}</p>
-                </div>
-
-                {/* Product Details Section */}
-                {selectedTransaction.items && selectedTransaction.items.length > 0 && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h3>Order Items</h3>
-                    <div style={{ 
-                      background: '#f8f9fa', 
-                      border: '1px solid #e9ecef', 
-                      borderRadius: '8px', 
-                      padding: '16px',
-                      maxHeight: '300px',
-                      overflowY: 'auto'
-                    }}>
-                      {selectedTransaction.items.map((item, index) => (
-                        <div key={`${item.product_id || item.id}-${index}`} style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '12px 0',
-                          borderBottom: index < selectedTransaction.items.length - 1 ? '1px solid #dee2e6' : 'none',
-                          gap: '16px'
-                        }}>
-                          {/* Product Image */}
-                          {item.productimage ? (
-                            <ImageContainer onClick={() => handleImageView(`http://localhost:5000/uploads/${item.productimage}`, item.productname)}>
-                              <ProductImage 
-                                src={`http://localhost:5000/uploads/${item.productimage}`}
-                                alt={item.productname || 'Product'}
-                                onError={(e) => {
-                                  e.target.src = 'http://localhost:5000/images/placeholder.svg';
-                                }}
-                              />
-                              <ImageOverlay>
-                                <ImageAction onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleImageView(`http://localhost:5000/uploads/${item.productimage}`, item.productname);
-                                }}>
-                                  <FontAwesomeIcon icon={faExpand} size="sm" />
-                                </ImageAction>
-                                <ImageAction onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleImageDownload(`http://localhost:5000/uploads/${item.productimage}`, `${item.productname || 'product'}.jpg`);
-                                }}>
-                                  <FontAwesomeIcon icon={faDownload} size="sm" />
-                                </ImageAction>
-                              </ImageOverlay>
-                            </ImageContainer>
-                          ) : (
-                            <ImagePlaceholder>
-                              <FontAwesomeIcon icon={faImage} />
-                            </ImagePlaceholder>
-                          )}
-                          
-                          {/* Product Details */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ 
-                              fontWeight: '600', 
-                              marginBottom: '4px',
-                              color: '#000000'
-                            }}>
-                              {item.productname || 'Unknown Product'}
-                            </div>
-                            <div style={{ 
-                              fontSize: '14px', 
-                              color: '#666666',
-                              marginBottom: '4px'
-                            }}>
-                              <strong>Product ID:</strong> {item.product_id || item.id || 'N/A'}
-                              {item.productcolor && (
-                                <span style={{ marginLeft: '16px' }}>
-                                  <strong>Color:</strong> {item.productcolor}
-                                </span>
-                              )}
-                              {item.product_type && (
-                                <span style={{ marginLeft: '16px' }}>
-                                  <strong>Type:</strong> {item.product_type}
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ 
-                              fontSize: '14px', 
-                              color: '#666666'
-                            }}>
-                              <strong>Quantity:</strong> {item.quantity || 1}
-                              <span style={{ marginLeft: '16px' }}>
-                                <strong>Unit Price:</strong> {formatCurrency(item.price || item.unit_price || 0)}
-                              </span>
-                              <span style={{ marginLeft: '16px' }}>
-                                <strong>Subtotal:</strong> {formatCurrency((item.price || item.unit_price || 0) * (item.quantity || 1))}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                <div style={{ marginBottom: '24px' }}>
-                  <h3>Customer Information</h3>
-                  <p><strong>Name:</strong> {selectedTransaction.customer_name || (selectedTransaction.first_name + ' ' + selectedTransaction.last_name) || selectedTransaction.username || 'N/A'}</p>
-                  <p><strong>Email:</strong> {selectedTransaction.customer_email || selectedTransaction.user_email || 'N/A'}</p>
-                  <p><strong>Phone:</strong> {selectedTransaction.contact_phone || 'N/A'}</p>
-                  <p><strong>Address:</strong> {selectedTransaction.shipping_address || 'N/A'}</p>
-                </div>
-                
-                {selectedTransaction.notes && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h3>Order Notes</h3>
-                    <p>{selectedTransaction.notes}</p>
-                  </div>
-                )}
-                
-                <div>
-                  <h3>Dates</h3>
-                  <p><strong>Order Date:</strong> {formatDate(selectedTransaction.order_date)}</p>
-                  <p><strong>Created:</strong> {formatDate(selectedTransaction.created_at)}</p>
-                  <p><strong>Last Updated:</strong> {formatDate(selectedTransaction.updated_at)}</p>
-                </div>
-              </ModalContent></Modal>          </ModalOverlay>
-        )}
-          </>
-        )}
+        {/* Cancellation Requests Header */}
+        <ControlsSection>
+          <ControlsGrid>
+            <SearchContainer>
+              <SearchIcon icon={faSearch} />
+              <SearchInput
+                type="text"
+                placeholder="Search by order number or customer name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </SearchContainer>
+            <FilterSelect
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Requests</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="denied">Denied</option>
+            </FilterSelect>
+            <RefreshButton onClick={fetchCancellationRequests} disabled={requestsLoading}>
+              <FontAwesomeIcon icon={faRefresh} />
+              Refresh
+            </RefreshButton>
+          </ControlsGrid>
+        </ControlsSection>
         
-        {activeTab === 'cancellations' && (
-          <>
-            {/* Cancellation Requests Header */}
-            <ControlsSection>
-              <ControlsGrid>
-                <SearchContainer>
-                  <SearchIcon icon={faSearch} />
-                  <SearchInput
-                    type="text"
-                    placeholder="Search by order number or customer name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </SearchContainer>
-                <FilterSelect
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">All Requests</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="denied">Denied</option>
-                </FilterSelect>
-                <RefreshButton onClick={fetchCancellationRequests} disabled={requestsLoading}>
-                  <FontAwesomeIcon icon={faRefresh} />
-                  Refresh
-                </RefreshButton>
-              </ControlsGrid>
-            </ControlsSection>
-            
-            {/* Cancellation Requests List */}
-            {requestsLoading ? (
-              <LoadingContainer>
-                <FontAwesomeIcon icon={faInfoCircle} size="2x" color="#ddd" />
-                <p>Loading cancellation requests...</p>
-              </LoadingContainer>
-            ) : cancellationRequests.length === 0 ? (
-              <EmptyState>
-                <FontAwesomeIcon icon={faExclamationTriangle} className="icon" />
-                <h3>No cancellation requests found</h3>
-                <p>No cancellation requests match your current filters.</p>
-              </EmptyState>
-            ) : (
-              cancellationRequests
-                .filter(request => {
-                  const matchesSearch = request.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       request.customer_first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       request.customer_last_name?.toLowerCase().includes(searchTerm.toLowerCase());
-                  const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-                  return matchesSearch && matchesStatus;
-                })
-                .map((request) => (
-                  <CancellationRequestCard key={request.id}>
-                    <RequestHeader>
-                      <RequestInfo>
-                        <h3>Order #{request.order_number}</h3>
-                        <div className="meta">
-                          <div className="item">
-                            <strong>Customer:</strong> {request.customer_first_name} {request.customer_last_name}
+        {/* Cancellation Requests List */}
+        {requestsLoading ? (
+          <LoadingContainer>
+            <FontAwesomeIcon icon={faInfoCircle} size="2x" color="#ddd" />
+            <p>Loading cancellation requests...</p>
+          </LoadingContainer>
+        ) : cancellationRequests.length === 0 ? (
+          <EmptyState>
+            <FontAwesomeIcon icon={faExclamationTriangle} className="icon" />
+            <h3>No cancellation requests found</h3>
+            <p>No cancellation requests match your current filters.</p>
+          </EmptyState>
+        ) : (
+          cancellationRequests
+            .filter(request => {
+              const matchesSearch = request.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   request.customer_first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   request.customer_last_name?.toLowerCase().includes(searchTerm.toLowerCase());
+              const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+              return matchesSearch && matchesStatus;
+            })
+            .map((request) => (
+              <CancellationRequestCard key={request.id}>
+                <RequestHeader>
+                  <RequestInfo>
+                    <h3>Order #{request.order_number}</h3>
+                    <div className="meta">
+                      <div className="item">
+                        <strong>Customer:</strong> {request.customer_first_name} {request.customer_last_name}
+                      </div>
+                      <div className="item">
+                        <strong>Email:</strong> {request.customer_email}
+                      </div>
+                      <div className="item">
+                        <strong>Amount:</strong> {formatCurrency(request.order_total)}
+                      </div>
+                      <div className="item">
+                        <strong>Submitted:</strong> {formatDate(request.created_at)}
+                      </div>
+                    </div>
+                  </RequestInfo>                      <StatusBadge status={request.status}>
+                    {getDisplayStatus(request.status)}
+                  </StatusBadge>
+                </RequestHeader>
+                
+                <ReasonBox>
+                  <h4>Cancellation Reason</h4>
+                  <p>{request.reason}</p>
+                </ReasonBox>
+                
+                {/* Product Details Section */}
+                {request.order_items && request.order_items.length > 0 && (
+                  <ProductDetailsBox>
+                    <h4>
+                      <FontAwesomeIcon icon={faShoppingBag} />
+                      Order Items ({request.order_items.length})
+                    </h4>
+                    {request.order_items.map((item, index) => (
+                      <ProductItem key={index}>
+                        <ProductImage 
+                          src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
+                          alt={item.product_name || item.productname}
+                          onError={(e) => {
+                            e.target.src = '/placeholder-image.png';
+                          }}
+                        />
+                        <ProductInfo>
+                          <div className="name">
+                            {item.product_name || item.productname || 'Unknown Product'}
                           </div>
-                          <div className="item">
-                            <strong>Email:</strong> {request.customer_email}
+                          <div className="details">
+                            <span>Qty: <strong>{item.quantity}</strong></span>
+                            {item.size && <ProductVariant>{item.size}</ProductVariant>}
+                            {item.color && <ProductVariant>{item.color}</ProductVariant>}
+                            <span>Price: <strong>{formatCurrency(item.product_price)}</strong></span>
                           </div>
-                          <div className="item">
-                            <strong>Amount:</strong> {formatCurrency(request.order_total)}
-                          </div>
-                          <div className="item">
-                            <strong>Submitted:</strong> {formatDate(request.created_at)}
-                          </div>
+                        </ProductInfo>
+                        <div className="price">
+                          {formatCurrency(item.subtotal || (item.product_price * item.quantity))}
                         </div>
-                      </RequestInfo>                      <StatusBadge status={request.status}>
-                        {getDisplayStatus(request.status)}
-                      </StatusBadge>
-                    </RequestHeader>
-                    
-                    <ReasonBox>
-                      <h4>Cancellation Reason</h4>
-                      <p>{request.reason}</p>
-                    </ReasonBox>
-                    
-                    {/* Product Details Section */}
-                    {request.order_items && request.order_items.length > 0 && (
-                      <ProductDetailsBox>
-                        <h4>
-                          <FontAwesomeIcon icon={faShoppingBag} />
-                          Order Items ({request.order_items.length})
-                        </h4>
-                        {request.order_items.map((item, index) => (
-                          <ProductItem key={index}>
-                            <ProductImage 
-                              src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
-                              alt={item.product_name || item.productname}
-                              onError={(e) => {
-                                e.target.src = '/placeholder-image.png';
-                              }}
-                            />
-                            <ProductInfo>
-                              <div className="name">
-                                {item.product_name || item.productname || 'Unknown Product'}
-                              </div>
-                              <div className="details">
-                                <span>Qty: <strong>{item.quantity}</strong></span>
-                                {item.size && <ProductVariant>{item.size}</ProductVariant>}
-                                {item.color && <ProductVariant>{item.color}</ProductVariant>}
-                                <span>Price: <strong>{formatCurrency(item.product_price)}</strong></span>
-                              </div>
-                            </ProductInfo>
-                            <div className="price">
-                              {formatCurrency(item.subtotal || (item.product_price * item.quantity))}
-                            </div>
-                          </ProductItem>
-                        ))}
-                      </ProductDetailsBox>
-                    )}
-                    
-                    {request.admin_notes && (
-                      <ReasonBox>
-                        <h4>Admin Notes</h4>
-                        <p>{request.admin_notes}</p>
-                        <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
-                          Processed by: {request.admin_first_name} {request.admin_last_name} on {formatDate(request.processed_at)}
-                        </div>
-                      </ReasonBox>
-                    )}
-                    
-                    {request.status === 'pending' && (
-                      <RequestActions>
-                        <ActionButton
-                          variant="approve"
-                          onClick={() => openProcessingModal(request, 'approve')}
-                        >
-                          <FontAwesomeIcon icon={faCheck} />
-                          Approve
-                        </ActionButton>
-                        <ActionButton
-                          variant="reject"
-                          onClick={() => openProcessingModal(request, 'deny')}
-                        >
-                          <FontAwesomeIcon icon={faTimes} />
-                          Deny
-                        </ActionButton>
-                      </RequestActions>
-                    )}
-                  </CancellationRequestCard>
-                ))
-            )}
-          </>
+                      </ProductItem>
+                    ))}
+                  </ProductDetailsBox>
+                )}
+                
+                {request.admin_notes && (
+                  <ReasonBox>
+                    <h4>Admin Notes</h4>
+                    <p>{request.admin_notes}</p>
+                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                      Processed by: {request.admin_first_name} {request.admin_last_name} on {formatDate(request.processed_at)}
+                    </div>
+                  </ReasonBox>
+                )}
+                
+                {request.status === 'pending' && (
+                  <RequestActions>
+                    <ActionButton
+                      variant="approve"
+                      onClick={() => openProcessingModal(request, 'approve')}
+                    >
+                      <FontAwesomeIcon icon={faCheck} />
+                      Approve
+                    </ActionButton>
+                    <ActionButton
+                      variant="reject"
+                      onClick={() => openProcessingModal(request, 'deny')}
+                    >
+                      <FontAwesomeIcon icon={faTimes} />
+                      Deny
+                    </ActionButton>
+                  </RequestActions>
+                )}
+              </CancellationRequestCard>
+            ))
         )}
         
         {activeTab === 'design-requests' && (
@@ -2379,7 +2247,11 @@ const TransactionPage = () => {
           </>
         )}
         
-        {/* Processing Modal */}
+        {/* Close design-requests tab fragment */}
+        </>
+      )}
+      
+      {/* Processing Modal */}
         {showProcessingModal && processingRequest && (
           <ProcessingModal>
             <ProcessingModalContent>
@@ -2484,9 +2356,9 @@ const TransactionPage = () => {
           <ImageModal onClick={closeImageModal}>
             <ImageModalContent onClick={(e) => e.stopPropagation()}>
               <ImageModalHeader>
-                <ImageModalTitle>{selectedImageName}</ImageModalTitle>
+                <ImageModalTitle>{imageName}</ImageModalTitle>
                 <ImageModalActions>
-                  <ModalButton onClick={() => handleImageDownload(selectedImage, selectedImageName)}>
+                  <ModalButton onClick={() => handleImageDownload(selectedImage, imageName)}>
                     <FontAwesomeIcon icon={faDownload} />
                     Download
                   </ModalButton>
@@ -2499,7 +2371,7 @@ const TransactionPage = () => {
               <ModalImageContainer>
                 <ModalImage 
                   src={selectedImage} 
-                  alt={selectedImageName}
+                  alt={imageName}
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'flex';
