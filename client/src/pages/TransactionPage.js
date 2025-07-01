@@ -1958,63 +1958,21 @@ const TransactionPage = () => {
     try {
       setDesignRequestsLoading(true);
       console.log('🔄 Fetching custom design requests...');
-      console.log('🔍 API base URL:', api.defaults.baseURL);
-      console.log('🔍 Current user token available:', !!localStorage.getItem('token'));
-      console.log('🔍 Current user:', localStorage.getItem('user'));
       
       const response = await api.get('/custom-orders/admin/all');
       
-      console.log('📋 Raw API response:', response);
-      console.log('📋 Response data:', response.data);
-      console.log('📋 Response status:', response.status);
-      console.log('📋 Response headers:', response.headers);
-      
       if (response.data.success) {
-        console.log('✅ Custom design requests fetched successfully');
-        console.log('📊 Data count:', response.data.data?.length || 0);
-        console.log('📄 Raw data:', response.data.data);
-        console.log('📄 First few requests:', response.data.data?.slice(0, 3));
-        
-        const requestsData = response.data.data || [];
-        setCustomDesignRequests(requestsData);
-        
-        // Add to window for debugging
-        if (typeof window !== 'undefined') {
-          window.customDesignRequests = requestsData;
-          window.customDesignDebugInfo = {
-            response: response.data,
-            count: requestsData.length,
-            timestamp: new Date().toISOString()
-          };
-        }
-        
-        console.log('✅ State updated with', requestsData.length, 'requests');
+        console.log('✅ Custom design requests fetched:', response.data);
+        setCustomDesignRequests(response.data.data || []);
       } else {
-        console.error('❌ Failed to fetch custom design requests - API returned success: false');
-        console.error('📋 Full response:', response.data);
-        console.error('📋 Response message:', response.data.message);
-        toast.error(`Failed to fetch custom design requests: ${response.data.message || 'Unknown error'}`);
+        console.error('❌ Failed to fetch custom design requests:', response.data);
+        toast.error('Failed to fetch custom design requests');
       }
     } catch (error) {
       console.error('❌ Error fetching custom design requests:', error);
-      console.error('📋 Error details:', error.response?.data);
-      console.error('📋 Error status:', error.response?.status);
-      console.error('📋 Error message:', error.message);
-      console.error('📋 Full error object:', error);
-      
-      let errorMessage = 'Failed to fetch custom design requests';
-      if (error.response?.status === 401) {
-        errorMessage = 'Authentication required. Please log in again.';
-      } else if (error.response?.status === 403) {
-        errorMessage = 'Access denied. Admin privileges required.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-      
-      toast.error(errorMessage);
+      toast.error('Failed to fetch custom design requests');
     } finally {
       setDesignRequestsLoading(false);
-      console.log('🏁 fetchCustomDesignRequests completed');
     }
   }, []);
   // Process custom design request
@@ -2244,17 +2202,6 @@ const TransactionPage = () => {
     }
   }, [activeTab, fetchPendingVerificationOrders]);
 
-  // Fetch custom design requests when the design-requests tab is active
-  useEffect(() => {
-    console.log('🔍 useEffect for design-requests triggered', { activeTab });
-    if (activeTab === 'design-requests') {
-      console.log('✅ Active tab is design-requests, calling fetchCustomDesignRequests');
-      fetchCustomDesignRequests();
-    } else {
-      console.log('❌ Active tab is not design-requests, skipping fetch');
-    }
-  }, [activeTab, fetchCustomDesignRequests]);
-
   const calculateStats = (data) => {
     const stats = {
       total: data.length,
@@ -2441,13 +2388,12 @@ const TransactionPage = () => {
               <p>No confirmed orders match your current filters.</p>
             </EmptyState>
           ) : (
-            filteredTransactions.map((transaction, transactionIndex) => {
+            filteredTransactions.map((transaction) => {
               const transactionId = transaction.transaction_id || transaction.id;
-              const uniqueKey = `transaction-${transactionId}-${transaction.order_number || 'unknown'}-${transactionIndex}`;
               const isExpanded = expandedRows.has(transactionId);
               
               return (
-                <React.Fragment key={uniqueKey}>
+                <React.Fragment key={transactionId}>
                   <TableRow 
                     onClick={() => toggleRowExpansion(transactionId)}
                     style={{ cursor: 'pointer' }}
@@ -2510,7 +2456,7 @@ const TransactionPage = () => {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                             {transaction.items.slice(0, 1).map((item, index) => (
-                              <div key={`transaction-${transactionId}-${transactionIndex}-item-${index}`} style={{ 
+                              <div key={`${transactionId}-item-${index}`} style={{ 
                                 fontSize: '12px',
                                 color: '#555555',
                                 lineHeight: '1.4',
@@ -2705,7 +2651,7 @@ const TransactionPage = () => {
                             <h4>Order Items ({transaction.items.length})</h4>
                             <ItemsGrid>
                               {transaction.items.map((item, index) => (
-                                <ItemCard key={`transaction-${transactionId}-${transactionIndex}-expanded-item-${index}`}>
+                                <ItemCard key={`${transactionId}-expanded-item-${index}`}>
                                   <div className="item-image">
                                     {item.product_image_path ? (
                                       <img 
@@ -2723,7 +2669,7 @@ const TransactionPage = () => {
                                     <div className="item-specs">
                                       {item.productcolor && <span>Color: {item.productcolor}</span>}
                                       {item.product_type && <span>Type: {item.product_type}</span>}
-                                      <span>Qty: <strong>{item.quantity}</strong></span>
+                                      <span>Qty: {item.quantity}</span>
                                     </div>
                                     <div className="item-price">
                                       {formatCurrency(item.item_price || item.price || 0)}
@@ -2810,8 +2756,8 @@ const TransactionPage = () => {
                                          order.last_name?.toLowerCase().includes(verificationSearchTerm.toLowerCase());
                     return matchesSearch;
                   })
-                  .map((order, orderIndex) => (
-                    <VerificationCard key={`verification-${order.order_id}-${order.order_number || 'unknown'}-${orderIndex}`}>
+                  .map(order => (
+                    <VerificationCard key={order.order_id}>
                       <VerificationHeader>
                         <VerificationOrderInfo>
                           <h3>Order #{order.order_number}</h3>
@@ -2925,7 +2871,7 @@ const TransactionPage = () => {
                             <h4>Order Items ({order.items.length})</h4>
                             <OrderItemsList>
                               {order.items.map((item, index) => (
-                                <OrderItemCard key={`verification-order-${order.order_id}-${orderIndex}-item-${index}`}>
+                                <OrderItemCard key={`order-${order.id}-item-${index}`}>
                                   <OrderItemImage>
                                     {item.productimage ? (
                                       <img
@@ -3013,8 +2959,8 @@ const TransactionPage = () => {
               const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
               return matchesSearch && matchesStatus;
             })
-            .map((request, requestIndex) => (
-              <CancellationRequestCard key={`cancellation-${request.id}-${request.order_number || 'unknown'}-${requestIndex}`}>
+            .map((request) => (
+              <CancellationRequestCard key={request.id}>
                 <RequestHeader>
                   <RequestInfo>
                     <h3>Order #{request.order_number}</h3>
@@ -3049,7 +2995,7 @@ const TransactionPage = () => {
                       Order Items ({request.order_items.length})
                     </h4>
                     {request.order_items.map((item, index) => (
-                      <ProductItem key={`cancellation-${request.id}-${requestIndex}-item-${index}`}>
+                      <ProductItem key={`cancel-request-${request.id}-item-${index}`}>
                         <ProductImage 
                           src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
                           alt={item.product_name || item.productname}
@@ -3145,44 +3091,9 @@ const TransactionPage = () => {
                     <FontAwesomeIcon icon={faRefresh} />
                     {designRequestsLoading ? 'Loading...' : 'Refresh'}
                   </RefreshButton>
-                  {/* Debug Test Button */}
-                  <RefreshButton 
-                    onClick={() => {
-                      console.log('🧪 Manual debug test triggered');
-                      console.log('Current state:', { 
-                        customDesignRequests: customDesignRequests.length,
-                        designRequestsLoading,
-                        designSearchTerm,
-                        activeTab
-                      });
-                      fetchCustomDesignRequests();
-                    }}
-                    style={{ backgroundColor: '#dc3545' }}
-                  >
-                    🧪 Debug Test
-                  </RefreshButton>
                 </div>
               </ControlsGrid>
             </ControlsSection>
-
-            {/* Debug Information */}
-            <div style={{ 
-              background: '#f8f9fa', 
-              padding: '16px', 
-              marginBottom: '16px', 
-              borderRadius: '4px',
-              border: '1px solid #dee2e6',
-              fontSize: '12px',
-              fontFamily: 'monospace'
-            }}>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#495057' }}>🐛 Debug Information</h4>
-              <div>Current Tab: <strong>{activeTab}</strong></div>
-              <div>Requests State: <strong>{customDesignRequests.length} items</strong></div>
-              <div>Loading: <strong>{designRequestsLoading ? 'Yes' : 'No'}</strong></div>
-              <div>Search Term: <strong>"{designSearchTerm}"</strong></div>
-              <div>Token Available: <strong>{typeof window !== 'undefined' && localStorage.getItem('token') ? 'Yes' : 'No'}</strong></div>
-              <div>User: <strong>{typeof window !== 'undefined' ? localStorage.getItem('user') : 'N/A'}</strong></div>
-            </div>
 
             {/* Design Requests List */}
             {designRequestsLoading ? (
@@ -3208,21 +3119,6 @@ const TransactionPage = () => {
                 );
               });
 
-              // Debug logging
-              console.log('🔍 Filtering custom design requests:');
-              console.log('📊 Total requests:', customDesignRequests.length);
-              console.log('🔍 Search term:', designSearchTerm);
-              console.log('📄 Filtered count:', filteredRequests.length);
-              if (customDesignRequests.length > 0) {
-                console.log('📋 Sample request fields:', Object.keys(customDesignRequests[0]));
-              }
-
-              // Add to window for debugging
-              if (typeof window !== 'undefined') {
-                window.designSearchTerm = designSearchTerm;
-                window.designRequestsLoading = designRequestsLoading;
-              }
-
               return filteredRequests.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                   <FontAwesomeIcon icon={faInfoCircle} size="3x" style={{ color: '#ddd', marginBottom: '16px' }} />
@@ -3236,7 +3132,7 @@ const TransactionPage = () => {
                 </div>
               ) : (
                 filteredRequests.map((request, requestIndex) => (
-                <CancellationRequestCard key={`custom-design-${request.custom_order_id}-${requestIndex}`}>
+                <CancellationRequestCard key={request.id || `request-${request.custom_order_id}-${requestIndex}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div>
                       <h3>Order #{request.custom_order_id}</h3>
@@ -3283,7 +3179,7 @@ const TransactionPage = () => {
                       <ImageGallery>
                         {request.images.map((image, idx) => (
                           <ImageContainer 
-                            key={`custom-design-${request.custom_order_id}-image-${idx}`} 
+                            key={`request-${request.id}-image-${idx}`} 
                             onClick={() => handleImageView(`/uploads/custom-orders/${image.filename}`, image.original_filename)}
                           >
                             <ImagePreview 
@@ -3691,7 +3587,7 @@ const TransactionPage = () => {
                     <h3>Order Items ({selectedTransaction.items.length})</h3>
                     <OrderItemsList>
                       {selectedTransaction.items.map((item, index) => (
-                        <OrderItemCard key={`modal-transaction-${selectedTransaction.transaction_id || selectedTransaction.id}-item-${index}`}>
+                        <OrderItemCard key={`modal-${selectedTransaction.transaction_id || selectedTransaction.id}-item-${index}`}>
                           <OrderItemImage>
                             {item.productimage ? (
                               <img
