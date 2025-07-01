@@ -10,15 +10,14 @@ import {
   faInfoCircle,
   faExclamationTriangle,
   faCheck,
-  faPalette,
-  faShoppingBag,
   faDownload,
   faExpand,
-  faImage
+  faImage,
+  faSpinner,
+  faChevronDown
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
-import { useAuth } from '../context/AuthContext';
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -27,8 +26,13 @@ const PageContainer = styled.div`
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
+  padding: 0 20px;
+  
+  @media (max-width: 768px) {
+    padding: 0 10px;
+  }
 `;
 
 const Header = styled.div`
@@ -197,52 +201,51 @@ const RefreshButton = styled.button`
 
 const TransactionsTable = styled.div`
   background: #ffffff;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   overflow: hidden;
-  overflow-x: auto;
-  min-width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 `;
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 280px 220px 140px 120px 140px 140px 120px;
-  gap: 20px;
-  padding: 28px 24px;
+  grid-template-columns: 40px 140px 180px 220px 200px 120px 120px 120px 150px 120px 100px;
+  gap: 12px;
+  padding: 20px 16px;
   background: #fafafa;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e0e0e0;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   color: #555555;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  min-width: 1380px;
-  
-  @media (max-width: 1400px) {
-    grid-template-columns: 130px 160px 250px 200px 120px 100px 120px 120px 100px;
-    gap: 16px;
-    padding: 24px 20px;
-    font-size: 12px;
-    min-width: 1200px;
-  }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 120px 140px 220px 180px 110px 90px 110px 110px 90px;
-    gap: 14px;
-    padding: 20px 16px;
+    grid-template-columns: 35px 120px 160px 180px 160px 100px 100px 100px 130px 100px 80px;
+    gap: 10px;
+    padding: 18px 12px;
     font-size: 11px;
-    min-width: 1080px;
+  }
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 30px 100px 140px 150px 140px 80px 80px 80px 110px 80px 60px;
+    gap: 8px;
+    padding: 16px 8px;
+    font-size: 10px;
   }
 `;
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 140px 180px 280px 220px 140px 120px 140px 140px 120px;
-  gap: 20px;
-  padding: 32px 24px;
-  border-bottom: 1px solid #f8f8f8;
+  grid-template-columns: 40px 140px 180px 220px 200px 120px 120px 120px 150px 120px 100px;
+  gap: 12px;
+  padding: 20px 16px;
+  border-bottom: 1px solid #f0f0f0;
   align-items: center;
   transition: all 0.2s ease;
-  min-width: 1380px;
+  cursor: pointer;
   
   &:hover {
     background: #fafafa;
@@ -252,18 +255,16 @@ const TableRow = styled.div`
     border-bottom: none;
   }
   
-  @media (max-width: 1400px) {
-    grid-template-columns: 130px 160px 250px 200px 120px 100px 120px 120px 100px;
-    gap: 16px;
-    padding: 28px 20px;
-    min-width: 1200px;
+  @media (max-width: 1200px) {
+    grid-template-columns: 35px 120px 160px 180px 160px 100px 100px 100px 130px 100px 80px;
+    gap: 10px;
+    padding: 18px 12px;
   }
   
-  @media (max-width: 1200px) {
-    grid-template-columns: 120px 140px 220px 180px 110px 90px 110px 110px 90px;
-    gap: 14px;
-    padding: 24px 16px;
-    min-width: 1080px;
+  @media (max-width: 768px) {
+    grid-template-columns: 30px 100px 140px 150px 140px 80px 80px 80px 110px 80px 60px;
+    gap: 8px;
+    padding: 16px 8px;
   }
 `;
 
@@ -273,28 +274,11 @@ const OrderNumber = styled.div`
   font-size: 14px;
   font-family: 'Monaco', 'Menlo', monospace;
   letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const OrderTypeIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-all;
   
-  &.custom {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-  }
-  
-  &.regular {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
+  @media (max-width: 768px) {
+    font-size: 12px;
   }
 `;
 
@@ -302,17 +286,29 @@ const CustomerInfo = styled.div`
   .name {
     font-weight: 600;
     color: #000000;
-    font-size: 15px;
+    font-size: 14px;
     margin-bottom: 6px;
     line-height: 1.3;
+    word-break: break-word;
   }
   
   .email {
     color: #666666;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 400;
     line-height: 1.2;
     word-break: break-word;
+  }
+  
+  @media (max-width: 768px) {
+    .name {
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    
+    .email {
+      font-size: 11px;
+    }
   }
 `;
 
@@ -320,13 +316,13 @@ const OrderDetails = styled.div`
   .amount {
     font-weight: 600;
     color: #000000;
-    font-size: 15px;
+    font-size: 14px;
     margin-bottom: 6px;
   }
   
   .address {
     color: #666666;
-    font-size: 13px;
+    font-size: 12px;
     line-height: 1.3;
     font-weight: 400;
     display: -webkit-box;
@@ -334,24 +330,33 @@ const OrderDetails = styled.div`
     -webkit-box-orient: vertical;
     overflow: hidden;
     max-width: 100%;
+    word-break: break-word;
   }
 `;
 
 const StatusBadge = styled.span.withConfig({
   shouldForwardProp: (prop) => prop !== 'status',
 })`
-  padding: 8px 14px;
+  padding: 8px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   border: 1px solid;
   display: inline-block;
   text-align: center;
-  min-width: 90px;
+  min-width: 80px;
   transition: all 0.2s ease;
-    ${props => {
+  line-height: 1;
+  
+  @media (max-width: 768px) {
+    padding: 6px 8px;
+    font-size: 10px;
+    min-width: 60px;
+  }
+  
+  ${props => {
     switch (props.status?.toLowerCase()) {
       case 'pending':
         return `
@@ -391,16 +396,10 @@ const StatusBadge = styled.span.withConfig({
           color: #e74c3c;
           border-color: #e74c3c;
         `;
-      case 'completed':
-        return `
-          background: #000000;
-          color: #ffffff;
-          border-color: #000000;
-        `;
       default:
         return `
           background: #ffffff;
-          color: #999999;
+          color: #666666;
           border-color: #cccccc;
         `;
     }
@@ -409,36 +408,41 @@ const StatusBadge = styled.span.withConfig({
 
 const DateInfo = styled.div`
   color: #666666;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.3;
-`;
-
-const ActionsContainer = styled.div`
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  
+  @media (max-width: 768px) {
+    font-size: 11px;
+  }
 `;
 
 const ActionButton = styled.button.withConfig({
   shouldForwardProp: (prop) => !['compact', 'loading', 'variant'].includes(prop),
 })`
-  min-width: ${props => props.compact ? '40px' : '120px'};
-  height: ${props => props.compact ? '40px' : '44px'};
+  min-width: ${props => props.compact ? '32px' : '100px'};
+  height: ${props => props.compact ? '32px' : '36px'};
   border: 1px solid;
-  border-radius: 8px;
-  font-size: ${props => props.compact ? '16px' : '14px'};
+  border-radius: 6px;
+  font-size: ${props => props.compact ? '14px' : '12px'};
   font-weight: ${props => props.compact ? '400' : '600'};
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: ${props => props.compact ? '0' : '8px'};
-  padding: ${props => props.compact ? '0' : '0 16px'};
+  gap: ${props => props.compact ? '0' : '6px'};
+  padding: ${props => props.compact ? '0' : '0 12px'};
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #ffffff;
   position: relative;
   overflow: hidden;
+  
+  @media (max-width: 768px) {
+    min-width: ${props => props.compact ? '28px' : '80px'};
+    height: ${props => props.compact ? '28px' : '32px'};
+    font-size: ${props => props.compact ? '12px' : '11px'};
+    padding: ${props => props.compact ? '0' : '0 8px'};
+  }
   
   &:disabled {
     opacity: 0.5;
@@ -446,6 +450,29 @@ const ActionButton = styled.button.withConfig({
     transform: none !important;
   }
   
+  &:not(:disabled):active {
+    transform: translateY(1px);
+  }
+  
+  // Loading spinner
+  ${props => props.loading && `
+    pointer-events: none;
+    
+    &:before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  `}
   &:not(:disabled):active {
     transform: translateY(1px);
   }
@@ -939,19 +966,6 @@ const ModalImage = styled.img`
   border-radius: 8px;
 `;
 
-const ImagePlaceholder = styled.div`
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6c757d;
-  font-size: 20px;
-  border: 2px dashed #dee2e6;
-`;
-
 const ProductInfo = styled.div`
   flex: 1;
   
@@ -1094,29 +1108,554 @@ const ProcessingModalContent = styled.div`
   }
 `;
 
-// Helper function to display status with custom labels
-const getDisplayStatus = (status) => {
-  const normalizedStatus = status?.toLowerCase();
-  if (normalizedStatus === 'confirmed') {
-    return 'Ready For Delivery';
+// Verification Tab Styled Components
+const VerificationContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+`;
+
+const VerificationCard = styled.div`
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
   }
-  if (normalizedStatus === 'delivered') {
-    return 'Delivered';
+`;
+
+const VerificationHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
   }
-  if (normalizedStatus === 'processing') {
-    return 'Processing';
+`;
+
+const VerificationOrderInfo = styled.div`
+  h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
   }
-  if (normalizedStatus === 'shipped') {
-    return 'Shipped';
+  
+  p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: #6c757d;
+    
+    &:last-child {
+      font-size: 16px;
+      font-weight: 600;
+      color: #27ae60;
+    }
   }
-  return status;
-};
+`;
+
+const VerificationActions = styled.div`
+  display: flex;
+  gap: 12px;
+  
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: flex-end;
+  }
+`;
+
+const VerificationButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'type',
+})`
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  ${props => props.type === 'approve' && `
+    background: #27ae60;
+    color: white;
+    
+    &:hover {
+      background: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+  `}
+  
+  ${props => props.type === 'deny' && `
+    background: #e74c3c;
+    color: white;
+    
+    &:hover {
+      background: #c0392b;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+    }
+  `}
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const VerificationDetails = styled.div`
+  padding: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+`;
+
+const DetailsSection = styled.div`
+  h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #3498db;
+  }
+`;
+
+const DetailItem = styled.div`
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  
+  strong {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const PaymentProofContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const PaymentProofImage = styled.img`
+  max-width: 200px;
+  max-height: 200px;
+  object-fit: contain;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: #3498db;
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+    transform: scale(1.02);
+  }
+`;
+
+const PaymentProofActions = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const OrderItemsList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 8px;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+  }
+`;
+
+const OrderItemCard = styled.div`
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+`;
+
+const OrderItemImage = styled.div`
+  width: 60px;
+  height: 60px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  svg {
+    color: #6c757d;
+    font-size: 20px;
+  }
+`;
+
+const OrderItemDetails = styled.div`
+  flex: 1;
+  
+  h5 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+  
+  .item-meta {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 8px;
+    
+    span {
+      background: #ffffff;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+  }
+  
+  .item-price {
+    font-size: 14px;
+    font-weight: 600;
+    color: #27ae60;
+  }
+`;
+
+const ActionsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  
+  @media (max-width: 768px) {
+    gap: 4px;
+  }
+`;
+
+// Delivery Status Components
+const DeliveryStatusBadge = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'status',
+})`
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+  display: inline-block;
+  text-align: center;
+  min-width: 100px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  
+  @media (max-width: 768px) {
+    padding: 4px 8px;
+    font-size: 10px;
+    min-width: 80px;
+  }
+  
+  ${props => {
+    switch (props.status?.toLowerCase()) {
+      case 'pending':
+        return `
+          background: #fff3cd;
+          color: #856404;
+          border-color: #ffeaa7;
+        `;
+      case 'scheduled':
+        return `
+          background: #cce5ff;
+          color: #004085;
+          border-color: #74c0fc;
+        `;
+      case 'in_transit':
+        return `
+          background: #ffe0b3;
+          color: #cc5500;
+          border-color: #ff9f43;
+        `;
+      case 'delivered':
+        return `
+          background: #d4edda;
+          color: #155724;
+          border-color: #00b894;
+        `;
+      case 'delayed':
+        return `
+          background: #f8d7da;
+          color: #721c24;
+          border-color: #e74c3c;
+        `;
+      case 'cancelled':
+        return `
+          background: #e2e3e5;
+          color: #383d41;
+          border-color: #6c757d;
+        `;
+      default:
+        return `
+          background: #f8f9fa;
+          color: #6c757d;
+          border-color: #dee2e6;
+        `;
+    }
+  }}
+`;
+
+// Expandable Row Components
+const ExpandedRowContainer = styled.div`
+  grid-column: 1 / -1; /* Span all columns */
+  background: #f8f9fa;
+  border-left: 4px solid #000000;
+  padding: 20px;
+  margin: 0 -16px;
+  animation: slideDown 0.3s ease-out;
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      max-height: 0;
+      padding: 0 20px;
+    }
+    to {
+      opacity: 1;
+      max-height: 500px;
+      padding: 20px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    margin: 0 -8px;
+    padding: 16px;
+  }
+`;
+
+const ExpandedContent = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+`;
+
+const InfoSection = styled.div`
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #000000;
+    padding-bottom: 8px;
+  }
+`;
+
+const InfoItem = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  font-size: 13px;
+  
+  .label {
+    font-weight: 500;
+    color: #666666;
+    margin-right: 12px;
+    min-width: 80px;
+  }
+  
+  .value {
+    font-weight: 400;
+    color: #000000;
+    text-align: right;
+    flex: 1;
+    word-break: break-word;
+  }
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const ItemsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+`;
+
+const ItemCard = styled.div`
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  
+  .item-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e9ecef;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    
+    svg {
+      color: #999999;
+      font-size: 16px;
+    }
+  }
+  
+  .item-details {
+    flex: 1;
+    
+    .item-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    
+    .item-specs {
+      font-size: 11px;
+      color: #666666;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      
+      span {
+        background: #f1f3f4;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+    }
+    
+    .item-price {
+      font-size: 12px;
+      font-weight: 600;
+      color: #27ae60;
+      margin-top: 4px;
+    }
+  }
+`;
+
+const ExpandToggleButton = styled.button`
+  background: none;
+  border: none;
+  color: #666666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    background: #f0f0f0;
+    color: #000000;
+  }
+  
+  svg {
+    transition: transform 0.2s ease;
+  }
+  
+  &.expanded svg {
+    transform: rotate(180deg);
+  }
+`;
 
 const TransactionPage = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
+  
+  // Function to toggle row expansion
+  const toggleRowExpansion = (transactionId) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(transactionId)) {
+        newSet.delete(transactionId);
+      } else {
+        newSet.add(transactionId);
+      }
+      return newSet;
+    });
+  };
   const [showModal, setShowModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [stats, setStats] = useState({
@@ -1160,28 +1699,46 @@ const TransactionPage = () => {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageName, setImageName] = useState('');
   
-  const { user } = useAuth();
+  // Payment verification state (for admin users)
+  const [pendingVerificationOrders, setPendingVerificationOrders] = useState([]);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationSearchTerm, setVerificationSearchTerm] = useState('');
+  const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
+  const [selectedPaymentProof, setSelectedPaymentProof] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [cancellationSearchTerm, setCancellationSearchTerm] = useState('');
+  const [cancellationStatusFilter, setCancellationStatusFilter] = useState('all');
+  
+  // Remove unused user import since not needed in this component
 
   // Fetch transactions
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching transactions...');
+      console.log('🔄 Fetching transactions with delivery status...');
       
-      // Fetch both regular orders and custom orders
+      // Fetch both regular orders and custom orders using the delivery-enhanced endpoint to get delivery_status
       const [ordersResponse, customOrdersResponse] = await Promise.all([
-        api.get('/orders/confirmed'),
-        api.get('/custom-orders/approved')
+        api.get('/delivery-enhanced/orders'), // Use delivery-enhanced to get delivery_status
+        api.get('/custom-orders/approved').catch(error => {
+          console.warn('Custom orders endpoint not available:', error.response?.status);
+          return { data: { success: false, data: [] } };
+        })
       ]);
       
       let allTransactions = [];
       
-      // Process confirmed regular orders
+      // Process confirmed regular orders from delivery-enhanced endpoint
       if (ordersResponse.data.success) {
-        console.log('✅ Regular orders fetched successfully');
+        console.log('✅ Orders fetched from delivery-enhanced endpoint');
         const ordersData = ordersResponse.data.data || [];
         
-        const processedOrders = ordersData.map(order => {
+        // Filter only confirmed orders (status = 'confirmed')
+        const confirmedOrders = ordersData.filter(order => 
+          order.status === 'confirmed' || order.order_status === 'confirmed'
+        );
+        
+        const processedOrders = confirmedOrders.map(order => {
           const fullName = order.customer_name || 
                          [order.first_name, order.last_name].filter(Boolean).join(' ') || 
                          'Unknown Customer';
@@ -1202,6 +1759,7 @@ const TransactionPage = () => {
             order_status: order.status,
             transaction_status: order.transaction_status || order.status,
             status: order.status,
+            delivery_status: order.delivery_status || 'pending', // Now includes actual delivery status from backend
             order_date: order.order_date,
             created_at: order.created_at,
             updated_at: order.updated_at,
@@ -1214,7 +1772,7 @@ const TransactionPage = () => {
         });
         
         allTransactions = [...processedOrders];
-        console.log(`📦 Added ${processedOrders.length} regular orders`);
+        console.log(`📦 Added ${processedOrders.length} confirmed regular orders with delivery status`);
       }
       
       // Process approved custom orders
@@ -1246,6 +1804,7 @@ const TransactionPage = () => {
             order_status: 'approved', // Custom orders have different status
             transaction_status: 'confirmed', // Show as confirmed in transaction view
             status: 'confirmed', // Show as confirmed for consistency
+            delivery_status: order.delivery_status || 'pending', // Add delivery status for custom orders
             order_date: order.created_at,
             created_at: order.created_at,
             updated_at: order.updated_at,
@@ -1286,7 +1845,7 @@ const TransactionPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []); // Remove 'user' dependency as it's not used in the function
 
   // Fetch cancellation requests
   const fetchCancellationRequests = useCallback(async () => {
@@ -1399,21 +1958,63 @@ const TransactionPage = () => {
     try {
       setDesignRequestsLoading(true);
       console.log('🔄 Fetching custom design requests...');
+      console.log('🔍 API base URL:', api.defaults.baseURL);
+      console.log('🔍 Current user token available:', !!localStorage.getItem('token'));
+      console.log('🔍 Current user:', localStorage.getItem('user'));
       
       const response = await api.get('/custom-orders/admin/all');
       
+      console.log('📋 Raw API response:', response);
+      console.log('📋 Response data:', response.data);
+      console.log('📋 Response status:', response.status);
+      console.log('📋 Response headers:', response.headers);
+      
       if (response.data.success) {
-        console.log('✅ Custom design requests fetched:', response.data);
-        setCustomDesignRequests(response.data.data || []);
+        console.log('✅ Custom design requests fetched successfully');
+        console.log('📊 Data count:', response.data.data?.length || 0);
+        console.log('📄 Raw data:', response.data.data);
+        console.log('📄 First few requests:', response.data.data?.slice(0, 3));
+        
+        const requestsData = response.data.data || [];
+        setCustomDesignRequests(requestsData);
+        
+        // Add to window for debugging
+        if (typeof window !== 'undefined') {
+          window.customDesignRequests = requestsData;
+          window.customDesignDebugInfo = {
+            response: response.data,
+            count: requestsData.length,
+            timestamp: new Date().toISOString()
+          };
+        }
+        
+        console.log('✅ State updated with', requestsData.length, 'requests');
       } else {
-        console.error('❌ Failed to fetch custom design requests:', response.data);
-        toast.error('Failed to fetch custom design requests');
+        console.error('❌ Failed to fetch custom design requests - API returned success: false');
+        console.error('📋 Full response:', response.data);
+        console.error('📋 Response message:', response.data.message);
+        toast.error(`Failed to fetch custom design requests: ${response.data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('❌ Error fetching custom design requests:', error);
-      toast.error('Failed to fetch custom design requests');
+      console.error('📋 Error details:', error.response?.data);
+      console.error('📋 Error status:', error.response?.status);
+      console.error('📋 Error message:', error.message);
+      console.error('📋 Full error object:', error);
+      
+      let errorMessage = 'Failed to fetch custom design requests';
+      if (error.response?.status === 401) {
+        errorMessage = 'Authentication required. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied. Admin privileges required.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setDesignRequestsLoading(false);
+      console.log('🏁 fetchCustomDesignRequests completed');
     }
   }, []);
   // Process custom design request
@@ -1507,6 +2108,128 @@ const TransactionPage = () => {
     setImageName('');
   };
 
+  // Payment verification functions
+  const fetchPendingVerificationOrders = useCallback(async () => {
+    try {
+      setVerificationLoading(true);
+      console.log('🔄 Fetching pending verification orders...');
+      
+      const response = await api.get('/orders/pending-verification');
+      
+      if (response.data.success) {
+        console.log('✅ Pending verification orders fetched:', response.data);
+        setPendingVerificationOrders(response.data.data || []);
+      } else {
+        console.error('❌ Failed to fetch pending verification orders:', response.data);
+        toast.error('Failed to fetch pending verification orders');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching pending verification orders:', error);
+      
+      // Check if it's a permission error (403) or server error (500)
+      if (error.response?.status === 403) {
+        console.log('ℹ️ User does not have permission to view pending verification orders (admin-only feature)');
+        setPendingVerificationOrders([]); // Set empty array instead of showing error
+      } else if (error.response?.status === 500) {
+        console.error('Server error - the pending verification endpoint may need debugging');
+        setPendingVerificationOrders([]); // Set empty array instead of showing error
+      } else {
+        toast.error('Failed to fetch pending verification orders');
+        setPendingVerificationOrders([]); // Set empty array for any other error
+      }
+    } finally {
+      setVerificationLoading(false);
+    }
+  }, []);
+
+  // Approve payment
+  const approvePayment = async (orderId) => {
+    try {
+      setProcessingPayment(true);
+      console.log(`🔄 Approving payment for order ${orderId}...`);
+      
+      const response = await api.put(`/orders/${orderId}/approve-payment`);
+      
+      if (response.data.success) {
+        console.log('✅ Payment approved successfully:', response.data);
+        toast.success('Payment approved successfully! Order moved to confirmed status.');
+        
+        // Refresh the pending verification list
+        fetchPendingVerificationOrders();
+        
+        // Also refresh the confirmed orders list if it's the active tab
+        if (activeTab === 'orders') {
+          fetchTransactions();
+        }
+      } else {
+        console.error('❌ Failed to approve payment:', response.data);
+        toast.error(response.data.message || 'Failed to approve payment');
+      }
+    } catch (error) {
+      console.error('❌ Error approving payment:', error);
+      toast.error(error.response?.data?.message || 'Failed to approve payment');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  // Deny payment
+  const denyPayment = async (orderId, reason) => {
+    try {
+      setProcessingPayment(true);
+      console.log(`🔄 Denying payment for order ${orderId}...`);
+      
+      const response = await api.put(`/orders/${orderId}/deny-payment`, {
+        reason: reason || 'Payment verification failed'
+      });
+      
+      if (response.data.success) {
+        console.log('✅ Payment denied successfully:', response.data);
+        toast.success('Payment denied successfully! Order cancelled and stock restored.');
+        
+        // Refresh the pending verification list
+        fetchPendingVerificationOrders();
+      } else {
+        console.error('❌ Failed to deny payment:', response.data);
+        toast.error(response.data.message || 'Failed to deny payment');
+      }
+    } catch (error) {
+      console.error('❌ Error denying payment:', error);
+      toast.error(error.response?.data?.message || 'Failed to deny payment');
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  // View payment proof image
+  const viewPaymentProof = (imagePath, customerName, orderNumber) => {
+    setSelectedPaymentProof({
+      imagePath,
+      customerName,
+      orderNumber
+    });
+    setShowPaymentProofModal(true);
+  };
+
+  // Close payment proof modal
+  const closePaymentProofModal = () => {
+    setShowPaymentProofModal(false);
+    setSelectedPaymentProof(null);
+  };
+
+  // Get delivery status display text and color
+  const getDeliveryStatusInfo = (status) => {
+    const statusMap = {
+      'pending': { text: 'Pending', color: '#6c757d' },
+      'scheduled': { text: 'Scheduled', color: '#0d6efd' },
+      'in_transit': { text: 'In Transit', color: '#fd7e14' },
+      'delivered': { text: 'Delivered', color: '#198754' },
+      'delayed': { text: 'Delayed', color: '#dc3545' },
+      'cancelled': { text: 'Cancelled', color: '#6c757d' }
+    };
+    return statusMap[status] || { text: status || 'Unknown', color: '#6c757d' };
+  };
+  
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
@@ -1514,6 +2237,23 @@ const TransactionPage = () => {
   useEffect(() => {
     fetchCancellationRequests();
   }, [fetchCancellationRequests]);
+
+  useEffect(() => {
+    if (activeTab === 'verify-payment') {
+      fetchPendingVerificationOrders();
+    }
+  }, [activeTab, fetchPendingVerificationOrders]);
+
+  // Fetch custom design requests when the design-requests tab is active
+  useEffect(() => {
+    console.log('🔍 useEffect for design-requests triggered', { activeTab });
+    if (activeTab === 'design-requests') {
+      console.log('✅ Active tab is design-requests, calling fetchCustomDesignRequests');
+      fetchCustomDesignRequests();
+    } else {
+      console.log('❌ Active tab is not design-requests, skipping fetch');
+    }
+  }, [activeTab, fetchCustomDesignRequests]);
 
   const calculateStats = (data) => {
     const stats = {
@@ -1575,6 +2315,16 @@ const TransactionPage = () => {
     return statusMap[status] || status;
   };
 
+  const TableWrapper = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
+  overflow-x: auto;
+  
+  @media (max-width: 1200px) {
+    max-width: 100%;
+  }
+`;
+
   return (
     <PageContainer>
       <ContentWrapper>
@@ -1594,6 +2344,12 @@ const TransactionPage = () => {
             onClick={() => setActiveTab('orders')}
           >
             All Confirmed Orders
+          </Tab>
+          <Tab 
+            active={activeTab === 'verify-payment'} 
+            onClick={() => setActiveTab('verify-payment')}
+          >
+            Verify Payment
           </Tab>
           <Tab 
             active={activeTab === 'cancellations'} 
@@ -1658,24 +2414,21 @@ const TransactionPage = () => {
             </RefreshButton>
           </ControlsGrid>
         </ControlsSection>        {/* Transactions Table */}
-        <div style={{ 
-          overflowX: 'auto',
-          backgroundColor: '#ffffff',
-          border: '1px solid #f0f0f0',
-          borderRadius: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-        }}>
-          <TransactionsTable><TableHeader>
-            <div>Order #</div>
-            <div>Date</div>
-            <div>Customer</div>
-            <div>Products</div>
-            <div>Amount</div>
-            <div>Payment</div>
-            <div>Status</div>
-            <div>Created</div>
-            <div>Actions</div>
-          </TableHeader>
+        <TableWrapper>
+          <TransactionsTable>
+            <TableHeader>
+              <div></div>
+              <div>Order #</div>
+              <div>Date</div>
+              <div>Customer</div>
+              <div>Products</div>
+              <div>Amount</div>
+              <div>Payment</div>
+              <div>Status</div>
+              <div>Delivery</div>
+              <div>Created</div>
+              <div>Actions</div>
+            </TableHeader>
           
           {loading ? (
             <LoadingContainer>
@@ -1687,193 +2440,531 @@ const TransactionPage = () => {
               <h3>No confirmed orders found</h3>
               <p>No confirmed orders match your current filters.</p>
             </EmptyState>
-          ) : (            filteredTransactions.map((transaction) => (              <TableRow key={transaction.transaction_id || transaction.id}>
-                <OrderNumber>
-                  <OrderTypeIcon className={transaction.order_type || 'regular'}>
-                    <FontAwesomeIcon 
-                      icon={transaction.order_type === 'custom' ? faPalette : faShoppingBag} 
-                    />
-                  </OrderTypeIcon>
-                  {transaction.order_number}
-                </OrderNumber>
-                
-                <DateInfo>
-                  {formatDate(transaction.order_date)}
-                </DateInfo>
-                
-                <CustomerInfo>
-                  <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
-                  <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
-                </CustomerInfo>                {/* Products Summary */}
-                <div style={{ 
-                  fontSize: '14px',
-                  maxWidth: '100%',
-                  overflow: 'hidden'
-                }}>
-                  {transaction.items && transaction.items.length > 0 ? (
-                    <div>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        marginBottom: '8px',
-                        padding: '6px 8px',
-                        backgroundColor: '#f8f9fa',
-                        borderRadius: '6px',
-                        border: '1px solid #e9ecef'
-                      }}>
-                        <div style={{ 
-                          fontWeight: '600', 
-                          color: '#000000',
-                          fontSize: '13px'
-                        }}>
-                          {transaction.items.length} item{transaction.items.length > 1 ? 's' : ''}
-                        </div>
-                        {transaction.items.length > 2 && (
-                          <button
-                            style={{
-                              background: '#000000',
-                              color: '#ffffff',
-                              border: 'none',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '10px',
-                              cursor: 'pointer',
-                              fontWeight: '500',
-                              transition: 'all 0.2s ease',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.5px'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              viewTransaction(transaction);
-                            }}
-                            onMouseOver={(e) => e.target.style.background = '#333333'}
-                            onMouseOut={(e) => e.target.style.background = '#000000'}
-                          >
-                            View All
-                          </button>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {transaction.items.slice(0, 2).map((item, index) => (
-                          <div key={index} style={{ 
-                            fontSize: '12px',
-                            color: '#555555',
-                            lineHeight: '1.4',
-                            padding: '8px 10px',
-                            border: '1px solid #e9ecef',
+          ) : (
+            filteredTransactions.map((transaction, transactionIndex) => {
+              const transactionId = transaction.transaction_id || transaction.id;
+              const uniqueKey = `transaction-${transactionId}-${transaction.order_number || 'unknown'}-${transactionIndex}`;
+              const isExpanded = expandedRows.has(transactionId);
+              
+              return (
+                <React.Fragment key={uniqueKey}>
+                  <TableRow 
+                    onClick={() => toggleRowExpansion(transactionId)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Expand/Collapse Button */}
+                    <ExpandToggleButton
+                      className={isExpanded ? 'expanded' : ''}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRowExpansion(transactionId);
+                      }}
+                    >
+                      <FontAwesomeIcon 
+                        icon={faChevronDown} 
+                        style={{ 
+                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 0.2s ease'
+                        }}
+                      />
+                    </ExpandToggleButton>
+
+                    <OrderNumber>
+                      {transaction.order_number}
+                    </OrderNumber>
+                    
+                    <DateInfo>
+                      {formatDate(transaction.order_date)}
+                    </DateInfo>
+                    
+                    <CustomerInfo>
+                      <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
+                      <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
+                    </CustomerInfo>
+
+                    {/* Products Summary */}
+                    <div style={{ 
+                      fontSize: '14px',
+                      maxWidth: '100%',
+                      overflow: 'hidden'
+                    }}>
+                      {transaction.items && transaction.items.length > 0 ? (
+                        <div>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            marginBottom: '8px',
+                            padding: '6px 8px',
+                            backgroundColor: '#f8f9fa',
                             borderRadius: '6px',
-                            backgroundColor: '#ffffff',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'flex-start'
+                            border: '1px solid #e9ecef'
                           }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ 
-                                fontWeight: '600', 
-                                color: '#000000',
-                                marginBottom: '3px',
-                                fontSize: '13px'
-                              }}>
-                                {item.productname || 'Unknown Product'}
-                              </div>
-                              {(item.productcolor || item.product_type) && (
-                                <div style={{ 
-                                  fontSize: '11px', 
-                                  color: '#666666',
-                                  display: 'flex',
-                                  gap: '8px',
-                                  flexWrap: 'wrap'
-                                }}>
-                                  {item.productcolor && (
-                                    <span style={{ 
-                                      backgroundColor: '#f1f3f4', 
-                                      padding: '2px 6px', 
-                                      borderRadius: '3px',
-                                      fontWeight: '500'
-                                    }}>
-                                      {item.productcolor}
-                                    </span>
-                                  )}
-                                  {item.product_type && (
-                                    <span style={{ 
-                                      backgroundColor: '#e8f0fe', 
-                                      padding: '2px 6px', 
-                                      borderRadius: '3px',
-                                      fontWeight: '500'
-                                    }}>
-                                      {item.product_type}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
                             <div style={{ 
-                              fontSize: '11px', 
-                              fontWeight: '600',
+                              fontWeight: '600', 
                               color: '#000000',
-                              backgroundColor: '#f8f9fa',
-                              padding: '3px 6px',
-                              borderRadius: '3px',
-                              marginLeft: '8px'
+                              fontSize: '13px'
                             }}>
-                              ×{item.quantity}
+                              {transaction.items.length} item{transaction.items.length > 1 ? 's' : ''}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                      {transaction.items.length > 2 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {transaction.items.slice(0, 1).map((item, index) => (
+                              <div key={`transaction-${transactionId}-${transactionIndex}-item-${index}`} style={{ 
+                                fontSize: '12px',
+                                color: '#555555',
+                                lineHeight: '1.4',
+                                padding: '8px 10px',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '6px',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ 
+                                    fontWeight: '600', 
+                                    color: '#000000',
+                                    marginBottom: '3px',
+                                    fontSize: '13px'
+                                  }}>
+                                    {item.productname || 'Unknown Product'}
+                                  </div>
+                                  {(item.productcolor || item.product_type) && (
+                                    <div style={{ 
+                                      fontSize: '11px', 
+                                      color: '#666666',
+                                      display: 'flex',
+                                      gap: '8px',
+                                      flexWrap: 'wrap'
+                                    }}>
+                                      {item.productcolor && (
+                                        <span style={{ 
+                                          backgroundColor: '#f1f3f4', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {item.productcolor}
+                                        </span>
+                                      )}
+                                      {item.product_type && (
+                                        <span style={{ 
+                                          backgroundColor: '#e8f0fe', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {item.product_type}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: '600',
+                                  color: '#000000',
+                                  backgroundColor: '#f8f9fa',
+                                  padding: '3px 6px',
+                                  borderRadius: '3px',
+                                  marginLeft: '8px'
+                                }}>
+                                  ×{item.quantity}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {transaction.items.length > 1 && (
+                            <div style={{ 
+                              fontSize: '11px', 
+                              color: '#666666',
+                              fontStyle: 'italic',
+                              textAlign: 'center',
+                              marginTop: '6px',
+                              padding: '4px'
+                            }}>
+                              +{transaction.items.length - 1} more item{transaction.items.length - 1 > 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
                         <div style={{ 
-                          fontSize: '11px', 
-                          color: '#666666',
+                          color: '#999999', 
+                          fontSize: '12px',
                           fontStyle: 'italic',
                           textAlign: 'center',
-                          marginTop: '6px',
-                          padding: '4px'
-                        }}>                          +{transaction.items.length - 2} more item{transaction.items.length - 2 > 1 ? 's' : ''}
+                          padding: '8px'
+                        }}>
+                          No items found
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div style={{ 
-                      color: '#999999', 
-                      fontSize: '12px',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                      padding: '8px'
-                    }}>
-                      No items found
+                    
+                    <OrderDetails>
+                      <div className="amount">{formatCurrency(transaction.amount || transaction.total_amount || transaction.invoice_total)}</div>
+                    </OrderDetails>
+                    
+                    <div>{transaction.payment_method || 'COD'}</div>
+                    
+                    <StatusBadge status={transaction.transaction_status || transaction.order_status}>
+                      {getDisplayStatus(transaction.transaction_status || transaction.order_status)}
+                    </StatusBadge>
+                    
+                    {/* Delivery Status Column - Read Only */}
+                    <div>
+                      <DeliveryStatusBadge status={transaction.delivery_status || 'pending'}>
+                        {getDeliveryStatusInfo(transaction.delivery_status || 'pending').text}
+                      </DeliveryStatusBadge>
                     </div>
-                  )}
-                </div>
-                
-                <OrderDetails>
-                  <div className="amount">{formatCurrency(transaction.amount || transaction.total_amount || transaction.invoice_total)}</div>
-                </OrderDetails>
-                
-                <div>{transaction.payment_method || 'COD'}</div>
-                  <StatusBadge status={transaction.transaction_status || transaction.order_status}>
-                  {getDisplayStatus(transaction.transaction_status || transaction.order_status)}
-                </StatusBadge>
-                
-                <DateInfo>
-                  {formatDate(transaction.created_at)}
-                </DateInfo>
-                  <ActionsContainer>
-                  <ActionButton
-                    variant="view"
-                    onClick={() => viewTransaction(transaction)}
-                  >
-                    <FontAwesomeIcon icon={faEye} />
-                  </ActionButton>
-                </ActionsContainer>
-              </TableRow>
-            ))          )}
-        </TransactionsTable>
-        </div>
+                    
+                    <DateInfo>
+                      {formatDate(transaction.created_at)}
+                    </DateInfo>
+                    
+                    <ActionsContainer>
+                      <ActionButton
+                        variant="view"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          viewTransaction(transaction);
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faEye} />
+                      </ActionButton>
+                    </ActionsContainer>
+                  </TableRow>
 
-        {/* Cancellation Requests Header */}
+                  {/* Expanded Row Content */}
+                  {isExpanded && (
+                    <ExpandedRowContainer>
+                      <ExpandedContent>
+                        {/* Customer Information */}
+                        <InfoSection>
+                          <h4>Customer Information</h4>
+                          <InfoItem>
+                            <span className="label">Name:</span>
+                            <span className="value">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Email:</span>
+                            <span className="value">{transaction.customer_email || transaction.user_email || 'N/A'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Phone:</span>
+                            <span className="value">{transaction.customer_phone || 'N/A'}</span>
+                          </InfoItem>
+                        </InfoSection>
+
+                        {/* Shipping Address */}
+                        <InfoSection>
+                          <h4>Shipping Address</h4>
+                          <InfoItem>
+                            <span className="label">Street:</span>
+                            <span className="value">{transaction.street_address || transaction.shipping_address || 'N/A'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">City:</span>
+                            <span className="value">{transaction.city_municipality || transaction.city || 'N/A'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Province:</span>
+                            <span className="value">{transaction.province || 'N/A'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">ZIP Code:</span>
+                            <span className="value">{transaction.zip_code || 'N/A'}</span>
+                          </InfoItem>
+                        </InfoSection>
+
+                        {/* Order Details */}
+                        <InfoSection>
+                          <h4>Order Details</h4>
+                          <InfoItem>
+                            <span className="label">Total Amount:</span>
+                            <span className="value">{formatCurrency(transaction.amount || transaction.total_amount || transaction.invoice_total)}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Payment Method:</span>
+                            <span className="value">{transaction.payment_method || 'COD'}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Order Status:</span>
+                            <span className="value">{getDisplayStatus(transaction.transaction_status || transaction.order_status)}</span>
+                          </InfoItem>
+                          <InfoItem>
+                            <span className="label">Delivery Status:</span>
+                            <span className="value">{getDeliveryStatusInfo(transaction.delivery_status || 'pending').text}</span>
+                          </InfoItem>
+                        </InfoSection>
+
+                        {/* All Items */}
+                        {transaction.items && transaction.items.length > 0 && (
+                          <InfoSection style={{ gridColumn: '1 / -1' }}>
+                            <h4>Order Items ({transaction.items.length})</h4>
+                            <ItemsGrid>
+                              {transaction.items.map((item, index) => (
+                                <ItemCard key={`transaction-${transactionId}-${transactionIndex}-expanded-item-${index}`}>
+                                  <div className="item-image">
+                                    {item.product_image_path ? (
+                                      <img 
+                                        src={item.product_image_path} 
+                                        alt={item.productname || 'Product'} 
+                                      />
+                                    ) : (
+                                      <FontAwesomeIcon icon={faImage} />
+                                    )}
+                                  </div>
+                                  <div className="item-details">
+                                    <div className="item-name">
+                                      {item.productname || 'Unknown Product'}
+                                    </div>
+                                    <div className="item-specs">
+                                      {item.productcolor && <span>Color: {item.productcolor}</span>}
+                                      {item.product_type && <span>Type: {item.product_type}</span>}
+                                      <span>Qty: <strong>{item.quantity}</strong></span>
+                                    </div>
+                                    <div className="item-price">
+                                      {formatCurrency(item.item_price || item.price || 0)}
+                                    </div>
+                                  </div>
+                                </ItemCard>
+                              ))}
+                            </ItemsGrid>
+                          </InfoSection>
+                        )}
+                      </ExpandedContent>
+                    </ExpandedRowContainer>
+                  )}
+                </React.Fragment>
+              );
+            })
+          )}
+          </TransactionsTable>
+        </TableWrapper>
+        </>
+        )}
+
+        {/* Verify Payment Tab */}
+        {activeTab === 'verify-payment' && (
+          <>
+            {/* Verification Statistics */}
+            <StatsContainer>
+              <StatCard color="#f39c12">
+                <h3>{pendingVerificationOrders.length}</h3>
+                <p>Pending Verification</p>
+              </StatCard>
+              <StatCard color="#e74c3c">
+                <h3>{pendingVerificationOrders.filter(order => !order.payment_proof_image_path || order.payment_proof_image_path === 'N/A').length}</h3>
+                <p>Missing Proof</p>
+              </StatCard>
+              <StatCard color="#3498db">
+                <h3>{pendingVerificationOrders.filter(order => order.payment_proof_image_path && order.payment_proof_image_path !== 'N/A').length}</h3>
+                <p>With Proof</p>
+              </StatCard>
+              <StatCard color="#27ae60">
+                <h3>{formatCurrency(pendingVerificationOrders.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0))}</h3>
+                <p>Total Value</p>
+              </StatCard>
+            </StatsContainer>
+
+            {/* Verification Controls */}
+            <ControlsSection>
+              <ControlsGrid>
+                <SearchContainer>
+                  <SearchIcon icon={faSearch} />
+                  <SearchInput
+                    type="text"
+                    placeholder="Search by order number or customer name..."
+                    value={verificationSearchTerm}
+                    onChange={(e) => setVerificationSearchTerm(e.target.value)}
+                  />
+                </SearchContainer>
+                <RefreshButton onClick={fetchPendingVerificationOrders} disabled={verificationLoading}>
+                  <FontAwesomeIcon icon={faRefresh} />
+                  Refresh
+                </RefreshButton>
+              </ControlsGrid>
+            </ControlsSection>
+
+            {/* Verification Orders List */}
+            {verificationLoading ? (
+              <LoadingContainer>
+                <FontAwesomeIcon icon={faSpinner} spin size="2x" color="#ddd" />
+                <p>Loading pending verification orders...</p>
+              </LoadingContainer>
+            ) : pendingVerificationOrders.length === 0 ? (
+              <EmptyState>
+                <FontAwesomeIcon icon={faInfoCircle} className="icon" />
+                <h3>No orders pending verification</h3>
+                <p>All orders have been processed or no payment proofs have been submitted.</p>
+              </EmptyState>
+            ) : (
+              <VerificationContainer>
+                {pendingVerificationOrders
+                  .filter(order => {
+                    const matchesSearch = order.order_number?.toLowerCase().includes(verificationSearchTerm.toLowerCase()) ||
+                                         order.customer_fullname?.toLowerCase().includes(verificationSearchTerm.toLowerCase()) ||
+                                         order.first_name?.toLowerCase().includes(verificationSearchTerm.toLowerCase()) ||
+                                         order.last_name?.toLowerCase().includes(verificationSearchTerm.toLowerCase());
+                    return matchesSearch;
+                  })
+                  .map((order, orderIndex) => (
+                    <VerificationCard key={`verification-${order.order_id}-${order.order_number || 'unknown'}-${orderIndex}`}>
+                      <VerificationHeader>
+                        <VerificationOrderInfo>
+                          <h3>Order #{order.order_number}</h3>
+                          <p>Date: {new Date(order.order_date).toLocaleDateString()}</p>
+                          <p>Customer: {order.customer_fullname || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown'}</p>
+                          <p>Total: ₱{parseFloat(order.total_amount || 0).toFixed(2)}</p>
+                        </VerificationOrderInfo>
+                        <VerificationActions>
+                          <VerificationButton
+                            type="approve"
+                            onClick={() => approvePayment(order.order_id)}
+                            disabled={processingPayment}
+                          >
+                            <FontAwesomeIcon icon={faCheck} />
+                            Approve
+                          </VerificationButton>
+                          <VerificationButton
+                            type="deny"
+                            onClick={() => denyPayment(order.order_id, 'Payment verification failed')}
+                            disabled={processingPayment}
+                          >
+                            <FontAwesomeIcon icon={faTimes} />
+                            Deny
+                          </VerificationButton>
+                        </VerificationActions>
+                      </VerificationHeader>
+
+                      <VerificationDetails>
+                        <DetailsSection>
+                          <h4>Customer Information</h4>
+                          <DetailItem>
+                            <strong>Full Name:</strong> {order.customer_fullname || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>Email:</strong> {order.user_email || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>Phone:</strong> {order.customer_phone || 'N/A'}
+                          </DetailItem>
+                        </DetailsSection>
+
+                        <DetailsSection>
+                          <h4>Payment Information</h4>
+                          <DetailItem>
+                            <strong>GCash Reference:</strong> {order.gcash_reference_number || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>Amount:</strong> ₱{parseFloat(order.total_amount || 0).toFixed(2)}
+                          </DetailItem>
+                        </DetailsSection>
+
+                        <DetailsSection>
+                          <h4>Shipping Address</h4>
+                          <DetailItem>
+                            <strong>Province:</strong> {order.province || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>City:</strong> {order.city_municipality || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>Street:</strong> {order.street_address || 'N/A'}
+                          </DetailItem>
+                          <DetailItem>
+                            <strong>Postal Code:</strong> {order.postal_code || 'N/A'}
+                          </DetailItem>
+                        </DetailsSection>
+
+                        {order.order_notes && order.order_notes !== 'N/A' && (
+                          <DetailsSection>
+                            <h4>Order Notes</h4>
+                            <DetailItem>{order.order_notes}</DetailItem>
+                          </DetailsSection>
+                        )}
+
+                        <DetailsSection>
+                          <h4>Payment Proof</h4>
+                          {order.payment_proof_image_path && order.payment_proof_image_path !== 'N/A' ? (
+                            <PaymentProofContainer>
+                              <PaymentProofImage
+                                src={`http://localhost:5000/uploads/payment-proofs/${order.payment_proof_image_path}`}
+                                alt="Payment Proof"
+                                onClick={() => viewPaymentProof(
+                                  `http://localhost:5000/uploads/payment-proofs/${order.payment_proof_image_path}`,
+                                  order.customer_fullname || 'Customer',
+                                  order.order_number
+                                )}
+                              />
+                              <PaymentProofActions>
+                                <ActionButton
+                                  variant="view"
+                                  onClick={() => viewPaymentProof(
+                                    `http://localhost:5000/uploads/payment-proofs/${order.payment_proof_image_path}`,
+                                    order.customer_fullname || 'Customer',
+                                    order.order_number
+                                  )}
+                                >
+                                  <FontAwesomeIcon icon={faExpand} />
+                                  View Full
+                                </ActionButton>
+                              </PaymentProofActions>
+                            </PaymentProofContainer>
+                          ) : (
+                            <DetailItem style={{ color: '#e74c3c', fontStyle: 'italic' }}>
+                              No payment proof uploaded
+                            </DetailItem>
+                          )}
+                        </DetailsSection>
+
+                        {order.items && order.items.length > 0 && (
+                          <DetailsSection>
+                            <h4>Order Items ({order.items.length})</h4>
+                            <OrderItemsList>
+                              {order.items.map((item, index) => (
+                                <OrderItemCard key={`verification-order-${order.order_id}-${orderIndex}-item-${index}`}>
+                                  <OrderItemImage>
+                                    {item.productimage ? (
+                                      <img
+                                        src={`http://localhost:5000/uploads/${item.productimage}`}
+                                        alt={item.productname}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <FontAwesomeIcon icon={faImage} />
+                                    )}
+                                  </OrderItemImage>
+                                  <OrderItemDetails>
+                                    <h5>{item.productname || item.product_name}</h5>
+                                    <div className="item-meta">
+                                      {item.color && <span>Color: {item.color}</span>}
+                                      {item.size && <span>Size: {item.size}</span>}
+                                      <span>Qty: <strong>{item.quantity}</strong></span>
+                                    </div>
+                                    <div className="item-price">₱{parseFloat(item.product_price || 0).toFixed(2)}</div>
+                                  </OrderItemDetails>
+                                </OrderItemCard>
+                              ))}
+                            </OrderItemsList>
+                          </DetailsSection>
+                        )}
+                      </VerificationDetails>
+                    </VerificationCard>
+                  ))}
+              </VerificationContainer>
+            )}
+          </>
+        )}
+
+        {/* Cancellation Requests Tab */}
+        {activeTab === 'cancellations' && (
+          <>
+            {/* Cancellation Requests Header */}
         <ControlsSection>
           <ControlsGrid>
             <SearchContainer>
@@ -1887,7 +2978,7 @@ const TransactionPage = () => {
             </SearchContainer>
             <FilterSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => setCancellationStatusFilter(e.target.value)}
             >
               <option value="all">All Requests</option>
               <option value="pending">Pending</option>
@@ -1922,8 +3013,8 @@ const TransactionPage = () => {
               const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
               return matchesSearch && matchesStatus;
             })
-            .map((request) => (
-              <CancellationRequestCard key={request.id}>
+            .map((request, requestIndex) => (
+              <CancellationRequestCard key={`cancellation-${request.id}-${request.order_number || 'unknown'}-${requestIndex}`}>
                 <RequestHeader>
                   <RequestInfo>
                     <h3>Order #{request.order_number}</h3>
@@ -1955,11 +3046,10 @@ const TransactionPage = () => {
                 {request.order_items && request.order_items.length > 0 && (
                   <ProductDetailsBox>
                     <h4>
-                      <FontAwesomeIcon icon={faShoppingBag} />
                       Order Items ({request.order_items.length})
                     </h4>
                     {request.order_items.map((item, index) => (
-                      <ProductItem key={index}>
+                      <ProductItem key={`cancellation-${request.id}-${requestIndex}-item-${index}`}>
                         <ProductImage 
                           src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : '/placeholder-image.png'}
                           alt={item.product_name || item.productname}
@@ -2055,9 +3145,44 @@ const TransactionPage = () => {
                     <FontAwesomeIcon icon={faRefresh} />
                     {designRequestsLoading ? 'Loading...' : 'Refresh'}
                   </RefreshButton>
+                  {/* Debug Test Button */}
+                  <RefreshButton 
+                    onClick={() => {
+                      console.log('🧪 Manual debug test triggered');
+                      console.log('Current state:', { 
+                        customDesignRequests: customDesignRequests.length,
+                        designRequestsLoading,
+                        designSearchTerm,
+                        activeTab
+                      });
+                      fetchCustomDesignRequests();
+                    }}
+                    style={{ backgroundColor: '#dc3545' }}
+                  >
+                    🧪 Debug Test
+                  </RefreshButton>
                 </div>
               </ControlsGrid>
             </ControlsSection>
+
+            {/* Debug Information */}
+            <div style={{ 
+              background: '#f8f9fa', 
+              padding: '16px', 
+              marginBottom: '16px', 
+              borderRadius: '4px',
+              border: '1px solid #dee2e6',
+              fontSize: '12px',
+              fontFamily: 'monospace'
+            }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#495057' }}>🐛 Debug Information</h4>
+              <div>Current Tab: <strong>{activeTab}</strong></div>
+              <div>Requests State: <strong>{customDesignRequests.length} items</strong></div>
+              <div>Loading: <strong>{designRequestsLoading ? 'Yes' : 'No'}</strong></div>
+              <div>Search Term: <strong>"{designSearchTerm}"</strong></div>
+              <div>Token Available: <strong>{typeof window !== 'undefined' && localStorage.getItem('token') ? 'Yes' : 'No'}</strong></div>
+              <div>User: <strong>{typeof window !== 'undefined' ? localStorage.getItem('user') : 'N/A'}</strong></div>
+            </div>
 
             {/* Design Requests List */}
             {designRequestsLoading ? (
@@ -2083,19 +3208,35 @@ const TransactionPage = () => {
                 );
               });
 
+              // Debug logging
+              console.log('🔍 Filtering custom design requests:');
+              console.log('📊 Total requests:', customDesignRequests.length);
+              console.log('🔍 Search term:', designSearchTerm);
+              console.log('📄 Filtered count:', filteredRequests.length);
+              if (customDesignRequests.length > 0) {
+                console.log('📋 Sample request fields:', Object.keys(customDesignRequests[0]));
+              }
+
+              // Add to window for debugging
+              if (typeof window !== 'undefined') {
+                window.designSearchTerm = designSearchTerm;
+                window.designRequestsLoading = designRequestsLoading;
+              }
+
               return filteredRequests.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>
                   <FontAwesomeIcon icon={faInfoCircle} size="3x" style={{ color: '#ddd', marginBottom: '16px' }} />
                   <p>
                     {designSearchTerm ? 
                       `No custom design requests found matching "${designSearchTerm}".` : 
+ 
                       'No custom design requests found.'
                     }
                   </p>
                 </div>
               ) : (
-                filteredRequests.map(request => (
-                <CancellationRequestCard key={request.custom_order_id}>
+                filteredRequests.map((request, requestIndex) => (
+                <CancellationRequestCard key={`custom-design-${request.custom_order_id}-${requestIndex}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div>
                       <h3>Order #{request.custom_order_id}</h3>
@@ -2142,7 +3283,7 @@ const TransactionPage = () => {
                       <ImageGallery>
                         {request.images.map((image, idx) => (
                           <ImageContainer 
-                            key={idx} 
+                            key={`custom-design-${request.custom_order_id}-image-${idx}`} 
                             onClick={() => handleImageView(`/uploads/custom-orders/${image.filename}`, image.original_filename)}
                           >
                             <ImagePreview 
@@ -2390,6 +3531,204 @@ const TransactionPage = () => {
               </ModalImageContainer>
             </ImageModalContent>
           </ImageModal>
+        )}
+        
+        {/* Payment Proof Modal */}
+        {showPaymentProofModal && selectedPaymentProof && (
+          <ModalOverlay onClick={closePaymentProofModal}>
+            <Modal onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <h2>Payment Proof - Order #{selectedPaymentProof.orderNumber}</h2>
+                <CloseButton onClick={closePaymentProofModal}>
+                  <FontAwesomeIcon icon={faTimes} />
+                </CloseButton>
+              </ModalHeader>
+              <ModalContent>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  gap: '16px'
+                }}>
+                  <div style={{ 
+                    width: '100%', 
+                    maxWidth: '500px',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    <img 
+                      src={selectedPaymentProof.imagePath} 
+                      alt={`Payment proof for ${selectedPaymentProof.customerName}`} 
+                      style={{ 
+                        width: '100%', 
+                        height: 'auto',
+                        borderRadius: '8px',
+                        objectFit: 'cover'
+                      }}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.src = '/placeholder-image.png';
+                      }}
+                    />
+                    <div style={{ 
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      display: 'flex',
+                      gap: '8px'
+                    }}>
+                      <ActionButton
+                        compact
+                        onClick={() => handleImageDownload(selectedPaymentProof.imagePath, `payment-proof-${selectedPaymentProof.orderNumber}.jpg`)}
+                      >
+                        <FontAwesomeIcon icon={faDownload} />
+                      </ActionButton>
+                    </div>
+                  </div>
+                  
+                  <div style={{ 
+                    width: '100%',
+                    padding: '16px',
+                    background: '#f8f9fa',
+                    borderRadius: '8px',
+                    border: '1px solid #e9ecef',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ 
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#333'
+                    }}>
+                      Payment Details
+                    </div>
+                    <div style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '13px',
+                      color: '#666'
+                    }}>
+                      <div>Customer:</div>
+                      <div>{selectedPaymentProof.customerName}</div>
+                    </div>
+                    <div style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '13px',
+                      color: '#666'
+                    }}>
+                      <div>Order #:</div>
+                      <div>{selectedPaymentProof.orderNumber}</div>
+                    </div>
+                    <div style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '13px',
+                      color: '#666'
+                    }}>
+                      <div>Amount:</div>
+                      <div>
+                        {formatCurrency(transactions.find(t => t.order_number === selectedPaymentProof.orderNumber)?.amount)}
+                      </div>
+                    </div>
+                    <div style={{ 
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '13px',
+                      color: '#666'
+                    }}>
+                      <div>Status:</div>
+                      <div>
+                        <StatusBadge status={
+                          transactions.find(t => t.order_number === selectedPaymentProof.orderNumber)?.transaction_status
+                        }>
+                          {getDisplayStatus(transactions.find(t => t.order_number === selectedPaymentProof.orderNumber)?.transaction_status)}
+                        </StatusBadge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ModalContent>
+            </Modal>
+          </ModalOverlay>
+        )}
+        
+        {/* Transaction Details Modal */}
+        {showModal && selectedTransaction && (
+          <ModalOverlay onClick={() => setShowModal(false)}>
+            <Modal onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <h2>Transaction Details - {selectedTransaction.order_number}</h2>
+                <CloseButton onClick={() => setShowModal(false)}>
+                  <FontAwesomeIcon icon={faTimes} />
+                </CloseButton>
+              </ModalHeader>
+              <ModalContent>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                  <div>
+                    <h3>Order Information</h3>
+                    <DetailItem><strong>Order Number:</strong> {selectedTransaction.order_number}</DetailItem>
+                    <DetailItem><strong>Order Date:</strong> {formatDate(selectedTransaction.order_date)}</DetailItem>
+                    <DetailItem><strong>Order Type:</strong> {selectedTransaction.order_type === 'custom' ? 'Custom Order' : 'Regular Order'}</DetailItem>
+                    <DetailItem><strong>Order Status:</strong> <StatusBadge status={selectedTransaction.status}>{getDisplayStatus(selectedTransaction.status)}</StatusBadge></DetailItem>
+                    <DetailItem><strong>Delivery Status:</strong> <DeliveryStatusBadge status={selectedTransaction.delivery_status || 'pending'}>{getDeliveryStatusInfo(selectedTransaction.delivery_status || 'pending').text}</DeliveryStatusBadge></DetailItem>
+                    <DetailItem><strong>Total Amount:</strong> {formatCurrency(selectedTransaction.total_amount)}</DetailItem>
+                    <DetailItem><strong>Payment Method:</strong> {selectedTransaction.payment_method}</DetailItem>
+                  </div>
+                  <div>
+                    <h3>Customer Information</h3>
+                    <DetailItem><strong>Name:</strong> {selectedTransaction.customer_name}</DetailItem>
+                    <DetailItem><strong>Email:</strong> {selectedTransaction.customer_email}</DetailItem>
+                    <DetailItem><strong>Phone:</strong> {selectedTransaction.contact_phone || 'N/A'}</DetailItem>
+                    <DetailItem><strong>Address:</strong> {selectedTransaction.shipping_address || 'N/A'}</DetailItem>
+                  </div>
+                </div>
+                
+                {selectedTransaction.items && selectedTransaction.items.length > 0 && (
+                  <div style={{ marginTop: '24px' }}>
+                    <h3>Order Items ({selectedTransaction.items.length})</h3>
+                    <OrderItemsList>
+                      {selectedTransaction.items.map((item, index) => (
+                        <OrderItemCard key={`modal-transaction-${selectedTransaction.transaction_id || selectedTransaction.id}-item-${index}`}>
+                          <OrderItemImage>
+                            {item.productimage ? (
+                              <img
+                                src={`http://localhost:5000/uploads/${item.productimage}`}
+                                alt={item.productname}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <FontAwesomeIcon icon={faImage} />
+                            )}
+                          </OrderItemImage>
+                          <OrderItemDetails>
+                            <h5>{item.productname || item.product_name || 'Unknown Product'}</h5>
+                            <div className="item-meta">
+                              {item.color && <span>Color: {item.color}</span>}
+                              {item.size && <span>Size: {item.size}</span>}
+                              <span>Qty: <strong>{item.quantity}</strong></span>
+                            </div>
+                            <div className="item-price">₱{parseFloat(item.product_price || item.price || 0).toFixed(2)}</div>
+                          </OrderItemDetails>
+                        </OrderItemCard>
+                      ))}
+                    </OrderItemsList>
+                  </div>
+                )}
+                
+                {selectedTransaction.notes && (
+                  <div style={{ marginTop: '24px' }}>
+                    <h3>Notes</h3>
+                    <DetailItem>{selectedTransaction.notes}</DetailItem>
+                  </div>
+                )}
+              </ModalContent>
+            </Modal>
+          </ModalOverlay>
         )}
       </ContentWrapper>
     </PageContainer>

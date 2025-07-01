@@ -62,8 +62,8 @@ const HelpPage = () => {
               <div className="icon-circle large">
                 <FontAwesomeIcon icon={faMoneyBill} />
               </div>
-              <h3>Cash on Delivery Only</h3>
-              <p>Payment will be collected upon delivery of your items</p>
+              <h3>GCash Payment only</h3>
+              <p>Pay securely using GCash before your order is processed</p>
             </div>
           </div>
         </section>

@@ -124,7 +124,8 @@ const Layout = () => {
           <Route path="/help" element={<HelpPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
-          <Route path="/shipping" element={<ShippingPage />} />        </Routes>
+          <Route path="/shipping" element={<ShippingPage />} />
+        </Routes>
       </MainContent>
       <Footer />
     </>

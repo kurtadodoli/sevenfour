@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../context/AuthContext';
-import StockStatusWidget from '../components/StockStatusWidget';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 const DashboardPage = () => {
     const { currentUser } = useAuth();
     const [activeReport, setActiveReport] = useState('user-logs');    const [userLogs, setUserLogs] = useState([]);
     const [inventoryData, setInventoryData] = useState([]);
+    const [salesData, setSalesData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [deletingUserId, setDeletingUserId] = useState(null);
     const [dateRange, setDateRange] = useState({
@@ -68,6 +69,29 @@ const DashboardPage = () => {
         }
     }, [dateRange]);
 
+    // Fetch Sales Data
+    const fetchSalesData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/sales-report', {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                setSalesData(data.data || []);
+                console.log('Sales data loaded:', data.data?.length || 0, 'records');
+            }
+        } catch (error) {
+            console.error('Error fetching sales data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // Delete User Function
     const deleteUser = async (userId, userEmail) => {
         // Prevent deletion of the current admin user
@@ -117,6 +141,8 @@ const DashboardPage = () => {
             fetchUserLogs();
         } else if (activeReport === 'inventory') {
             fetchInventoryData();
+        } else if (activeReport === 'sales') {
+            fetchSalesData();
         }
     };    // Format Date
     const formatDate = (dateString) => {
@@ -249,15 +275,79 @@ const DashboardPage = () => {
         };
     };
 
+    // Data Visualization Functions for Sales
+    const getSalesMetrics = () => {
+        if (!salesData.length) return null;
+
+        // Group sales by date for trend analysis
+        const salesByDate = {};
+        let totalRevenue = 0;
+        let totalQuantitySold = 0;
+        const productSales = {};
+
+        salesData.forEach(sale => {
+            const date = new Date(sale.sale_date).toLocaleDateString();
+            
+            // Aggregate by date
+            if (!salesByDate[date]) {
+                salesByDate[date] = { date, revenue: 0, quantity: 0 };
+            }
+            salesByDate[date].revenue += parseFloat(sale.total_revenue) || 0;
+            salesByDate[date].quantity += parseInt(sale.total_sold) || 0;
+            
+            // Total metrics
+            totalRevenue += parseFloat(sale.total_revenue) || 0;
+            totalQuantitySold += parseInt(sale.total_sold) || 0;
+            
+            // Product sales tracking
+            const productName = sale.productname;
+            if (!productSales[productName]) {
+                productSales[productName] = { 
+                    name: productName, 
+                    quantity: 0, 
+                    revenue: 0 
+                };
+            }
+            productSales[productName].quantity += parseInt(sale.total_sold) || 0;
+            productSales[productName].revenue += parseFloat(sale.total_revenue) || 0;
+        });
+
+        // Convert to arrays for charts
+        const salesTrend = Object.values(salesByDate)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .slice(-30); // Last 30 days
+
+        const topProducts = Object.values(productSales)
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 10);
+
+        // Calculate average order value
+        const totalOrders = salesData.length;
+        const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+        return {
+            totalRevenue,
+            totalQuantitySold,
+            totalOrders,
+            averageOrderValue,
+            salesTrend,
+            topProducts,
+            uniqueProducts: Object.keys(productSales).length
+        };
+    };
+
     const userMetrics = getUserMetrics();
-    const inventoryMetrics = getInventoryMetrics();    // Auto-load data when report type changes
+    const inventoryMetrics = getInventoryMetrics();
+    const salesMetrics = getSalesMetrics();    // Auto-load data when report type changes
     useEffect(() => {
         if (activeReport === 'user-logs') {
             fetchUserLogs();
         } else if (activeReport === 'inventory') {
             fetchInventoryData();
+        } else if (activeReport === 'sales') {
+            fetchSalesData();
         }
-    }, [activeReport, fetchUserLogs, fetchInventoryData]);
+    }, [activeReport, fetchUserLogs, fetchInventoryData, fetchSalesData]);
 
     // Check if user is admin
     if (!currentUser || currentUser.role !== 'admin') {
@@ -279,7 +369,6 @@ const DashboardPage = () => {
             <Header>
                 <Title>Dashboard</Title>
                 <Subtitle>Administrative Reports & Analytics</Subtitle>
-                <StockStatusWidget />
             </Header>
 
             <ReportsContainer>                <SidePanel>
@@ -299,6 +388,14 @@ const DashboardPage = () => {
                         >
                             <ReportIcon>📦</ReportIcon>
                             Inventory Report                        </ReportButton>
+                        
+                        <ReportButton 
+                            $active={activeReport === 'sales'}
+                            onClick={() => setActiveReport('sales')}
+                        >
+                            <ReportIcon>📈</ReportIcon>
+                            Sales Report
+                        </ReportButton>
                     </ReportNavigation>
                 </SidePanel>
 
@@ -396,18 +493,18 @@ const DashboardPage = () => {
                                         {/* Registration Trends Bar Chart */}
                                         <ChartCard style={{ gridColumn: '1 / -1' }}>
                                             <ChartTitle>📈 User Registration Trends (Last 7 Days)</ChartTitle>
-                                            <BarChart>
+                                            <CustomBarChart>
                                                 {userMetrics.registrationTrends.map((day, index) => {
                                                     const maxCount = Math.max(...userMetrics.registrationTrends.map(d => d.count));
                                                     const height = maxCount > 0 ? (day.count / maxCount) * 120 : 4;
                                                     return (
                                                         <BarGroup key={index}>
-                                                            <Bar height={height} value={day.count} />
+                                                            <CustomBar height={height} value={day.count} />
                                                             <BarLabel>{day.date}</BarLabel>
                                                         </BarGroup>
                                                     );
                                                 })}
-                                            </BarChart>
+                                            </CustomBarChart>
                                         </ChartCard>
                                     </ChartsGrid>
                                 </VisualizationSection>
@@ -552,18 +649,18 @@ const DashboardPage = () => {
                                         {/* Product Type Distribution Chart */}
                                         <ChartCard>
                                             <ChartTitle>📂 Product Type Distribution</ChartTitle>
-                                            <BarChart>
+                                            <CustomBarChart>
                                                 {inventoryMetrics.topProductTypes.map((type, index) => {
                                                     const maxCount = Math.max(...inventoryMetrics.topProductTypes.map(t => t.count));
                                                     const height = maxCount > 0 ? (type.count / maxCount) * 120 : 4;
                                                     return (
                                                         <BarGroup key={index}>
-                                                            <Bar height={height} value={type.count} />
+                                                            <CustomBar height={height} value={type.count} />
                                                             <BarLabel>{type.type}</BarLabel>
                                                         </BarGroup>
                                                     );
                                                 })}
-                                            </BarChart>
+                                            </CustomBarChart>
                                         </ChartCard>
                                     </ChartsGrid>
                                 </VisualizationSection>
@@ -606,6 +703,179 @@ const DashboardPage = () => {
                                 </TableContainer>
                             )}
                         </ReportSection>                    )}
+
+                    {/* Sales Report */}
+                    {activeReport === 'sales' && (
+                        <ReportSection>
+                            <ReportHeader>
+                                <ReportTitle>Sales Report</ReportTitle>
+                                <GenerateButton onClick={generateReport} disabled={loading}>
+                                    {loading ? 'Generating...' : 'Generate Report'}
+                                </GenerateButton>
+                            </ReportHeader>
+                            
+                            <ReportDescription>
+                                Comprehensive sales analytics including product performance, revenue trends, and top-selling items.
+                            </ReportDescription>
+
+                            {/* Sales Visualization Section */}
+                            {salesData.length > 0 && salesMetrics && (
+                                <VisualizationSection>
+                                    <SectionTitle>📈 Sales Analytics Dashboard</SectionTitle>
+                                    
+                                    {/* Key Metrics Cards */}
+                                    <MetricsGrid>
+                                        <MetricCard>
+                                            <MetricValue>₱{salesMetrics.totalRevenue.toLocaleString()}</MetricValue>
+                                            <MetricLabel>Total Revenue</MetricLabel>
+                                        </MetricCard>
+                                        <MetricCard>
+                                            <MetricValue>{salesMetrics.totalQuantitySold}</MetricValue>
+                                            <MetricLabel>Items Sold</MetricLabel>
+                                        </MetricCard>
+                                        <MetricCard>
+                                            <MetricValue>{salesMetrics.totalOrders}</MetricValue>
+                                            <MetricLabel>Total Orders</MetricLabel>
+                                        </MetricCard>
+                                        <MetricCard>
+                                            <MetricValue>₱{salesMetrics.averageOrderValue.toFixed(2)}</MetricValue>
+                                            <MetricLabel>Avg Order Value</MetricLabel>
+                                        </MetricCard>
+                                    </MetricsGrid>
+
+                                    {/* Charts Grid */}
+                                    <ChartsGrid>
+                                        {/* Sales Trend Line Chart */}
+                                        <ChartCard style={{ gridColumn: '1 / -1' }}>
+                                            <ChartTitle>📊 Sales Trend (Last 30 Days)</ChartTitle>
+                                            <div style={{ width: '100%', height: 300 }}>
+                                                <ResponsiveContainer>
+                                                    <LineChart data={salesMetrics.salesTrend}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="date" />
+                                                        <YAxis yAxisId="left" />
+                                                        <YAxis yAxisId="right" orientation="right" />
+                                                        <Tooltip />
+                                                        <Legend />
+                                                        <Bar yAxisId="left" dataKey="quantity" fill="#000000" name="Quantity Sold" />
+                                                        <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#dc3545" strokeWidth={3} name="Revenue (₱)" />
+                                                    </LineChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </ChartCard>
+
+                                        {/* Top Products Bar Chart */}
+                                        <ChartCard style={{ gridColumn: '1 / -1' }}>
+                                            <ChartTitle>🏆 Top Selling Products</ChartTitle>
+                                            <div style={{ width: '100%', height: 400 }}>
+                                                <ResponsiveContainer>
+                                                    <BarChart data={salesMetrics.topProducts.slice(0, 8)}>
+                                                        <CartesianGrid strokeDasharray="3 3" />
+                                                        <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                                                        <YAxis yAxisId="left" />
+                                                        <YAxis yAxisId="right" orientation="right" />
+                                                        <Tooltip />
+                                                        <Legend />
+                                                        <Bar yAxisId="left" dataKey="quantity" fill="#000000" name="Quantity Sold" />
+                                                        <Bar yAxisId="right" dataKey="revenue" fill="#dc3545" name="Revenue (₱)" />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </ChartCard>
+
+                                        {/* Product Performance Pie Chart */}
+                                        <ChartCard>
+                                            <ChartTitle>📈 Revenue Distribution</ChartTitle>
+                                            <div style={{ width: '100%', height: 300 }}>
+                                                <ResponsiveContainer>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={salesMetrics.topProducts.slice(0, 5)}
+                                                            dataKey="revenue"
+                                                            nameKey="name"
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            outerRadius={80}
+                                                            fill="#000000"
+                                                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                                        >
+                                                            {salesMetrics.topProducts.slice(0, 5).map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={`hsl(${index * 72}, 70%, 50%)`} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip formatter={(value) => [`₱${value.toLocaleString()}`, 'Revenue']} />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </ChartCard>
+
+                                        {/* Sales Summary Stats */}
+                                        <ChartCard>
+                                            <ChartTitle>📋 Sales Summary</ChartTitle>
+                                            <div style={{ padding: '1rem 0' }}>
+                                                <div style={{ marginBottom: '1rem' }}>
+                                                    <strong>Unique Products Sold:</strong> {salesMetrics.uniqueProducts}
+                                                </div>
+                                                <div style={{ marginBottom: '1rem' }}>
+                                                    <strong>Best Selling Product:</strong><br />
+                                                    {salesMetrics.topProducts[0]?.name || 'N/A'}
+                                                </div>
+                                                <div style={{ marginBottom: '1rem' }}>
+                                                    <strong>Top Product Revenue:</strong><br />
+                                                    ₱{salesMetrics.topProducts[0]?.revenue.toLocaleString() || '0'}
+                                                </div>
+                                                <div>
+                                                    <strong>Total Sales Records:</strong> {salesData.length}
+                                                </div>
+                                            </div>
+                                        </ChartCard>
+                                    </ChartsGrid>
+                                </VisualizationSection>
+                            )}
+
+                            {salesData.length > 0 && (
+                                <TableContainer>
+                                    <Table>
+                                        <TableHeader>
+                                            <tr>
+                                                <th>Product ID</th>
+                                                <th>Product Name</th>
+                                                <th>Sale Date</th>
+                                                <th>Quantity Sold</th>
+                                                <th>Revenue</th>
+                                            </tr>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {salesData.slice(0, 50).map((sale, index) => (
+                                                <TableRow key={`${sale.product_id}-${sale.sale_date}-${index}`}>
+                                                    <td>{sale.product_id}</td>
+                                                    <td>{sale.productname}</td>
+                                                    <td>{new Date(sale.sale_date).toLocaleDateString()}</td>
+                                                    <td>{sale.total_sold}</td>
+                                                    <td>₱{parseFloat(sale.total_revenue).toLocaleString()}</td>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            )}
+
+                            {salesData.length === 0 && !loading && (
+                                <div style={{ 
+                                    textAlign: 'center', 
+                                    padding: '3rem',
+                                    background: 'rgba(255, 255, 255, 0.5)',
+                                    borderRadius: '16px',
+                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                    maxWidth: '400px',
+                                    margin: '2rem auto'
+                                }}>
+                                    <p style={{ color: '#666', fontSize: '16px' }}>No sales data available</p>
+                                    <p style={{ color: '#999', fontSize: '14px' }}>Sales reports will appear here once orders are confirmed</p>
+                                </div>
+                            )}
+                        </ReportSection>
+                    )}
                 </MainContent>
             </ReportsContainer>
         </Container>
@@ -1372,7 +1642,7 @@ const LegendColor = styled.div`
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 `;
 
-const BarChart = styled.div`
+const CustomBarChart = styled.div`
     display: flex;
     align-items: end;
     gap: 0.75rem;
@@ -1393,7 +1663,7 @@ const BarGroup = styled.div`
     max-width: 70px;
 `;
 
-const Bar = styled.div`
+const CustomBar = styled.div`
     width: 100%;
     background: linear-gradient(135deg, #000000 0%, #333333 100%);
     border-radius: 6px 6px 0 0;

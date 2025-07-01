@@ -229,6 +229,15 @@ exports.createOrderFromCart = async (req, res) => {
             // Create order items with proper order_id reference and all required fields
             for (let index = 0; index < cartItems.length; index++) {
                 const item = cartItems[index];
+                
+                // FIXED: Proper color handling - use selected color if it exists and is not empty
+                const finalColor = (item.color && item.color.trim() !== '') ? item.color : item.productcolor;
+                
+                console.log(`Order item ${index + 1}: ${item.productname}`);
+                console.log(`  Selected color: "${item.color}"`);
+                console.log(`  Default color: "${item.productcolor}"`);
+                console.log(`  Final color: "${finalColor}"`);
+                
                 await connection.execute(`
                     INSERT INTO order_items (
                         order_id, invoice_id, product_id, product_name, product_price,
@@ -238,7 +247,7 @@ exports.createOrderFromCart = async (req, res) => {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, index + 1, item.color || item.productcolor, item.size || 'N/A',
+                    item.quantity, index + 1, finalColor, item.size || 'N/A',
                     item.productprice * item.quantity,
                     customer_name || req.user.username || 'N/A',
                     contact_phone || 'N/A',
@@ -294,42 +303,32 @@ exports.createOrderFromCart = async (req, res) => {
 
 // Confirm order and update status
 exports.confirmOrder = async (req, res) => {
+    const connection = await mysql.createConnection(dbConfig);
+    
     try {
-        const orderId = req.params.id; // Use 'id' instead of 'orderId'
+        const orderId = req.params.id;
         
-        console.log('=== CONFIRM ORDER DEBUG (ENHANCED) ===');
-        console.log('req.headers:', JSON.stringify(req.headers, null, 2));
+        console.log('=== CONFIRM ORDER FOR ADMIN VERIFICATION (DEBUG) ===');
         console.log('req.user:', req.user);
-        console.log('req.user.id:', req.user?.id);
         console.log('orderId:', orderId);
-        console.log('typeof req.user.id:', typeof req.user?.id);
-        console.log('Request from:', req.ip);
-        console.log('User agent:', req.headers['user-agent']);
-        console.log('Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+        console.log('typeof orderId:', typeof orderId);
         
         if (!req.user || !req.user.id) {
             console.log('❌ Authentication failed - no user or user.id');
-            console.log('Full req.user object:', req.user);
+            await connection.end();
             return res.status(401).json({
                 success: false,
                 message: 'User authentication required'
             });
         }
         
-        // Convert user ID to the appropriate type for database queries
         const userId = req.user.id;
-        
-        console.log('userId for queries:', userId);
-        console.log('typeof userId:', typeof userId);
-        console.log('orderId for queries:', orderId);
-        console.log('typeof orderId:', typeof orderId);
-        
-        const connection = await mysql.createConnection(dbConfig);
+        console.log('userId:', userId, 'typeof:', typeof userId);
         
         try {
             await connection.beginTransaction();
             
-            // First, check if the order exists and belongs to the user
+            // Check if the order exists and belongs to the user
             console.log('Checking if order exists and belongs to user...');
             const [orderCheck] = await connection.execute(`
                 SELECT id, status, user_id, invoice_id 
@@ -360,8 +359,31 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Get the order items to update inventory (using order_id directly)
-            console.log('Getting order items for inventory update...');
+            // Verify the order has payment proof
+            console.log('Checking if order has payment proof...');
+            const [paymentProofCheck] = await connection.execute(`
+                SELECT COUNT(*) as items_with_proof
+                FROM order_items 
+                WHERE order_id = ? 
+                AND gcash_reference_number IS NOT NULL 
+                AND gcash_reference_number != 'COD_ORDER'
+                AND gcash_reference_number != 'N/A'
+                AND payment_proof_image_path IS NOT NULL
+                AND payment_proof_image_path != 'N/A'
+            `, [orderId]);
+            
+            if (paymentProofCheck[0].items_with_proof === 0) {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ No payment proof found');
+                return res.status(400).json({
+                    success: false,
+                    message: 'Payment proof is required before confirming the order'
+                });
+            }
+            
+            // Get the order items to check stock availability
+            console.log('Getting order items to verify stock...');
             const [orderItems] = await connection.execute(`
                 SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
                        p.productname, p.total_available_stock
@@ -369,8 +391,6 @@ exports.confirmOrder = async (req, res) => {
                 JOIN products p ON oi.product_id = p.product_id
                 WHERE oi.order_id = ?
             `, [orderId]);
-            
-            console.log(`Found ${orderItems.length} items in order`);
             
             if (orderItems.length === 0) {
                 await connection.rollback();
@@ -382,12 +402,11 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Check stock for each specific size/color variant
+            // Check stock availability for each variant (but don't deduct yet)
             const insufficientStock = [];
             for (const item of orderItems) {
                 console.log(`Checking variant stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
                 
-                // Check if specific size/color variant exists and has enough stock
                 const [variantStock] = await connection.execute(`
                     SELECT available_quantity, stock_quantity, reserved_quantity
                     FROM product_variants 
@@ -396,7 +415,6 @@ exports.confirmOrder = async (req, res) => {
                 
                 if (variantStock.length === 0) {
                     // No variant found - check general product stock as fallback
-                    console.log(`No variant found for ${item.productname} ${item.size}/${item.color}, checking general stock`);
                     if (item.total_available_stock < item.quantity) {
                         insufficientStock.push({
                             product: item.productname,
@@ -409,8 +427,6 @@ exports.confirmOrder = async (req, res) => {
                 } else {
                     // Check variant-specific stock
                     const variant = variantStock[0];
-                    console.log(`Variant stock: available=${variant.available_quantity}, requested=${item.quantity}`);
-                    
                     if (variant.available_quantity < item.quantity) {
                         insufficientStock.push({
                             product: item.productname,
@@ -436,41 +452,36 @@ exports.confirmOrder = async (req, res) => {
             
             console.log('✅ All variants have sufficient stock');
             
-            // Update inventory - subtract ordered quantities from specific variants
-            console.log('Updating variant-specific inventory for confirmed order...');
+            // Reserve stock (don't deduct yet - that happens when admin approves)
+            console.log('Reserving stock for pending verification...');
             
             for (const item of orderItems) {
-                console.log(`Processing item: ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}, Product ID: ${item.product_id}`);
-                
-                // Actually subtract from stock_quantity (not just reserve) when confirming order
+                // Reserve stock by increasing reserved_quantity and decreasing available_quantity
                 const [variantResult] = await connection.execute(`
                     UPDATE product_variants 
-                    SET stock_quantity = stock_quantity - ?,
-                        reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        available_quantity = available_quantity - ?,
+                    SET reserved_quantity = reserved_quantity + ?,
+                        available_quantity = GREATEST(0, available_quantity - ?),
                         last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ? AND stock_quantity >= ?
-                `, [item.quantity, item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
-                
-                console.log(`Variant stock subtraction affected rows: ${variantResult.affectedRows}`);
+                    WHERE product_id = ? AND size = ? AND color = ? AND available_quantity >= ?
+                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
                 
                 if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Subtracted stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units`);
+                    console.log(`✅ Reserved stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} reserved`);
                     
-                    // Log the stock movement as actual stock reduction
+                    // Log the stock movement as reservation
                     await connection.execute(`
                         INSERT INTO stock_movements 
                         (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
-                        VALUES (?, 'OUT', ?, ?, 'Order Confirmed - Stock Deducted', ?, ?, ?)
+                        VALUES (?, 'RESERVED', ?, ?, 'Order Confirmed - Awaiting Admin Verification', ?, ?, ?)
                     `, [item.product_id, item.quantity, item.size || 'N/A', 
-                        orderId, userId, `Order confirmed - deducted ${item.quantity} units from ${item.productname} ${item.size}/${item.color}`]);
+                        orderId, userId, `Order confirmed - reserved ${item.quantity} units of ${item.productname} ${item.size}/${item.color} pending admin verification`]);
                 } else {
-                    // Fallback to general product stock update - actually subtract from available stock
-                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
+                    // Fallback to general product stock reservation
+                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, reserving general stock`);
                     await connection.execute(`
                         UPDATE products 
-                        SET total_available_stock = GREATEST(0, total_available_stock - ?),
-                            productquantity = GREATEST(0, productquantity - ?),
+                        SET total_reserved_stock = total_reserved_stock + ?,
+                            total_available_stock = GREATEST(0, total_available_stock - ?),
                             last_stock_update = CURRENT_TIMESTAMP
                         WHERE product_id = ? AND total_available_stock >= ?
                     `, [item.quantity, item.quantity, item.product_id, item.quantity]);
@@ -478,12 +489,8 @@ exports.confirmOrder = async (req, res) => {
             }
             
             // Update overall product stock totals from variants
-            console.log('Updating overall product stock totals...');
-            
-            // Get unique product IDs from order items
             const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
             
-            // Update each product individually to recalculate totals
             for (const productId of uniqueProductIds) {
                 await connection.execute(`
                     UPDATE products p
@@ -493,7 +500,7 @@ exports.confirmOrder = async (req, res) => {
                         WHERE pv.product_id = p.product_id
                     ),
                     p.total_available_stock = (
-                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
+                        SELECT COALESCE(SUM(pv.available_quantity), 0) 
                         FROM product_variants pv 
                         WHERE pv.product_id = p.product_id
                     ),
@@ -503,9 +510,9 @@ exports.confirmOrder = async (req, res) => {
                         WHERE pv.product_id = p.product_id
                     ),
                     p.stock_status = CASE 
-                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
                         ELSE 'in_stock'
                     END,
                     p.last_stock_update = CURRENT_TIMESTAMP
@@ -515,40 +522,31 @@ exports.confirmOrder = async (req, res) => {
                 console.log(`Updated product totals for product ID: ${productId}`);
                 
                 // Sync all stock fields (totals + sizes JSON) with current variant data
-                await syncAllStockFields(connection, productId);
+                // Temporarily disabled for debugging
+                // await syncAllStockFields(connection, productId);
             }
 
-            // Update order status
-            console.log('Executing order update query...');
+            // Update order to mark it as ready for admin verification (but keep status as 'pending')
+            console.log('Marking order as ready for admin verification...');
             await connection.execute(`
                 UPDATE orders 
-                SET status = 'confirmed', updated_at = CURRENT_TIMESTAMP 
+                SET updated_at = CURRENT_TIMESTAMP,
+                    user_confirmed_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND user_id = ?
             `, [orderId, userId]);
             
-            console.log('Order update successful');
+            console.log('Order marked for admin verification');
             
-            // Update transaction status
-            console.log('Executing transaction update query...');
-            await connection.execute(`
-                UPDATE sales_transactions st
-                JOIN orders o ON st.transaction_id = o.transaction_id
-                SET st.transaction_status = 'confirmed'
-                WHERE o.id = ? AND o.user_id = ?
-            `, [orderId, userId]);
-            
-            console.log('Transaction update successful');
-            
-            // Update invoice status (avoid collation issue by using the known invoice_id)
-            console.log('Executing invoice update query...');
-            const invoiceId = order.invoice_id; // We have this from the order check above
+            // Update invoice status to indicate user confirmation
+            const invoiceId = order.invoice_id;
             await connection.execute(`
                 UPDATE order_invoices 
-                SET invoice_status = 'sent'
+                SET invoice_status = 'pending_verification',
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE invoice_id = ?
             `, [invoiceId]);
             
-            console.log('Invoice update successful');
+            console.log('Invoice status updated to pending_verification');
             
             await connection.commit();
             await connection.end();
@@ -563,10 +561,11 @@ exports.confirmOrder = async (req, res) => {
             
             res.json({
                 success: true,
-                message: 'Order confirmed successfully and inventory updated',
-                inventoryUpdated: stockUpdates,
+                message: 'Order confirmed and submitted for admin verification. Stock has been reserved.',
+                awaitingVerification: true,
+                inventoryReserved: stockUpdates,
                 stockUpdateEvent: {
-                    type: 'order_confirmed',
+                    type: 'order_submitted_for_verification',
                     orderId: orderId,
                     productIds: orderItems.map(item => item.product_id),
                     timestamp: new Date().toISOString()
@@ -580,10 +579,25 @@ exports.confirmOrder = async (req, res) => {
         }
         
     } catch (error) {
-        console.error('Error confirming order:', error);
+        console.error('Error confirming order for verification:', error);
+        if (error instanceof Error) {
+            console.error('Error stack:', error.stack);
+        }
+        // Log request context for debugging
+        try {
+            console.error('Request context:', {
+                user: req.user,
+                params: req.params,
+                body: req.body,
+                headers: req.headers
+            });
+        } catch (ctxErr) {
+            console.error('Error logging request context:', ctxErr);
+        }
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to confirm order' 
+            message: 'Failed to confirm order for verification',
+            error: error.message || error
         });
     }
 };

@@ -208,6 +208,67 @@ const deliveryRoutes = require('./routes/delivery');
 const deliveryEnhancedRoutes = require('./routes/deliveryEnhanced');
 const courierRoutes = require('./routes/couriers');
 const testDeliveryRoutes = require('./routes/testDelivery');
+const salesReportRoutes = require('./routes/api/salesReport');
+const unifiedDeliveryStatusRoutes = require('./routes/unifiedDeliveryStatus'); // NEW: Unified delivery status routes
+
+// Define specific custom-orders endpoints BEFORE mounting the router
+// Test endpoint to verify routing works
+app.get('/api/test-public', (req, res) => {
+  console.log('🔍 Public test endpoint hit!');
+  res.json({ success: true, message: 'Public endpoint working!', timestamp: new Date().toISOString() });
+});
+
+// Test approved custom orders endpoint (no auth required) - using different path to avoid router conflicts
+app.get('/api/public/custom-orders-approved', async (req, res) => {
+  console.log('🔍 Public approved custom orders endpoint hit (no auth)');
+  
+  const mysql = require('mysql2/promise');
+  const { dbConfig } = require('./config/db');
+  
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    console.log('✅ Database connection established');
+    
+    // Get approved custom orders with user information
+    const [orders] = await connection.execute(`
+      SELECT 
+        co.*,
+        u.first_name,
+        u.last_name,
+        u.email as user_email
+      FROM custom_orders co
+      LEFT JOIN users u ON co.user_id = u.user_id
+      WHERE co.status = 'approved'
+      ORDER BY co.created_at DESC
+    `);
+    
+    await connection.end();
+    
+    console.log(`✅ Retrieved ${orders.length} approved custom orders (public endpoint)`);
+    
+    res.json({
+      success: true,
+      data: orders,
+      count: orders.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching approved custom orders (public):', error);
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch approved custom orders',
+      error: error.message
+    });
+  }
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/cart', cartRoutes);
@@ -229,8 +290,10 @@ app.use('/api/custom-designs', customDesignsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/delivery-enhanced', deliveryEnhancedRoutes);
+app.use('/api/delivery-status', unifiedDeliveryStatusRoutes); // NEW: Unified delivery status endpoint
 app.use('/api/couriers', courierRoutes);
 app.use('/api/test-delivery', testDeliveryRoutes);
+app.use('/api/sales-report', salesReportRoutes);
 
 // Test delivery routes (temporary for debugging)
 app.use('/api/test-delivery', testDeliveryRoutes);
@@ -250,6 +313,7 @@ app.post('/api/custom-orders/test', (req, res) => {
   });
 });
 
+// Test approved custom orders endpoint (no auth required)
 // Test custom designs endpoint without auth
 app.get('/api/test-designs', async (req, res) => {
   console.log('🔍 Test designs endpoint hit (public)');

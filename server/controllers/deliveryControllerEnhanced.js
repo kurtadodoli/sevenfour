@@ -160,10 +160,10 @@ class DeliveryController {
             WHEN o.order_number LIKE '%CUSTOM%' OR o.notes LIKE '%Custom Order%' THEN 'custom'
             ELSE 'regular'
           END as order_type,
-          ds.delivery_status,
+          COALESCE(o.delivery_status, ds.delivery_status) as delivery_status,
           ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
-          ds.delivery_notes,
+          COALESCE(o.delivery_notes, ds.delivery_notes) as delivery_notes,
           ds.id as delivery_schedule_id,
           c.name as courier_name,
           c.phone_number as courier_phone
@@ -194,10 +194,10 @@ class DeliveryController {
           co.customer_phone as shipping_phone,
           co.special_instructions as shipping_notes,
           'custom_order' as order_type,
-          ds.delivery_status,
+          COALESCE(co.delivery_status, ds.delivery_status) as delivery_status,
           ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
-          ds.delivery_notes,
+          COALESCE(co.delivery_notes, ds.delivery_notes) as delivery_notes,
           ds.id as delivery_schedule_id,
           c.name as courier_name,
           c.phone_number as courier_phone
@@ -227,10 +227,10 @@ class DeliveryController {
           cd.customer_phone as shipping_phone,
           cd.additional_info as shipping_notes,
           'custom_design' as order_type,
-          ds.delivery_status,
+          COALESCE(cd.delivery_status, ds.delivery_status) as delivery_status,
           ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
-          ds.delivery_notes,
+          COALESCE(cd.delivery_notes, ds.delivery_notes) as delivery_notes,
           ds.id as delivery_schedule_id,
           c.name as courier_name,
           c.phone_number as courier_phone
@@ -403,8 +403,10 @@ class DeliveryController {
       connection = await mysql.createConnection(dbConfig);
       console.log('✅ Database connection established');
       
-      // Get order details based on type
+      // Get order details based on type with improved ID handling
       let orderDetails;
+      let actualOrderId = order_id;
+      
       if (order_type === 'regular') {
         const [orders] = await connection.execute(`
           SELECT o.*, 
@@ -416,21 +418,44 @@ class DeliveryController {
           FROM orders o
           LEFT JOIN users u ON o.user_id = u.user_id 
           WHERE o.id = ?
-        `, [order_id]);
+        `, [actualOrderId]);
         orderDetails = orders[0];
         console.log('📅 Found regular order:', orderDetails ? 'YES' : 'NO');
       } else if (order_type === 'custom_design') {
-        const [designs] = await connection.execute(`
+        // Try with and without prefix stripping
+        actualOrderId = order_id.toString().replace('custom-design-', '');
+        let [designs] = await connection.execute(`
           SELECT *, design_id as order_number FROM custom_designs WHERE id = ?
-        `, [order_id.replace('custom-design-', '')]);
+        `, [actualOrderId]);
+        
+        if (designs.length === 0 && order_id !== actualOrderId) {
+          // Try with original ID if stripping didn't work
+          [designs] = await connection.execute(`
+            SELECT *, design_id as order_number FROM custom_designs WHERE id = ?
+          `, [order_id]);
+          actualOrderId = order_id;
+        }
+        
         orderDetails = designs[0];
         console.log('📅 Found custom design:', orderDetails ? 'YES' : 'NO');
       } else if (order_type === 'custom_order') {
-        const [customOrders] = await connection.execute(`
+        // Try with and without prefix stripping
+        actualOrderId = order_id.toString().replace('custom-order-', '');
+        let [customOrders] = await connection.execute(`
           SELECT *, custom_order_id as order_number FROM custom_orders WHERE id = ?
-        `, [order_id.replace('custom-order-', '')]);
+        `, [actualOrderId]);
+        
+        if (customOrders.length === 0 && order_id !== actualOrderId) {
+          // Try with original ID if stripping didn't work
+          [customOrders] = await connection.execute(`
+            SELECT *, custom_order_id as order_number FROM custom_orders WHERE id = ?
+          `, [order_id]);
+          actualOrderId = order_id;
+        }
+        
         orderDetails = customOrders[0];
         console.log('📅 Found custom order:', orderDetails ? 'YES' : 'NO');
+        console.log('📅 Actual ID used:', actualOrderId);
       }
       
       if (!orderDetails) {
@@ -514,25 +539,25 @@ class DeliveryController {
         updated_at = CURRENT_TIMESTAMP
       `, sqlParams);
       
-      // Update delivery status in source table
+      // Update delivery status in source table using the correct actualOrderId
       if (order_type === 'regular') {
         await connection.execute(`
           UPDATE orders 
           SET delivery_status = 'scheduled', scheduled_delivery_date = ?, delivery_notes = ?
           WHERE id = ?
-        `, [delivery_date, delivery_notes, order_id]);
+        `, [delivery_date, delivery_notes, actualOrderId]);
       } else if (order_type === 'custom_design') {
         await connection.execute(`
           UPDATE custom_designs 
           SET delivery_status = 'scheduled', delivery_date = ?, delivery_notes = ?
           WHERE id = ?
-        `, [delivery_date, delivery_notes, order_id.replace('custom-design-', '')]);
+        `, [delivery_date, delivery_notes, actualOrderId]);
       } else if (order_type === 'custom_order') {
         await connection.execute(`
           UPDATE custom_orders 
           SET delivery_status = 'scheduled', delivery_date = ?, delivery_notes = ?
           WHERE id = ?
-        `, [delivery_date, delivery_notes, order_id.replace('custom-order-', '')]);
+        `, [delivery_date, delivery_notes, actualOrderId]);
       }
       
       // Update calendar booking count

@@ -126,6 +126,14 @@ exports.createOrderFromCart = async (req, res) => {
             
             // 8. Create detailed order items for each cart item
             for (const item of cartItems) {
+                // FIXED: Proper color handling - use selected color if it exists and is not empty
+                const finalColor = (item.color && item.color.trim() !== '') ? item.color : (item.productcolor || 'N/A');
+                
+                console.log(`Order item: ${item.productname}`);
+                console.log(`  Selected color: "${item.color}"`);
+                console.log(`  Default color: "${item.productcolor}"`);
+                console.log(`  Final color: "${finalColor}"`);
+                
                 await connection.execute(`
                     INSERT INTO order_items (
                         invoice_id, product_id, product_name, product_price,
@@ -133,7 +141,7 @@ exports.createOrderFromCart = async (req, res) => {
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 `, [
                     invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, item.color || 'N/A', item.size || 'N/A',
+                    item.quantity, finalColor, item.size || 'N/A',
                     item.productprice * item.quantity
                 ]);
                 
