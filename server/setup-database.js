@@ -263,6 +263,29 @@ async function setupDatabase() {
       )
     `);
 
+    // Create cancellation_requests table
+    console.log('Creating cancellation_requests table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS cancellation_requests (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        user_id INT NOT NULL,
+        reason TEXT NOT NULL,
+        status ENUM('pending', 'approved', 'denied') DEFAULT 'pending',
+        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP NULL,
+        processed_by INT NULL,
+        admin_notes TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        
+        INDEX idx_order_id (order_id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_status (status),
+        INDEX idx_requested_at (requested_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     // Verify tables were created
     console.log('Verifying tables...');
     const [tables] = await pool.query('SHOW TABLES');

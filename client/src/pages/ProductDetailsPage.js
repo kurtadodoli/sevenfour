@@ -10,9 +10,6 @@ import {
   faChevronLeft,
   faChevronRight,
   faHeart,
-  faTruck,
-  faShield,
-  faExchangeAlt,
   faCheck,
   faExclamationTriangle
 } from '@fortawesome/free-solid-svg-icons';
@@ -23,54 +20,39 @@ import { useCart } from '../context/CartContext';
 const PageContainer = styled.div`
   min-height: 100vh;
   width: 100vw;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: #ffffff;
   position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-      radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
-      radial-gradient(circle at 40% 40%, rgba(200, 200, 200, 0.1) 0%, transparent 50%);
-    pointer-events: none;
-  }
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  height: 100%;
-  padding: 20px;
-  position: relative;
-  z-index: 1;
-  box-sizing: border-box;
+  padding: 80px 40px 40px;
+  
+  @media (max-width: 768px) {
+    padding: 80px 20px 40px;
+  }
 `;
 
 const BackButton = styled.button`
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #000;
-  padding: 12px 20px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  color: #666666;
+  padding: 12px 24px;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   margin-bottom: 40px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   gap: 8px;
   border-radius: 8px;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
   
   &:hover {
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
-    transform: translateY(-1px);
+    background: #f8f9fa;
+    color: #000000;
+    border-color: #d0d0d0;
   }
 `;
 
@@ -78,9 +60,14 @@ const ProductContainer = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 80px;
+  align-items: start;
   
   @media (max-width: 1024px) {
     grid-template-columns: 1fr;
+    gap: 60px;
+  }
+  
+  @media (max-width: 768px) {
     gap: 40px;
   }
 `;
@@ -93,45 +80,52 @@ const ImageSection = styled.div`
 const MainImageContainer = styled.div`
   position: relative;
   margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  
+  &:hover {
+    border-color: #e0e0e0;
+  }
 `;
 
 const ProductImage = styled.img`
   width: 100%;
-  height: 500px;
+  height: 600px;
   object-fit: cover;
   display: block;
+  
+  @media (max-width: 768px) {
+    height: 400px;
+  }
 `;
 
 const NavButton = styled.button`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(10px);
-  color: white;
-  border: none;
-  width: 40px;
-  height: 40px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #333333;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   z-index: 10;
   
   &:hover {
-    background: rgba(0, 0, 0, 0.9);
-    transform: translateY(-50%) scale(1.1);
+    background: #ffffff;
+    color: #000000;
+    border-color: rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   }
   
-  ${props => props.direction === 'left' ? 'left: 16px;' : 'right: 16px;'}
+  ${props => props.direction === 'left' ? 'left: 20px;' : 'right: 20px;'}
 `;
 
 const ThumbnailContainer = styled.div`
@@ -163,86 +157,97 @@ const Thumbnail = styled.img.withConfig({
   object-fit: cover;
   border-radius: 8px;
   cursor: pointer;
-  border: 2px solid ${props => props.active ? '#000000' : 'rgba(255, 255, 255, 0.5)'};
-  transition: all 0.3s ease;
+  border: 2px solid ${props => props.active ? '#000000' : '#f0f0f0'};
+  transition: all 0.2s ease;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  background: #ffffff;
   
   &:hover {
-    border-color: #000000;
-    transform: scale(1.05);
+    border-color: ${props => props.active ? '#000000' : '#d0d0d0'};
   }
 `;
 
 const NoImagePlaceholder = styled.div`
   width: 100%;
-  height: 500px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  height: 600px;
+  background: #f8f9fa;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
+  color: #999999;
   font-size: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  
+  @media (max-width: 768px) {
+    height: 400px;
+  }
 `;
 
 const DetailsSection = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 40px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  gap: 40px;
+  padding: 0;
+  
+  @media (max-width: 1024px) {
+    gap: 32px;
+  }
 `;
 
 const ProductName = styled.h1`
-  font-size: 2.5rem;
-  font-weight: 300;
-  color: #000000;
-  margin: 0;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-`;
-
-const Price = styled.div`
-  font-size: 2rem;
+  font-size: 2.8rem;
   font-weight: 600;
   color: #000000;
   margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  
+  @media (max-width: 768px) {
+    font-size: 2.2rem;
+  }
+`;
+
+const Price = styled.div`
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const Description = styled.div`
   h3 {
-    font-size: 1.2rem;
-    font-weight: 500;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: #000000;
-    margin: 0 0 12px 0;
+    margin: 0 0 16px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
   
   p {
     color: #666666;
-    line-height: 1.6;
+    line-height: 1.7;
     margin: 0;
     font-size: 16px;
   }
 `;
 
 const Specifications = styled.div`
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-  padding-top: 32px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 40px;
   
   h3 {
-    font-size: 1.2rem;
-    font-weight: 500;
+    font-size: 1.1rem;
+    font-weight: 600;
     color: #000000;
-    margin: 0 0 20px 0;
+    margin: 0 0 24px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
 `;
 
@@ -250,148 +255,145 @@ const SpecItem = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  padding: 12px 0;
+  margin-bottom: 20px;
+  padding: 0;
 `;
 
 const SpecLabel = styled.span`
   font-weight: 500;
-  color: #000000;
-  min-width: 120px;
+  color: #666666;
+  min-width: 140px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const SpecValue = styled.span`
-  color: #666666;
+  color: #000000;
   text-align: right;
+  font-weight: 500;
+  flex: 1;
   
   &.stock-available {
-    color: #27ae60;
-    font-weight: 500;
+    color: #059669;
+    font-weight: 600;
   }
   
   &.stock-unavailable {
-    color: #e74c3c;
-    font-weight: 500;
+    color: #dc2626;
+    font-weight: 600;
   }
 `;
 
 const SizeOptions = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 12px;
+  margin-top: 12px;
 `;
 
 const SizeButton = styled.button`
-  padding: 12px 16px;
-  border: 1px solid ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 0.3)'};
-  background: ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 0.9)'};
-  backdrop-filter: blur(10px);
+  padding: 16px 20px;
+  border: 2px solid ${props => props.selected ? '#000000' : '#e0e0e0'};
+  background: ${props => props.selected ? '#000000' : '#ffffff'};
   color: ${props => props.selected ? '#ffffff' : '#000000'};
   border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  font-weight: 600;
+  transition: all 0.2s ease;
   text-align: center;
-  min-width: 60px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  min-width: 80px;
   
   &:hover {
     border-color: #000000;
-    background: ${props => props.selected ? '#000000' : 'rgba(255, 255, 255, 1)'};
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    background: ${props => props.selected ? '#000000' : '#f8f9fa'};
   }
   
   small {
     display: block;
-    font-size: 12px;
-    opacity: 0.7;
-    margin-top: 2px;
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+    font-weight: 400;
   }
 `;
 
 const ColorOptions = styled.div`
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 12px;
+  margin-top: 12px;
   flex-wrap: wrap;
 `;
 
 const ColorButton = styled.button`
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background-color: ${props => props.color || '#ffffff'};
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 3px solid ${props => props.selected ? '#000000' : '#e0e0e0'};
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  
-  ${props => props.selected && `
-    &::after {
-      content: '';
-      position: absolute;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      border: 2px solid #000000;
-      left: -5px;
-      top: -5px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    }
-  `}
   
   &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    border-color: #000000;
+    transform: scale(1.05);
   }
 `;
 
 const ColorName = styled.small`
   position: absolute;
-  bottom: -20px;
+  bottom: -24px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
+  color: #666666;
+  font-weight: 500;
 `;
 
 const PurchaseSection = styled.div`
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-  padding-top: 32px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 `;
 
 const QuantitySection = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 `;
 
 const QuantityLabel = styled.span`
-  font-weight: 500;
+  font-weight: 600;
   color: #000000;
   min-width: 80px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const QuantityControls = styled.div`
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 `;
 
 const QuantityButton = styled.button`
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   background: none;
   border: none;
   cursor: pointer;
@@ -399,10 +401,10 @@ const QuantityButton = styled.button`
   align-items: center;
   justify-content: center;
   color: #666666;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
+  &:hover:not(:disabled) {
+    background: #f8f9fa;
     color: #000000;
   }
   
@@ -413,51 +415,55 @@ const QuantityButton = styled.button`
 `;
 
 const QuantityDisplay = styled.span`
-  padding: 0 16px;
-  font-weight: 500;
+  padding: 0 20px;
+  font-weight: 600;
   color: #000000;
-  min-width: 40px;
+  min-width: 60px;
   text-align: center;
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
-  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const ActionButtons = styled.div`
   display: flex;
   gap: 16px;
+  
+  @media (max-width: 480px) {
+    flex-direction: column;
+  }
 `;
 
 const AddToCartButton = styled.button`
   flex: 1;
-  background: linear-gradient(135deg, #000000 0%, #333333 100%);
+  background: #000000;
   color: #ffffff;
   border: none;
-  padding: 16px 24px;
+  padding: 18px 32px;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   letter-spacing: 0.5px;
   text-transform: uppercase;
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  min-height: 56px;
   
-  &:hover {
-    background: linear-gradient(135deg, #333333 0%, #555555 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.3);
+  &:hover:not(:disabled) {
+    background: #333333;
   }
   
   &:disabled {
-    background: rgba(0, 0, 0, 0.1);
+    background: #e0e0e0;
     color: #999999;
     cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
   }
   
   svg {
@@ -477,81 +483,35 @@ const AddToCartButton = styled.button`
 `;
 
 const WishlistButton = styled.button`
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
   color: #666666;
-  padding: 16px;
+  padding: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  min-height: 56px;
+  min-width: 56px;
   
   &:hover {
     border-color: #000000;
     color: #000000;
-    background: rgba(255, 255, 255, 1);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    background: #f8f9fa;
   }
 `;
 
 const OutOfStock = styled.div`
-  background: rgba(255, 245, 245, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(254, 215, 215, 0.5);
-  color: #c53030;
-  padding: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 20px;
   border-radius: 8px;
   text-align: center;
-  font-weight: 500;
-  box-shadow: 0 2px 10px rgba(197, 48, 48, 0.1);
-`;
-
-const InfoCards = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-top: 32px;
-  padding-top: 32px;
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-`;
-
-const InfoCard = styled.div`
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  text-align: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  
-  &:hover {
-    background: rgba(255, 255, 255, 1);
-    transform: translateY(-5px);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
-  }
-  
-  .icon {
-    color: #666666;
-    margin-bottom: 8px;
-  }
-  
-  .title {
-    font-weight: 500;
-    color: #000000;
-    margin-bottom: 4px;
-    font-size: 14px;
-  }
-  
-  .description {
-    color: #666666;
-    font-size: 12px;
-  }
+  font-weight: 600;
+  font-size: 16px;
 `;
 
 const LoadingContainer = styled.div`
@@ -561,11 +521,9 @@ const LoadingContainer = styled.div`
   min-height: 50vh;
   font-size: 18px;
   color: #666666;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #ffffff;
+  border-radius: 12px;
   margin: 40px 0;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 `;
 
 const ErrorContainer = styled.div`
@@ -575,11 +533,9 @@ const ErrorContainer = styled.div`
   justify-content: center;
   min-height: 50vh;
   text-align: center;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+  background: #ffffff;
+  border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   
   h2 {
     color: #000000;
@@ -591,21 +547,19 @@ const NotificationContainer = styled.div`
   position: fixed;
   top: 100px;
   right: 24px;
-  background: ${props => props.type === 'success' ? 
-    'rgba(212, 237, 218, 0.95)' : 'rgba(248, 215, 218, 0.95)'};
-  backdrop-filter: blur(10px);
-  border: 1px solid ${props => props.type === 'success' ? 
-    'rgba(195, 230, 203, 0.5)' : 'rgba(245, 198, 203, 0.5)'};
-  color: ${props => props.type === 'success' ? '#155724' : '#721c24'};
+  background: ${props => props.type === 'success' ? '#f0fdf4' : '#fef2f2'};
+  border: 1px solid ${props => props.type === 'success' ? '#bbf7d0' : '#fecaca'};
+  color: ${props => props.type === 'success' ? '#166534' : '#dc2626'};
   padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   max-width: 400px;
   animation: slideIn 0.3s ease-out;
+  font-weight: 500;
   
   @keyframes slideIn {
     from {
@@ -1054,17 +1008,29 @@ const ProductDetailsPage = () => {
 
         try {
             setAddingToCart(true);
+            
+            // Ensure we have a valid color selection
+            const finalColor = selectedColor && selectedColor.trim() !== '' 
+                ? selectedColor 
+                : (availableColors.length > 0 ? availableColors[0] : product.productcolor || '');
+            
             console.log('Adding to cart:', {
                 productId: product.product_id || product.id,
-                color: selectedColor || product.productcolor || '',
+                color: finalColor,
                 size: selectedSize || '',
-                quantity: quantity
+                quantity: quantity,
+                debug: {
+                    selectedColor,
+                    availableColors,
+                    productColor: product.productcolor,
+                    finalColor
+                }
             });
             
             // Use the CartContext addToCart function with the selected color
             const result = await addToCartContext(
                 product.product_id || product.id, 
-                selectedColor || product.productcolor || '', 
+                finalColor,
                 selectedSize || '', 
                 quantity
             );
@@ -1277,17 +1243,18 @@ const ProductDetailsPage = () => {
                                 const allColors = getAllProductColors(product);
                                 return allColors.length > 0 && allColors[0] !== 'Not specified' ? (
                                     <SpecItem>
-                                        <SpecLabel>Available Colors:</SpecLabel>
-                                        <SpecValue style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                                        <SpecLabel>Colors:</SpecLabel>
+                                        <SpecValue style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                                             {allColors.map((color, index) => (
                                                 <span key={`${color}-${index}`} style={{ 
-                                                    padding: '4px 10px', 
-                                                    background: 'rgba(0, 0, 0, 0.08)', 
-                                                    borderRadius: '16px', 
+                                                    padding: '6px 12px', 
+                                                    background: '#f8f9fa', 
+                                                    borderRadius: '20px', 
                                                     fontSize: '12px',
                                                     textTransform: 'capitalize',
-                                                    border: '1px solid rgba(0, 0, 0, 0.1)',
-                                                    fontWeight: '500'
+                                                    border: '1px solid #e0e0e0',
+                                                    fontWeight: '500',
+                                                    color: '#666666'
                                                 }}>
                                                     {color}
                                                 </span>
@@ -1313,10 +1280,17 @@ const ProductDetailsPage = () => {
                                                     selected={selectedSize === sizeData.size}
                                                     onClick={() => {
                                                         setSelectedSize(sizeData.size);
-                                                        // Reset color when size changes
+                                                        // Preserve selected color if it's available for the new size
                                                         const colorsForSize = getAvailableColors(product, sizeData.size);
                                                         if (colorsForSize.length > 0) {
-                                                            setSelectedColor(colorsForSize[0]);
+                                                            // Check if the currently selected color is available for this size
+                                                            if (selectedColor && colorsForSize.includes(selectedColor)) {
+                                                                // Keep the selected color if it's available
+                                                                // Don't change selectedColor
+                                                            } else {
+                                                                // Only change to first available color if current selection isn't available
+                                                                setSelectedColor(colorsForSize[0]);
+                                                            }
                                                         } else {
                                                             setSelectedColor('');
                                                         }
@@ -1415,29 +1389,6 @@ const ProductDetailsPage = () => {
                                 This product is currently out of stock
                             </OutOfStock>
                         )}
-
-                        <InfoCards>                            <InfoCard>
-                                <div className="icon">
-                                    <FontAwesomeIcon icon={faTruck} size="lg" />
-                                </div>
-                                <div className="title">Cash on Delivery</div>
-                                <div className="description">Pay when you receive</div>
-                            </InfoCard>
-                            <InfoCard>
-                                <div className="icon">
-                                    <FontAwesomeIcon icon={faShield} size="lg" />
-                                </div>
-                                <div className="title">Secure Payment</div>
-                                <div className="description">100% secure payment</div>
-                            </InfoCard>
-                            <InfoCard>
-                                <div className="icon">
-                                    <FontAwesomeIcon icon={faExchangeAlt} size="lg" />
-                                </div>
-                                <div className="title">Easy Returns</div>
-                                <div className="description">30-day return policy</div>
-                            </InfoCard>
-                        </InfoCards>
                     </DetailsSection>
                 </ProductContainer>
             </ContentWrapper>

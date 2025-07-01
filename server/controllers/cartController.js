@@ -219,16 +219,50 @@ exports.addToCart = async (req, res) => {
     
     const product = products[0];
     
+    // Validate and clean color value
+    const cleanColor = (color && color.trim() !== '') ? color.trim() : '';
+    const cleanSize = (size && size.trim() !== '') ? size.trim() : '';
+    
+    console.log(`Adding item with cleaned values: color="${cleanColor}", size="${cleanSize}"`);
+    
+    // If color and size are specified, verify the variant exists and has stock
+    if (cleanColor && cleanSize) {
+      const [variantCheck] = await connection.execute(`
+        SELECT available_quantity 
+        FROM product_variants 
+        WHERE product_id = ? AND color = ? AND size = ?
+      `, [product_id, cleanColor, cleanSize]);
+      
+      if (variantCheck.length === 0) {
+        await connection.end();
+        return res.status(400).json({
+          success: false,
+          message: `The selected variant (${cleanColor} ${cleanSize}) is not available for this product`
+        });
+      }
+      
+      if (variantCheck[0].available_quantity < quantity) {
+        await connection.end();
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock. Only ${variantCheck[0].available_quantity} units available for ${cleanColor} ${cleanSize}`
+        });
+      }
+      
+      console.log(`✅ Variant ${cleanColor} ${cleanSize} has ${variantCheck[0].available_quantity} units available`);
+    }
+    
     // Check if item already exists in THIS user's cart
     const [existingItems] = await connection.execute(`
       SELECT ci.id, ci.quantity 
       FROM cart_items ci
       JOIN carts c ON ci.cart_id = c.id
       WHERE ci.cart_id = ? AND ci.product_id = ? AND ci.color = ? AND ci.size = ? AND c.user_id = ?
-    `, [cartId, product_id, color || '', size || '', req.user.id]);
+    `, [cartId, product_id, cleanColor, cleanSize, req.user.id]);
     
     if (existingItems.length > 0) {
-      // Update quantity      const newQuantity = existingItems[0].quantity + quantity;
+      // Update quantity
+      const newQuantity = existingItems[0].quantity + quantity;
       await connection.execute(
         'UPDATE cart_items SET quantity = ?, updated_at = NOW() WHERE id = ?',
         [newQuantity, existingItems[0].id]
@@ -238,7 +272,7 @@ exports.addToCart = async (req, res) => {
       // Add new item
       const [insertResult] = await connection.execute(
         'INSERT INTO cart_items (cart_id, product_id, quantity, color, size, price, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-        [cartId, product_id, quantity, color || '', size || '', product.productprice]
+        [cartId, product_id, quantity, cleanColor, cleanSize, product.productprice]
       );
       console.log('Added new item to cart ID:', cartId, 'for user:', req.user.id, 'Insert ID:', insertResult.insertId);
     }

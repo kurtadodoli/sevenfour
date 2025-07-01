@@ -11,6 +11,8 @@ const courierRoutes = require('./routes/api/couriers');
 const customOrderRoutes = require('./routes/custom-orders');
 const customDesignRoutes = require('./routes/custom-designs');
 const searchRoutes = require('./routes/api/search');
+const salesReportRoutes = require('./routes/api/salesReport');
+const adminRoutes = require('./routes/admin');
 require('dotenv').config();
 
 const app = express();
@@ -57,6 +59,8 @@ app.use('/api/couriers', courierRoutes);
 app.use('/api/custom-orders', customOrderRoutes);
 app.use('/api/custom-designs', customDesignRoutes);
 app.use('/api/search', searchRoutes);
+app.use('/api/sales-report', salesReportRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('../uploads'));

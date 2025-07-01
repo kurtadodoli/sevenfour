@@ -1,94 +1,92 @@
-// Direct database query to check delivery schedules
 const mysql = require('mysql2/promise');
-
-const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: 's3v3n-f0ur-cl0thing*',
-  database: 'seven_four_clothing',
-  port: 3306
-};
+require('dotenv').config({ path: './server/.env' });
 
 async function checkDeliveryTables() {
   let connection;
   try {
-    connection = await mysql.createConnection(dbConfig);
-    console.log('✅ Connected to database\n');
+    connection = await mysql.createConnection({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'seven_four_clothing'
+    });
+
+    console.log('📊 CHECKING DELIVERY SCHEDULE TABLES:');
     
-    // Check original delivery_schedules table
-    console.log('📊 Checking delivery_schedules table...');
+    // Check delivery_schedules table
     try {
-      const [schedules] = await connection.execute(`
-        SELECT id, order_id, courier_id, delivery_status, delivery_date, created_at 
-        FROM delivery_schedules 
-        ORDER BY created_at DESC 
-        LIMIT 10
-      `);
+      const [schedules1] = await connection.execute('SELECT COUNT(*) as count FROM delivery_schedules');
+      console.log('delivery_schedules table:', schedules1[0].count, 'records');
       
-      console.log(`Found ${schedules.length} records in delivery_schedules:`);
-      schedules.forEach(schedule => {
-        console.log(`  ID: ${schedule.id}, Order: ${schedule.order_id}, Courier: ${schedule.courier_id}, Status: ${schedule.delivery_status}, Date: ${schedule.delivery_date}`);
-      });
-      
-      // Check active deliveries for courier 4
-      const [activeCourier4] = await connection.execute(`
-        SELECT COUNT(*) as active_count 
-        FROM delivery_schedules 
-        WHERE courier_id = 4 AND delivery_status IN ('pending', 'scheduled', 'in_transit', 'delayed')
-      `);
-      console.log(`\nActive deliveries for courier 4 in delivery_schedules: ${activeCourier4[0].active_count}`);
-      
-    } catch (error) {
-      console.log('❌ delivery_schedules table error:', error.message);
-    }
-    
-    // Check enhanced delivery_schedules_enhanced table
-    console.log('\n📊 Checking delivery_schedules_enhanced table...');
-    try {
-      const [enhancedSchedules] = await connection.execute(`
-        SELECT id, order_id, courier_id, delivery_status, delivery_date, created_at 
-        FROM delivery_schedules_enhanced 
-        ORDER BY created_at DESC 
-        LIMIT 10
-      `);
-      
-      console.log(`Found ${enhancedSchedules.length} records in delivery_schedules_enhanced:`);
-      enhancedSchedules.forEach(schedule => {
-        console.log(`  ID: ${schedule.id}, Order: ${schedule.order_id}, Courier: ${schedule.courier_id}, Status: ${schedule.delivery_status}, Date: ${schedule.delivery_date}`);
-      });
-      
-      // Check active deliveries for courier 4
-      const [enhancedActiveCourier4] = await connection.execute(`
-        SELECT COUNT(*) as active_count 
-        FROM delivery_schedules_enhanced 
-        WHERE courier_id = 4 AND delivery_status IN ('pending', 'scheduled', 'in_transit', 'delayed')
-      `);
-      console.log(`\nActive deliveries for courier 4 in delivery_schedules_enhanced: ${enhancedActiveCourier4[0].active_count}`);
-      
-    } catch (error) {
-      console.log('❌ delivery_schedules_enhanced table error:', error.message);
-    }
-    
-    // Check all tables for courier 4
-    console.log('\n🔍 Searching all delivery-related tables for courier 4...');
-    
-    const tables = ['delivery_schedules', 'delivery_schedules_enhanced'];
-    for (const table of tables) {
-      try {
-        const [results] = await connection.execute(`
-          SELECT * FROM ${table} WHERE courier_id = 4
-        `);
-        console.log(`\n${table} records for courier 4:`);
-        results.forEach(record => {
-          console.log(`  ${JSON.stringify(record, null, 2)}`);
+      if (schedules1[0].count > 0) {
+        const [recent1] = await connection.execute('SELECT * FROM delivery_schedules ORDER BY created_at DESC LIMIT 3');
+        console.log('Recent delivery_schedules:');
+        recent1.forEach((s, i) => {
+          console.log(`  ${i+1}. ID: ${s.id}, Order: ${s.order_id}, Date: ${s.delivery_date}, Status: ${s.delivery_status}`);
         });
-      } catch (error) {
-        console.log(`❌ ${table} error:`, error.message);
+        console.log('');
       }
+    } catch (e) {
+      console.log('delivery_schedules table: ERROR -', e.message);
     }
     
+    // Check delivery_schedules_enhanced table  
+    try {
+      const [schedules2] = await connection.execute('SELECT COUNT(*) as count FROM delivery_schedules_enhanced');
+      console.log('delivery_schedules_enhanced table:', schedules2[0].count, 'records');
+      
+      if (schedules2[0].count > 0) {
+        const [recent2] = await connection.execute('SELECT * FROM delivery_schedules_enhanced ORDER BY created_at DESC LIMIT 3');
+        console.log('Recent delivery_schedules_enhanced:');
+        recent2.forEach((s, i) => {
+          console.log(`  ${i+1}. ID: ${s.id}, Order: ${s.order_id}, Date: ${s.delivery_date}, Status: ${s.delivery_status}`);
+        });
+        console.log('');
+      }
+    } catch (e) {
+      console.log('delivery_schedules_enhanced table: ERROR -', e.message);
+    }
+
+    // Check which API endpoint the frontend is calling
+    console.log('🔍 SIMULATING FRONTEND API CALL:');
+    console.log('Calling: GET /delivery-enhanced/calendar?year=2025&month=7');
+    
+    // Simulate the calendar API call
+    const year = 2025;
+    const month = 7;
+    const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+    const endDate = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
+    
+    console.log(`Query range: ${startDate} to ${endDate}`);
+    
+    // Try the calendar query that the API uses
+    try {
+      const [calendarData] = await connection.execute(`
+        SELECT 
+          dc.*,
+          COUNT(ds.id) as scheduled_deliveries
+        FROM delivery_calendar dc
+        LEFT JOIN delivery_schedules_enhanced ds ON dc.calendar_date = ds.delivery_date
+        WHERE dc.calendar_date >= ? AND dc.calendar_date < ?
+        GROUP BY dc.id, dc.calendar_date
+        ORDER BY dc.calendar_date
+      `, [startDate, endDate]);
+      
+      console.log(`Found ${calendarData.length} calendar entries`);
+      
+      if (calendarData.length > 0) {
+        console.log('Sample calendar data:');
+        calendarData.slice(0, 3).forEach((day, i) => {
+          console.log(`  ${i+1}. ${day.calendar_date}: ${day.scheduled_deliveries} deliveries`);
+        });
+      }
+      
+    } catch (e) {
+      console.log('Calendar query failed:', e.message);
+    }
+
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('Error:', error.message);
   } finally {
     if (connection) {
       await connection.end();
@@ -96,8 +94,4 @@ async function checkDeliveryTables() {
   }
 }
 
-checkDeliveryTables().then(() => {
-  console.log('\n✅ Database check complete');
-}).catch(error => {
-  console.error('❌ Database check failed:', error);
-});
+checkDeliveryTables();

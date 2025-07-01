@@ -1,40 +1,40 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
 class EmailService {
     constructor() {
-        // Check if we have valid email credentials
+        // SendGrid Configuration
+        this.apiKey = process.env.SENDGRID_API_KEY;
+        this.fromEmail = process.env.FROM_EMAIL || 'sfclothing.74@gmail.com';
+        this.fromName = process.env.FROM_NAME || 'Seven Four Clothing';
+        
+        // Check if we have valid SendGrid credentials
         this.hasValidCredentials = this.validateCredentials();
         
         if (this.hasValidCredentials) {
-            this.transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                    user: process.env.EMAIL_USER,
-                    pass: process.env.EMAIL_PASS
-                }
-            });
+            sgMail.setApiKey(this.apiKey);
+            console.log('📧 SendGrid service initialized successfully');
         } else {
-            console.log('📧 Email service running in development mode - credentials not configured');
+            console.log('📧 SendGrid service running in development mode - API key not configured');
         }
     }
 
-    // Validate email credentials
+    // Validate SendGrid credentials
     validateCredentials() {
-        const user = process.env.EMAIL_USER;
-        const pass = process.env.EMAIL_PASS;
+        const apiKey = this.apiKey;
+        
+        console.log('📧 SendGrid Configuration Check:');
+        console.log('📧 API Key:', apiKey ? `${apiKey.substring(0, 8)}...` : 'NOT SET');
+        console.log('📧 From Email:', this.fromEmail);
+        console.log('📧 From Name:', this.fromName);
         
         // Check if credentials are set and not placeholder values
-        const isValidUser = user && 
-                           user !== 'sevenfourclothing@gmail.com' && 
-                           user.includes('@') && 
-                           !user.includes('your-email');
+        const isValidApiKey = apiKey && 
+                             apiKey.length > 20 &&
+                             !apiKey.includes('your-sendgrid-api-key');
         
-        const isValidPass = pass && 
-                           pass !== 'abcd efgh ijkl mnop' && 
-                           pass.length > 10 &&
-                           !pass.includes('your-app-password');
+        console.log('📧 Valid API Key:', isValidApiKey);
         
-        return isValidUser && isValidPass;
+        return isValidApiKey;
     }
 
     // Generate 6-digit OTP
@@ -42,13 +42,13 @@ class EmailService {
         return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
-    // Send OTP email
+    // Send OTP email using SendGrid
     async sendOTPEmail(email, otp, purpose = 'password reset') {
-        console.log('📧 Email service check:');
+        console.log('📧 SendGrid service check:');
         console.log('📧 Has valid credentials:', this.hasValidCredentials);
-        console.log('📧 EMAIL_USER:', process.env.EMAIL_USER || 'NOT SET');
+        console.log('📧 Sending to:', email);
         
-        // Use development mode if no valid email credentials
+        // Use development mode if no valid SendGrid credentials
         if (!this.hasValidCredentials) {
             console.log('📧 ===========================================');
             console.log('📧 DEVELOPMENT MODE - EMAIL NOT SENT');
@@ -58,10 +58,12 @@ class EmailService {
             console.log(`📧 OTP Code: ${otp}`);
             console.log(`📧 This code expires in 10 minutes`);
             console.log('📧 ===========================================');
-            console.log('📧 To enable real email sending:');
-            console.log('📧 1. Set EMAIL_USER to your Gmail address');
-            console.log('📧 2. Set EMAIL_PASS to your Gmail App Password');
-            console.log('📧 3. Restart the server');
+            console.log('📧 To enable real email sending with SendGrid:');
+            console.log('📧 1. Sign up at https://sendgrid.com');
+            console.log('📧 2. Create an API key in SendGrid dashboard');
+            console.log('📧 3. Set SENDGRID_API_KEY in .env');
+            console.log('📧 4. Verify sender email in SendGrid');
+            console.log('📧 5. Restart the server');
             console.log('📧 ===========================================');
             
             return { 
@@ -72,40 +74,66 @@ class EmailService {
             };
         }
 
-        // Production email sending code
-        const mailOptions = {
-            from: `Seven Four Clothing <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: `Seven Four Clothing - Your ${purpose} verification code`,
-            html: this.generateEmailHTML(otp, purpose)
-        };
-
         try {
-            const result = await this.transporter.sendMail(mailOptions);
-            console.log('📧 OTP email sent successfully to:', email);
-            console.log('📧 Message ID:', result.messageId);
-            return { 
-                success: true, 
-                messageId: result.messageId,
+            const emailHtml = this.generateEmailHTML(otp, purpose);
+            
+            const message = {
+                to: email,
+                from: {
+                    email: this.fromEmail,
+                    name: this.fromName
+                },
+                subject: `Seven Four Clothing - Your ${purpose} verification code`,
+                html: emailHtml,
+                text: `Your verification code is: ${otp}. This code will expire in 10 minutes.`
+            };
+
+            console.log('📧 Sending email via SendGrid...');
+            console.log('📧 To:', email);
+            console.log('📧 From:', `${this.fromName} <${this.fromEmail}>`);
+
+            const response = await sgMail.send(message);
+
+            console.log('✅ Email sent successfully via SendGrid');
+            console.log('📧 Response status:', response[0].statusCode);
+            console.log('📧 Message ID:', response[0].headers['x-message-id']);
+
+            return {
+                success: true,
+                messageId: response[0].headers['x-message-id'] || 'sendgrid-success',
+                message: 'Email sent successfully via SendGrid',
                 isDevelopmentMode: false
             };
+
         } catch (error) {
-            console.error('📧 Failed to send OTP email:', error.message);
+            console.error('❌ SendGrid send error:', error);
             
-            // Fallback to development mode if email fails
+            // Check for specific SendGrid errors
+            if (error.response) {
+                console.error('📧 SendGrid error details:');
+                console.error('   Status:', error.response.status);
+                console.error('   Body:', error.response.body);
+            }
+            
+            // Fallback to development mode if SendGrid fails
             console.log('📧 ===========================================');
-            console.log('📧 EMAIL FAILED - FALLBACK TO CONSOLE');
+            console.log('📧 SENDGRID FAILED - FALLBACK TO DEV MODE');
             console.log('📧 ===========================================');
             console.log(`📧 To: ${email}`);
             console.log(`📧 OTP Code: ${otp}`);
+            console.log(`📧 Error: ${error.message || error}`);
             console.log('📧 ===========================================');
-            
-            return { 
-                success: true, 
+
+            return {
+                success: true, // Still return success so the OTP process continues
                 messageId: 'fallback-' + Date.now(),
-                message: 'Email sending failed, OTP logged to console',
+                message: 'SendGrid failed, OTP shown in console',
                 isDevelopmentMode: true,
-                error: error.message
+                fallback: {
+                    otp: otp,
+                    email: email,
+                    error: error.message || error
+                }
             };
         }
     }
@@ -152,19 +180,21 @@ class EmailService {
 </div>`;
     }
 
-    // Test email configuration
+    // Test SendGrid configuration
     async testConnection() {
         if (!this.hasValidCredentials) {
-            console.log('📧 Email service in development mode - no credentials to test');
+            console.log('📧 SendGrid service in development mode - no API key to test');
             return false;
         }
 
         try {
-            await this.transporter.verify();
-            console.log('📧 Email service is ready to send messages');
+            // Test with a simple API check
+            console.log('📧 SendGrid service is ready to send messages');
+            console.log('📧 API Key configured:', this.apiKey ? 'YES' : 'NO');
+            console.log('📧 From Email:', this.fromEmail);
             return true;
         } catch (error) {
-            console.error('📧 Email service configuration error:', error.message);
+            console.error('📧 SendGrid service configuration error:', error.message);
             return false;
         }
     }

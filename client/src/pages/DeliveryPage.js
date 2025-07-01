@@ -1706,7 +1706,6 @@ const DeliveryPage = () => {
   const [customOrderProductionStartDates, setCustomOrderProductionStartDates] = useState({}); // Admin-controlled production start dates
   const [selectedOrderForProductionStart, setSelectedOrderForProductionStart] = useState(null); // Track which order is being selected for production start
   const [showFullCalendar, setShowFullCalendar] = useState(false);
-  const [selectedOrderForScheduling, setSelectedOrderForScheduling] = useState(null);
   const [showSimpleOrderModal, setShowSimpleOrderModal] = useState(false);
   const [selectedCalendarOrder, setSelectedCalendarOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -2090,9 +2089,12 @@ const DeliveryPage = () => {
   const handleScheduleDelivery = async (order, scheduleData) => {
     try {
       console.log('📅 Scheduling delivery for order:', order.order_number, 'on date:', scheduleData.date);
+      console.log('📅 Order data:', order);
+      console.log('📅 Schedule data:', scheduleData);
       
-      if (order.order_type === 'custom') {
+      if (order.order_type === 'custom' || order.order_type === 'custom_order') {
         // Custom order scheduling logic
+        console.log('🎨 Detected custom order, using custom_order type for API');
         const response = await api.post('/delivery-enhanced/schedule', {
           order_id: order.id,
           order_number: order.order_number,
@@ -2111,8 +2113,37 @@ const DeliveryPage = () => {
           priority_level: scheduleData.priority || 'normal'
         });
         
+        console.log('🎨 Custom order API response:', response.data);
+        
         if (response.data.success) {
           console.log('✅ Custom order scheduled successfully');
+          
+          // Update the order status in local state immediately
+          setOrders(prevOrders => 
+            prevOrders.map(o => 
+              o.id === order.id 
+                ? { 
+                    ...o, 
+                    delivery_status: 'scheduled',
+                    scheduled_delivery_date: scheduleData.date,
+                    delivery_schedule_id: response.data.data?.delivery_schedule_id
+                  }
+                : o
+            )
+          );
+          
+          // Show success message
+          showPopup(
+            'Custom Order Scheduled Successfully',
+            `Custom order ${order.order_number} has been scheduled for delivery on ${new Date(scheduleData.date).toLocaleDateString()}. Status updated to "SCHEDULED" and action buttons are now available.`,
+            'success'
+          );
+          
+          // Refresh data without full page reload
+          await fetchData();
+        } else {
+          console.error('❌ Custom order scheduling failed:', response.data);
+          showPopup('Scheduling Failed', response.data.message || 'Failed to schedule custom order delivery', 'error');
         }
       } else {
         // Regular order scheduling logic
@@ -2151,9 +2182,6 @@ const DeliveryPage = () => {
             )
           );
           
-          // Clear the selected order after successful scheduling
-          setSelectedOrderForScheduling(null);
-          
           // Show success message
           showPopup(
             'Order Scheduled Successfully',
@@ -2177,10 +2205,9 @@ const DeliveryPage = () => {
         setDeliverySchedules(calendarData.calendar || []);
       }
       
-      showPopup('Success', `Delivery scheduled for ${order.order_number} on ${scheduleData.date}`, 'success');
+      // Close modal and clear state
       setSelectedOrder(null);
       setShowScheduleModal(false);
-      setSelectedOrderForScheduling(null); // Clear the selected order
       
     } catch (error) {
       console.error('❌ Error scheduling delivery:', error);
@@ -2306,12 +2333,24 @@ const DeliveryPage = () => {
 
   // Function to handle delivery status updates
 
-  const handleUpdateDeliveryStatus = async (order, newStatus) => {
+  const handleUpdateDeliveryStatus = async (order, newStatus, event = null) => {
+    // Prevent any form submission or page refresh
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
     try {
-      console.log(`📦 Updating delivery status for order ${order.order_number} to ${newStatus}`);
-      console.log(`🔍 FULL ORDER OBJECT DEBUG:`, JSON.stringify(order, null, 2));
+      console.log(`📦 CUSTOM ORDER FIX: Updating delivery status for order ${order.order_number} to ${newStatus}`);
+      console.log(`🔍 Order details:`, {
+        id: order.id,
+        order_number: order.order_number,
+        order_type: order.order_type,
+        current_status: order.delivery_status,
+        isCustomOrder: order.order_type === 'custom' || order.order_type === 'custom_order'
+      });
       
-      // Check authentication before proceeding
+      // Check authentication
       const token = localStorage.getItem('token');
       if (!token) {
         showPopup(
@@ -2321,473 +2360,233 @@ const DeliveryPage = () => {
         );
         return;
       }
-      
-      // Verify token is valid by testing with a simple API call
-      try {
-        await api.get('/auth/verify');
-      } catch (authError) {
-        console.error('Authentication verification failed:', authError);
-        let authMessage = 'Your session has expired. Please log in again.';
-        
-        if (authError.response?.status === 401) {
-          authMessage = 'Your session has expired. Please log in again.';
-        } else if (authError.response?.status === 403) {
-          authMessage = 'You do not have permission to perform this action. Admin access required.';
-        }
-        
-        showPopup('Authentication Error', authMessage, 'error');
-        return;
-      }
-      
-      // Special handling for delayed status
-      if (newStatus === 'delayed') {
+
+      // Show confirmation for critical status changes
+      if (newStatus === 'delivered') {
         const confirmed = window.confirm(
-          `Are you sure you want to mark order ${order.order_number} as delayed?\n\nThis will:\n- Clear the current delivery schedule\n- Require you to reschedule the delivery\n- Notify the customer of the delay`
+          `Mark order ${order.order_number} as DELIVERED?\n\n` +
+          `This will:\n` +
+          `✅ Complete the delivery process\n` +
+          `💰 Mark payment as received (COD)\n` +
+          `📅 Set delivery date to today\n` +
+          `📧 Notify customer of completion\n\n` +
+          `This action will be logged for audit purposes.`
         );
-        
-        if (!confirmed) {
-          return; // User cancelled, don't proceed
-        }
-        
-        // Show rescheduling message after confirming delay
-        setTimeout(() => {
-          showPopup(
-            'Order Marked as Delayed',
-            `Order ${order.order_number} has been marked as delayed.\n\nPlease reschedule this delivery by:\n1. Selecting the order from the list\n2. Clicking on an available date in the calendar\n3. Setting a new delivery time`,
-            'warning'
-          );
-        }, 500);
+        if (!confirmed) return;
+      } else if (newStatus === 'delayed') {
+        const confirmed = window.confirm(
+          `Mark order ${order.order_number} as DELAYED?\n\n` +
+          `This will:\n` +
+          `⚠️ Clear current delivery schedule\n` +
+          `📅 Require rescheduling\n` +
+          `📧 Notify customer of delay\n\n` +
+          `You will need to reschedule this order after marking it as delayed.`
+        );
+        if (!confirmed) return;
+      } else if (newStatus === 'cancelled') {
+        const confirmed = window.confirm(
+          `CANCEL delivery for order ${order.order_number}?\n\n` +
+          `This will:\n` +
+          `❌ Permanently cancel the delivery\n` +
+          `🔄 Update order status to cancelled\n` +
+          `💸 Cancel payment transactions\n` +
+          `📧 Notify customer of cancellation\n\n` +
+          `⚠️ THIS ACTION CANNOT BE UNDONE!`
+        );
+        if (!confirmed) return;
       }
 
-      // Special handling for cancelled status
-      if (newStatus === 'cancelled') {
-        const confirmed = window.confirm(
-          `Are you sure you want to cancel the delivery for order ${order.order_number}?\n\nThis will:\n- Remove the delivery schedule completely\n- Set the order status to cancelled\n- This action cannot be undone`
-        );
-        
-        if (!confirmed) {
-          return; // User cancelled, don't proceed
-        }
-        
-        showPopup(
-          'Delivery Cancelled',
-          `Delivery for order ${order.order_number} has been cancelled.\n\nThe order has been removed from the delivery schedule.`,
-          'warning'
-        );
-      }        // Handle custom designs and custom orders differently than regular orders
-      if (order.order_type === 'custom_design' && order.custom_design_data) {
-        const designId = order.custom_design_data.design_id;
-        
-        // API call to update custom design delivery status
-        try {
-          await api.patch(`/custom-designs/${designId}/delivery-status`, {
-            delivery_status: newStatus,
-            delivery_date: newStatus === 'delivered' ? new Date().toISOString().split('T')[0] : null,
-            delivery_notes: `Status updated to ${newStatus} on ${new Date().toLocaleString()}`
-          });
-          
-          console.log(`✅ Successfully updated custom design ${designId} delivery status to ${newStatus}`);
-        } catch (apiError) {
-          console.error('Failed to update custom design delivery status:', apiError);
-          
-          // Show more specific error message based on the actual error
-          let errorMessage = 'Failed to update delivery status in database. Please try again.';
-          
-          if (apiError.response?.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again and try again.';
-          } else if (apiError.response?.status === 403) {
-            errorMessage = 'Access denied. Admin privileges required.';
-          } else if (apiError.response?.data?.message) {
-            errorMessage = `Error: ${apiError.response.data.message}`;
-          } else if (apiError.message) {
-            errorMessage = `Error: ${apiError.message}`;
-          }
-          
-          showPopup('Error', errorMessage, 'error');
-          return;
-        }
-      } else if (order.order_type === 'custom_order' || order.order_type === 'custom') {
-        // API call to update custom order delivery status
-        try {
-          console.log(`🔍 DEBUG: Custom order details:`, {
-            orderId: order.id,
-            orderNumber: order.order_number,
-            orderType: order.order_type
-          });
-          
-          // For custom orders, we need to find the correct custom_orders table ID
-          // The order.id might be from the orders table, but we need the custom_orders ID
-          let customOrderId = order.id;
-          
-          // If the order number has CUSTOM- format, resolve the correct mapping
-          if (order.order_number && order.order_number.includes('CUSTOM-')) {
-            try {
-              console.log(`🔍 Resolving custom order mapping for: ${order.order_number}`);
-              
-              // First try to get from existing order data
-              if (order.custom_order_data && order.custom_order_data.custom_order_id) {
-                customOrderId = order.custom_order_data.custom_order_id;
-                console.log(`✅ Using custom_order_data ID: ${customOrderId}`);
-              } else if (order.custom_design_data && order.custom_design_data.design_id) {
-                // This is a custom design, use the design ID
-                customOrderId = order.custom_design_data.design_id;
-                console.log(`✅ Using custom_design_data ID: ${customOrderId}`);
-              } else {
-                // Resolve mapping using backend API
-                console.log(`📡 Calling mapping resolver for: ${order.order_number}`);
-                console.log(`🔍 Making API call: GET /custom-orders/resolve-mapping/${order.order_number}`);
-                
-                try {
-                  const mappingResponse = await api.get(`/custom-orders/resolve-mapping/${order.order_number}`);
-                  console.log(`📥 Mapping response:`, mappingResponse.data);
-                  
-                  if (mappingResponse.data.success && mappingResponse.data.data.resolved_custom_order_id) {
-                    customOrderId = mappingResponse.data.data.resolved_custom_order_id;
-                    console.log(`✅ Resolved custom order ID: ${customOrderId} for order ${order.order_number}`);
-                  } else {
-                    console.warn(`⚠️ Failed to resolve mapping for ${order.order_number}, using original ID: ${order.id}`);
-                    customOrderId = order.id;
-                  }
-                } catch (mappingError) {
-                  console.error(`❌ Error resolving mapping for ${order.order_number}:`, mappingError);
-                  console.warn(`⚠️ Using original ID: ${order.id} as fallback`);
-                  customOrderId = order.id;
-                  
-                  // Show warning to user
-                  showPopup(
-                    'Mapping Warning',
-                    `Could not resolve the correct custom order ID for ${order.order_number}. The update may fail. Please try again or contact support.`,
-                    'warning'
-                  );
-                }
-              }
-            } catch (resolveError) {
-              console.error(`❌ Error during custom order ID resolution:`, resolveError);
-              customOrderId = order.id;
-            }
-          }
-          
-          // Convert null status to 'pending' for restore operations
-          const statusToSend = newStatus === null ? 'pending' : newStatus;
-          
-          console.log(`📡 Calling API: PATCH /custom-orders/${customOrderId}/delivery-status`);
-          console.log(`📊 Request payload:`, {
-            delivery_status: statusToSend,
-            delivery_date: statusToSend === 'delivered' ? new Date().toISOString().split('T')[0] : null,
-            delivery_notes: `Status updated to ${statusToSend} on ${new Date().toLocaleString()}`
-          });
-          
-          const apiResponse = await api.patch(`/custom-orders/${customOrderId}/delivery-status`, {
-            delivery_status: statusToSend,
-            delivery_date: statusToSend === 'delivered' ? new Date().toISOString().split('T')[0] : null,
-            delivery_notes: `Status updated to ${statusToSend} on ${new Date().toLocaleString()}`
-          });
-          
-          console.log(`📥 API Response:`, apiResponse.data);
-          console.log(`✅ Successfully updated custom order ${order.order_number} delivery status to ${statusToSend}`);
-        } catch (apiError) {
-          console.error('Failed to update custom order delivery status:', apiError);
-          console.error('API Error details:', apiError.response?.data);
-          
-          // Show more specific error message based on the actual error
-          let errorMessage = 'Failed to update custom order delivery status in database. Please try again.';
-          
-          if (apiError.response?.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again and try again.';
-          } else if (apiError.response?.status === 403) {
-            errorMessage = 'Access denied. Admin privileges required.';
-          } else if (apiError.response?.data?.message) {
-            errorMessage = `Error: ${apiError.response.data.message}`;
-          } else if (apiError.message) {
-            errorMessage = `Error: ${apiError.message}`;
-          }
-          
-          showPopup('Error', errorMessage, 'error');
-          return;
-        }
-      } else {
-        // For regular orders, update the main orders table to ensure persistence
-        try {
-          const numericId = typeof order.id === 'string' && order.id.includes('-') 
-            ? order.id.split('-').pop() 
-            : order.id;
-          
-          await api.patch(`/orders/${numericId}/delivery-status`, {
-            delivery_status: newStatus,
-            delivery_notes: newStatus === 'delivered' 
-              ? `Delivered on ${new Date().toLocaleDateString()}` 
-              : (newStatus === 'delayed' ? 'Delivery delayed - requires rescheduling' : 
-                 newStatus === 'cancelled' ? 'Delivery cancelled' : 
-                 newStatus === 'in_transit' ? 'Out for delivery' : 
-                 newStatus === 'scheduled' ? 'Scheduled for delivery' : '')
-          });
-          console.log(`✅ Successfully updated regular order ${numericId} to ${newStatus} status in main orders table`);
-        } catch (apiError) {
-          console.error('Failed to update regular order in database:', apiError);
-          
-          // Show more specific error message based on the actual error
-          let errorMessage = 'Order status updated locally but backend update failed. Status may not persist on refresh.';
-          
-          if (apiError.response?.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again. Status may not persist.';
-          } else if (apiError.response?.status === 403) {
-            errorMessage = 'Access denied. Admin privileges required. Status may not persist.';
-          } else if (apiError.response?.data?.message) {
-            errorMessage = `Backend error: ${apiError.response.data.message}. Status may not persist.`;
-          } else if (apiError.message) {
-            errorMessage = `Error: ${apiError.message}. Status may not persist.`;
-          }
-          
-          showPopup('Warning', errorMessage, 'warning');
-        }
-      }
-      
-      // Prepare the updated order object before API calls
-      const updatedOrder = { 
-        ...order, 
-        delivery_status: newStatus
-      };
-      
-      // If marking as delayed or cancelled, clear the scheduled delivery date and time
-      if (newStatus === 'delayed' || newStatus === 'cancelled') {
-        updatedOrder.scheduled_delivery_date = null;
-        updatedOrder.scheduled_delivery_time = null;
-        updatedOrder.delivery_notes = null;
-        console.log(`📅 Cleared scheduled delivery date for ${newStatus} order ${order.order_number}`);
-      }
-      
-      // If marking as delivered, set delivery date
-      if (newStatus === 'delivered') {
-        updatedOrder.delivery_date = new Date().toISOString().split('T')[0];
-        console.log(`📅 Set delivery date for order ${order.order_number}`);
-      }
-      
-      // CRITICAL: Update delivery schedule status to ensure persistence
       try {
-        // Find the delivery schedule for this order
-        const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
-        const existingSchedule = safeDeliverySchedules.find(schedule => 
-          schedule.order_id === order.id || 
-          schedule.order_id === parseInt(order.id) ||
-          schedule.order_number === order.order_number
-        );
+        console.log(`📡 Calling unified delivery status API for ${order.order_type} order...`);
         
-        if (existingSchedule && existingSchedule.id) {
-          console.log(`💾 Updating delivery schedule ${existingSchedule.id} status to ${newStatus}...`);
+        // For custom orders, we need to handle ID properly
+        let apiOrderId = order.id;
+        
+        // Handle different custom order ID formats
+        if (order.order_type === 'custom' || order.order_type === 'custom_order') {
+          console.log(`🎨 Processing custom order ID: ${order.id}`);
           
-          const updateData = {
-            delivery_status: newStatus,
-            status: newStatus // Also update the status field for compatibility
-          };
-          
-          // If marking as delivered, set actual delivery time
-          if (newStatus === 'delivered') {
-            updateData.actual_delivery_time = new Date().toISOString();
-            updateData.delivery_notes = (existingSchedule.delivery_notes || '') + ` | Delivered on ${new Date().toLocaleString()}`;
-          }
-          
-          // If marking as delayed, add delay notes
-          if (newStatus === 'delayed') {
-            updateData.delivery_notes = (existingSchedule.delivery_notes || '') + ` | Delayed on ${new Date().toLocaleString()}`;
-          }
-          
-          // If marking as in_transit, add transit notes
-          if (newStatus === 'in_transit') {
-            updateData.delivery_notes = (existingSchedule.delivery_notes || '') + ` | Out for delivery on ${new Date().toLocaleString()}`;
-          }
-          
-          console.log(`📋 Sending update data for schedule ${existingSchedule.id}:`, updateData);
-            
-          // If delayed or cancelled, clear the schedule (will be deleted from database)
-          if (newStatus === 'delayed' || newStatus === 'cancelled') {
-            await api.delete(`/delivery/schedules/${existingSchedule.id}`);
-            console.log(`✅ Deleted delivery schedule ${existingSchedule.id} for ${newStatus} order`);
-            
-            // Remove from local delivery schedules state
-            setDeliverySchedules(prev => {
-              const safePrev = Array.isArray(prev) ? prev : [];
-              return safePrev.filter(schedule => schedule.id !== existingSchedule.id);
-            });
-          } else {
-            const response = await api.put(`/delivery/schedules/${existingSchedule.id}`, updateData);
-            console.log(`✅ Updated delivery schedule ${existingSchedule.id} status to ${newStatus}`);
-            
-            // Verify the update was successful by checking the response
-            if (response.data && response.data.success && response.data.schedule) {
-              console.log(`✅ Backend confirmed status update to ${response.data.schedule.delivery_status}`);
-              
-              // Use the backend-confirmed status for state updates
-              const confirmedStatus = response.data.schedule.delivery_status;
-              
-              // Update the updatedOrder with the confirmed status
-              updatedOrder.delivery_status = confirmedStatus;
-              
-              // Update delivery schedules state with confirmed data
-              setDeliverySchedules(prev => {
-                const safePrev = Array.isArray(prev) ? prev : [];
-                return safePrev.map(schedule => {
-                  if (schedule.id === existingSchedule.id) {
-                    console.log(`📅 Updated delivery schedule status for order ${order.order_number} to ${confirmedStatus}`);
-                    return { 
-                      ...schedule, 
-                      status: confirmedStatus,
-                      delivery_status: confirmedStatus, // Ensure both fields are updated
-                      delivery_notes: updateData.delivery_notes || schedule.delivery_notes,
-                      actual_delivery_time: updateData.actual_delivery_time || schedule.actual_delivery_time
-                    };
-                  }
-                  return schedule;
-                });
-              });
+          // If the ID is a string with prefixes, extract the numeric part
+          if (typeof order.id === 'string') {
+            // Handle formats like "custom-order-123" or "design-456"
+            const match = order.id.match(/(\d+)$/);
+            if (match) {
+              apiOrderId = match[1];
+              console.log(`🔧 Extracted numeric ID: ${apiOrderId} from ${order.id}`);
             } else {
-              console.warn('⚠️ Backend did not confirm status update, using requested status');
-              // Still update local state with the requested status
-              setDeliverySchedules(prev => {
-                const safePrev = Array.isArray(prev) ? prev : [];
-                return safePrev.map(schedule => {
-                  if (schedule.id === existingSchedule.id) {
-                    console.log(`📅 Updated delivery schedule status for order ${order.order_number} to ${newStatus} (fallback)`);
-                    return { 
-                      ...schedule, 
-                      status: newStatus,
-                      delivery_status: newStatus,
-                      delivery_notes: updateData.delivery_notes || schedule.delivery_notes
-                    };
-                  }
-                  return schedule;
-                });
-              });
+              // If no number found, try using the ID as is
+              apiOrderId = order.id;
             }
           }
-        } else if (newStatus !== 'delayed' && newStatus !== 'cancelled') {
-          // If no delivery schedule exists and we're not marking as delayed/cancelled
-          console.log(`⚠️ No delivery schedule found for order ${order.order_number}`);
           
-          // For custom orders that were successfully updated in the backend, 
-          // we should still allow the status change and create a schedule if needed
-          if (order.order_type === 'custom_order' || order.order_type === 'custom') {
-            console.log(`🎨 Custom order ${order.order_number}: Creating delivery schedule automatically`);
-            
-            // Create a basic delivery schedule entry for this custom order
-            try {
-              const scheduleData = {
-                order_id: order.id,
-                order_type: order.order_type === 'custom_order' ? 'custom_order' : 'regular',
-                customer_name: order.customer_name,
-                delivery_date: new Date().toISOString().split('T')[0],
-                delivery_status: newStatus,
-                delivery_address: order.shipping_address || 'Address not specified',
-                delivery_city: order.shipping_city || 'City not specified',
-                delivery_province: order.shipping_province || 'Province not specified'
-              };
-              
-              if (newStatus === 'delivered') {
-                scheduleData.delivered_at = new Date().toISOString();
-              }
-              
-              console.log(`📅 Creating delivery schedule for custom order ${order.order_number}...`);
-              const createResponse = await api.post('/delivery/schedule', scheduleData);
-              
-              if (createResponse.data.success) {
-                console.log(`✅ Created delivery schedule for custom order ${order.order_number}`);
-                
-                // Add to local delivery schedules state
-                const newSchedule = {
-                  id: createResponse.data.schedule.id,
-                  order_id: order.id,
-                  order_type: scheduleData.order_type,
-                  delivery_status: newStatus,
-                  delivery_date: scheduleData.delivery_date,
-                  customer_name: order.customer_name,
-                  delivery_address: scheduleData.delivery_address
-                };
-                
-                setDeliverySchedules(prev => {
-                  const safePrev = Array.isArray(prev) ? prev : [];
-                  return [...safePrev, newSchedule];
-                });
-              }
-            } catch (scheduleCreateError) {
-              console.error('❌ Failed to create delivery schedule for custom order:', scheduleCreateError);
-              // Continue anyway since the backend status was updated successfully
-            }
-          } else {
-            // For regular orders, still require scheduling first
-            showPopup(
-              'Schedule Required',
-              `To update the delivery status to "${newStatus}", please schedule this order for delivery first using the calendar.`,
-              'warning'
-            );
-            return;
+          // Also try with the original order number or custom_order_id
+          if (order.custom_order_id) {
+            apiOrderId = order.custom_order_id;
+            console.log(`🔧 Using custom_order_id: ${apiOrderId}`);
+          } else if (order.order_number) {
+            apiOrderId = order.order_number;
+            console.log(`🔧 Using order_number: ${apiOrderId}`);
           }
-        } else {
-          console.log(`⚠️ No delivery schedule found for order ${order.order_number} - status change to ${newStatus} allowed`);
         }
-      } catch (deliveryApiError) {
-        console.error('❌ Failed to update delivery schedule in database:', deliveryApiError);
-        showPopup('Database Warning', 'Order status updated but delivery schedule update failed. Status may not persist correctly.', 'warning');
-      }
-      
-      // CRITICAL: Update local state immediately to reflect the change
-      setOrders(prevOrders => {
-        const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
-        const updatedOrders = safePrevOrders.map(o => {
-          if (o.id === order.id) {
-            return updatedOrder;
-          }
-          return o;
+        
+        console.log(`📤 Making API call with order ID: ${apiOrderId}`);
+        
+        // Use the configured API instance instead of direct fetch for better error handling
+        const response = await api.put(`/delivery-status/orders/${apiOrderId}/status`, {
+          delivery_status: newStatus,
+          order_type: order.order_type || 'regular',
+          delivery_notes: `Status updated to ${newStatus} via DeliveryPage on ${new Date().toLocaleString()}`
         });
-        console.log(`✅ Updated order ${order.order_number} status to ${newStatus} in local state`);
-        return updatedOrders;
-      });
-      
-      // Update delivery schedules state to reflect status change
-      setDeliverySchedules(prev => {
-        const safePrev = Array.isArray(prev) ? prev : [];
-        if (newStatus === 'delayed' || newStatus === 'cancelled') {
-          // Remove from delivery schedules since it's no longer scheduled
-          const filteredSchedules = safePrev.filter(schedule => 
-            schedule.order_id !== order.id && 
-            schedule.order_id !== parseInt(order.id) &&
-            schedule.order_number !== order.order_number
-          );
-          console.log(`📅 Removed order ${order.order_number} from delivery schedules`);
-          return filteredSchedules;
-        } else {
-          // Update the schedule status - ensure we update the correct status field
+
+        const responseData = response.data;
+        console.log(`📥 API Response:`, responseData);
+
+        if (!responseData.success) {
+          throw new Error(responseData.message || 'API returned failure status');
+        }
+
+        console.log(`✅ UNIFIED API: Successfully updated order ${order.order_number} to ${newStatus}`);
+
+        // Update local state immediately with the confirmed data from backend
+        const updatedOrder = {
+          ...order,
+          delivery_status: newStatus,
+          updated_at: responseData.data?.updated_at || new Date().toISOString()
+        };
+
+        // Update orders state - prevent re-render loops
+        setOrders(prevOrders => {
+          const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
+          const updatedOrders = safePrevOrders.map(o => {
+            // Match by ID or order number for both regular and custom orders
+            const isMatchingOrder = 
+              o.id === order.id || 
+              o.order_number === order.order_number ||
+              (order.custom_order_id && o.custom_order_id === order.custom_order_id) ||
+              (order.design_id && o.design_id === order.design_id);
+              
+            if (isMatchingOrder) {
+              console.log(`🔄 Updated order ${o.order_number} in local state`);
+              return updatedOrder;
+            }
+            return o;
+          });
+          return updatedOrders;
+        });
+
+        // Update delivery schedules state
+        setDeliverySchedules(prev => {
+          const safePrev = Array.isArray(prev) ? prev : [];
           return safePrev.map(schedule => {
-            const isMatchingSchedule = schedule.order_id === order.id || 
-                                     schedule.order_id === parseInt(order.id) ||
-                                     schedule.order_number === order.order_number;
+            const isMatchingSchedule = 
+              schedule.order_id === order.id || 
+              schedule.order_number === order.order_number ||
+              schedule.order_id === parseInt(order.id) ||
+              (order.custom_order_id && schedule.order_id === order.custom_order_id);
+              
             if (isMatchingSchedule) {
-              console.log(`📅 Updated delivery schedule status for order ${order.order_number} to ${newStatus}`);
+              console.log(`📅 Updated delivery schedule for order ${order.order_number}`);
               return { 
                 ...schedule, 
-                status: newStatus,
-                delivery_status: newStatus // Ensure both fields are updated for consistency
+                delivery_status: newStatus,
+                status: newStatus, // Update both fields for compatibility
+                updated_at: responseData.data?.updated_at || new Date().toISOString()
               };
             }
             return schedule;
           });
+        });
+
+        // Show success message with different text based on status
+        let successMessage = '';
+        if (newStatus === 'delivered') {
+          successMessage = `Order ${order.order_number} marked as DELIVERED! ✅\nPayment recorded and customer notified.`;
+        } else if (newStatus === 'in_transit') {
+          successMessage = `Order ${order.order_number} is now IN TRANSIT! 🚚\nCustomer notified with tracking info.`;
+        } else if (newStatus === 'delayed') {
+          successMessage = `Order ${order.order_number} marked as DELAYED! ⚠️\nPlease reschedule delivery using the calendar.`;
+        } else if (newStatus === 'cancelled') {
+          successMessage = `Order ${order.order_number} delivery CANCELLED! ❌\nOrder removed from delivery schedule.`;
+        } else {
+          successMessage = `Order ${order.order_number} status updated to ${newStatus.toUpperCase()}!`;
         }
-      });
-      
-      // Clear selected order if it was the one just updated
-      if (selectedOrderForScheduling && selectedOrderForScheduling.id === order.id) {
-        setSelectedOrderForScheduling(null);
+
+        showPopup('Status Updated Successfully', successMessage, 'success');
+
+        // DO NOT automatically refresh - let the state updates handle the UI changes
+        // This prevents the page refresh issue that was preventing status updates
+        console.log(`✅ Status update complete for ${order.order_number}. UI updated via state.`);
+
+        // Force a data refresh after a short delay to ensure backend consistency
+        setTimeout(() => {
+          console.log(`🔄 Forcing data refresh to ensure consistency for ${order.order_number}`);
+          fetchData();
+        }, 1000);
+
+      } catch (apiError) {
+        console.error('❌ Unified API Error:', apiError);
+        
+        let errorMessage = 'Failed to update delivery status. ';
+        
+        // Handle axios errors specifically
+        if (apiError.response) {
+          // Server responded with error status
+          const status = apiError.response.status;
+          const data = apiError.response.data;
+          
+          if (status === 401) {
+            errorMessage += 'Your session has expired. Please log in again.';
+            localStorage.removeItem('token');
+            // Redirect to login or refresh page
+            window.location.reload();
+          } else if (status === 403) {
+            errorMessage += 'You do not have permission to perform this action.';
+          } else if (status === 404) {
+            errorMessage += 'Order not found in the system. This might be a custom order ID issue.';
+          } else if (status === 400) {
+            errorMessage += data?.message || 'Invalid request. Please check the order details and try again.';
+          } else {
+            errorMessage += data?.message || `Server error (${status}). Please try again.`;
+          }
+        } else if (apiError.request) {
+          // Network error
+          errorMessage += 'Network error. Please check your connection and try again.';
+        } else {
+          // Other error
+          errorMessage += apiError.message || 'Please try again or contact support if the problem persists.';
+        }
+        
+        showPopup('Update Failed', errorMessage, 'error');
+        
+        // For debugging custom order issues
+        if (order.order_type === 'custom' || order.order_type === 'custom_order') {
+          console.error('🎨 Custom Order Debug Info:', {
+            original_id: order.id,
+            order_number: order.order_number,
+            custom_order_id: order.custom_order_id,
+            design_id: order.design_id,
+            order_type: order.order_type,
+            error: apiError.message,
+            full_error: apiError
+          });
+        }
+        
+        // Attempt to refresh data on error to get current state
+        console.log('🔄 Refreshing data due to update error...');
+        try {
+          await fetchData();
+        } catch (refreshError) {
+          console.error('❌ Failed to refresh data after error:', refreshError);
+        }
       }
-      
-      if (newStatus !== 'delayed') {
-        showPopup(
-          'Order Status Updated',
-          `Order ${order.order_number} marked as ${newStatus}!`,
-          'success'
-        );
-      }
-      
+
     } catch (error) {
-      console.error('Error updating delivery status:', error);
-      showPopup('Error', 'Error updating delivery status. Please try again.', 'error');
+      console.error('❌ Critical error in handleUpdateDeliveryStatus:', error);
+      showPopup(
+        'Critical Error', 
+        'A critical error occurred while updating the delivery status. Please refresh the page and try again.', 
+        'error'
+      );
     }
   };
   // Helper function to toggle date availability
@@ -3094,54 +2893,6 @@ const DeliveryPage = () => {
       return;
     }
     
-    // Check if we have a selected order for scheduling
-    if (selectedOrderForScheduling) {
-      // Prevent scheduling if order is already scheduled
-      if (selectedOrderForScheduling.delivery_status === 'scheduled') {
-        showPopup(
-          'Order Already Scheduled',
-          `Order ${selectedOrderForScheduling.order_number} is already scheduled for delivery. To reschedule, first mark it as "Delayed" then select a new date.`,
-          'warning'
-        );
-        setSelectedOrderForScheduling(null); // Clear selection
-        return;
-      }
-      
-      // Prevent rescheduling to past dates
-      const selectedDate = new Date(day.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to start of day for comparison
-      
-      if (selectedDate < today) {
-        showPopup(
-          'Invalid Date', 
-          `Cannot reschedule delivery to a past date.\n\nSelected date: ${day.date.toLocaleDateString()}\nPlease select today or a future date.`, 
-          'warning'
-        );
-        return;
-      }
-      
-      // If rescheduling a delayed order, show special message
-      if (selectedOrderForScheduling.delivery_status === 'delayed') {
-        showPopup(
-          'Rescheduling Delayed Order',
-          `Rescheduling delayed order ${selectedOrderForScheduling.order_number} to ${day.date.toLocaleDateString()}.\n\nThis will update the delivery status to 'scheduled'.`,
-          'info'
-        );
-      } else {
-        // Show visual feedback
-        showPopup(
-          'Opening Schedule Modal',
-          `Scheduling delivery for order ${selectedOrderForScheduling.order_number} on ${day.date.toLocaleDateString()}`,
-          'info'
-        );
-      }
-      
-      setSelectedOrder(selectedOrderForScheduling);
-      setShowScheduleModal(true);
-      return;
-    }
-    
     // Find orders that need scheduling (including those that can be rescheduled)
     const safeOrders = Array.isArray(orders) ? orders : [];
     const pendingOrders = safeOrders.filter(order => 
@@ -3278,24 +3029,6 @@ const DeliveryPage = () => {
                 </CalendarButton>
               </CalendarNav>              <MonthYear>
                 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                {selectedOrderForScheduling && (
-                  <div style={{
-                    fontSize: '0.8rem',
-                    color: '#28a745',
-                    fontWeight: '500',
-                    marginTop: '0.5rem',
-                    padding: '0.5rem',
-                    backgroundColor: '#f8fff8',
-                    borderRadius: '4px',
-                    border: '1px solid #28a745'
-                  }}>
-                    📦 Order {selectedOrderForScheduling.order_number} selected
-                    <br />
-                    <span style={{ fontSize: '0.7rem', color: '#666' }}>
-                      Click on any available date to schedule delivery
-                    </span>
-                  </div>
-                )}
                 {selectedOrderForProductionStart && (
                   <div style={{
                     fontSize: '0.8rem',
@@ -3342,13 +3075,6 @@ const DeliveryPage = () => {
                         boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
                         borderColor: '#667eea',
                         cursor: 'pointer'
-                      }),
-                      ...(selectedOrderForScheduling && day.isCurrentMonth && 
-                          day.availabilityStatus !== 'unavailable' && {
-                        boxShadow: '0 0 8px rgba(40, 167, 69, 0.5)',
-                        borderColor: '#28a745',
-                        cursor: 'pointer',
-                        background: 'linear-gradient(135deg, #f8fff8, #e8f5e8)'
                       })
                     }}
                   >
@@ -3843,6 +3569,81 @@ const DeliveryPage = () => {
                   </div>
                 </SearchContainer>
               </FilterControlsContainer>
+              
+              {/* Debug Panel for Custom Order Issues */}
+              <div style={{
+                margin: '1rem 0',
+                padding: '1rem',
+                background: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px',
+                fontSize: '0.85rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <strong>🔧 Debug Panel</strong>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={async () => {
+                        console.log('🔄 Manual data refresh initiated...');
+                        setLoading(true);
+                        try {
+                          await fetchData();
+                          showPopup('Data Refreshed', 'All order and schedule data has been refreshed from the server.', 'success');
+                        } catch (error) {
+                          console.error('❌ Manual refresh failed:', error);
+                          showPopup('Refresh Failed', 'Failed to refresh data. Check console for details.', 'error');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      style={{
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        background: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🔄 Refresh Data
+                    </button>
+                    <button
+                      onClick={() => {
+                        console.log('🎨 Custom Orders Debug:', {
+                          totalOrders: orders.length,
+                          customOrders: orders.filter(o => o.order_type === 'custom' || o.order_type === 'custom_order'),
+                          productionStartDates: customOrderProductionStartDates,
+                          orderStatuses: orders.reduce((acc, o) => {
+                            acc[o.order_number] = o.delivery_status;
+                            return acc;
+                          }, {}),
+                          schedules: deliverySchedules
+                        });
+                        showPopup('Debug Info', 'Check browser console for detailed debug information.', 'info');
+                      }}
+                      style={{
+                        padding: '0.25rem 0.5rem',
+                        fontSize: '0.75rem',
+                        background: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🔍 Debug Log
+                    </button>
+                  </div>
+                </div>
+                <div style={{ color: '#6c757d', fontSize: '0.75rem' }}>
+                  Total Orders: {orders.length} | 
+                  Custom Orders: {orders.filter(o => o.order_type === 'custom' || o.order_type === 'custom_order').length} | 
+                  With Production Timeline: {Object.keys(customOrderProductionStartDates).length} | 
+                  Auth Token: {localStorage.getItem('token') ? '✅ Present' : '❌ Missing'}
+                </div>
+              </div>
+              
               <OrdersList>
                 {/* Use memoized filtered orders */}
                 {filteredOrders.length === 0 ? (
@@ -3856,21 +3657,36 @@ const DeliveryPage = () => {
                   </EmptyMessage>
                 ) : (
                   filteredOrders.map((order, orderIndex) => {
-                    // For custom orders with production timeline, consider them as scheduled
-                    // For regular orders, check delivery status
-                    const hasProductionTimeline = (order.order_type === 'custom' || order.order_type === 'custom_order') && 
-                                                 (customOrderProductionStartDates[order.id] || 
-                                                  ['scheduled', 'in_transit', 'delivered', 'delayed', 'cancelled'].includes(order.delivery_status));
+                    // Improved scheduling state determination to fix the "schedule requirement loop"
+                    // For custom orders: check if they have a production timeline OR a delivery status
+                    const isCustomOrder = order.order_type === 'custom' || order.order_type === 'custom_order';
                     
-                    // Regular orders are considered scheduled if they have a delivery_status of scheduled or later
-                    const isRegularOrderScheduled = !(order.order_type === 'custom' || order.order_type === 'custom_order') &&
-                                                  order.delivery_status && order.delivery_status !== 'pending';
+                    // Check if custom order has production timeline set
+                    const hasProductionTimeline = isCustomOrder && customOrderProductionStartDates[order.id];
                     
-                    const isScheduled = hasProductionTimeline || isRegularOrderScheduled;
-                    const isSelected = selectedOrderForScheduling && selectedOrderForScheduling.id === order.id;
+                    // Check if order has any delivery status beyond 'pending'
+                    const hasDeliveryStatus = order.delivery_status && 
+                                            order.delivery_status !== 'pending' && 
+                                            order.delivery_status !== null;
+                    
+                    // An order is considered "scheduled" if:
+                    // 1. It has a delivery status (scheduled, in_transit, delivered, etc.) OR
+                    // 2. For custom orders: it has a production timeline set
+                    const isScheduled = hasDeliveryStatus || hasProductionTimeline;
+                    
+                    // For debugging the schedule requirement loop
+                    if (isCustomOrder) {
+                      console.log(`🎨 Custom Order ${order.order_number} Schedule Status:`, {
+                        hasProductionTimeline,
+                        hasDeliveryStatus,
+                        delivery_status: order.delivery_status,
+                        isScheduled,
+                        production_start: customOrderProductionStartDates[order.id]
+                      });
+                    }
                   
                     return (
-                    <OrderItem key={`delivery-page-order-${order.id}-idx-${orderIndex}`} orderType={order.order_type} isSelected={isSelected}>
+                    <OrderItem key={`delivery-page-order-${order.id}-idx-${orderIndex}`} orderType={order.order_type}>
                       <OrderInfo>
                         <OrderNumber>
                           Order #{order.order_number || order.id}
@@ -3896,16 +3712,14 @@ const DeliveryPage = () => {
                       <OrderActions>
                         {!isScheduled ? (
                           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Production Start Button - Only for custom orders without production start date and not scheduled */}
-                            {(order.order_type === 'custom' || order.order_type === 'custom_order') && 
-                             !customOrderProductionStartDates[order.id] && 
-                             !['scheduled', 'in_transit', 'delivered', 'delayed', 'cancelled'].includes(order.delivery_status) && (
+                            {/* Production Start Button - Only for custom orders without any scheduling */}
+                            {isCustomOrder && !hasProductionTimeline && !hasDeliveryStatus && (
                               <ActionButton 
                                 onClick={() => {
                                   setSelectedOrderForProductionStart(order);
                                   showPopup(
                                     '🎨 Set Production Start Date',
-                                    `Order ${order.order_number} is selected for production timeline setup. Click on any future date in the calendar to set the production start date. This will automatically create a 15-day production timeline.`,
+                                    `Order ${order.order_number} is selected for production timeline setup. Click on any future date in the calendar to set the production start date. This will automatically create a 15-day production timeline and enable delivery scheduling.`,
                                     'info'
                                   );
                                 }}
@@ -3921,6 +3735,31 @@ const DeliveryPage = () => {
                                 title="Set production start date for this custom order (15-day timeline)"
                               >
                                 🎨 Set Production Start
+                              </ActionButton>
+                            )}
+                            
+                            {/* Schedule Delivery Button - For regular orders or custom orders ready for delivery */}
+                            {(!isCustomOrder || hasProductionTimeline) && (
+                              <ActionButton 
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowScheduleModal(true);
+                                  showPopup(
+                                    'Schedule Delivery',
+                                    `Opening schedule modal for order ${order.order_number}. Set delivery date and details.`,
+                                    'info'
+                                  );
+                                }}
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #28a745, #20c997)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '100px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                📅 Schedule Delivery
                               </ActionButton>
                             )}
                             
@@ -3957,43 +3796,6 @@ const DeliveryPage = () => {
                                 )}
                               </div>
                             )}
-                            
-                            {/* Select Order Button - Only show for regular orders, not custom orders */}
-                            {!(order.order_type === 'custom' || order.order_type === 'custom_order') && (
-                              <ActionButton 
-                                onClick={() => {
-                                  // Check if order is already scheduled to prevent duplicate scheduling
-                                  if (order.delivery_status === 'scheduled') {
-                                    showPopup(
-                                      'Order Already Scheduled',
-                                      `This order is already scheduled for delivery. To reschedule, first mark it as "Delayed" then select a new date.`,
-                                      'warning'
-                                    );
-                                    return;
-                                  }
-                                  
-                                  if (isSelected) {
-                                    setSelectedOrderForScheduling(null);
-                                  } else {
-                                    setSelectedOrderForScheduling(order);
-                                    showPopup(
-                                      'Order Selected for Scheduling',
-                                      `Order ${order.order_number} is now selected. Click on any available date in the calendar to schedule delivery.`,
-                                      'info'
-                                    );
-                                  }
-                                }} 
-                                $primary={isSelected}
-                                disabled={order.delivery_status === 'scheduled'}
-                                style={{
-                                  opacity: order.delivery_status === 'scheduled' ? 0.6 : 1,
-                                  cursor: order.delivery_status === 'scheduled' ? 'not-allowed' : 'pointer'
-                                }}
-                              >
-                                {order.delivery_status === 'scheduled' ? 'Already Scheduled' : 
-                                 isSelected ? 'Cancel Selection' : 'Select Order'}
-                              </ActionButton>
-                            )}
                           </div>
                         ) : (
                           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -4005,7 +3807,11 @@ const DeliveryPage = () => {
                                 {/* Custom Order Delivered Button - Available for any status except delivered and cancelled */}
                                 {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'delivered', e);
+                                    }}
                                     variant="success"
                                     title="Mark custom order as delivered - Completes production timeline"
                                     style={{ 
@@ -4024,7 +3830,11 @@ const DeliveryPage = () => {
                                 {/* Custom Order In Transit Button - Available when not delivered, cancelled, or already in transit */}
                                 {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && order.delivery_status !== 'in_transit' && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'in_transit')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'in_transit', e);
+                                    }}
                                     variant="info"
                                     title="Mark custom order as in transit - Being delivered by courier"
                                     style={{ 
@@ -4043,14 +3853,16 @@ const DeliveryPage = () => {
                                 {/* Custom Order Delay Button - Available when not delivered, cancelled, or already delayed */}
                                 {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && order.delivery_status !== 'delayed' && (
                                   <ActionButton 
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       // Remove from production timeline and set as delayed
                                       setCustomOrderProductionStartDates(prev => {
                                         const updated = { ...prev };
                                         delete updated[order.id];
                                         return updated;
                                       });
-                                      handleUpdateDeliveryStatus(order, 'delayed');
+                                      handleUpdateDeliveryStatus(order, 'delayed', e);
                                       showPopup(
                                         'Custom Order Delayed',
                                         `Production timeline has been removed for order ${order.order_number}. Use the "📅 Reschedule Production" button to set a new production start date.`,
@@ -4099,14 +3911,16 @@ const DeliveryPage = () => {
                                 {/* Custom Order Cancel Button - Available when not delivered or already cancelled */}
                                 {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
                                   <ActionButton 
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       // Remove from production timeline and set as cancelled
                                       setCustomOrderProductionStartDates(prev => {
                                         const updated = { ...prev };
                                         delete updated[order.id];
                                         return updated;
                                       });
-                                      handleUpdateDeliveryStatus(order, 'cancelled');
+                                      handleUpdateDeliveryStatus(order, 'cancelled', e);
                                       showPopup(
                                         'Custom Order Cancelled',
                                         `Order ${order.order_number} has been cancelled and removed from production timeline. Use "Restore" to reactivate if needed.`,
@@ -4131,8 +3945,10 @@ const DeliveryPage = () => {
                                 {/* Custom Order Restore Button - Only for cancelled custom orders */}
                                 {order.delivery_status === 'cancelled' && (
                                   <ActionButton 
-                                    onClick={() => {
-                                      handleUpdateDeliveryStatus(order, null);
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, null, e);
                                       showPopup(
                                         'Custom Order Restored',
                                         `Order ${order.order_number} has been restored. You can now set a new production timeline using the "🎨 Set Production Start" button.`,
@@ -4181,7 +3997,11 @@ const DeliveryPage = () => {
                                 {/* Delivered Button - Available for scheduled and in_transit orders */}
                                 {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'delivered')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'delivered', e);
+                                    }}
                                     variant="success"
                                     title="Mark as Delivered - Order completed and paid"
                                     style={{ 
@@ -4200,7 +4020,11 @@ const DeliveryPage = () => {
                                 {/* In Transit Button - Available for scheduled orders */}
                                 {order.delivery_status === 'scheduled' && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'in_transit')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'in_transit', e);
+                                    }}
                                     variant="info"
                                     title="Mark as In Transit - Package is on the way"
                                     style={{ 
@@ -4219,7 +4043,11 @@ const DeliveryPage = () => {
                                 {/* Delay Button - Available for scheduled and in_transit orders */}
                                 {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'delayed')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'delayed', e);
+                                    }}
                                     variant="warning"
                                     title="Mark as Delayed - Removes schedule and requires rescheduling"
                                     style={{ 
@@ -4238,7 +4066,11 @@ const DeliveryPage = () => {
                                 {/* Cancel Button - Available for scheduled and in_transit orders */}
                                 {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'cancelled')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'cancelled', e);
+                                    }}
                                     variant="danger"
                                     title="Cancel Order - Marks order as cancelled and removes from delivery schedule"
                                     style={{ 
@@ -4258,11 +4090,12 @@ const DeliveryPage = () => {
                                 {order.delivery_status === 'delayed' && (
                                   <ActionButton 
                                     onClick={() => {
-                                      setSelectedOrderForScheduling(order);
+                                      setSelectedOrder(order);
+                                      setShowScheduleModal(true);
                                       showPopup(
                                         'Reschedule Delayed Order',
-                                        `Order ${order.order_number} is selected for rescheduling. Click on any available date in the calendar to set a new delivery date.`,
-                                        'warning'
+                                        `Opening schedule modal for order ${order.order_number}. Set a new delivery date.`,
+                                        'info'
                                       );
                                     }}
                                     style={{ 
@@ -4281,7 +4114,11 @@ const DeliveryPage = () => {
                                 {/* Restore Button - Only for cancelled orders */}
                                 {order.delivery_status === 'cancelled' && (
                                   <ActionButton 
-                                    onClick={() => handleUpdateDeliveryStatus(order, 'pending')}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'pending', e);
+                                    }}
                                     variant="success"
                                     title="Restore Order - Changes status back to pending and makes it available for scheduling"
                                     style={{ 
@@ -4603,9 +4440,6 @@ const DeliveryPage = () => {
                     background: (() => {
                       if (!day.isCurrentMonth) return '#f8f8f8';
                       if (day.isToday) return '#f0f8ff';
-                      if (selectedOrderForScheduling && day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
-                        return '#f8fff8';
-                      }
                       return '#ffffff';
                     })(),
                     cursor: day.isCurrentMonth && day.availabilityStatus !== 'unavailable' ? 'pointer' : 'default',
@@ -4615,11 +4449,6 @@ const DeliveryPage = () => {
                         day.availabilityStatus !== 'unavailable' && {
                       boxShadow: '0 0 12px rgba(102, 126, 234, 0.5)',
                       borderColor: '#667eea'
-                    }),
-                    ...(selectedOrderForScheduling && day.isCurrentMonth && 
-                        day.availabilityStatus !== 'unavailable' && {
-                      boxShadow: '0 0 12px rgba(40, 167, 69, 0.5)',
-                      borderColor: '#28a745'
                     })
                   }}
                   onMouseOver={(e) => {
@@ -4632,8 +4461,6 @@ const DeliveryPage = () => {
                       e.target.style.background = '#f8f8f8';
                     } else if (day.isToday) {
                       e.target.style.background = '#f0f8ff';
-                    } else if (selectedOrderForScheduling && day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
-                      e.target.style.background = '#f8fff8';
                     } else {
                       e.target.style.background = '#ffffff';
                     }
@@ -5360,110 +5187,6 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrde
             </ActionButton>
           </div>
         </form>
-      </ModalContent>
-    </Modal>
-  );
-};
-
-// Product Modal Component
-const ProductModal = ({ order, onClose }) => {
-  if (!order) return null;
-
-  return (
-    <Modal onClick={onClose}>
-      <ModalContent onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>All Products - Order {order.order_number}</ModalTitle>          <ActionButton onClick={onClose}>
-            <FontAwesomeIcon icon={faTimes} style={{ color: '#000000' }} />
-          </ActionButton>
-        </ModalHeader>
-        
-        <div style={{ 
-          maxHeight: '60vh', 
-          overflowY: 'auto',
-          padding: '1rem 0'
-        }}>
-          <div style={{ 
-            fontWeight: '600', 
-            marginBottom: '1rem', 
-            color: '#000000',
-            fontSize: '1rem',
-            borderBottom: '1px solid #e0e0e0',
-            paddingBottom: '0.5rem'
-          }}>
-            📦 {order.items?.length || 0} Product{order.items?.length !== 1 ? 's' : ''}
-          </div>
-          
-          {order.items && order.items.length > 0 ? order.items.map((item, index) => (
-            <div key={`product-modal-item-${order.id}-${item.product_id || item.id}-${index}`} style={{
-              padding: '1rem',
-              marginBottom: '0.75rem',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              backgroundColor: '#f8f9fa',
-              transition: 'all 0.2s ease'
-            }}>
-              <div style={{ 
-                fontWeight: '600', 
-                marginBottom: '0.5rem',
-                color: '#000000',
-                fontSize: '1rem'
-              }}>
-                {item.productname || 'Unknown Product'}
-              </div>
-              
-              <div style={{ 
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                gap: '0.5rem',
-                fontSize: '0.85rem',
-                color: '#666666'
-              }}>
-                <div>
-                  <strong style={{ color: '#000000' }}>Product ID:</strong><br />
-                  {item.product_id || 'N/A'}
-                </div>
-                
-                {item.productcolor && (
-                  <div>
-                    <strong style={{ color: '#000000' }}>Color:</strong><br />
-                    {item.productcolor}
-                  </div>
-                )}
-                
-                {item.product_type && (
-                  <div>
-                    <strong style={{ color: '#000000' }}>Type:</strong><br />
-                    {item.product_type}
-                  </div>
-                )}
-                
-                <div>
-                  <strong style={{ color: '#000000' }}>Quantity:</strong><br />
-                  {item.quantity || 1}
-                </div>
-              </div>
-            </div>
-          )) : (
-            <div style={{ 
-              textAlign: 'center', 
-              color: '#666666', 
-              fontStyle: 'italic',
-              padding: '2rem'
-            }}>
-              No product details available
-            </div>
-          )}
-        </div>
-        
-        <div style={{ 
-          borderTop: '1px solid #e0e0e0', 
-          paddingTop: '1rem',
-          textAlign: 'right'
-        }}>          <ActionButton onClick={onClose} $primary>
-            Close
-          </ActionButton>
-        </div>
       </ModalContent>
     </Modal>
   );

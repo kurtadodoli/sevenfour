@@ -658,6 +658,69 @@ router.get('/my-orders', auth, async (req, res) => {
     }
 });
 
+// Get approved custom orders (admin view)
+router.get('/approved', auth, async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get approved custom orders with user information
+        const [orders] = await connection.execute(`
+            SELECT 
+                co.*,
+                u.first_name,
+                u.last_name,
+                u.email as user_email,
+                GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'id', coi.id,
+                        'filename', coi.image_filename,
+                        'original_filename', coi.original_filename,
+                        'url', coi.image_url,
+                        'upload_order', coi.upload_order
+                    )
+                ) as images
+            FROM custom_orders co
+            LEFT JOIN users u ON co.user_id = u.user_id
+            LEFT JOIN custom_order_images coi ON co.custom_order_id = coi.custom_order_id
+            WHERE co.status = 'approved'
+            GROUP BY co.id, u.user_id
+            ORDER BY co.created_at DESC
+        `);
+        
+        // Parse images JSON
+        const ordersWithImages = orders.map(order => ({
+            ...order,
+            images: order.images ? JSON.parse(`[${order.images}]`) : []
+        }));
+        
+        await connection.end();
+        
+        console.log(`📊 Retrieved ${ordersWithImages.length} approved custom orders`);
+        
+        res.json({
+            success: true,
+            data: ordersWithImages,
+            count: ordersWithImages.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching approved custom orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch approved custom orders',
+            error: error.message
+        });
+    }
+});
+
 // Get custom order details by ID
 router.get('/:customOrderId', auth, async (req, res) => {
     try {
@@ -1112,6 +1175,61 @@ router.get('/resolve-mapping/:orderNumber', auth, async (req, res) => {
         if (connection) {
             await connection.end();
         }
+    }
+});
+
+// Temporary test endpoint for approved custom orders (no auth required for testing)
+router.get('/test-approved', async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get approved custom orders with user information
+        const [orders] = await connection.execute(`
+            SELECT 
+                co.*,
+                u.first_name,
+                u.last_name,
+                u.email as user_email,
+                GROUP_CONCAT(
+                    JSON_OBJECT(
+                        'id', coi.id,
+                        'filename', coi.image_filename,
+                        'original_filename', coi.original_filename,
+                        'url', coi.image_url,
+                        'upload_order', coi.upload_order
+                    )
+                ) as images
+            FROM custom_orders co
+            LEFT JOIN users u ON co.user_id = u.user_id
+            LEFT JOIN custom_order_images coi ON co.custom_order_id = coi.custom_order_id
+            WHERE co.status = 'approved'
+            GROUP BY co.id, u.user_id
+            ORDER BY co.created_at DESC
+        `);
+        
+        // Parse images JSON
+        const ordersWithImages = orders.map(order => ({
+            ...order,
+            images: order.images ? JSON.parse(`[${order.images}]`) : []
+        }));
+        
+        await connection.end();
+        
+        console.log(`📊 Retrieved ${ordersWithImages.length} approved custom orders (test endpoint)`);
+        
+        res.json({
+            success: true,
+            data: ordersWithImages,
+            count: ordersWithImages.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching approved custom orders (test):', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch approved custom orders',
+            error: error.message
+        });
     }
 });
 

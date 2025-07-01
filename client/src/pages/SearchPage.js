@@ -10,10 +10,8 @@ import {
   faExclamationTriangle,
   faCreditCard,
   faShoppingBag,
-  faFilter,
   faTh,
-  faList,
-  faSortAmountDown
+  faList
 } from '@fortawesome/free-solid-svg-icons';
 
 // Modern Minimalist Styled Components - Black & White Theme
@@ -435,7 +433,9 @@ const DetailValue = styled.div`
   word-break: break-word;
 `;
 
-const StatusBadge = styled.span`
+const StatusBadge = styled.span.withConfig({
+  shouldForwardProp: (prop) => prop !== 'status',
+})`
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -487,9 +487,9 @@ const StockBadge = styled.span`
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  background-color: ${props => props.inStock ? '#000000' : '#f5f5f5'};
-  color: ${props => props.inStock ? '#ffffff' : '#999999'};
-  border: 1px solid ${props => props.inStock ? '#000000' : '#cccccc'};
+  background-color: ${props => props.$inStock ? '#000000' : '#f5f5f5'};
+  color: ${props => props.$inStock ? '#ffffff' : '#999999'};
+  border: 1px solid ${props => props.$inStock ? '#000000' : '#cccccc'};
 `;
 
 const SearchPage = () => {
@@ -841,7 +841,7 @@ const SearchPage = () => {
                           <TableCell>₱{parseFloat(product.price || product.product_price || 0).toFixed(2)}</TableCell>
                           <TableCell>{stock}</TableCell>
                           <TableCell>
-                            <StockBadge inStock={isInStock}>
+                            <StockBadge $inStock={isInStock}>
                               {isInStock ? 'In Stock' : 'Out of Stock'}
                             </StockBadge>
                           </TableCell>

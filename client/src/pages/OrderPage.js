@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { useStock } from '../context/StockContext';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
-import crypto from 'crypto-js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faShoppingBag, 
@@ -19,12 +18,12 @@ import {
   faPlus,
   faClipboardList,
   faTrash,
-  faTimes,
   faTruck,
   faUpload,
   faCreditCard,
   faShieldAlt,
-  faExclamationTriangle
+  faExclamationTriangle,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 import TopBar from '../components/TopBar';
@@ -312,6 +311,8 @@ const OrderStatus = styled.span`
         return 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
       case 'cancelled':
         return 'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;';
+      case 'denied':
+        return 'background: #ffeaa7; color: #856404; border: 1px solid #ffdb70;';
       default:
         return 'background: #e2e3e5; color: #383d41; border: 1px solid #d1ecf1;';
     }
@@ -395,101 +396,6 @@ const RemoveButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
     box-shadow: none;
-  }
-`;
-
-// Modal Components
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-`;
-
-const Modal = styled.div`
-  background: white;
-  border-radius: 8px;
-  max-width: 500px;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px 24px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #fafafa;
-  
-  h2 {
-    margin: 0;
-    color: #000000;
-    font-size: 20px;
-    font-weight: 600;
-  }
-`;
-
-const ModalContent = styled.div`
-  padding: 24px;
-  
-  p {
-    margin: 0 0 20px 0;
-    color: #333333;
-    line-height: 1.5;
-  }
-`;
-
-const ModalActions = styled.div`
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 24px;
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  color: #666666;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 4px;
-  
-  &:hover {
-    background: #f0f0f0;
-    color: #000000;
-  }
-`;
-
-const CancelReasonTextarea = styled.textarea`
-  width: 100%;
-  min-height: 100px;
-  padding: 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-  box-sizing: border-box;
-  
-  &:focus {
-    outline: none;
-    border-color: #000000;
-  }
-  
-  &::placeholder {
-    color: #999999;
   }
 `;
 
@@ -870,9 +776,12 @@ const CourierInfo = styled.div`
   }
 `;
 
+
+
 const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(null);
   const [checkoutForm, setCheckoutForm] = useState({
     customer_name: '',
     customer_email: '',
@@ -900,11 +809,9 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState([]);
   
-  // Cancellation modal state
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelOrderData, setCancelOrderData] = useState(null);
-  const [cancelReason, setCancelReason] = useState('');
-    const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
+
+  
+  const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
   const { currentUser: user } = useAuth(); // Get current user
   const { updateMultipleProductsStock } = useStock(); // Get stock context
   
@@ -920,7 +827,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       if (response.data.success) {
         const ordersData = response.data.data || [];
         
-        // Filter out any test/sample orders to prevent them from appearing
+        // Filter out any test/sample orders and remove duplicates
         const filteredOrders = ordersData.filter(order => {
           const orderNumber = order.order_number || '';
           const isTestOrder = orderNumber.toLowerCase().includes('test') || 
@@ -929,7 +836,13 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           return !isTestOrder;
         });
         
-        setOrders(filteredOrders);
+        // Remove duplicates based on order ID
+        const uniqueOrders = filteredOrders.filter((order, index, self) =>
+          index === self.findIndex(o => o.id === order.id)
+        );
+        
+        setOrders(uniqueOrders);
+        setLastRefresh(new Date());
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -938,6 +851,43 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       setLoading(false);
     }
   }, []);
+  
+  // Utility function for formatting currency
+  // Determine display status based on order status and cancellation request status
+  const getOrderDisplayStatus = (order) => {
+    // Check if there's a cancellation request for this order
+    if (order.cancellation_request_status) {
+      switch (order.cancellation_request_status) {
+        case 'approved':
+          return {
+            status: 'cancelled',
+            displayText: 'Cancelled'
+          };
+        case 'denied':
+          return {
+            status: 'denied', // Use special denied status for styling
+            displayText: 'Cancellation Request Denied'
+          };
+        case 'pending':
+          return {
+            status: order.status,
+            displayText: `${order.status} (Cancellation Pending)`
+          };
+        default:
+          return {
+            status: order.status,
+            displayText: order.status
+          };
+      }
+    }
+    
+    // No cancellation request, show normal status
+    return {
+      status: order.status,
+      displayText: order.status
+    };
+  };
+
 
   useEffect(() => {
     if (activeTab === 'orders' || activeTab === 'myorders') {
@@ -963,6 +913,24 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     }));
     setAvailableCities(philippineAddressData['Metro Manila'] || []);
   }, []);
+
+  // Auto-refresh orders every 30 seconds when on orders tab
+  useEffect(() => {
+    let interval;
+    
+    if (activeTab === 'orders' || activeTab === 'myorders') {
+      interval = setInterval(() => {
+        console.log('🔄 Auto-refreshing orders...');
+        fetchOrders();
+      }, 30000); // 30 seconds
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [activeTab, fetchOrders]);
 
   const handleQuantityChange = async (itemId, newQuantity) => {
     if (newQuantity < 1) {
@@ -1081,56 +1049,94 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const confirmOrder = async (orderId) => {
     try {
       setLoading(true);
+      console.log('🔄 Confirming order for admin verification:', orderId);
+      
       const response = await api.post(`/orders/${orderId}/confirm`);
       
       if (response.data.success) {
-        toast.success('Order confirmed successfully!');
+        if (response.data.awaitingVerification) {
+          toast.success('Order submitted for admin verification! Your stock has been reserved.');
+        } else {
+          toast.success('Order confirmed successfully! Stock has been updated.');
+        }
         
         // Update stock context with the affected products
         if (response.data.stockUpdateEvent && response.data.stockUpdateEvent.productIds) {
+          console.log('📦 Updating stock for products:', response.data.stockUpdateEvent.productIds);
           await updateMultipleProductsStock(response.data.stockUpdateEvent.productIds);
-          console.log('📦 Stock updated for products:', response.data.stockUpdateEvent.productIds);
         }
         
+        // Refresh orders to show updated status
         fetchOrders();
-      }    } catch (error) {
-      console.error('Error confirming order:', error);
-      toast.error('Failed to confirm order');
+        
+        console.log('✅ Order submitted for verification and stock reserved successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error confirming order:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error('Failed to confirm order. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Cancel order function
-  const cancelOrder = (orderId, orderNumber) => {
-    setCancelOrderData({ orderId, orderNumber });
-    setShowCancelModal(true);
-  };
+  // Cancel order - create cancellation request
+  const cancelOrder = async (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      toast.error('Order not found');
+      return;
+    }
 
-  // Close cancel modal function
-  const closeCancelModal = () => {
-    setShowCancelModal(false);
-    setCancelOrderData(null);
-    setCancelReason('');
-  };
+    // Ask for cancellation reason
+    const reason = prompt('Please provide a reason for cancelling this order (minimum 10 characters):');
+    if (!reason || reason.trim().length === 0) {
+      toast.info('Cancellation cancelled - reason is required');
+      return;
+    }
 
-  const confirmCancelOrder = async () => {
-    if (!cancelOrderData) return;
-    
+    if (reason.trim().length < 10) {
+      toast.error('Cancellation reason must be at least 10 characters long');
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await api.put(`/orders/${cancelOrderData.orderId}/cancel`, {
-        reason: cancelReason || 'Customer requested cancellation'
-      });
+      console.log('🔄 Creating cancellation request for order:', orderId);
+      console.log('Order details:', { id: orderId, order_number: order.order_number });
+      console.log('Reason:', reason.trim());
+      
+      const requestData = {
+        order_id: parseInt(orderId), // Ensure it's a number
+        order_number: order.order_number,
+        reason: reason.trim()
+      };
+      
+      console.log('Sending request data:', requestData);
+      
+      const response = await api.post('/orders/cancellation-requests', requestData);
       
       if (response.data.success) {
-        toast.success('Order cancelled successfully');
-        closeCancelModal();
-        fetchOrders(); // Refresh orders list
+        toast.success('Cancellation request submitted successfully! Admin will review your request.');
+        // Refresh orders to show updated status
+        fetchOrders();
+        console.log('✅ Cancellation request created successfully');
       }
     } catch (error) {
-      console.error('Error cancelling order:', error);
-      toast.error('Failed to cancel order');
+      console.error('❌ Error creating cancellation request:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else if (error.response?.status === 400) {
+        toast.error('Invalid request. Please check if this order can be cancelled.');
+      } else {
+        toast.error('Failed to submit cancellation request. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -1179,6 +1185,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     setSelectedOrder(null);
     setSelectedOrderItems([]);
   };
+  
   const handleRemoveItem = async (itemId, itemName) => {
     const confirmed = window.confirm(`Are you sure you want to remove "${itemName}" from your cart?`);
     if (confirmed) {
@@ -1524,11 +1531,59 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     }}>
       <SectionTitle style={{ 
         textAlign: 'center',
-        marginBottom: '32px'
+        marginBottom: '24px'
       }}>
         <FontAwesomeIcon icon={faClipboardList} />
         My Orders {user && <span style={{ fontSize: '0.8em', color: '#666', fontWeight: '400' }}>({user.username || user.email})</span>}
       </SectionTitle>
+      
+      {/* Refresh Button */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        alignItems: 'center',
+        marginBottom: '24px'
+      }}>
+        <button
+          onClick={() => {
+            console.log('🔄 Manually refreshing orders...');
+            fetchOrders();
+          }}
+          disabled={loading}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: loading ? '#f5f5f5' : '#000000',
+            color: loading ? '#999' : '#ffffff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            marginBottom: '8px'
+          }}
+        >
+          <FontAwesomeIcon 
+            icon={faSpinner} 
+            spin={loading} 
+            style={{ opacity: loading ? 1 : 0.8 }}
+          />
+          {loading ? 'Refreshing...' : 'Refresh Orders'}
+        </button>
+        
+        {lastRefresh && (
+          <div style={{
+            fontSize: '12px',
+            color: '#666',
+            textAlign: 'center'
+          }}>
+            Last updated: {lastRefresh.toLocaleTimeString()} on {lastRefresh.toLocaleDateString()}
+          </div>
+        )}
+      </div>
       {loading ? (
         <div style={{ 
           textAlign: 'center', 
@@ -1559,11 +1614,13 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
         </div>
       ) : (
         <OrderList>
-          {orders.map((order) => (
-            <OrderCard key={order.id}>
+          {orders.map((order) => {
+            const displayStatus = getOrderDisplayStatus(order);
+            return (
+            <OrderCard key={`order-${order.id}-${order.order_number}`}>
               <OrderHeader>
                 <OrderNumber>Order #{order.order_number}</OrderNumber>
-                <OrderStatus status={order.status}>{order.status}</OrderStatus>
+                <OrderStatus status={displayStatus.status}>{displayStatus.displayText}</OrderStatus>
               </OrderHeader>
               
               <OrderDetails>
@@ -1577,7 +1634,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                   <strong>Payment:</strong> {order.payment_method === 'gcash' ? 'GCash' : (order.payment_method || 'GCash')}
                 </OrderInfo>
                 <OrderInfo>
-                  <strong>Status:</strong> {order.transaction_status || 'Pending'}
+                  <strong>Status:</strong> {displayStatus.displayText}
                 </OrderInfo>
               </OrderDetails>
 
@@ -1587,7 +1644,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                   <OrderItemsHeader>Ordered Items ({order.items.length})</OrderItemsHeader>
                   <OrderItemsList>
                     {order.items.map((item, index) => (
-                      <OrderItem key={index}>                        <OrderItemImage 
+                      <OrderItem key={`${order.id}-item-${index}-${item.product_id || index}`}>                        <OrderItemImage 
                           src={item.productimage ? `http://localhost:5000/uploads/${item.productimage}` : 'http://localhost:5000/images/placeholder.svg'}
                           alt={item.productname || 'Product'}
                           onError={(e) => {
@@ -1597,9 +1654,9 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                         <OrderItemDetails>
                           <OrderItemName>{item.productname || 'Unknown Product'}</OrderItemName>
                           <OrderItemMeta>
-                            {item.productcolor && `Color: ${item.productcolor}`}
-                            {item.productcolor && item.product_type && ' • '}
-                            {item.product_type && `Type: ${item.product_type}`}
+                            {(item.color || item.productcolor) && `Color: ${item.color || item.productcolor}`}
+                            {(item.color || item.productcolor) && (item.size || item.product_type) && ' • '}
+                            {(item.size || item.product_type) && `${item.size ? 'Size' : 'Type'}: ${item.size || item.product_type}`}
                           </OrderItemMeta>
                           <OrderItemMeta>Qty: {item.quantity}</OrderItemMeta>
                         </OrderItemDetails>
@@ -1669,51 +1726,53 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
               )}
 
               <OrderActions>
-                {order.status === 'pending' && (
-                  <ActionButton 
-                    primary 
-                    onClick={() => confirmOrder(order.id)}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <FontAwesomeIcon icon={faSpinner} spin />
-                    ) : (
-                      <FontAwesomeIcon icon={faCheck} />
+                {(order.status === 'pending' || order.status === 'confirmed') && !order.cancellation_request_status && (
+                  <>
+                    {order.status === 'pending' && (
+                      <ActionButton 
+                        primary 
+                        onClick={() => confirmOrder(order.id)}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <FontAwesomeIcon icon={faSpinner} spin />
+                        ) : (
+                          <FontAwesomeIcon icon={faCheck} />
+                        )}
+                        Submit for Verification
+                      </ActionButton>
                     )}
-                    Confirm Order
-                  </ActionButton>
+                    
+                    <ActionButton 
+                      onClick={() => cancelOrder(order.id)}
+                      disabled={loading}
+                      style={{
+                        background: '#e74c3c',
+                        borderColor: '#e74c3c',
+                        color: '#ffffff'
+                      }}
+                    >
+                      {loading ? (
+                        <FontAwesomeIcon icon={faSpinner} spin />
+                      ) : (
+                        <FontAwesomeIcon icon={faTimes} />
+                      )}
+                      Cancel Order
+                    </ActionButton>
+                  </>
                 )}
-                  {/* Cancel button for cancellable orders */}
-                {order.cancellation_status === 'pending' ? (
+                
+                {order.cancellation_request_status === 'pending' && (
                   <div style={{
-                    padding: '10px 16px',
-                    background: 'linear-gradient(135deg, #ffc107 0%, #e0a800 100%)',
-                    color: '#000',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    border: '1px solid rgba(255, 193, 7, 0.3)'
+                    padding: '8px 12px',
+                    background: '#fff3cd',
+                    color: '#856404',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600'
                   }}>
-                    Cancellation Requested
+                    Cancellation Pending
                   </div>
-                ) : ['pending', 'confirmed', 'processing'].includes(order.status) && (
-                  <ActionButton 
-                    onClick={() => cancelOrder(order.id, order.order_number)}
-                    disabled={loading}
-                    style={{ 
-                      background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)', 
-                      color: 'white',
-                      border: '1px solid transparent'
-                    }}
-                  >
-                    {loading ? (
-                      <FontAwesomeIcon icon={faSpinner} spin />
-                    ) : (
-                      <FontAwesomeIcon icon={faTimes} />
-                    )}
-                    Cancel Order
-                  </ActionButton>
                 )}
                 
                 {/* Show View Invoice only for confirmed and later status orders */}
@@ -1728,10 +1787,14 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                 )}
               </OrderActions>
             </OrderCard>
-          ))}        </OrderList>
+            );
+          })}
+        </OrderList>
       )}
     </div>
   );
+  
+
 
   // Payment proof handling functions
   const handlePaymentProofUpload = (event) => {
@@ -1768,23 +1831,13 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     }
   };
 
-  const generatePaymentHash = (orderData, file) => {
-    // Create a unique hash using order details and file info
-    const hashInput = `${orderData.customer_email}_${orderData.total_amount}_${file.name}_${file.size}_${file.lastModified}`;
-    return crypto.SHA256(hashInput).toString();
-  };
-
   const verifyPaymentProof = async (orderData, proofFile) => {
     try {
       setIsVerifyingPayment(true);
       
-      // Generate verification hash
-      const verificationHash = generatePaymentHash(orderData, proofFile);
-      
       // Create FormData for file upload
       const formData = new FormData();
       formData.append('payment_proof', proofFile);
-      formData.append('verification_hash', verificationHash);
       formData.append('payment_reference', checkoutForm.payment_reference);
       formData.append('order_total', cartTotal.toFixed(2));
       
@@ -1796,8 +1849,8 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       });
       
       if (response.data.success) {
-        toast.success('Payment proof verified successfully!');
-        return { verified: true, verificationHash };
+        // Don't show toast here - let the order creation show the final success message
+        return { verified: true, verificationHash: response.data.verification_hash };
       } else {
         toast.error('Payment verification failed');
         return { verified: false, error: response.data.message };
@@ -1850,48 +1903,6 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           orderItems={selectedOrderItems}
           onDownloadPDF={downloadInvoice}
         />
-        
-        {/* Cancel Order Modal */}
-        {showCancelModal && (
-          <ModalOverlay onClick={closeCancelModal}>
-            <Modal onClick={(e) => e.stopPropagation()}>
-              <ModalHeader>
-                <h2>Cancel Order</h2>
-                <CloseButton onClick={closeCancelModal}>
-                  <FontAwesomeIcon icon={faTimes} />
-                </CloseButton>
-              </ModalHeader>
-              <ModalContent>
-                <p><strong>Order Number:</strong> {cancelOrderData?.orderNumber}</p>
-                <p>Are you sure you want to cancel this order? Please provide a reason:</p>
-                
-                <CancelReasonTextarea
-                  placeholder="Please explain why you want to cancel this order..."
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  rows="4"
-                />
-                
-                <ModalActions>
-                  <ActionButton onClick={closeCancelModal}>
-                    Cancel
-                  </ActionButton>
-                  <ActionButton 
-                    primary 
-                    onClick={confirmCancelOrder}
-                    disabled={!cancelReason.trim() || loading}
-                  >
-                    {loading ? (
-                      <FontAwesomeIcon icon={faSpinner} spin />
-                    ) : (
-                      <FontAwesomeIcon icon={faCheck} />
-                    )}
-                    Submit Cancellation Request
-                  </ActionButton>
-                </ModalActions>
-              </ModalContent>
-            </Modal>
-          </ModalOverlay>        )}
       </ContentWrapper>
     </PageContainer>
   );
