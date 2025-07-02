@@ -120,7 +120,11 @@ exports.createOrderFromCart = async (req, res) => {
             contact_phone, 
             notes,
             customer_name,
-            customer_email 
+            customer_email,
+            street_address,
+            city_municipality,
+            province,
+            zip_code
         } = req.body;
         
         if (!shipping_address || !contact_phone) {
@@ -201,7 +205,7 @@ exports.createOrderFromCart = async (req, res) => {
             await connection.execute(`
                 INSERT INTO sales_transactions (
                     transaction_id, invoice_id, user_id, amount, payment_method
-                ) VALUES (?, ?, ?, ?, 'cash_on_delivery')
+                ) VALUES (?, ?, ?, ?, 'gcash')
             `, [transactionId, invoiceId, req.user.id, totalAmount]);
             
             console.log('Transaction created with user_id:', req.user.id);
@@ -209,11 +213,13 @@ exports.createOrderFromCart = async (req, res) => {
             await connection.execute(`
                 INSERT INTO orders (
                     order_number, user_id, invoice_id, transaction_id, 
-                    total_amount, shipping_address, contact_phone, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    total_amount, shipping_address, contact_phone, notes,
+                    street_address, city_municipality, province, zip_code
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
                 orderNumber, req.user.id, invoiceId, transactionId,
-                totalAmount, shipping_address, contact_phone, notes
+                totalAmount, shipping_address, contact_phone, notes,
+                street_address, city_municipality, province, zip_code
             ]);
             
             // Get the created order ID
@@ -606,37 +612,58 @@ exports.confirmOrder = async (req, res) => {
 exports.generateInvoicePDF = async (req, res) => {
     try {
         const { invoiceId } = req.params;
+        console.log('📄 Generating PDF for invoice:', invoiceId);
+        console.log('🔍 User ID:', req.user.id);
         
         const connection = await mysql.createConnection(dbConfig);
         
-        // Get invoice details
-        const [invoices] = await connection.execute(`
-            SELECT oi.*, o.order_number, o.order_date, st.transaction_id, st.transaction_status
-            FROM order_invoices oi
-            JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
-            JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            WHERE oi.invoice_id = ? AND oi.user_id = ?
+        // Get order details with invoice ID
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                u.first_name,
+                u.last_name,
+                u.email,
+                st.transaction_status,
+                st.payment_method
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            WHERE o.invoice_id = ? AND o.user_id = ?
         `, [invoiceId, req.user.id]);
         
-        if (invoices.length === 0) {
+        if (orders.length === 0) {
             await connection.end();
+            console.log('❌ Invoice not found for user');
             return res.status(404).json({ 
                 success: false, 
-                message: 'Invoice not found' 
+                message: 'Invoice not found or access denied' 
             });
         }
         
-        const invoice = invoices[0];
+        const order = orders[0];
+        console.log('✅ Order found:', order.order_number);
         
         // Get order items
         const [items] = await connection.execute(`
-            SELECT * FROM order_items WHERE invoice_id = ?
-        `, [invoiceId]);
+            SELECT 
+                oi.*,
+                p.productname,
+                p.productcolor,
+                p.product_type
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.sort_order
+        `, [order.id]);
+        
+        console.log(`📦 Found ${items.length} items for invoice`);
         
         await connection.end();
         
         // Create PDF
-        const doc = new PDFDocument();
+        const PDFDocument = require('pdfkit');
+        const doc = new PDFDocument({ margin: 50 });
         
         // Set response headers
         res.setHeader('Content-Type', 'application/pdf');
@@ -645,166 +672,310 @@ exports.generateInvoicePDF = async (req, res) => {
         // Pipe PDF to response
         doc.pipe(res);
         
-        // Add content to PDF
-        doc.fontSize(20).text('SEVEN FOUR CLOTHING', { align: 'center' });
-        doc.fontSize(16).text('INVOICE', { align: 'center' });
-        doc.moveDown();
+        // Header
+        doc.fillColor('#000000')
+           .fontSize(24)
+           .text('SEVEN FOUR CLOTHING', 50, 50, { align: 'center' })
+           .fontSize(16)
+           .text('OFFICIAL INVOICE', 50, 80, { align: 'center' });
         
-        // Invoice details
-        doc.fontSize(12);
-        doc.text(`Invoice ID: ${invoice.invoice_id}`);
-        doc.text(`Order Number: ${invoice.order_number}`);
-        doc.text(`Date: ${new Date(invoice.date).toLocaleDateString()}`);
-        doc.text(`Transaction ID: ${invoice.transaction_id}`);
-        doc.text(`Status: ${invoice.transaction_status.toUpperCase()}`);
-        doc.moveDown();
+        // Draw line
+        doc.moveTo(50, 110).lineTo(550, 110).stroke();
+        
+        // Invoice info
+        doc.fontSize(12)
+           .text(`Invoice ID: ${invoiceId}`, 50, 130)
+           .text(`Order Number: ${order.order_number}`, 50, 150)
+           .text(`Date: ${new Date(order.order_date || order.created_at).toLocaleDateString()}`, 50, 170)
+           .text(`Status: ${order.transaction_status || order.status}`.toUpperCase(), 50, 190);
         
         // Customer details
-        doc.text('BILL TO:');
-        doc.text(`${invoice.customer_name}`);
-        doc.text(`${invoice.customer_email}`);
-        doc.text(`${invoice.customer_phone}`);
-        doc.text(`${invoice.delivery_address}`);
-        doc.moveDown();
+        doc.fontSize(14)
+           .text('BILL TO:', 50, 230)
+           .fontSize(12)
+           .text(`${order.first_name || 'Customer'} ${order.last_name || ''}`, 50, 250)
+           .text(`${order.email}`, 50, 270)
+           .text(`${order.contact_phone || 'Phone not provided'}`, 50, 290);
         
-        // Items table header
-        doc.text('ITEMS:', { underline: true });
-        doc.moveDown(0.5);
+        // Shipping address
+        if (order.shipping_address) {
+            doc.fontSize(14)
+               .text('SHIP TO:', 50, 320)
+               .fontSize(12)
+               .text(order.shipping_address, 50, 340, { width: 400 });
+        }
         
-        let yPosition = doc.y;
+        // Items header
+        let yPosition = order.shipping_address ? 390 : 340;
+        doc.fontSize(14)
+           .text('ITEMS ORDERED:', 50, yPosition);
         
-        // Items
+        yPosition += 30;
+        
+        // Items table
+        doc.fontSize(10)
+           .text('Item', 50, yPosition)
+           .text('Size', 200, yPosition)
+           .text('Color', 250, yPosition)
+           .text('Qty', 350, yPosition)
+           .text('Price', 400, yPosition)
+           .text('Total', 480, yPosition);
+        
+        // Draw line under header
+        yPosition += 15;
+        doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke();
+        yPosition += 10;
+        
+        // List items
+        let subtotal = 0;
         items.forEach((item, index) => {
-            doc.text(`${index + 1}. ${item.product_name}`);
-            doc.text(`   Color: ${item.color} | Size: ${item.size}`);
-            doc.text(`   Qty: ${item.quantity} x ₱${item.product_price} = ₱${item.subtotal}`);
-            doc.moveDown(0.5);
+            const itemTotal = (item.product_price || 0) * (item.quantity || 0);
+            subtotal += itemTotal;
+            
+            doc.fontSize(10)
+               .text(item.product_name || item.productname || 'Product', 50, yPosition, { width: 140 })
+               .text(item.size || 'N/A', 200, yPosition)
+               .text(item.color || item.productcolor || 'N/A', 250, yPosition, { width: 90 })
+               .text(item.quantity?.toString() || '1', 350, yPosition)
+               .text(`₱${(item.product_price || 0).toFixed(2)}`, 400, yPosition)
+               .text(`₱${itemTotal.toFixed(2)}`, 480, yPosition);
+            
+            yPosition += 20;
         });
         
-        // Total
-        doc.moveDown();
-        doc.fontSize(14).text(`TOTAL AMOUNT: ₱${invoice.total_amount}`, { align: 'right' });
-        doc.moveDown();
+        // Draw line before total
+        yPosition += 10;
+        doc.moveTo(350, yPosition).lineTo(550, yPosition).stroke();
+        yPosition += 15;
         
-        // Payment method
-        doc.fontSize(12).text('Payment Method: Cash on Delivery');
-        doc.text('Thank you for your business!');
+        // Total
+        doc.fontSize(14)
+           .text(`TOTAL AMOUNT: ₱${(order.total_amount || subtotal).toFixed(2)}`, 350, yPosition, { align: 'right' });
+        
+        yPosition += 40;
+        
+        // Payment info
+        doc.fontSize(12)
+           .text('Payment Method:', 50, yPosition)
+           .text(order.payment_method || 'Cash on Delivery', 150, yPosition);
+        
+        yPosition += 20;
+        doc.text('Payment Status:', 50, yPosition)
+           .text((order.transaction_status || order.status).toUpperCase(), 150, yPosition);
+        
+        // Footer
+        yPosition += 60;
+        doc.fontSize(10)
+           .fillColor('#666666')
+           .text('Thank you for your business with Seven Four Clothing!', 50, yPosition, { align: 'center' })
+           .text('For questions about this invoice, please contact us.', 50, yPosition + 15, { align: 'center' });
         
         // Finalize PDF
         doc.end();
         
+        console.log('✅ PDF generated successfully');
+        
     } catch (error) {
-        console.error('Error generating PDF:', error);
+        console.error('❌ Error generating PDF:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to generate invoice PDF' 
+            message: 'Failed to generate invoice PDF',
+            error: error.message
         });
     }
 };
 
-// Request order cancellation (customer creates cancellation request)
-exports.cancelOrder = async (req, res) => {
+// Generate invoice PDF for admin access (no user restriction)
+exports.generateAdminInvoicePDF = async (req, res) => {
     try {
-        const orderId = req.params.id;
-        const { reason } = req.body;
-        
-        console.log('=== CREATE CANCELLATION REQUEST ===');
-        console.log('Order ID:', orderId);
-        console.log('User ID:', req.user.id);
-        console.log('Cancellation reason:', reason);
-        
-        if (!reason || !reason.trim()) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Cancellation reason is required' 
-            });
-        }
+        const { invoiceId } = req.params;
+        console.log('📄 Admin generating PDF for invoice:', invoiceId);
+        console.log('🔍 Admin User ID:', req.user.id);
         
         const connection = await mysql.createConnection(dbConfig);
         
-        try {
-            // First verify the order belongs to the user and can be cancelled
-            const [orderCheck] = await connection.execute(`
-                SELECT user_id, status, total_amount, order_number 
-                FROM orders 
-                WHERE id = ?
-            `, [orderId]);
+        // Get order details with invoice ID (admin can access any order)
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                u.first_name,
+                u.last_name,
+                u.email,
+                st.transaction_status,
+                st.payment_method
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            WHERE o.invoice_id = ? OR o.order_number = ?
+        `, [invoiceId, invoiceId]);
+        
+        if (orders.length === 0) {
+            // Try to find by order ID if invoice_id doesn't work
+            const [ordersByOrderId] = await connection.execute(`
+                SELECT 
+                    o.*,
+                    u.first_name,
+                    u.last_name,
+                    u.email,
+                    st.transaction_status,
+                    st.payment_method
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.user_id
+                LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+                WHERE o.id = ?
+            `, [invoiceId]);
             
-            if (orderCheck.length === 0) {
+            if (ordersByOrderId.length === 0) {
                 await connection.end();
+                console.log('❌ Invoice not found');
                 return res.status(404).json({ 
                     success: false, 
-                    message: 'Order not found' 
+                    message: 'Invoice not found' 
                 });
             }
-            
-            const order = orderCheck[0];
-            
-            // Only allow users to cancel their own orders
-            if (order.user_id !== req.user.id) {
-                await connection.end();
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Access denied - Order does not belong to this user' 
-                });
-            }
-            
-            // Check if order can be cancelled
-            const cancellableStatuses = ['pending', 'confirmed', 'processing'];
-            if (!cancellableStatuses.includes(order.status)) {
-                await connection.end();
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Cannot cancel order with status: ${order.status}` 
-                });
-            }
-            
-            // Check if there's already a pending cancellation request
-            const [existingRequest] = await connection.execute(`
-                SELECT id, status FROM cancellation_requests 
-                WHERE order_id = ? AND status = 'pending'
-            `, [orderId]);
-            
-            if (existingRequest.length > 0) {
-                await connection.end();
-                return res.status(400).json({ 
-                    success: false, 
-                    message: 'A cancellation request for this order is already pending' 
-                });
-            }
-            
-            // Create cancellation request
-            await connection.execute(`
-                INSERT INTO cancellation_requests (
-                    order_id, user_id, order_number, reason, status
-                ) VALUES (?, ?, ?, ?, 'pending')
-            `, [orderId, req.user.id, order.order_number, reason.trim()]);
-            
-            await connection.end();
-            
-            console.log(`Cancellation request created for order ${orderId} by user ${req.user.id}`);
-            
-            res.json({
-                success: true,
-                message: 'Cancellation request submitted successfully. An admin will review your request.',
-                data: {
-                    orderId,
-                    orderNumber: order.order_number,
-                    reason: reason.trim(),
-                    status: 'pending'
-                }
-            });
-            
-        } catch (error) {
-            await connection.end();
-            throw error;
+            orders.push(...ordersByOrderId);
         }
         
+        const order = orders[0];
+        console.log('✅ Order found:', order.order_number);
+        
+        // Get order items
+        const [items] = await connection.execute(`
+            SELECT 
+                oi.*,
+                p.productname,
+                p.productcolor,
+                p.product_type
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.sort_order
+        `, [order.id]);
+        
+        console.log(`📦 Found ${items.length} items for invoice`);
+        
+        await connection.end();
+        
+        // Create PDF (same as customer version but without user restriction)
+        const PDFDocument = require('pdfkit');
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Set response headers
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=invoice-${order.order_number || invoiceId}.pdf`);
+        
+        // Pipe PDF to response
+        doc.pipe(res);
+        
+        // Header
+        doc.fillColor('#000000')
+           .fontSize(24)
+           .text('SEVEN FOUR CLOTHING', 50, 50, { align: 'center' })
+           .fontSize(16)
+           .text('OFFICIAL INVOICE', 50, 80, { align: 'center' });
+        
+        // Draw line
+        doc.moveTo(50, 110).lineTo(550, 110).stroke();
+        
+        // Invoice info
+        doc.fontSize(12)
+           .text(`Invoice ID: ${order.invoice_id || order.order_number}`, 50, 130)
+           .text(`Order Number: ${order.order_number}`, 50, 150)
+           .text(`Date: ${new Date(order.order_date || order.created_at).toLocaleDateString()}`, 50, 170)
+           .text(`Status: ${order.transaction_status || order.status}`.toUpperCase(), 50, 190);
+        
+        // Customer details
+        doc.fontSize(14)
+           .text('BILL TO:', 50, 230)
+           .fontSize(12)
+           .text(`${order.first_name || 'Customer'} ${order.last_name || ''}`, 50, 250)
+           .text(`${order.email}`, 50, 270)
+           .text(`${order.contact_phone || 'Phone not provided'}`, 50, 290);
+        
+        // Shipping address
+        if (order.shipping_address) {
+            doc.fontSize(14)
+               .text('SHIP TO:', 50, 320)
+               .fontSize(12)
+               .text(order.shipping_address, 50, 340, { width: 400 });
+        }
+        
+        // Items header
+        let yPosition = order.shipping_address ? 390 : 340;
+        doc.fontSize(14)
+           .text('ITEMS ORDERED:', 50, yPosition);
+        
+        yPosition += 30;
+        
+        // Items table
+        doc.fontSize(10)
+           .text('Item', 50, yPosition)
+           .text('Size', 200, yPosition)
+           .text('Color', 250, yPosition)
+           .text('Qty', 350, yPosition)
+           .text('Price', 400, yPosition)
+           .text('Total', 480, yPosition);
+        
+        // Draw line under header
+        yPosition += 15;
+        doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke();
+        yPosition += 10;
+        
+        // List items
+        let subtotal = 0;
+        items.forEach((item, index) => {
+            const itemTotal = (item.product_price || 0) * (item.quantity || 0);
+            subtotal += itemTotal;
+            
+            doc.fontSize(10)
+               .text(item.product_name || item.productname || 'Product', 50, yPosition, { width: 140 })
+               .text(item.size || 'N/A', 200, yPosition)
+               .text(item.color || item.productcolor || 'N/A', 250, yPosition, { width: 90 })
+               .text(item.quantity?.toString() || '1', 350, yPosition)
+               .text(`₱${(item.product_price || 0).toFixed(2)}`, 400, yPosition)
+               .text(`₱${itemTotal.toFixed(2)}`, 480, yPosition);
+            
+            yPosition += 20;
+        });
+        
+        // Draw line before total
+        yPosition += 10;
+        doc.moveTo(350, yPosition).lineTo(550, yPosition).stroke();
+        yPosition += 15;
+        
+        // Total
+        doc.fontSize(14)
+           .text(`TOTAL AMOUNT: ₱${(order.total_amount || subtotal).toFixed(2)}`, 350, yPosition, { align: 'right' });
+        
+        yPosition += 40;
+        
+        // Payment info
+        doc.fontSize(12)
+           .text('Payment Method:', 50, yPosition)
+           .text(order.payment_method || 'Cash on Delivery', 150, yPosition);
+        
+        yPosition += 20;
+        doc.text('Payment Status:', 50, yPosition)
+           .text((order.transaction_status || order.status).toUpperCase(), 150, yPosition);
+        
+        // Footer
+        yPosition += 60;
+        doc.fontSize(10)
+           .fillColor('#666666')
+           .text('Thank you for your business with Seven Four Clothing!', 50, yPosition, { align: 'center' })
+           .text('For questions about this invoice, please contact us.', 50, yPosition + 15, { align: 'center' });
+        
+        // Finalize PDF
+        doc.end();
+        
+        console.log('✅ Admin PDF generated successfully');
+        
     } catch (error) {
-        console.error('Error creating cancellation request:', error);
+        console.error('❌ Error generating admin PDF:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to submit cancellation request' 
+            message: 'Failed to generate invoice PDF',
+            error: error.message
         });
     }
 };
@@ -1117,7 +1288,7 @@ exports.processOrderCancellation = async (req, res) => {
                 const [variantResult] = await connection.execute(`
                     UPDATE product_variants 
                     SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        available_quantity = stock_quantity - GREATEST(0, reserved_quantity - ?),
+                        available_quantity = available_quantity + ?,
                         last_updated = CURRENT_TIMESTAMP
                     WHERE product_id = ? AND size = ? AND color = ?
                 `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
@@ -1252,6 +1423,258 @@ exports.processOrderCancellation = async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: 'Failed to process order cancellation' 
+        });
+    }
+};
+
+// ===========================================
+// REFUND REQUEST FUNCTIONS
+// ===========================================
+
+// Get all refund requests (Admin/Staff only)
+exports.getRefundRequests = async (req, res) => {
+    try {
+        console.log('=== GET REFUND REQUESTS ===');
+        
+        // Check if user is admin/staff
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [refundRequests] = await connection.execute(`
+            SELECT 
+                rr.*,
+                o.order_number,
+                o.status as order_status,
+                u.first_name,
+                u.last_name,
+                u.email as customer_email,
+                admin_user.first_name as processed_by_name,
+                admin_user.last_name as processed_by_lastname
+            FROM refund_requests rr
+            LEFT JOIN orders o ON rr.order_id = o.id
+            LEFT JOIN users u ON rr.user_id = u.user_id
+            LEFT JOIN users admin_user ON rr.processed_by = admin_user.user_id
+            ORDER BY rr.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        console.log(`Found ${refundRequests.length} refund requests`);
+        
+        res.json({
+            success: true,
+            data: refundRequests,
+            count: refundRequests.length
+        });
+        
+    } catch (error) {
+        console.error('Error fetching refund requests:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch refund requests',
+            error: error.message
+        });
+    }
+};
+
+// Create a refund request
+exports.createRefundRequest = async (req, res) => {
+    try {
+        console.log('=== CREATE REFUND REQUEST ===');
+        console.log('Request body:', req.body);
+        
+        const {
+            order_id,
+            order_number,
+            amount,
+            reason,
+            bank_account_number,
+            bank_name,
+            account_holder_name,
+            refund_method = 'bank_transfer'
+        } = req.body;
+        
+        // Validate required fields
+        if (!order_id || !order_number || !amount || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: order_id, order_number, amount, reason'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Check if order exists and belongs to user
+        const [orders] = await connection.execute(`
+            SELECT id, user_id, status, total_amount
+            FROM orders 
+            WHERE id = ? AND order_number = ?
+        `, [order_id, order_number]);
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        const order = orders[0];
+        
+        // Check if order belongs to user (unless admin)
+        if (req.user.role !== 'admin' && order.user_id !== req.user.user_id) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. You can only request refunds for your own orders.'
+            });
+        }
+        
+        // Check if refund request already exists for this order
+        const [existingRequests] = await connection.execute(`
+            SELECT id FROM refund_requests WHERE order_id = ?
+        `, [order_id]);
+        
+        if (existingRequests.length > 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'A refund request already exists for this order'
+            });
+        }
+        
+        // Create refund request
+        const [result] = await connection.execute(`
+            INSERT INTO refund_requests (
+                order_id, order_number, user_id, customer_name, customer_email,
+                amount, reason, bank_account_number, bank_name, account_holder_name,
+                refund_method, status, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW())
+        `, [
+            order_id,
+            order_number,
+            req.user.user_id,
+            `${req.user.first_name} ${req.user.last_name}`,
+            req.user.email,
+            amount,
+            reason,
+            bank_account_number || null,
+            bank_name || null,
+            account_holder_name || null,
+            refund_method
+        ]);
+        
+        await connection.end();
+        
+        console.log(`✅ Refund request created with ID ${result.insertId}`);
+        
+        res.json({
+            success: true,
+            message: 'Refund request submitted successfully',
+            data: {
+                refund_request_id: result.insertId,
+                order_number,
+                amount,
+                status: 'pending'
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error creating refund request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create refund request',
+            error: error.message
+        });
+    }
+};
+
+// Process refund request (Admin/Staff only)
+exports.processRefundRequest = async (req, res) => {
+    try {
+        console.log('=== PROCESS REFUND REQUEST ===');
+        
+        const requestId = req.params.id;
+        const { status, admin_notes, refund_reference } = req.body;
+        
+        // Check if user is admin/staff
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
+        // Validate status
+        if (!['approved', 'rejected', 'processed'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status. Must be approved, rejected, or processed.'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Check if refund request exists
+        const [requests] = await connection.execute(`
+            SELECT * FROM refund_requests WHERE id = ?
+        `, [requestId]);
+        
+        if (requests.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Refund request not found'
+            });
+        }
+        
+        const request = requests[0];
+        
+        // Update refund request
+        const updateData = [status, admin_notes || null, req.user.user_id, requestId];
+        let updateQuery = `
+            UPDATE refund_requests 
+            SET status = ?, admin_notes = ?, processed_by = ?, processed_at = NOW(), updated_at = NOW()
+        `;
+        
+        // Add refund reference if provided and status is processed
+        if (status === 'processed' && refund_reference) {
+            updateQuery += `, refund_reference = ?, refund_date = NOW()`;
+            updateData.splice(-1, 0, refund_reference);
+        }
+        
+        updateQuery += ` WHERE id = ?`;
+        
+        await connection.execute(updateQuery, updateData);
+        
+        await connection.end();
+        
+        console.log(`✅ Refund request ${requestId} ${status} by admin ${req.user.email}`);
+        
+        res.json({
+            success: true,
+            message: `Refund request ${status} successfully`,
+            data: {
+                refund_request_id: requestId,
+                order_number: request.order_number,
+                status,
+                processed_by: req.user.email,
+                processed_at: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error processing refund request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process refund request',
+            error: error.message
         });
     }
 };
@@ -1555,7 +1978,7 @@ exports.getOrderItems = async (req, res) => {
                 });
             }
         }
-          // Get order items with product details using invoice_id
+          // Get order items with product details using order_id
         const [orderItems] = await connection.execute(`
             SELECT 
                 oi.*,
@@ -1569,7 +1992,7 @@ exports.getOrderItems = async (req, res) => {
                 oi.subtotal as total_price
             FROM order_items oi
             LEFT JOIN products p ON oi.product_id = p.product_id
-            WHERE oi.invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
+            WHERE oi.order_id = ?
             ORDER BY oi.sort_order, oi.id
         `, [orderId]);
         
@@ -1951,6 +2374,7 @@ exports.processCancellationRequest = async (req, res) => {
             // Get the cancellation request
             const [requestResult] = await connection.execute(`
                 SELECT cr.*, o.status as order_status
+
                 FROM cancellation_requests cr
                 JOIN orders o ON cr.order_id = o.id
                 WHERE cr.id = ? AND cr.status = 'pending'
@@ -2099,8 +2523,8 @@ exports.processCancellationRequest = async (req, res) => {
                             item.product_id, 
                             item.quantity, 
                             item.size || 'N/A', 
-                            request.order_id, 
-                            req.user?.user_id || null,
+                            orderId, 
+                            req.user?.id || null,
                             `Order cancelled - restored ${item.quantity} units to ${item.productname} ${item.size || 'N/A'}/${item.color || 'Default'}`
                         ]);
                     }
