@@ -25,11 +25,18 @@ const PageContainer = styled.div`
 `;
 
 const ContentWrapper = styled.div`
-  max-width: 1600px;
+  max-width: 1700px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   
   @media (max-width: 768px) {
+    padding: 0 20px;
+  }
+  
+  @media (max-width: 480px) {
     padding: 0 16px;
   }
 `;
@@ -63,40 +70,46 @@ const Subtitle = styled.p`
 const StatsContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1px;
-  margin-bottom: 40px;
+  gap: 2px;
+  margin: 40px auto;
   background: #f5f5f5;
-  border-radius: 2px;
+  border-radius: 16px;
   overflow: hidden;
+  max-width: 1200px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 `;
 
 const StatCard = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'color',
 })`
   background: #ffffff;
-  padding: 32px 24px;
+  padding: 40px 32px;
   text-align: center;
   transition: all 0.3s ease;
+  border-radius: 12px;
   
   &:hover {
     background: #fafafa;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
   
   h3 {
-    font-size: 32px;
-    font-weight: 200;
-    margin: 0 0 8px 0;
+    font-size: 36px;
+    font-weight: 300;
+    margin: 0 0 12px 0;
     color: ${props => props.color || '#000000'};
     line-height: 1;
+    letter-spacing: -1px;
   }
   
   p {
-    color: #999999;
+    color: #666666;
     margin: 0;
-    font-size: 12px;
+    font-size: 13px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    font-weight: 500;
+    letter-spacing: 1.2px;
+    font-weight: 600;
   }
 `;
 
@@ -200,44 +213,75 @@ const RefreshButton = styled.button`
 
 const TransactionsTable = styled.div`
   background: #ffffff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 16px;
   overflow: hidden;
   width: 100%;
+  max-width: 1500px;
   margin: 0 auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   
-  /* Ensure content is properly aligned */
+  /* Center the table content and improve layout */
   display: flex;
   flex-direction: column;
+  align-items: center;
 `;
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 35px 75px 90px 110px 140px 80px 65px 60px 60px 85px 100px 80px 95px 130px;
-  gap: 12px;
-  padding: 20px 20px;
-  background: #fafafa;
-  border-bottom: 1px solid #e0e0e0;
-  font-weight: 600;
-  font-size: 12px;
-  color: #555555;
+  grid-template-columns: 50px 150px 110px 200px 180px 120px 100px 120px 120px 120px 120px;
+  gap: 20px;
+  padding: 28px 40px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 700;
+  font-size: 14px;
+  color: #495057;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  justify-content: center;
+  letter-spacing: 1.2px;
+  width: 100%;
+  justify-items: start;
+  align-items: center;
+  
+  /* Center specific columns that should be centered */
+  > div:nth-child(1),  /* Expand button */
+  > div:nth-child(6),  /* Amount */
+  > div:nth-child(7),  /* Payment */
+  > div:nth-child(8),  /* Status */
+  > div:nth-child(9),  /* Delivery */
+  > div:nth-child(10), /* Created */
+  > div:nth-child(11) { /* Actions */
+    justify-self: center;
+    text-align: center;
+  }
+  
+  /* Left align text-heavy columns */
+  > div:nth-child(2),  /* Order # */
+  > div:nth-child(3),  /* Date */
+  > div:nth-child(4),  /* Customer */
+  > div:nth-child(5) { /* Products */
+    justify-self: start;
+    text-align: left;
+  }
+  
+  @media (max-width: 1600px) {
+    grid-template-columns: 45px 140px 105px 190px 170px 110px 95px 110px 110px 110px 110px;
+    gap: 18px;
+    font-size: 13px;
+    padding: 26px 36px;
+  }
   
   @media (max-width: 1400px) {
-    grid-template-columns: 30px 70px 85px 100px 130px 75px 60px 55px 55px 80px 90px 75px 85px 115px;
-    gap: 10px;
-    font-size: 11px;
-    padding: 18px 16px;
+    grid-template-columns: 40px 130px 100px 180px 160px 100px 90px 100px 100px 100px 100px;
+    gap: 16px;
+    padding: 24px 32px;
+    font-size: 12px;
   }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 28px 65px 80px 95px 120px 70px 55px 50px 50px 75px 85px 70px 80px 100px;
-    gap: 8px;
-    padding: 16px 12px;
-    font-size: 10px;
+    grid-template-columns: 38px 120px 95px 170px 150px 95px 85px 95px 95px 95px 95px;
+    gap: 14px;
+    padding: 22px 28px;
+    font-size: 11px;
   }
   
   @media (max-width: 768px) {
@@ -247,89 +291,177 @@ const TableHeader = styled.div`
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 35px 75px 90px 110px 140px 80px 65px 60px 60px 85px 100px 80px 95px 130px;
-  gap: 12px;
-  padding: 20px 20px;
+  grid-template-columns: 50px 150px 110px 200px 180px 120px 100px 120px 120px 120px 120px;
+  gap: 20px;
+  padding: 32px 40px;
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
-  transition: all 0.2s ease;
-  min-height: 70px;
-  justify-content: center;
+  transition: all 0.3s ease;
+  min-height: 85px;
+  width: 100%;
+  
+  /* Match header alignment */
+  /* Center specific columns that should be centered */
+  > div:nth-child(1),  /* Expand button */
+  > div:nth-child(6),  /* Amount */
+  > div:nth-child(7),  /* Payment */
+  > div:nth-child(8),  /* Status */
+  > div:nth-child(9),  /* Delivery */
+  > div:nth-child(10), /* Created */
+  > div:nth-child(11) { /* Actions */
+    justify-self: center;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Left align text-heavy columns */
+  > div:nth-child(2),  /* Order # */
+  > div:nth-child(3),  /* Date */
+  > div:nth-child(5) { /* Products */
+    justify-self: start;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  
+  /* Customer column - special handling for CustomerInfo */
+  > div:nth-child(4) { /* Customer */
+    justify-self: start;
+    text-align: left;
+  }
   
   &:hover {
-    background: #fafafa;
+    background: linear-gradient(135deg, #f8f9fa 0%, #f0f0f0 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
   
   &:last-child {
     border-bottom: none;
   }
   
+  @media (max-width: 1600px) {
+    grid-template-columns: 45px 140px 105px 190px 170px 110px 95px 110px 110px 110px 110px;
+    gap: 18px;
+    padding: 30px 36px;
+    min-height: 80px;
+  }
+  
   @media (max-width: 1400px) {
-    grid-template-columns: 30px 70px 85px 100px 130px 75px 60px 55px 55px 80px 90px 75px 85px 115px;
-    gap: 10px;
-    padding: 18px 16px;
-    min-height: 65px;
+    grid-template-columns: 40px 130px 100px 180px 160px 100px 90px 100px 100px 100px 100px;
+    gap: 16px;
+    padding: 28px 32px;
+    min-height: 75px;
   }
   
   @media (max-width: 1200px) {
-    grid-template-columns: 28px 65px 80px 95px 120px 70px 55px 50px 50px 75px 85px 70px 80px 100px;
-    gap: 8px;
-    padding: 16px 12px;
-    min-height: 60px;
+    grid-template-columns: 38px 120px 95px 170px 150px 95px 85px 95px 95px 95px 95px;
+    gap: 14px;
+    padding: 26px 28px;
+    min-height: 70px;
   }
   
   @media (max-width: 768px) {
     /* Mobile card layout - will be handled separately */
     display: block;
-    padding: 20px;
-    margin-bottom: 12px;
+    padding: 28px;
+    margin-bottom: 20px;
     border: 1px solid #e0e0e0;
-    border-radius: 8px;
+    border-radius: 16px;
     background: #ffffff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    transform: none;
+    
+    &:hover {
+      transform: none;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.15);
+    }
   }
 `;
 
 const OrderNumber = styled.div`
   font-weight: 600;
   color: #000000;
-  font-size: 14px;
+  font-size: 15px;
   font-family: 'Monaco', 'Menlo', monospace;
   letter-spacing: 0.5px;
   line-height: 1.4;
   word-break: break-all;
+  padding: 4px 0;
   
   @media (max-width: 768px) {
-    font-size: 12px;
+    font-size: 14px;
   }
 `;
 
 const CustomerInfo = styled.div`
-  .name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  
+  & .name {
     font-weight: 600;
     color: #000000;
-    font-size: 11px;
-    margin-bottom: 3px;
-    line-height: 1.2;
+    font-size: 13px;
+    line-height: 1.3;
     word-break: break-word;
+    flex-shrink: 0;
   }
   
-  .email {
-    color: #666666;
-    font-size: 9px;
+  & .separator {
+    color: #cccccc;
+    font-size: 11px;
     font-weight: 400;
-    line-height: 1.1;
+    flex-shrink: 0;
+  }
+  
+  & .email {
+    color: #666666;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.3;
     word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  @media (max-width: 1400px) {
+    gap: 6px;
+    
+    & .name {
+      font-size: 12px;
+    }
+    
+    & .email {
+      font-size: 10px;
+    }
   }
   
   @media (max-width: 768px) {
-    .name {
-      font-size: 10px;
-      margin-bottom: 2px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    
+    & .name {
+      font-size: 12px;
     }
     
-    .email {
-      font-size: 8px;
+    & .email {
+      font-size: 10px;
+      white-space: normal;
+      text-overflow: unset;
+    }
+    
+    & .separator {
+      display: none;
     }
   }
 `;
@@ -338,14 +470,15 @@ const OrderDetails = styled.div`
   .amount {
     font-weight: 600;
     color: #000000;
-    font-size: 14px;
-    margin-bottom: 6px;
+    font-size: 15px;
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
   }
   
   .address {
     color: #666666;
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: 13px;
+    line-height: 1.4;
     font-weight: 400;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -354,28 +487,39 @@ const OrderDetails = styled.div`
     max-width: 100%;
     word-break: break-word;
   }
+  
+  @media (max-width: 768px) {
+    .amount {
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    
+    .address {
+      font-size: 12px;
+    }
+  }
 `;
 
 const StatusBadge = styled.span.withConfig({
   shouldForwardProp: (prop) => prop !== 'status',
 })`
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   border: 1px solid;
   display: inline-block;
   text-align: center;
-  min-width: 80px;
+  min-width: 90px;
   transition: all 0.2s ease;
   line-height: 1;
   
   @media (max-width: 768px) {
-    padding: 6px 8px;
-    font-size: 10px;
-    min-width: 60px;
+    padding: 8px 12px;
+    font-size: 11px;
+    min-width: 70px;
   }
   
   ${props => {
@@ -385,6 +529,7 @@ const StatusBadge = styled.span.withConfig({
           background: #ffffff;
           color: #f39c12;
           border-color: #f39c12;
+          box-shadow: 0 2px 8px rgba(243, 156, 18, 0.15);
         `;
       case 'confirmed':
       case 'approved':
@@ -392,30 +537,35 @@ const StatusBadge = styled.span.withConfig({
           background: #ffffff;
           color: #27ae60;
           border-color: #27ae60;
+          box-shadow: 0 2px 8px rgba(39, 174, 96, 0.15);
         `;
       case 'processing':
         return `
           background: #ffffff;
           color: #3498db;
           border-color: #3498db;
+          box-shadow: 0 2px 8px rgba(52, 152, 219, 0.15);
         `;
       case 'shipped':
         return `
           background: #ffffff;
           color: #9b59b6;
           border-color: #9b59b6;
+          box-shadow: 0 2px 8px rgba(155, 89, 182, 0.15);
         `;
       case 'delivered':
         return `
           background: #000000;
           color: #ffffff;
           border-color: #000000;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         `;
       case 'order received':
         return `
           background: #ffffff;
           color: #28a745;
           border-color: #28a745;
+          box-shadow: 0 2px 8px rgba(40, 167, 69, 0.15);
         `;
       case 'cancelled':
       case 'rejected':
@@ -423,12 +573,14 @@ const StatusBadge = styled.span.withConfig({
           background: #ffffff;
           color: #e74c3c;
           border-color: #e74c3c;
+          box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
         `;
       default:
         return `
           background: #ffffff;
           color: #666666;
           border-color: #cccccc;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         `;
     }
   }}
@@ -436,12 +588,12 @@ const StatusBadge = styled.span.withConfig({
 
 const DateInfo = styled.div`
   color: #666666;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.3;
+  line-height: 1.4;
   
   @media (max-width: 768px) {
-    font-size: 11px;
+    font-size: 12px;
   }
 `;
 
@@ -706,23 +858,23 @@ const ImageContainer = styled.div`
 const OrderItemsList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-height: 300px;
+  gap: 8px;
+  max-height: 240px;
   overflow-y: auto;
-  padding-right: 8px;
+  flex: 1;
   
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
   
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 3px;
+    border-radius: 2px;
   }
   
   &::-webkit-scrollbar-thumb {
     background: #c1c1c1;
-    border-radius: 3px;
+    border-radius: 2px;
   }
   
   &::-webkit-scrollbar-thumb:hover {
@@ -732,23 +884,25 @@ const OrderItemsList = styled.div`
 
 const OrderItemCard = styled.div`
   display: flex;
-  gap: 12px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid #e9ecef;
+  font-size: 12px;
 `;
 
 const OrderItemImage = styled.div`
-  width: 60px;
-  height: 60px;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e9ecef;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   
   img {
     width: 100%;
@@ -758,37 +912,43 @@ const OrderItemImage = styled.div`
   
   svg {
     color: #6c757d;
-    font-size: 20px;
+    font-size: 16px;
   }
 `;
 
 const OrderItemDetails = styled.div`
   flex: 1;
+  min-width: 0;
   
   h5 {
-    margin: 0 0 8px 0;
-    font-size: 14px;
+    margin: 0 0 4px 0;
+    font-size: 12px;
     font-weight: 600;
     color: #2c3e50;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .item-meta {
     display: flex;
-    gap: 12px;
-    margin-bottom: 8px;
+    gap: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
     
     span {
       background: #ffffff;
       border: 1px solid #e9ecef;
-      border-radius: 4px;
-      padding: 2px 8px;
-      font-size: 12px;
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-size: 10px;
       color: #6c757d;
+      white-space: nowrap;
     }
   }
   
   .item-price {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
     color: #27ae60;
   }
@@ -946,11 +1106,35 @@ const ExpandedRowContainer = styled.div`
 
 const ExpandedContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+  grid-template-columns: 1fr 1fr 1fr 2fr; /* 4 columns: Customer | Shipping | Order Details | Order Items (wider) */
+  gap: 20px;
+  min-height: 200px;
+  
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 1fr 2fr; /* 3 columns: Customer+Shipping | Order Details | Order Items */
+    gap: 16px;
+    
+    /* Merge customer and shipping on smaller screens */
+    .customer-shipping-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+  }
+  
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr 1fr; /* 2 columns: Info | Order Items */
+    gap: 16px;
+    
+    .info-group {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
   
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Stack vertically only on mobile */
     gap: 16px;
   }
 `;
@@ -960,6 +1144,9 @@ const InfoSection = styled.div`
   padding: 16px;
   border-radius: 8px;
   border: 1px solid #e9ecef;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
   
   h4 {
     margin: 0 0 12px 0;
@@ -970,6 +1157,13 @@ const InfoSection = styled.div`
     letter-spacing: 0.5px;
     border-bottom: 2px solid #000000;
     padding-bottom: 8px;
+    flex-shrink: 0;
+  }
+  
+  /* Content area that can scroll if needed */
+  > div:not(h4) {
+    flex: 1;
+    overflow-y: auto;
   }
 `;
 
@@ -997,6 +1191,55 @@ const InfoItem = styled.div`
   
   &:last-child {
     margin-bottom: 0;
+  }
+`;
+
+const HorizontalCustomerInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  font-size: 14px;
+  flex-wrap: wrap;
+  
+  .customer-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    .label {
+      font-weight: 600;
+      color: #666666;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .value {
+      font-weight: 500;
+      color: #000000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+  }
+  
+  .separator {
+    color: #cccccc;
+    font-weight: 300;
+    font-size: 16px;
+    margin: 0 4px;
+  }
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    
+    .customer-field .value {
+      max-width: 200px;
+    }
   }
 `;
 
@@ -1465,6 +1708,20 @@ const TransactionPage = () => {
       
       if (response.data.success) {
         console.log('✅ Cancellation requests fetched:', response.data);
+        // Debug: Check the structure of requests to see image field for both regular and custom orders
+        if (response.data.data && response.data.data.length > 0) {
+          response.data.data.forEach((request, index) => {
+            if (index < 3) { // Log first 3 requests for debugging
+              console.log(`🖼️ Cancellation request ${index + 1} image data:`, {
+                id: request.id,
+                order_number: request.order_number,
+                product_image: request.product_image,
+                is_custom: request.order_number?.startsWith('CUSTOM'),
+                total_amount: request.total_amount
+              });
+            }
+          });
+        }
         setCancellationRequests(response.data.data || []);
       } else {
         console.error('❌ Failed to fetch cancellation requests:', response.data);
@@ -1579,29 +1836,29 @@ const TransactionPage = () => {
   const fetchCustomDesignRequests = useCallback(async () => {
     try {
       setDesignRequestsLoading(true);
-      console.log('Fetching custom design requests (pending custom orders)...');
+      console.log('Fetching custom design requests (ALL custom orders - approved, denied, pending)...');
       
-      // Fetch all custom orders and filter for pending ones
+      // Fetch all custom orders - show complete history, not just pending
       const response = await api.get('/custom-orders/admin/all');
       
       if (response.data.success) {
         console.log('✅ Custom orders fetched:', response.data);
-        // Filter for only pending custom orders (these are the "design requests")
+        // Show ALL custom orders as history (approved, denied, pending)
         const allOrders = response.data.data || [];
-        const pendingOrders = allOrders.filter(order => order.status === 'pending');
-        console.log('Found ' + pendingOrders.length + ' pending custom design requests out of ' + allOrders.length + ' total orders');
+        console.log('Found ' + allOrders.length + ' total custom design requests (all statuses)');
         
-        // Debug: Show the structure of the first pending order
-        if (pendingOrders.length > 0) {
-          console.log('First pending order structure:', {
-            custom_order_id: pendingOrders[0].custom_order_id,
-            id: pendingOrders[0].id,
-            customer_name: pendingOrders[0].customer_name,
-            status: pendingOrders[0].status
+        // Debug: Show the structure of the first order
+        if (allOrders.length > 0) {
+          console.log('First order structure:', {
+            custom_order_id: allOrders[0].custom_order_id,
+            id: allOrders[0].id,
+            customer_name: allOrders[0].customer_name,
+            status: allOrders[0].status
           });
         }
         
-        setCustomDesignRequests(pendingOrders);
+        // Show all orders as history instead of filtering for just pending
+        setCustomDesignRequests(allOrders);
       } else {
         console.error('❌ Failed to fetch custom orders:', response.data);
         toast.error('Failed to fetch custom design requests');
@@ -1666,7 +1923,7 @@ const TransactionPage = () => {
       
       if (response.data && response.data.success) {
         const successMessage = status === 'approved' 
-          ? 'Design request approved! Order moved to delivery queue.' 
+          ? 'Design request approved! Customer can now submit payment proof.' 
           : 'Design request rejected successfully.';
           
         console.log('✅ Success! Showing toast:', successMessage);
@@ -1869,9 +2126,10 @@ const TransactionPage = () => {
   const fetchPendingVerificationOrders = useCallback(async () => {
     try {
       setVerificationLoading(true);
-      console.log('Fetching pending verification orders...');
+      console.log('Fetching payment verification orders (ALL orders - verified, pending, rejected)...');
       
-      // Fetch both regular orders and custom orders pending verification
+      // For now, we'll use existing endpoints and show all orders regardless of verification status
+      // This creates a complete payment history instead of just pending verifications
       const [regularOrdersResponse, customOrdersResponse] = await Promise.all([
         api.get('/orders/pending-verification').catch(error => {
           console.warn('Regular orders pending verification not available:', error.response?.status);
@@ -1883,7 +2141,7 @@ const TransactionPage = () => {
         })
       ]);
       
-      let allPendingOrders = [];
+      let allOrders = [];
       
       // Process regular orders
       if (regularOrdersResponse.data.success) {
@@ -1891,8 +2149,8 @@ const TransactionPage = () => {
           ...order,
           order_type: 'regular'
         }));
-        allPendingOrders = [...allPendingOrders, ...regularOrders];
-        console.log(`✅ Found ${regularOrders.length} regular orders pending verification`);
+        allOrders = [...allOrders, ...regularOrders];
+        console.log(`✅ Found ${regularOrders.length} regular orders for payment verification history`);
       }
       
       // Process custom orders
@@ -1911,25 +2169,76 @@ const TransactionPage = () => {
             // payment_id is already correctly set by the backend query (cop.id as payment_id)
           };
         });
-        allPendingOrders = [...allPendingOrders, ...customOrders];
-        console.log(`✅ Found ${customOrders.length} custom orders pending verification`);
+        allOrders = [...allOrders, ...customOrders];
+        console.log(`✅ Found ${customOrders.length} custom orders for payment verification history`);
       }
       
-      console.log(`✅ Total pending verification orders: ${allPendingOrders.length}`);
-      setPendingVerificationOrders(allPendingOrders);
+      // For complete payment history, we'll also fetch confirmed orders that were previously verified
+      try {
+        const confirmedResponse = await api.get('/orders/confirmed').catch(() => ({ data: { success: false, data: [] } }));
+        if (confirmedResponse.data.success) {
+          const confirmedOrders = (confirmedResponse.data.data || [])
+            .filter(order => order.payment_status === 'verified') // Only show previously verified payments
+            .map(order => ({
+              ...order,
+              order_type: 'regular',
+              payment_status: 'verified', // Mark as already verified for history
+              verification_completed: true
+            }));
+          allOrders = [...allOrders, ...confirmedOrders];
+          console.log(`✅ Added ${confirmedOrders.length} previously verified regular orders to payment history`);
+        }
+        
+        const confirmedCustomResponse = await api.get('/custom-orders/confirmed').catch(() => ({ data: { success: false, data: [] } }));
+        if (confirmedCustomResponse.data.success) {
+          const confirmedCustomOrders = (confirmedCustomResponse.data.data || [])
+            .filter(order => order.payment_status === 'verified') // Only show previously verified payments
+            .map(order => ({
+              ...order,
+              order_type: 'custom',
+              order_number: order.custom_order_id,
+              customer_name: order.payment_full_name || order.full_name,
+              total_amount: order.payment_amount,
+              payment_status: 'verified', // Mark as already verified for history
+              verification_completed: true
+            }));
+          allOrders = [...allOrders, ...confirmedCustomOrders];
+          console.log(`✅ Added ${confirmedCustomOrders.length} previously verified custom orders to payment history`);
+        }
+      } catch (error) {
+        console.warn('Could not fetch confirmed orders for payment history:', error);
+      }
+      
+      // Remove duplicates based on order number and sort by date
+      const uniqueOrders = [];
+      const seenOrderNumbers = new Set();
+      
+      allOrders.forEach(order => {
+        const orderNumber = order.order_number;
+        if (!seenOrderNumbers.has(orderNumber)) {
+          seenOrderNumbers.add(orderNumber);
+          uniqueOrders.push(order);
+        }
+      });
+      
+      // Sort by date (newest first)
+      const sortedOrders = uniqueOrders.sort((a, b) => new Date(b.created_at || b.date_created) - new Date(a.created_at || a.date_created));
+      
+      console.log(`✅ Total payment verification orders (all statuses): ${sortedOrders.length}`);
+      setPendingVerificationOrders(sortedOrders);
       
     } catch (error) {
-      console.error('❌ Error fetching pending verification orders:', error);
+      console.error('❌ Error fetching payment verification orders:', error);
       
       // Check if it's a permission error (403) or server error (500)
       if (error.response?.status === 403) {
-        console.log('ℹ️ User does not have permission to view pending verification orders (admin-only feature)');
+        console.log('ℹ️ User does not have permission to view payment verification orders (admin-only feature)');
         setPendingVerificationOrders([]); // Set empty array instead of showing error
       } else if (error.response?.status === 500) {
-        console.error('Server error - the pending verification endpoint may need debugging');
+        console.error('Server error - the payment verification endpoint may need debugging');
         setPendingVerificationOrders([]); // Set empty array instead of showing error
       } else {
-        toast.error('Failed to fetch pending verification orders');
+        toast.error('Failed to fetch payment verification orders');
         setPendingVerificationOrders([]); // Set empty array for any other error
       }
     } finally {
@@ -2165,30 +2474,35 @@ const TransactionPage = () => {
 
   const TableWrapper = styled.div`
   width: 100%;
+  max-width: 1600px;
   margin: 0 auto;
   overflow-x: auto;
   background: #ffffff;
   border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  
+  /* Center the table content */
+  display: flex;
+  justify-content: center;
   
   /* Custom scrollbar for better UX */
   &::-webkit-scrollbar {
-    height: 8px;
+    height: 10px;
   }
   
   &::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+    background: #f8f9fa;
+    border-radius: 5px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
+    background: linear-gradient(90deg, #c1c1c1, #a1a1a1);
+    border-radius: 5px;
   }
   
   &::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
+    background: linear-gradient(90deg, #a1a1a1, #888);
   }
   
   /* Ensure smooth scrolling on mobile */
@@ -2202,19 +2516,22 @@ const TransactionPage = () => {
     &:after {
       content: "← Scroll horizontally for more details →";
       position: absolute;
-      bottom: 8px;
-      right: 16px;
-      background: rgba(0, 0, 0, 0.7);
+      bottom: 12px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.75);
       color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 10px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
       pointer-events: none;
-      opacity: 0.8;
+      opacity: 0.9;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
   }
   
   @media (max-width: 768px) {
+    border-radius: 12px;
     &:after {
       display: none;
     }
@@ -2389,6 +2706,7 @@ const TransactionPage = () => {
                     
                     <CustomerInfo>
                       <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
+                      <div className="separator">•</div>
                       <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
                     </CustomerInfo>
 
@@ -2587,41 +2905,57 @@ const TransactionPage = () => {
                   {isExpanded && (
                     <ExpandedRowContainer>
                       <ExpandedContent>
+                        {/* Debug: Log transaction data structure */}
+                        {console.log('🔍 Transaction data for debugging N/A fields:', {
+                          order_id: transaction.transaction_id || transaction.id,
+                          customer_phone: transaction.customer_phone,
+                          contact_phone: transaction.contact_phone,
+                          city_municipality: transaction.city_municipality,
+                          shipping_city: transaction.shipping_city,
+                          city: transaction.city,
+                          province: transaction.province,
+                          shipping_province: transaction.shipping_province,
+                          zip_code: transaction.zip_code,
+                          postal_code: transaction.postal_code,
+                          shipping_postal_code: transaction.shipping_postal_code,
+                          street_address: transaction.street_address,
+                          shipping_address: transaction.shipping_address,
+                          full_transaction: transaction
+                        })}
+                        
                         {/* Customer Information */}
                         <InfoSection>
                           <h4>Customer Information</h4>
-                          <InfoItem>
-                            <span className="label">Name:</span>
-                            <span className="value">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</span>
-                          </InfoItem>
-                          <InfoItem>
-                            <span className="label">Email:</span>
-                            <span className="value">{transaction.customer_email || transaction.user_email || 'N/A'}</span>
-                          </InfoItem>
-                          <InfoItem>
-                            <span className="label">Phone:</span>
-                            <span className="value">{transaction.customer_phone || transaction.contact_phone || 'N/A'}</span>
-                          </InfoItem>
+                          <HorizontalCustomerInfo>
+                            <div className="customer-field">
+                              <span className="label">Name:</span>
+                              <span className="value">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</span>
+                            </div>
+                            <span className="separator">•</span>
+                            <div className="customer-field">
+                              <span className="label">Email:</span>
+                              <span className="value">{transaction.customer_email || transaction.user_email || 'N/A'}</span>
+                            </div>
+                            <span className="separator">•</span>
+                            <div className="customer-field">
+                              <span className="label">Phone:</span>
+                              <span className="value">{
+                                (transaction.contact_phone && transaction.contact_phone !== 'null' && transaction.contact_phone !== 'undefined') 
+                                  ? transaction.contact_phone 
+                                  : (transaction.customer_phone && transaction.customer_phone !== 'null' && transaction.customer_phone !== 'undefined') 
+                                    ? transaction.customer_phone 
+                                    : 'N/A'
+                              }</span>
+                            </div>
+                          </HorizontalCustomerInfo>
                         </InfoSection>
 
                         {/* Shipping Address */}
                         <InfoSection>
                           <h4>Shipping Address</h4>
                           <InfoItem>
-                            <span className="label">Street:</span>
+                            <span className="label">Shipping Information:</span>
                             <span className="value">{transaction.street_address || transaction.shipping_address || 'N/A'}</span>
-                          </InfoItem>
-                          <InfoItem>
-                            <span className="label">City:</span>
-                            <span className="value">{transaction.city_municipality || transaction.city || 'N/A'}</span>
-                          </InfoItem>
-                          <InfoItem>
-                            <span className="label">Province:</span>
-                            <span className="value">{transaction.province || 'N/A'}</span>
-                          </InfoItem>
-                          <InfoItem>
-                            <span className="label">ZIP Code:</span>
-                            <span className="value">{transaction.zip_code || transaction.postal_code || 'N/A'}</span>
                           </InfoItem>
                         </InfoSection>
 
@@ -2644,12 +2978,24 @@ const TransactionPage = () => {
                             <span className="label">Delivery Status:</span>
                             <span className="value">{getDeliveryStatusInfo(transaction.delivery_status || 'pending').text}</span>
                           </InfoItem>
+                          {(transaction.courier_name || transaction.courier_phone) && (
+                            <InfoItem>
+                              <span className="label">Assigned Courier:</span>
+                              <span className="value">
+                                {(() => {
+                                  const courierName = transaction.courier_name || 'Unknown';
+                                  const courierPhone = transaction.courier_phone || '';
+                                  return courierPhone ? `${courierName} (${courierPhone})` : courierName;
+                                })()}
+                              </span>
+                            </InfoItem>
+                          )}
                         </InfoSection>
 
-                        {/* All Items */}
-                        {transaction.items && transaction.items.length > 0 && (
-                          <div style={{ marginTop: '24px' }}>
-                            <h3>Order Items ({transaction.items.length})</h3>
+                        {/* Order Items - Now in grid */}
+                        <InfoSection>
+                          <h4>Order Items ({transaction.items ? transaction.items.length : 0})</h4>
+                          {transaction.items && transaction.items.length > 0 ? (
                             <OrderItemsList>
                               {transaction.items.map((item, index) => (
                                 <OrderItemCard key={`modal-${(selectedTransaction?.transaction_id || selectedTransaction?.id || 'unknown')}-item-${index}`}>
@@ -2679,37 +3025,19 @@ const TransactionPage = () => {
                                   </OrderItemDetails>
                                 </OrderItemCard>
                               ))}
-
-                              {/* Debug - Show all item properties in a structured way */}
-                              {transaction.items.map((item, index) => (
-                                <div key={`debug-item-${index}`} style={{ 
-                                  background: '#f1f3f4', 
-                                  padding: '8px', 
-                                  borderRadius: '4px',
-                                  marginTop: '8px',
-                                  fontSize: '12px',
-                                  color: '#333',
-                                  display: 'grid',
-                                  gridTemplateColumns: '1fr 1fr',
-                                  gap: '12px'
-                                }}>
-                                  <div>
-                                    <strong>Item ID:</strong> {item.id}<br />
-                                    <strong>Product Name:</strong> {item.productname || 'N/A'}<br />
-                                    <strong>Product Type:</strong> {item.product_type || 'N/A'}<br />
-                                  </div>
-                                  <div>
-                                    <strong>Color:</strong> {item.color || 'N/A'}<br />
-                                    <strong>Size:</strong> {item.size || 'N/A'}<br />
-                                    <strong>Quantity:</strong> {item.quantity}<br />
-                                    <strong>Price:</strong> ₱{parseFloat(item.product_price || 0).toFixed(2)}<br />
-                                    <strong>Subtotal:</strong> ₱{parseFloat(item.subtotal || 0).toFixed(2)}<br />
-                                  </div>
-                                </div>
-                              ))}
                             </OrderItemsList>
-                          </div>
-                        )}
+                          ) : (
+                            <div style={{ 
+                              color: '#999999', 
+                              fontSize: '14px',
+                              fontStyle: 'italic',
+                              textAlign: 'center',
+                              padding: '20px'
+                            }}>
+                              No items found
+                            </div>
+                          )}
+                        </InfoSection>
                       </ExpandedContent>
                     </ExpandedRowContainer>
                   )}
@@ -2728,15 +3056,15 @@ const TransactionPage = () => {
             <StatsContainer>
               <StatCard color="#000000">
                 <h3>{pendingVerificationOrders.length}</h3>
-                <p>Total Pending</p>
-              </StatCard>
-              <StatCard color="#ffc107">
-                <h3>{pendingVerificationOrders.filter(order => order.gcash_reference_number).length}</h3>
-                <p>With GCash Ref</p>
+                <p>Total Orders</p>
               </StatCard>
               <StatCard color="#28a745">
-                <h3>{pendingVerificationOrders.filter(order => order.payment_proof_image_path).length}</h3>
-                <p>With Payment Proof</p>
+                <h3>{pendingVerificationOrders.filter(order => order.payment_status === 'verified' || order.verification_completed).length}</h3>
+                <p>Verified</p>
+              </StatCard>
+              <StatCard color="#ffc107">
+                <h3>{pendingVerificationOrders.filter(order => !order.payment_status || order.payment_status === 'pending').length}</h3>
+                <p>Pending</p>
               </StatCard>
               <StatCard color="#3498db">
                 <h3>{formatCurrency(pendingVerificationOrders.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0))}</h3>
@@ -2751,7 +3079,7 @@ const TransactionPage = () => {
                   <SearchIcon icon={faSearch} />
                   <SearchInput
                     type="text"
-                    placeholder="Search by order number, customer name, or GCash reference..."
+                    placeholder="Search payment history by order number, customer name, or GCash reference..."
                     value={verificationSearchTerm}
                     onChange={(e) => setVerificationSearchTerm(e.target.value)}
                   />
@@ -2763,7 +3091,7 @@ const TransactionPage = () => {
               </ControlsGrid>
             </ControlsSection>
 
-            {/* Pending Verification Orders Table */}
+            {/* Payment History Table */}
             <TableWrapper>
               <TransactionsTable>
                 <PaymentVerificationTableHeader>
@@ -2774,7 +3102,9 @@ const TransactionPage = () => {
                   <div>Customer</div>
                   <div>Products</div>
                   <div>Amount</div>
-                  <div>GCash Ref</div>
+                  <div>Status</div>
+                  <div>Delivery Date</div>
+                  <div>Courier</div>
                   <div>Payment Proof</div>
                   <div>Actions</div>
                 </PaymentVerificationTableHeader>
@@ -2788,7 +3118,7 @@ const TransactionPage = () => {
                       color: '#666666' 
                     }}>
                       <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '8px' }} />
-                      Loading pending verification orders...
+                      Loading payment verification history...
                     </div>
                   </PaymentVerificationTableRow>
                 ) : pendingVerificationOrders.length === 0 ? (
@@ -2800,7 +3130,7 @@ const TransactionPage = () => {
                       color: '#666666' 
                     }}>
                       <FontAwesomeIcon icon={faInfoCircle} style={{ marginRight: '8px' }} />
-                      No orders pending payment verification found.
+                      No payment verification history found.
                     </div>
                   </PaymentVerificationTableRow>
                 ) : (
@@ -2895,6 +3225,7 @@ const TransactionPage = () => {
                             <div className="name">
                               {order.customer_name || order.customer_fullname || `${order.first_name} ${order.last_name}`}
                             </div>
+                            <div className="separator">•</div>
                             <div className="email">{order.user_email || order.contact_number}</div>
                           </CustomerInfo>
                         </div>
@@ -2945,8 +3276,40 @@ const TransactionPage = () => {
                           <div className="amount">{formatCurrency(order.total_amount)}</div>
                         </OrderDetails>
                         
-                        <div style={{ fontSize: '10px', fontFamily: 'monospace' }}>
-                          {order.gcash_reference_number || 'N/A'}
+                        <div>
+                          <span style={{ 
+                            background: order.payment_status === 'verified' || order.verification_completed 
+                              ? '#d4edda' 
+                              : order.payment_status === 'rejected' 
+                                ? '#f8d7da' 
+                                : '#fff3cd',
+                            color: order.payment_status === 'verified' || order.verification_completed 
+                              ? '#155724' 
+                              : order.payment_status === 'rejected' 
+                                ? '#721c24' 
+                                : '#856404',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            textTransform: 'uppercase'
+                          }}>
+                            {order.payment_status === 'verified' || order.verification_completed 
+                              ? 'Verified' 
+                              : order.payment_status === 'rejected' 
+                                ? 'Rejected' 
+                                : 'Pending'}
+                          </span>
+                          {order.gcash_reference_number && (
+                            <div style={{ 
+                              fontSize: '9px', 
+                              color: '#666666',
+                              marginTop: '2px',
+                              fontFamily: 'monospace'
+                            }}>
+                              GCash: {order.gcash_reference_number}
+                            </div>
+                          )}
                         </div>
                         
                         <div>
@@ -2977,33 +3340,60 @@ const TransactionPage = () => {
                         </div>
                         
                         <ActionsContainer className="stacked">
-                          <div className="button-row">
-                            <ActionButton
-                              variant="approve"
-                              onClick={() => approvePayment(order)}
-                              disabled={processingPayment}
-                            >
-                              <FontAwesomeIcon icon={faCheck} />
-                              {processingPayment ? 'Processing...' : 'Approve'}
-                            </ActionButton>
-                            <ActionButton
-                              variant="reject"
-                              onClick={() => denyPayment(order)}
-                              disabled={processingPayment}
-                            >
-                              <FontAwesomeIcon icon={faTimes} />
-                              {processingPayment ? 'Processing...' : 'Deny'}
-                            </ActionButton>
-                          </div>
-                          <div className="button-full">
-                            <ActionButton
-                              variant="view"
-                              onClick={() => viewTransaction(order)}
-                            >
-                              <FontAwesomeIcon icon={faEye} />
-                              Details
-                            </ActionButton>
-                          </div>
+                          {order.payment_status === 'verified' || order.verification_completed ? (
+                            // Already verified - show only view details
+                            <div className="button-full">
+                              <ActionButton
+                                variant="view"
+                                onClick={() => viewTransaction(order)}
+                              >
+                                <FontAwesomeIcon icon={faEye} />
+                                Details
+                              </ActionButton>
+                            </div>
+                          ) : order.payment_status === 'rejected' ? (
+                            // Rejected - show view details only
+                            <div className="button-full">
+                              <ActionButton
+                                variant="view"
+                                onClick={() => viewTransaction(order)}
+                              >
+                                <FontAwesomeIcon icon={faEye} />
+                                Details (Rejected)
+                              </ActionButton>
+                            </div>
+                          ) : (
+                            // Pending - show approve/deny buttons
+                            <>
+                              <div className="button-row">
+                                <ActionButton
+                                  variant="approve"
+                                  onClick={() => approvePayment(order)}
+                                  disabled={processingPayment}
+                                >
+                                  <FontAwesomeIcon icon={faCheck} />
+                                  {processingPayment ? 'Processing...' : 'Approve'}
+                                </ActionButton>
+                                <ActionButton
+                                  variant="reject"
+                                  onClick={() => denyPayment(order)}
+                                  disabled={processingPayment}
+                                >
+                                  <FontAwesomeIcon icon={faTimes} />
+                                  {processingPayment ? 'Processing...' : 'Deny'}
+                                </ActionButton>
+                              </div>
+                              <div className="button-full">
+                                <ActionButton
+                                  variant="view"
+                                  onClick={() => viewTransaction(order)}
+                                >
+                                  <FontAwesomeIcon icon={faEye} />
+                                  Details
+                                </ActionButton>
+                              </div>
+                            </>
+                          )}
                         </ActionsContainer>
                       </PaymentVerificationTableRow>
                     ))
@@ -3106,11 +3496,35 @@ const TransactionPage = () => {
                     .map((request) => (
                       <TableRow key={request.id}>
                         <div style={{ width: '50px' }}>
-                          {/* Product Image - moved from later column */}
-                          {request.product_image ? (
+                          {/* Product Image - enhanced for custom orders */}
+                          {console.log('🖼️ Cancellation request:', {
+                            id: request.id,
+                            orderNumber: request.order_number,
+                            orderType: request.order_type,
+                            productImage: request.product_image,
+                            isCustomPattern: request.order_number?.startsWith('CUSTOM-')
+                          })}
+                          
+                          {request.product_image && request.product_image !== 'null' ? (
                             <>
                               <img 
-                                src={`http://localhost:5000/uploads/${request.product_image}`} 
+                                src={(() => {
+                                  // Handle different image path formats
+                                  if (request.product_image.startsWith('http')) {
+                                    return request.product_image;
+                                  } else if (request.product_image.startsWith('/uploads/')) {
+                                    return `http://localhost:5000${request.product_image}`;
+                                  } else if (request.product_image === 'default-product.png') {
+                                    return `http://localhost:5000/uploads/default-product.png`;
+                                  } else if (request.product_image.startsWith('custom-orders/')) {
+                                    return `http://localhost:5000/uploads/${request.product_image}`;
+                                  } else if (request.order_type === 'custom' || request.order_number?.startsWith('CUSTOM-')) {
+                                    // For custom orders, try custom-orders path first
+                                    return `http://localhost:5000/uploads/custom-orders/${request.product_image}`;
+                                  } else {
+                                    return `http://localhost:5000/uploads/${request.product_image}`;
+                                  }
+                                })()} 
                                 alt="Product" 
                                 style={{ 
                                   width: 40, 
@@ -3120,7 +3534,24 @@ const TransactionPage = () => {
                                   border: '1px solid #eee' 
                                 }} 
                                 onError={(e) => {
-                                  if (e.target) {
+                                  // Enhanced error handling for different image types
+                                  const originalSrc = e.target.src;
+                                  console.log('🖼️ Image load error for:', originalSrc, 'Order:', request.order_number, 'Type:', request.order_type);
+                                  
+                                  // For custom orders, try custom-orders path if not already tried
+                                  if ((request.order_type === 'custom' || request.order_number?.startsWith('CUSTOM-')) && 
+                                      !originalSrc.includes('custom-orders/')) {
+                                    e.target.src = `http://localhost:5000/uploads/custom-orders/${request.product_image}`;
+                                    return;
+                                  }
+                                  
+                                  // Try product-images path
+                                  if (!originalSrc.includes('product-images/') && !originalSrc.includes('default-product.png')) {
+                                    e.target.src = `http://localhost:5000/uploads/product-images/${request.product_image}`;
+                                  } else if (!originalSrc.includes('default-product.png')) {
+                                    e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                  } else {
+                                    // Final fallback: hide image and show placeholder
                                     e.target.style.display = 'none';
                                     if (e.target.nextSibling) {
                                       e.target.nextSibling.style.display = 'flex';
@@ -3189,6 +3620,7 @@ const TransactionPage = () => {
                         <div>
                           <CustomerInfo>
                             <div className="name">{request.customer_name}</div>
+                            <div className="separator">•</div>
                             <div className="email">{request.customer_email}</div>
                           </CustomerInfo>
                         </div>
@@ -3336,10 +3768,13 @@ const TransactionPage = () => {
                     .map((request) => (
                       <TableRow key={request.id}>
                         <div style={{ width: '50px' }}>
-                          {/* Product Image - moved from later column */}
+                          {/* Product Image - improved with better path handling */}
                           {request.product_image ? (
                             <img 
-                              src={`http://localhost:5000/uploads/${request.product_image}`} 
+                              src={request.product_image.startsWith('http') ? 
+                                request.product_image : 
+                                `http://localhost:5000/uploads/${request.product_image}`
+                              } 
                               alt="Product" 
                               style={{ 
                                 width: 40, 
@@ -3349,7 +3784,13 @@ const TransactionPage = () => {
                                 border: '1px solid #eee' 
                               }} 
                               onError={(e) => {
-                                if (e.target) {
+                                // Try alternative paths if the first one fails
+                                const originalSrc = e.target.src;
+                                if (!originalSrc.includes('product-images/') && !originalSrc.includes('default-product.png')) {
+                                  e.target.src = `http://localhost:5000/uploads/product-images/${request.product_image}`;
+                                } else if (!originalSrc.includes('default-product.png')) {
+                                  e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                } else {
                                   e.target.style.display = 'none';
                                   if (e.target.nextSibling) {
                                     e.target.nextSibling.style.display = 'flex';
@@ -3483,7 +3924,7 @@ const TransactionPage = () => {
                   <SearchIcon icon={faSearch} />
                   <SearchInput
                     type="text"
-                    placeholder="Search custom design requests..."
+                    placeholder="Search custom design history by customer, product type, or status..."
                     value={designSearchTerm}
                     onChange={(e) => setDesignSearchTerm(e.target.value)}
                   />
@@ -3495,7 +3936,7 @@ const TransactionPage = () => {
               </ControlsGrid>
             </ControlsSection>
 
-            {/* Custom Design Requests Table */}
+            {/* Custom Design Requests History Table */}
             <TableWrapper>
               <TransactionsTable>
                 <TableHeader>
@@ -3519,7 +3960,7 @@ const TransactionPage = () => {
                       color: '#666666' 
                     }}>
                       <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: '8px' }} />
-                      Loading custom design requests...
+                      Loading custom design history...
                     </div>
                   </TableRow>
                 ) : customDesignRequests.length === 0 ? (
@@ -3600,6 +4041,7 @@ const TransactionPage = () => {
                         <div>
                           <CustomerInfo>
                             <div className="name">{request.customer_name}</div>
+                            <div className="separator">•</div>
                             <div className="email">{request.customer_email}</div>
                           </CustomerInfo>
                         </div>
@@ -3618,6 +4060,68 @@ const TransactionPage = () => {
                           <StatusBadge status={request.status}>
                             {request.status}
                           </StatusBadge>
+                        </div>
+                        
+                        {/* Delivery Date Column */}
+                        <div style={{ fontSize: '12px', textAlign: 'center' }}>
+                          {request.estimated_delivery_date || request.scheduled_delivery_date ? (
+                            <div>
+                              <div style={{ fontWeight: '500', color: '#2c3e50', marginBottom: '2px' }}>
+                                {formatDate(request.scheduled_delivery_date || request.estimated_delivery_date)}
+                              </div>
+                              {request.delivery_time_slot && (
+                                <div style={{ fontSize: '10px', color: '#7f8c8d' }}>
+                                  {request.delivery_time_slot}
+                                </div>
+                              )}
+                              {request.delivery_status && (
+                                <div style={{ 
+                                  fontSize: '10px', 
+                                  color: request.delivery_status === 'delivered' ? '#27ae60' : 
+                                         request.delivery_status === 'in_transit' ? '#f39c12' : 
+                                         request.delivery_status === 'scheduled' ? '#3498db' : '#95a5a6',
+                                  textTransform: 'capitalize',
+                                  marginTop: '1px'
+                                }}>
+                                  {request.delivery_status.replace('_', ' ')}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#bdc3c7', fontSize: '11px', fontStyle: 'italic' }}>
+                              Not scheduled
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Courier Information Column */}
+                        <div style={{ fontSize: '12px', textAlign: 'center' }}>
+                          {request.courier_name ? (
+                            <div>
+                              <div style={{ fontWeight: '500', color: '#2c3e50', marginBottom: '2px' }}>
+                                {request.courier_name}
+                              </div>
+                              {request.courier_phone && (
+                                <div style={{ fontSize: '10px', color: '#7f8c8d' }}>
+                                  {request.courier_phone}
+                                </div>
+                              )}
+                              {request.courier_vehicle && (
+                                <div style={{ 
+                                  fontSize: '10px', 
+                                  color: '#9b59b6',
+                                  textTransform: 'capitalize',
+                                  marginTop: '1px'
+                                }}>
+                                  {request.courier_vehicle}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#bdc3c7', fontSize: '11px', fontStyle: 'italic' }}>
+                              Not assigned
+                            </span>
+                          )}
                         </div>
                         
                         <DateInfo>

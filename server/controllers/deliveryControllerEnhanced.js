@@ -26,7 +26,7 @@ class DeliveryController {
       const [calendarData] = await connection.execute(`
         SELECT 
           dc.*,
-          COUNT(ds.id) as scheduled_deliveries
+          COUNT(DISTINCT ds.order_id) as scheduled_deliveries
         FROM delivery_calendar dc
         LEFT JOIN delivery_schedules_enhanced ds ON dc.calendar_date = ds.delivery_date
         WHERE dc.calendar_date >= ? AND dc.calendar_date < ?
@@ -138,14 +138,17 @@ class DeliveryController {
       console.log('🚚 Enhanced Delivery: Fetching orders for delivery...');
       connection = await mysql.createConnection(dbConfig);
       
-      // Get regular orders from orders table (including custom orders that are stored there)
-      console.log('📦 Fetching orders from orders table...');
+      // Get regular orders from orders table (excluding custom orders)
+      // Only include orders where payment has been verified (status = 'confirmed' means payment approved)
+      // Exclude custom orders to prevent duplicates (custom orders are fetched separately)
+      console.log('📦 Fetching payment-verified regular orders from orders table...');
       const [regularOrders] = await connection.execute(`
         SELECT 
           o.id,
           o.order_number,
           oi.customer_name,
           oi.customer_email,
+          o.contact_phone,
           o.contact_phone as customer_phone,
           o.total_amount,
           o.status,
@@ -156,27 +159,52 @@ class DeliveryController {
           '' as shipping_postal_code,
           o.contact_phone as shipping_phone,
           o.notes as shipping_notes,
-          CASE 
-            WHEN o.order_number LIKE '%CUSTOM%' OR o.notes LIKE '%Custom Order%' THEN 'custom'
-            ELSE 'regular'
-          END as order_type,
+          'regular' as order_type,
           COALESCE(o.delivery_status, ds.delivery_status) as delivery_status,
           ds.delivery_date as scheduled_delivery_date,
           ds.delivery_time_slot as scheduled_delivery_time,
           COALESCE(o.delivery_notes, ds.delivery_notes) as delivery_notes,
           ds.id as delivery_schedule_id,
           c.name as courier_name,
-          c.phone_number as courier_phone
+          c.phone_number as courier_phone,
+          o.street_address,
+          o.city_municipality,
+          o.province,
+          o.zip_code
         FROM orders o
         LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-        LEFT JOIN delivery_schedules_enhanced ds ON o.id = ds.order_id AND ds.order_type = 'regular'
+        LEFT JOIN (
+          SELECT 
+            order_id,
+            delivery_date,
+            delivery_time_slot,
+            delivery_status,
+            delivery_notes,
+            courier_id,
+            id,
+            ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY created_at DESC) as rn
+          FROM delivery_schedules_enhanced 
+          WHERE order_type = 'regular'
+        ) ds ON o.id = ds.order_id AND ds.rn = 1
         LEFT JOIN couriers c ON ds.courier_id = c.id
-        WHERE o.status IN ('confirmed', 'processing')
+        WHERE o.status IN ('confirmed', 'processing', 'Order Received')
+        AND (
+          o.confirmed_by IS NOT NULL 
+          OR o.status = 'Order Received'
+          OR (o.notes LIKE '%Payment approved by admin%' AND o.status = 'confirmed')
+        )
+        AND NOT (o.order_number LIKE '%CUSTOM%' OR o.notes LIKE '%Custom Order%')
         ORDER BY o.order_date DESC
       `);
       
       // Get custom orders from custom_orders table
-      console.log('🎨 Fetching custom orders...');
+      // Only include orders where payment has been verified by admin
+      console.log('🎨 Fetching payment-verified custom orders...');
+      console.log('🔍 Custom orders query conditions:');
+      console.log('   - Status must be in: confirmed, approved, completed');
+      console.log('   - Payment status must be: verified');
+      console.log('   - Payment verified at must not be null');
+      
       const [customOrders] = await connection.execute(`
         SELECT 
           co.id,
@@ -186,6 +214,8 @@ class DeliveryController {
           co.customer_phone,
           COALESCE(co.final_price, co.estimated_price, 0) as total_amount,
           co.status,
+          co.payment_status,
+          co.payment_verified_at,
           co.created_at as order_date,
           CONCAT(co.street_number, ', ', co.municipality, ', ', co.province) as shipping_address,
           co.municipality as shipping_city,
@@ -200,16 +230,53 @@ class DeliveryController {
           COALESCE(co.delivery_notes, ds.delivery_notes) as delivery_notes,
           ds.id as delivery_schedule_id,
           c.name as courier_name,
-          c.phone_number as courier_phone
+          c.phone_number as courier_phone,
+          latest_payment.verified_at as latest_payment_verified_at,
+          latest_payment.payment_amount as latest_payment_amount
         FROM custom_orders co
-        LEFT JOIN delivery_schedules_enhanced ds ON co.id = ds.order_id AND ds.order_type = 'custom_order'
+        LEFT JOIN (
+          SELECT 
+            custom_order_id,
+            payment_amount,
+            verified_at,
+            ROW_NUMBER() OVER (PARTITION BY custom_order_id ORDER BY verified_at DESC) as rn
+          FROM custom_order_payments 
+          WHERE payment_status = 'verified'
+        ) latest_payment ON co.custom_order_id = latest_payment.custom_order_id AND latest_payment.rn = 1
+        LEFT JOIN (
+          SELECT 
+            order_number,
+            delivery_date,
+            delivery_time_slot,
+            delivery_status,
+            delivery_notes,
+            courier_id,
+            id,
+            ROW_NUMBER() OVER (PARTITION BY order_number ORDER BY created_at DESC) as rn
+          FROM delivery_schedules_enhanced 
+          WHERE order_type = 'custom_order'
+        ) ds ON ds.order_number = co.custom_order_id AND ds.rn = 1
         LEFT JOIN couriers c ON ds.courier_id = c.id
-        WHERE co.status IN ('approved', 'completed')
+        WHERE co.status IN ('confirmed', 'approved', 'completed')
+        AND co.payment_status = 'verified'
+        AND co.payment_verified_at IS NOT NULL
         ORDER BY co.created_at DESC
       `);
       
+      console.log(`✅ Found ${customOrders.length} payment-verified custom orders`);
+      if (customOrders.length > 0) {
+        console.log('🔍 Sample custom order data:');
+        const sample = customOrders[0];
+        console.log(`   - Order: ${sample.order_number}`);
+        console.log(`   - Status: ${sample.status}`);
+        console.log(`   - Payment Status: ${sample.payment_status}`);
+        console.log(`   - Payment Verified At: ${sample.payment_verified_at}`);
+        console.log(`   - Created At: ${sample.order_date}`);
+      }
+      
       // Get custom designs from custom_designs table
-      console.log('🎨 Fetching custom designs...');
+      // Only include designs where payment has been verified by admin
+      console.log('🎨 Fetching payment-verified custom designs...');
       const [customDesigns] = await connection.execute(`
         SELECT 
           cd.id,
@@ -235,15 +302,27 @@ class DeliveryController {
           c.name as courier_name,
           c.phone_number as courier_phone
         FROM custom_designs cd
-        LEFT JOIN delivery_schedules_enhanced ds ON cd.id = ds.order_id AND ds.order_type = 'custom_design'
+        LEFT JOIN (
+          SELECT 
+            order_id,
+            delivery_date,
+            delivery_time_slot,
+            delivery_status,
+            delivery_notes,
+            courier_id,
+            id,
+            ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY created_at DESC) as rn
+          FROM delivery_schedules_enhanced 
+          WHERE order_type = 'custom_design'
+        ) ds ON cd.id = ds.order_id AND ds.rn = 1
         LEFT JOIN couriers c ON ds.courier_id = c.id
         WHERE cd.status IN ('approved', 'in_production', 'ready_for_pickup', 'completed')
         ORDER BY cd.created_at DESC
       `);
       
-      console.log(`✅ Found ${regularOrders.length} regular orders`);
-      console.log(`✅ Found ${customOrders.length} custom orders`);
-      console.log(`✅ Found ${customDesigns.length} custom designs`);
+      console.log(`✅ Found ${regularOrders.length} payment-verified regular orders`);
+      console.log(`✅ Found ${customOrders.length} payment-verified custom orders`);
+      console.log(`✅ Found ${customDesigns.length} payment-verified custom designs`);
       
       // Get order items for regular orders
       for (let order of regularOrders) {
@@ -439,23 +518,70 @@ class DeliveryController {
         orderDetails = designs[0];
         console.log('📅 Found custom design:', orderDetails ? 'YES' : 'NO');
       } else if (order_type === 'custom_order') {
-        // Try with and without prefix stripping
-        actualOrderId = order_id.toString().replace('custom-order-', '');
-        let [customOrders] = await connection.execute(`
-          SELECT *, custom_order_id as order_number FROM custom_orders WHERE id = ?
-        `, [actualOrderId]);
+        // For custom orders, first look in custom_orders table, then in orders table for delivery orders
+        console.log('🔍 Looking for custom order with ID:', order_id);
         
-        if (customOrders.length === 0 && order_id !== actualOrderId) {
-          // Try with original ID if stripping didn't work
-          [customOrders] = await connection.execute(`
-            SELECT *, custom_order_id as order_number FROM custom_orders WHERE id = ?
+        // First, try to find in custom_orders table
+        const [customOrders] = await connection.execute(`
+          SELECT co.id, co.custom_order_id, co.user_id, co.product_type, co.product_name,
+                 co.size, co.color, co.quantity, co.urgency, co.special_instructions,
+                 co.customer_name,
+                 co.customer_email,
+                 co.customer_phone,
+                 co.province, co.municipality, co.street_number, co.house_number, 
+                 co.barangay, co.postal_code, co.status, co.estimated_price, co.final_price,
+                 co.payment_status, co.payment_method, co.delivery_status, co.delivery_notes,
+                 CONCAT(
+                   COALESCE(co.house_number, ''), 
+                   CASE WHEN co.house_number IS NOT NULL THEN ' ' ELSE '' END,
+                   COALESCE(co.street_number, ''), 
+                   CASE WHEN co.barangay IS NOT NULL THEN CONCAT(', ', co.barangay) ELSE '' END,
+                   CASE WHEN co.municipality IS NOT NULL THEN CONCAT(', ', co.municipality) ELSE '' END,
+                   CASE WHEN co.province IS NOT NULL THEN CONCAT(', ', co.province) ELSE '' END,
+                   CASE WHEN co.postal_code IS NOT NULL THEN CONCAT(' ', co.postal_code) ELSE '' END
+                 ) as shipping_address,
+                 CONCAT(
+                   COALESCE(co.house_number, ''), 
+                   CASE WHEN co.house_number IS NOT NULL THEN ' ' ELSE '' END,
+                   COALESCE(co.street_number, ''), 
+                   CASE WHEN co.barangay IS NOT NULL THEN CONCAT(', ', co.barangay) ELSE '' END,
+                   CASE WHEN co.municipality IS NOT NULL THEN CONCAT(', ', co.municipality) ELSE '' END,
+                   CASE WHEN co.province IS NOT NULL THEN CONCAT(', ', co.province) ELSE '' END,
+                   CASE WHEN co.postal_code IS NOT NULL THEN CONCAT(' ', co.postal_code) ELSE '' END
+                 ) as delivery_address,
+                 co.customer_phone as contact_phone,
+                 co.custom_order_id as order_number
+          FROM custom_orders co
+          WHERE co.id = ?
+        `, [order_id]);
+        
+        if (customOrders.length > 0) {
+          orderDetails = customOrders[0];
+          console.log('🔍 Found custom order:', orderDetails.order_number);
+        } else {
+          // If not found in custom_orders, look in orders table for delivery orders
+          console.log('🔍 Not found in custom_orders, checking delivery orders...');
+          const [customDeliveryOrders] = await connection.execute(`
+            SELECT o.*, 
+                   CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                   u.email as customer_email,
+                   u.phone as customer_phone,
+                   o.shipping_address,
+                   o.contact_phone as shipping_phone,
+                   o.order_number
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id 
+            WHERE o.id = ? AND o.notes LIKE '%Reference: CUSTOM-%'
           `, [order_id]);
-          actualOrderId = order_id;
+          
+          if (customDeliveryOrders.length > 0) {
+            orderDetails = customDeliveryOrders[0];
+            console.log('🔍 Found delivery order:', orderDetails.order_number);
+          }
         }
         
-        orderDetails = customOrders[0];
         console.log('📅 Found custom order:', orderDetails ? 'YES' : 'NO');
-        console.log('📅 Actual ID used:', actualOrderId);
+        console.log('📅 Order ID used:', order_id);
       }
       
       if (!orderDetails) {
@@ -517,6 +643,29 @@ class DeliveryController {
         console.log(`  ${index}: ${param} (${typeof param})`);
       });
       
+      // Check delivery capacity for the requested date (max 3 deliveries per day)
+      const deliveryDateOnly = delivery_date.split('T')[0]; // Extract just the date part
+      const [capacityCheck] = await connection.execute(`
+        SELECT COUNT(DISTINCT order_id) as delivery_count 
+        FROM delivery_schedules_enhanced 
+        WHERE DATE(delivery_date) = ? 
+        AND delivery_status NOT IN ('cancelled', 'removed')
+      `, [deliveryDateOnly]);
+      
+      const currentDeliveries = capacityCheck[0].delivery_count;
+      console.log(`📊 Current deliveries for ${deliveryDateOnly}: ${currentDeliveries}/3`);
+      
+      if (currentDeliveries >= 3) {
+        console.log('❌ Delivery capacity exceeded for date:', deliveryDateOnly);
+        return res.status(400).json({
+          success: false,
+          message: `Cannot schedule delivery for ${deliveryDateOnly}. Maximum of 3 deliveries per day already reached (${currentDeliveries} deliveries scheduled).`,
+          capacityExceeded: true,
+          currentDeliveries: currentDeliveries,
+          maxDeliveries: 3
+        });
+      }
+      
       // Create delivery schedule
       const [result] = await connection.execute(`
         INSERT INTO delivery_schedules_enhanced (
@@ -553,9 +702,10 @@ class DeliveryController {
           WHERE id = ?
         `, [delivery_date, delivery_notes, actualOrderId]);
       } else if (order_type === 'custom_order') {
+        // For custom orders, update the custom_orders table
         await connection.execute(`
           UPDATE custom_orders 
-          SET delivery_status = 'scheduled', delivery_date = ?, delivery_notes = ?
+          SET delivery_status = 'scheduled', estimated_delivery_date = ?, delivery_notes = ?
           WHERE id = ?
         `, [delivery_date, delivery_notes, actualOrderId]);
       }

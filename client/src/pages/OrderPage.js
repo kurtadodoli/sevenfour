@@ -27,7 +27,8 @@ import {
   faCheckCircle,
   faClock,
   faUndo,
-  faDownload
+  faDownload,
+  faInfoCircle
 } from '@fortawesome/free-solid-svg-icons';
 import InvoiceModal from '../components/InvoiceModal';
 import TopBar from '../components/TopBar';
@@ -1114,6 +1115,12 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   // Function to fetch order items separately if not included
   const fetchOrderItems = useCallback(async (orderId) => {
     try {
+      // Don't fetch items for custom orders - they already have items included
+      if (typeof orderId === 'string' && orderId.startsWith('custom-')) {
+        console.log(`🎨 Skipping items fetch for custom order ID: ${orderId} (items already included)`);
+        return [];
+      }
+      
       console.log(`🔍 Fetching items for order ID: ${orderId}`);
       const response = await api.get(`/orders/${orderId}/items`);
       
@@ -1673,7 +1680,17 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const viewInvoice = async (order) => {
     try {
       setLoading(true);
-      // Fetch order items from backend
+      
+      // Handle custom orders differently - they already have items included
+      if (order.order_type === 'custom' || (typeof order.id === 'string' && order.id.startsWith('custom-'))) {
+        console.log(`🎨 Viewing invoice for custom order: ${order.order_number}`);
+        setSelectedOrder(order);
+        setSelectedOrderItems(order.items || []); // Use items already included in custom order
+        setShowInvoiceModal(true);
+        return;
+      }
+      
+      // For regular orders, fetch items from backend
       const response = await api.get(`/orders/${order.id}/items`);
       if (response.data.success) {
         setSelectedOrder(order);
@@ -2670,7 +2687,8 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                           order_status: order.status
                         });
                         
-                        const isConfirmed = ['confirmed', 'processing', 'shipped', 'delivered', 'in_transit'].includes(status);
+                        // Show Confirmed as green if order is confirmed, regardless of delivery status
+                        const isConfirmed = order.status === 'confirmed' || ['confirmed', 'processing', 'shipped', 'delivered', 'in_transit'].includes(status);
                         const isInTransit = ['shipped', 'in_transit', 'delivered'].includes(status);
                         const isDelivered = status === 'delivered';
                         
@@ -2747,7 +2765,7 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
               <OrderActions>
                 {(order.status === 'pending' || order.status === 'confirmed') && !order.cancellation_request_status && (
                   <>
-                    {order.status === 'pending' && !order.user_confirmed_at && (
+                    {order.status === 'pending' && !order.user_confirmed_at && order.order_type !== 'custom' && (
                       <ActionButton 
                         primary 
                         onClick={() => confirmOrder(order.id)}
@@ -2760,6 +2778,21 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                         )}
                         Submit for Verification
                       </ActionButton>
+                    )}
+                    
+                    {order.order_type === 'custom' && order.status === 'pending' && (
+                      <div style={{ 
+                        padding: '12px', 
+                        background: '#f8f9fa', 
+                        borderRadius: '8px', 
+                        border: '1px solid #e9ecef',
+                        textAlign: 'center',
+                        color: '#6c757d',
+                        fontSize: '14px'
+                      }}>
+                        <FontAwesomeIcon icon={faInfoCircle} style={{ marginRight: '8px', color: '#6c757d' }} />
+                        Waiting for admin approval of your custom design request
+                      </div>
                     )}
                     
                     {order.status === 'pending' && order.user_confirmed_at && (
