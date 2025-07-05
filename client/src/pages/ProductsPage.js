@@ -51,7 +51,8 @@ const Header = styled.div`
 
 const Title = styled.h1`
   font-size: 3.5rem;
-  font-weight: 700;
+  font-weight: 400;
+  font-family: 'Times New Roman', Times, serif;
   background: linear-gradient(135deg, #000000 0%, #333333 50%, #000000 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -82,7 +83,8 @@ const Subtitle = styled.p`
   font-size: 1.2rem;
   color: #555555;
   margin: 24px 0 0 0;
-  font-weight: 400;
+  font-weight: 300;
+  font-family: 'Times New Roman', Times, serif;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
@@ -1371,7 +1373,9 @@ const ProductsPage = () => {
                                                     alt={product.productname}
                                                     onError={(e) => {
                                                         console.log('Image failed to load:', product.productimage);
-                                                        e.target.style.display = 'none';
+                                                        if (e.target) {
+                                                          e.target.style.display = 'none';
+                                                        }
                                                     }}
                                                 />
                                                 <ImageOverlay>

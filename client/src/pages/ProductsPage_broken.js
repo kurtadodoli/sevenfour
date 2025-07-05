@@ -1570,7 +1570,9 @@ const ProductsPage = () => {
                                                     alt={product.productname}
                                                     onError={(e) => {
                                                         console.log('Image failed to load:', product.productimage);
-                                                        e.target.style.display = 'none';
+                                                        if (e.target) {
+                                                          e.target.style.display = 'none';
+                                                        }
                                                     }}
                                                 />
                                                 <ImageOverlay>

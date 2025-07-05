@@ -13,8 +13,13 @@ import {
   faImage,
   faPalette,
   faTshirt,
-  faRulerCombined
+  faRulerCombined,
+  faCreditCard,
+  faUpload,
+  faShieldAlt,
+  faMoneyBillWave
 } from '@fortawesome/free-solid-svg-icons';
+import { toast } from 'react-toastify';
 
 // Custom SVG Icons for clothing types
 const ShortsIcon = ({ color = 'currentColor', size = 48 }) => (
@@ -528,30 +533,39 @@ const OrderStatus = styled.span`
   background: ${props => {
     switch (props.status) {
       case 'pending': return '#f8f9fa';
+      case 'approved': return '#e3f2fd';
       case 'confirmed': return '#e3f2fd';
       case 'processing': return '#fff3e0';
       case 'completed': return '#e8f5e8';
       case 'cancelled': return '#ffebee';
+      case 'payment_submitted': return '#fff3e0';
+      case 'payment_verified': return '#e8f5e8';
       default: return '#f8f9fa';
     }
   }};
   color: ${props => {
     switch (props.status) {
       case 'pending': return '#666666';
+      case 'approved': return '#1976d2';
       case 'confirmed': return '#1976d2';
       case 'processing': return '#f57c00';
       case 'completed': return '#388e3c';
       case 'cancelled': return '#d32f2f';
+      case 'payment_submitted': return '#f57c00';
+      case 'payment_verified': return '#388e3c';
       default: return '#666666';
     }
   }};
   border: 1px solid ${props => {
     switch (props.status) {
       case 'pending': return '#e5e5e5';
+      case 'approved': return '#2196f3';
       case 'confirmed': return '#2196f3';
       case 'processing': return '#ff9800';
       case 'completed': return '#4caf50';
       case 'cancelled': return '#f44336';
+      case 'payment_submitted': return '#ff9800';
+      case 'payment_verified': return '#4caf50';
       default: return '#e5e5e5';
     }
   }};
@@ -601,6 +615,185 @@ const ToggleButton = styled.button`
   }
 `;
 
+// Payment Form Styled Components
+const PaymentSection = styled.div`
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+`;
+
+const PaymentHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  
+  h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #000000;
+  }
+`;
+
+const PaymentForm = styled.form`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PaymentFormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  
+  &.full-width {
+    grid-column: 1 / -1;
+  }
+`;
+
+const PaymentLabel = styled.label`
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #000000;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const PaymentInput = styled.input`
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: white;
+  
+  &:focus {
+    outline: none;
+    border-color: #000000;
+  }
+  
+  &::placeholder {
+    color: #aaa;
+  }
+`;
+
+const PaymentFileInput = styled.input`
+  display: none;
+`;
+
+const PaymentFileLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #666;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #f5f5f5;
+    border-color: #000000;
+  }
+`;
+
+const PaymentProofPreview = styled.div`
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  
+  img {
+    max-width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+  }
+`;
+
+const PaymentSubmitButton = styled.button`
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    background: #218838;
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const PaymentInstructions = styled.div`
+  background: #e7f3ff;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  color: #0c5460;
+  
+  h5 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  
+  ul {
+    margin: 0.5rem 0 0 0;
+    padding-left: 1.5rem;
+  }
+  
+  li {
+    margin-bottom: 0.25rem;
+  }
+`;
+
+const PaymentStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-top: 1rem;
+  
+  &.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  &.pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+  }
+`;
+
 const CustomPage = () => {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [uploadedImages, setUploadedImages] = useState([]);
@@ -610,6 +803,12 @@ const CustomPage = () => {
   const [pendingOrders, setPendingOrders] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
   const [activeMode, setActiveMode] = useState('customize'); // 'customize' or 'pending'
+  
+  // Payment-related state for custom orders
+  const [paymentForm, setPaymentForm] = useState({});
+  const [paymentProofFiles, setPaymentProofFiles] = useState({});
+  const [paymentProofPreviews, setPaymentProofPreviews] = useState({});
+  const [paymentSubmitting, setPaymentSubmitting] = useState({});
 
   const [formData, setFormData] = useState({
     // Product details
@@ -725,7 +924,8 @@ const CustomPage = () => {
     } else {
       console.log('❌ No user state, skipping fetchPendingOrders');
     }
-  }, [user, fetchPendingOrders]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Only depend on user to prevent infinite loop
 
   const handleProductSelect = (productType) => {
     setSelectedProduct(productType);
@@ -926,6 +1126,117 @@ const CustomPage = () => {
     }
   };
 
+  // Payment form handlers
+  const handlePaymentInputChange = (orderId, field, value) => {
+    setPaymentForm(prev => ({
+      ...prev,
+      [orderId]: {
+        ...prev[orderId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handlePaymentProofUpload = (orderId, event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type and size
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      
+      setPaymentProofFiles(prev => ({
+        ...prev,
+        [orderId]: file
+      }));
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPaymentProofPreviews(prev => ({
+          ...prev,
+          [orderId]: e.target.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePaymentSubmit = async (orderId) => {
+    const paymentData = paymentForm[orderId];
+    const paymentProof = paymentProofFiles[orderId];
+    
+    // Validate required fields
+    if (!paymentData?.fullName || !paymentData?.contactNumber || !paymentData?.gcashReference || !paymentProof) {
+      toast.error('Please fill in all required fields and upload payment proof');
+      return;
+    }
+    
+    setPaymentSubmitting(prev => ({
+      ...prev,
+      [orderId]: true
+    }));
+    
+    try {
+      const formData = new FormData();
+      formData.append('customOrderId', orderId);
+      formData.append('fullName', paymentData.fullName);
+      formData.append('contactNumber', paymentData.contactNumber);
+      formData.append('gcashReference', paymentData.gcashReference);
+      formData.append('paymentProof', paymentProof);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5000/api/custom-orders/payment', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success('Payment submitted successfully! Your order is now pending admin verification.');
+        
+        // Clear payment form for this order
+        setPaymentForm(prev => {
+          const newForm = { ...prev };
+          delete newForm[orderId];
+          return newForm;
+        });
+        setPaymentProofFiles(prev => {
+          const newFiles = { ...prev };
+          delete newFiles[orderId];
+          return newFiles;
+        });
+        setPaymentProofPreviews(prev => {
+          const newPreviews = { ...prev };
+          delete newPreviews[orderId];
+          return newPreviews;
+        });
+        
+        // Refresh pending orders to show updated status
+        fetchPendingOrders();
+      } else {
+        toast.error(data.message || 'Failed to submit payment');
+      }
+    } catch (error) {
+      console.error('Payment submission error:', error);
+      toast.error('Failed to submit payment. Please try again.');
+    } finally {
+      setPaymentSubmitting(prev => ({
+        ...prev,
+        [orderId]: false
+      }));
+    }
+  };
+
   const calculateTotal = () => {
     if (!selectedProduct) return 0;
     return productTypes[selectedProduct].price * formData.quantity;
@@ -1032,7 +1343,14 @@ const CustomPage = () => {
                   <PendingOrderCard key={order.custom_order_id}>
                     <OrderHeader>
                       <OrderId>Order #{order.custom_order_id}</OrderId>
-                      <OrderStatus status={order.status}>{order.status}</OrderStatus>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <OrderStatus status={order.status}>{order.status}</OrderStatus>
+                        {order.payment_status && order.payment_status !== 'pending' && (
+                          <OrderStatus status={`payment_${order.payment_status}`}>
+                            Payment {order.payment_status}
+                          </OrderStatus>
+                        )}
+                      </div>
                     </OrderHeader>
                     
                     {/* Custom Design Images Section */}
@@ -1108,6 +1426,8 @@ const CustomPage = () => {
                                       `http://localhost:5000/uploads/custom-designs/${image.original_filename}`
                                     ];
                                     
+                                    if (!e.target) return;
+                                    
                                     if (!e.target.dataset.retryIndex) {
                                       e.target.dataset.retryIndex = '0';
                                     }
@@ -1120,7 +1440,9 @@ const CustomPage = () => {
                                     } else {
                                       console.log('❌ All alternative URLs failed');
                                       e.target.style.display = 'none';
-                                      e.target.nextSibling.style.display = 'flex';
+                                      if (e.target.nextSibling) {
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }
                                     }
                                   }}
                                 />
@@ -1222,6 +1544,131 @@ const CustomPage = () => {
                       <DetailItem style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fafafa', borderRadius: '4px' }}>
                         <strong>Admin Notes:</strong> {order.admin_notes}
                       </DetailItem>
+                    )}
+                    
+                    {/* Payment Section for Approved Orders (only show if payment not yet submitted) */}
+                    {order.status === 'approved' && (!order.payment_status || order.payment_status === 'pending') && (
+                      <PaymentSection>
+                        <PaymentHeader>
+                          <FontAwesomeIcon icon={faMoneyBillWave} />
+                          <h4>GCash Payment</h4>
+                        </PaymentHeader>
+                        
+                        <PaymentInstructions>
+                          <h5>Payment Instructions:</h5>
+                          <ul>
+                            <li>Send payment to GCash number: <strong>09123456789</strong></li>
+                            <li>Amount: <strong>₱{order.final_price ? parseFloat(order.final_price).toLocaleString() : parseFloat(order.estimated_price).toLocaleString()}</strong></li>
+                            <li>Reference: Order #{order.custom_order_id}</li>
+                            <li>Take a screenshot of your payment confirmation</li>
+                            <li>Upload the screenshot below along with your details</li>
+                          </ul>
+                        </PaymentInstructions>
+                        
+                        <PaymentForm onSubmit={(e) => { e.preventDefault(); handlePaymentSubmit(order.custom_order_id); }}>
+                          <PaymentFormGroup>
+                            <PaymentLabel>
+                              <FontAwesomeIcon icon={faUser} />
+                              Full Name *
+                            </PaymentLabel>
+                            <PaymentInput
+                              type="text"
+                              placeholder="Enter your full name"
+                              value={paymentForm[order.custom_order_id]?.fullName || ''}
+                              onChange={(e) => handlePaymentInputChange(order.custom_order_id, 'fullName', e.target.value)}
+                              required
+                            />
+                          </PaymentFormGroup>
+                          
+                          <PaymentFormGroup>
+                            <PaymentLabel>
+                              <FontAwesomeIcon icon={faPhone} />
+                              Contact Number *
+                            </PaymentLabel>
+                            <PaymentInput
+                              type="tel"
+                              placeholder="09XXXXXXXXX"
+                              value={paymentForm[order.custom_order_id]?.contactNumber || ''}
+                              onChange={(e) => handlePaymentInputChange(order.custom_order_id, 'contactNumber', e.target.value)}
+                              required
+                            />
+                          </PaymentFormGroup>
+                          
+                          <PaymentFormGroup>
+                            <PaymentLabel>
+                              <FontAwesomeIcon icon={faCreditCard} />
+                              GCash Reference Number *
+                            </PaymentLabel>
+                            <PaymentInput
+                              type="text"
+                              placeholder="Enter GCash reference number"
+                              value={paymentForm[order.custom_order_id]?.gcashReference || ''}
+                              onChange={(e) => handlePaymentInputChange(order.custom_order_id, 'gcashReference', e.target.value)}
+                              required
+                            />
+                          </PaymentFormGroup>
+                          
+                          <PaymentFormGroup className="full-width">
+                            <PaymentLabel>
+                              <FontAwesomeIcon icon={faUpload} />
+                              Payment Proof (Screenshot) *
+                            </PaymentLabel>
+                            <PaymentFileInput
+                              type="file"
+                              accept="image/*"
+                              id={`payment-proof-${order.custom_order_id}`}
+                              onChange={(e) => handlePaymentProofUpload(order.custom_order_id, e)}
+                            />
+                            <PaymentFileLabel htmlFor={`payment-proof-${order.custom_order_id}`}>
+                              <FontAwesomeIcon icon={faUpload} />
+                              {paymentProofFiles[order.custom_order_id] ? 'Change Payment Proof' : 'Upload Payment Proof'}
+                            </PaymentFileLabel>
+                            
+                            {paymentProofPreviews[order.custom_order_id] && (
+                              <PaymentProofPreview>
+                                <img 
+                                  src={paymentProofPreviews[order.custom_order_id]} 
+                                  alt="Payment proof preview"
+                                />
+                              </PaymentProofPreview>
+                            )}
+                          </PaymentFormGroup>
+                          
+                          <PaymentFormGroup className="full-width">
+                            <PaymentSubmitButton
+                              type="submit"
+                              disabled={paymentSubmitting[order.custom_order_id]}
+                            >
+                              {paymentSubmitting[order.custom_order_id] ? (
+                                <>
+                                  <FontAwesomeIcon icon={faSpinner} spin />
+                                  Submitting Payment...
+                                </>
+                              ) : (
+                                <>
+                                  <FontAwesomeIcon icon={faShieldAlt} />
+                                  Submit Payment
+                                </>
+                              )}
+                            </PaymentSubmitButton>
+                          </PaymentFormGroup>
+                        </PaymentForm>
+                      </PaymentSection>
+                    )}
+                    
+                    {/* Payment Status for orders with payment submitted */}
+                    {order.payment_status === 'submitted' && (
+                      <PaymentStatus className="pending">
+                        <FontAwesomeIcon icon={faSpinner} />
+                        Payment verification pending - Admin will review your payment proof
+                      </PaymentStatus>
+                    )}
+                    
+                    {order.payment_status === 'verified' && (
+                      <PaymentStatus className="success">
+                        <FontAwesomeIcon icon={faCheck} />
+                        Payment verified! Your order is now being processed.
+                      </PaymentStatus>
                     )}
                   </PendingOrderCard>
                 )) : <div>No valid orders found</div>}

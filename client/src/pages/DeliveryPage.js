@@ -320,33 +320,27 @@ const DeliveryIcon = styled.div`
   width: 32px;
   height: 32px;
   background: ${props => {
-    switch (props.status) {
-      case 'pending':
-        return 'linear-gradient(135deg, #ffc107, #f39c12)';
-      case 'scheduled':
+    // Map all backend statuses to the three allowed display statuses for styling
+    const displayStatus = (() => {
+      const status = props.status;
+      if (status === 'delivered') return 'delivered';
+      if (status === 'shipped' || status === 'in_transit') return 'in_transit';
+      // All other statuses map to confirmed
+      return 'confirmed';
+    })();
+    
+    switch (displayStatus) {
+      case 'confirmed':
         return 'linear-gradient(135deg, #007bff, #0056b3)';
       case 'in_transit':
         return 'linear-gradient(135deg, #17a2b8, #138496)';
       case 'delivered':
         return 'linear-gradient(135deg, #28a745, #20c997)';
-      case 'delayed':
-        return 'linear-gradient(135deg, #ffc107, #e0a800)';
-      case 'cancelled':
-        return 'linear-gradient(135deg, #6c757d, #5a6268)';
       default:
         return 'linear-gradient(135deg, #f8f9fa, #e9ecef)';
     }
   }};
-  color: ${props => {
-    switch (props.status) {
-      case 'pending':
-        return '#212529';
-      case 'delayed':
-        return '#212529';
-      default:
-        return '#ffffff';
-    }
-  }};
+  color: #ffffff;
   border-radius: 8px;
   font-size: 14px;
   font-weight: bold;
@@ -367,72 +361,23 @@ const DeliveryIcon = styled.div`
     transform: translateY(-1px) scale(1.02);
   }
   
-  /* Status-specific styling */
-  ${props => props.status === 'delivered' && `
-    &::before {
-      content: '✅';
-      font-size: 16px;
+  /* Status-specific icons based on simplified mapping */
+  ${props => {
+    const status = props.status;
+    const displayStatus = (() => {
+      if (status === 'delivered') return 'delivered';
+      if (status === 'shipped' || status === 'in_transit') return 'in_transit';
+      return 'confirmed';
+    })();
+    
+    if (displayStatus === 'delivered') {
+      return `&::before { content: '✅'; font-size: 16px; }`;
+    } else if (displayStatus === 'in_transit') {
+      return `&::before { content: '🚚'; font-size: 14px; }`;
+    } else {
+      return `&::before { content: '📦'; font-size: 14px; }`;
     }
-  `}
-  
-  ${props => props.status === 'in_transit' && `
-    &::before {
-      content: '🚚';
-      font-size: 14px;
-    }
-  `}
-  
-  ${props => props.status === 'delayed' && `
-    &::before {
-      content: '⚠️';
-      font-size: 14px;
-    }
-  `}
-  
-  ${props => props.status === 'scheduled' && `
-    &::before {
-      content: '📅';
-      font-size: 14px;
-    }
-  `}
-  
-  ${props => props.status === 'pending' && `
-    &::before {
-      content: '⏳';
-      font-size: 14px;
-    }
-  `}
-  
-  ${props => props.status === 'cancelled' && `
-    &::before {
-      content: '❌';
-      font-size: 14px;
-    }
-  `}
-`;
-
-const StatusIndicator = styled.div.withConfig({
-  shouldForwardProp: (prop) => prop !== 'status',
-})`
-  position: absolute;
-  top: 0.25rem;
-  right: 0.25rem;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${props => {
-    switch (props.status) {
-      case 'pending': return 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
-      case 'scheduled': return 'linear-gradient(135deg, #d1ecf1, #bee5eb)';
-      case 'pending_completion': return 'linear-gradient(135deg, #ffa500, #ff8c00)';
-      case 'in_transit': return 'linear-gradient(135deg, #000000, #2d3436)';
-      case 'delivered': return 'linear-gradient(135deg, #d4edda, #c3e6cb)';
-      case 'delayed': return 'linear-gradient(135deg, #fce4ec, #f8bbd9)';
-      default: return '#e9ecef';
-    }
-  }};
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }}
 `;
 
 const AvailabilityIndicator = styled.div.withConfig({
@@ -472,15 +417,6 @@ const AvailabilityIndicator = styled.div.withConfig({
   }
 `;
 
-const LegendColor = styled.div`
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  background: ${props => props.color};
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-`;
 
 const FullCalendarModal = styled.div`
   position: fixed;
@@ -507,270 +443,15 @@ const FullCalendarContent = styled.div`
   position: relative;
 `;
 
-const FullCalendarHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  padding-top: 1rem;
-  padding-right: 3rem;
-  border-bottom: 2px solid #e0e0e0;
-  position: relative;
-`;
 
-const FullCalendarTitle = styled.h2`
-  font-size: 2rem;
-  font-weight: 300;
-  margin: 0;
-  color: #000000;
-`;
 
-const FullCalendarGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  background: #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-`;
 
-const FullCalendarDay = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['availabilityStatus', 'isToday', 'isCurrentMonth'].includes(prop),
-})`
-  background: ${props => {
-    if (!props.isCurrentMonth) return '#f8f8f8';
-      // Availability status colors for current month days
-    if (props.availabilityStatus === 'available') return 'linear-gradient(135deg, #f8fff9, #ffffff)';
-    if (props.availabilityStatus === 'partial') return 'linear-gradient(135deg, #fffdf5, #ffffff)';
-    if (props.availabilityStatus === 'busy') return 'linear-gradient(135deg, #fff5f5, #ffffff)';
-    if (props.availabilityStatus === 'unavailable') return 'linear-gradient(135deg, #f8f9fa, #e9ecef)';
-    return '#ffffff';
-  }};
-  min-height: 150px;
-  padding: 1rem;
-  border: none;
-  position: relative;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: ${props => {
-      if (!props.isCurrentMonth) return '#f0f0f0';
-      
-      if (props.availabilityStatus === 'available') return 'linear-gradient(135deg, #e8f5e8, #f0f8f0)';
-      if (props.availabilityStatus === 'partial') return 'linear-gradient(135deg, #fff8e6, #fffbf0)';
-      if (props.availabilityStatus === 'busy') return 'linear-gradient(135deg, #ffe6e6, #fff0f0)';
-      if (props.availabilityStatus === 'unavailable') return 'linear-gradient(135deg, #e9ecef, #dee2e6)';
-      return '#f8f8f8';
-    }};
-  }
-  
-  ${props => props.isToday && `
-    background: ${
-      props.availabilityStatus === 'available' ? 'linear-gradient(135deg, #e8f5e8, #f0f8f0)' :
-      props.availabilityStatus === 'partial' ? 'linear-gradient(135deg, #fff8e6, #fffbf0)' :
-      props.availabilityStatus === 'busy' ? 'linear-gradient(135deg, #ffe6e6, #fff0f0)' :
-      props.availabilityStatus === 'unavailable' ? 'linear-gradient(135deg, #e9ecef, #dee2e6)' :
-      '#f0f0f0'
-    };
-    border: 3px solid #000000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  `}
-  
-  ${props => !props.isCurrentMonth && `
-    color: #cccccc;
-  `}
-  
-  ${props => props.isCurrentMonth && props.availabilityStatus === 'available' && `
-    box-shadow: inset 0 0 0 2px rgba(40, 167, 69, 0.1);
-  `}
-  
-  ${props => props.isCurrentMonth && props.availabilityStatus === 'partial' && `
-    box-shadow: inset 0 0 0 2px rgba(255, 193, 7, 0.1);
-  `}
-  
-  ${props => props.isCurrentMonth && props.availabilityStatus === 'busy' && `
-    box-shadow: inset 0 0 0 2px rgba(220, 53, 69, 0.1);
-  `}
-  
-  ${props => props.isCurrentMonth && props.availabilityStatus === 'unavailable' && `
-    box-shadow: inset 0 0 0 2px rgba(108, 117, 125, 0.1);
-  `}
-`;
 
-const FullDayNumber = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['isToday', 'isCurrentMonth'].includes(prop),
-})`
-  font-size: 1.1rem;
-  font-weight: ${props => props.isToday ? '600' : '400'};
-  color: ${props => props.isCurrentMonth ? '#000000' : '#cccccc'};
-  margin-bottom: 0.75rem;
-  text-align: center;
-`;
 
-const FullOrderBlock = styled.div`
-  background: ${props => {
-    switch (props.status) {
-      case 'scheduled': return 'linear-gradient(135deg, #000000, #333333)';
-      case 'pending_completion': return 'linear-gradient(135deg, #ffa500, #ff8c00)';
-      case 'in_transit': return 'linear-gradient(135deg, #007bff, #0056b3)';
-      case 'delivered': return 'linear-gradient(135deg, #28a745, #1e7e34)';
-      case 'delayed': return 'linear-gradient(135deg, #e91e63, #c2185b)';
-      default: return 'linear-gradient(135deg, #6c757d, #5a6268)';
-    }
-  }};
-  color: #ffffff;
-  font-size: 0.8rem;
-  padding: 0.5rem;
-  margin: 0.25rem 0;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
-  }
-`;
 
-const CloseFullCalendar = styled.button`
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: #ffffff;
-  border: 2px solid #e0e0e0;
-  font-size: 1.2rem;
-  cursor: pointer;
-  color: #666666;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-    &:hover {
-    background: #f8f9fa;
-    color: #000000;
-    border-color: #000000;
-    transform: scale(1.05);
-  }
-`;
 
-// Simple Order Details Modal Components
-const SimpleOrderModal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3000;
-  padding: 20px;
-`;
 
-const SimpleOrderContent = styled.div`
-  background: #ffffff;
-  width: 100%;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  border-radius: 8px;
-`;
 
-const SimpleOrderHeader = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const SimpleOrderTitle = styled.h3`
-  margin: 0;
-  color: #000000;
-  font-size: 1.3rem;
-  font-weight: 500;
-`;
-
-const SimpleOrderBody = styled.div`
-  padding: 24px;
-`;
-
-const QuickDetailRow = styled.div`
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
-  
-  &:last-child {
-    border-bottom: none;
-  }
-`;
-
-const QuickDetailLabel = styled.span`
-  color: #666666;
-  font-weight: 500;
-`;
-
-const QuickDetailValue = styled.span`
-  color: #000000;
-  font-weight: 400;
-`;
-
-const OrderSummary = styled.div`
-  background: #f8f9fa;
-  padding: 16px;
-  border-radius: 6px;
-  margin: 16px 0;
-`;
-
-const SummaryTitle = styled.h4`
-  margin: 0 0 12px 0;
-  color: #000000;
-  font-size: 1.1rem;
-`;
-
-const ItemSummary = styled.div`
-  display: flex
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  font-size: 14px;
-`;
-
-const TotalAmount = styled.div`
-  display: flex;
-  justify-content: space-between;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: #000000;
-  padding-top: 12px;
-  border-top: 2px solid #000000;
-  margin-top: 12px;
-`;
-
-const SimpleCloseButton = styled.button`
-  background: none;
-  border: none;
-  color: #666666;
-  cursor: pointer;
-  padding: 8px;
-  font-size: 18px;
-  transition: color 0.3s ease;
-  
-  &:hover {
-    color: #000000;
-  }
-`;
 
 const OrdersList = styled.div`
   max-height: 600px;
@@ -823,212 +504,11 @@ const OrderTypeIcon = styled.div`
   height: 20px;
   border-radius: 50%;
   font-size: 10px;
-  
-  &.custom {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-  }
 `;
 
-const OrderTypeLabel = styled.div`
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  background: ${props => props.orderType === 'custom' ? '#f8d7da' : '#e2f6e6'};
-  color: ${props => props.orderType === 'custom' ? '#721c24' : '#0a3622'};
-`;
 
-const OrderDetails = styled.div`
-  font-size: 0.9rem;
-  color: #666666;
-  line-height: 1.4;
-`;
 
-const ProductionStatusBar = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, #ffd700, #ffed4a);
-  color: #8b5a00;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin: 8px 0;
-  border-left: 4px solid #ff9500;
-  box-shadow: 0 2px 4px rgba(255, 215, 0, 0.2);
-  
-  .icon {
-    font-size: 0.9rem;
-  }
-  
-  .message {
-    flex: 1;
-  }
-  
-  .days {
-    background: rgba(139, 90, 0, 0.1);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 700;
-  }
-  
-  &.ready {
-    background: linear-gradient(135deg, #28a745, #20c997);
-    color: white;
-    border-left-color: #155724;
-    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
-    
-    .days {
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-    }
-  }
-`;
 
-const ProductionTimelineContainer = styled.div`
-  width: 100%;
-  margin: 12px 0 16px 0;
-  padding: 16px;
-  background: linear-gradient(135deg, #fff9e6, #fffbf0);
-  border: 1px solid #ffd700;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.1);
-`;
-
-const TimelineHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  
-  .title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #b8860b;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  .dates {
-    font-size: 0.8rem;
-    color: #8b5a00;
-    font-weight: 500;
-  }
-`;
-
-const TimelineTrack = styled.div`
-  position: relative;
-  height: 12px;
-  background: #f0f0f0;
-  border-radius: 6px;
-  overflow: hidden;
-  margin: 8px 0;
-`;
-
-const TimelineProgress = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['progress', 'isComplete'].includes(prop),
-})`
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: ${props => props.isComplete ? 
-    'linear-gradient(90deg, #28a745, #20c997)' : 
-    'linear-gradient(90deg, #ffd700, #ffed4a)'};
-  border-radius: 6px;
-  transition: width 0.3s ease;
-  width: ${props => props.progress}%;
-`;
-
-const TimelineMarkers = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  font-size: 0.75rem;
-  color: #666;
-`;
-
-const TimelineMarker = styled.div.withConfig({
-  shouldForwardProp: (prop) => prop !== 'active',
-})`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-  
-  .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: ${props => props.active ? '#ffd700' : '#ddd'};
-    border: 2px solid ${props => props.active ? '#ffb300' : '#ccc'};
-    margin-bottom: 4px;
-    box-shadow: ${props => props.active ? '0 2px 4px rgba(255, 215, 0, 0.3)' : 'none'};
-  }
-  
-  .label {
-    font-size: 0.7rem;
-    color: ${props => props.active ? '#8b5a00' : '#999'};
-    font-weight: ${props => props.active ? '600' : '400'};
-    text-align: center;
-    white-space: nowrap;
-  }
-  
-  &.complete .dot {
-    background: #28a745;
-    border-color: #20c997;
-  }
-  
-  &.complete .label {
-    color: #155724;
-  }
-`;
-
-const ProductionStatusIndicator = styled.div.withConfig({
-  shouldForwardProp: (prop) => prop !== 'isComplete',
-})`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: 8px;
-  
-  .status-icon {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    background: ${props => props.isComplete ? '#28a745' : '#ffd700'};
-    color: white;
-  }
-  
-  .status-text {
-    color: ${props => props.isComplete ? '#155724' : '#8b5a00'};
-  }
-  
-  .status-days {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    background: ${props => props.isComplete ? 
-      'rgba(40, 167, 69, 0.1)' : 
-      'rgba(184, 134, 11, 0.1)'};
-    color: ${props => props.isComplete ? '#155724' : '#8b5a00'};
-    font-weight: 700;
-  }
-`;
 
 // Filter & Search UI Components
 const FilterControlsContainer = styled.div`
@@ -1038,29 +518,6 @@ const FilterControlsContainer = styled.div`
   align-items: center;
   margin-bottom: 1.5rem;
   gap: 1rem;
-`;
-
-const FilterButtons = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-`;
-
-const FilterButton = styled.button`
-  background: ${props => props.active ? '#000000' : '#ffffff'};
-  color: ${props => props.active ? '#ffffff' : '#000000'};
-  border: 1px solid ${props => props.active ? '#000000' : '#e0e0e0'};
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    border-color: #000000;
-    transform: translateY(-1px);
-  }
 `;
 
 const SearchContainer = styled.div`
@@ -1140,25 +597,9 @@ const OrderActions = styled.div`
   min-width: 200px;
 `;
 
-const StatusRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-`;
 
-const ButtonRow = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid #f0f0f0;
-`;
+
+
 
 const ActionButton = styled.button.withConfig({
   shouldForwardProp: (prop) => !['variant', '$primary'].includes(prop),
@@ -1337,17 +778,17 @@ const StatusBadge = styled.span.withConfig({
   }
   
   ${props => {
-    switch (props.status) {
-      case 'pending':
-        return `
-          background: linear-gradient(135deg, #fff3cd, #ffeaa7);
-          color: #856404;
-          border: 1px solid #ffeaa7;
-          &:hover {
-            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
-          }
-        `;
-      case 'scheduled':
+    // Map all backend statuses to the three allowed display statuses
+    const displayStatus = (() => {
+      const status = props.status;
+      if (status === 'delivered') return 'delivered';
+      if (status === 'shipped' || status === 'in_transit') return 'in_transit';
+      // All other statuses (pending, scheduled, confirmed, processing, etc.) map to confirmed
+      return 'confirmed';
+    })();
+    
+    switch (displayStatus) {
+      case 'confirmed':
         return `
           background: linear-gradient(135deg, #d1ecf1, #bee5eb);
           color: #0c5460;
@@ -1373,15 +814,6 @@ const StatusBadge = styled.span.withConfig({
           border: 1px solid #c3e6cb;
           &:hover {
             background: linear-gradient(135deg, #c3e6cb, #00b894);
-            color: #ffffff;
-          }
-        `;      case 'delayed':
-        return `
-          background: linear-gradient(135deg, #fce4ec, #f8bbd9);
-          color: #880e4f;
-          border: 1px solid #f8bbd9;
-          &:hover {
-            background: linear-gradient(135deg, #f8bbd9, #e91e63);
             color: #ffffff;
           }
         `;
@@ -1445,23 +877,7 @@ const LoadingSpinner = styled.div`
   color: #666666;
 `;
 
-const CalendarLegend = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-top: 1rem;
-`;
 
-const LegendItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: #333333;
-`;
 
 const CloseButton = styled.button`
   background: none;
@@ -1647,35 +1063,7 @@ const PopupButton = styled.button`
 
 const DeliveryPage = () => {
   // Helper function to determine dominant order status for a day
-  const getDominantOrderStatus = (dayOrders) => {
-    if (dayOrders.length === 0) return null;
-    
-    // Priority order for status determination
-    const statusPriority = {
-      'delayed': 5,
-      'in_transit': 4,
-      'delivered': 3,
-      'scheduled': 2,
-      'pending': 1
-    };
-    
-    // Get all statuses for the day
-    const statuses = dayOrders.map(order => order.delivery_status || 'pending');
-    
-    // Find the highest priority status
-    let dominantStatus = statuses[0];
-    let highestPriority = statusPriority[dominantStatus] || 0;
-    
-    statuses.forEach(status => {
-      const priority = statusPriority[status] || 0;
-      if (priority > highestPriority) {
-        highestPriority = priority;
-        dominantStatus = status;
-      }
-    });
-    
-    return dominantStatus;
-  };  // Initialize all state variables with proper defaults to prevent runtime errors
+  // Initialize all state variables with proper defaults to prevent runtime errors
   const [orders, setOrders] = useState([]);
   const [deliverySchedules, setDeliverySchedules] = useState([]);
   const [couriers, setCouriers] = useState([]);
@@ -1701,37 +1089,22 @@ const DeliveryPage = () => {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [productionStatuses, setProductionStatuses] = useState({});
-  const [customOrderProductionDates, setCustomOrderProductionDates] = useState({}); // Admin-controlled production completion dates
-  const [customOrderProductionStartDates, setCustomOrderProductionStartDates] = useState({}); // Admin-controlled production start dates
-  const [selectedOrderForProductionStart, setSelectedOrderForProductionStart] = useState(null); // Track which order is being selected for production start
+
   const [showFullCalendar, setShowFullCalendar] = useState(false);
-  const [showSimpleOrderModal, setShowSimpleOrderModal] = useState(false);
-  const [selectedCalendarOrder, setSelectedCalendarOrder] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [popup, setPopup] = useState({ show: false, title: '', message: '', type: 'info' });
   
   // Added state for filtering and searching orders
-  const [orderFilter, setOrderFilter] = useState('regular'); // 'regular', 'custom'
+
   const [searchQuery, setSearchQuery] = useState('');
   const [unavailableDates, setUnavailableDates] = useState(new Set()); // User-controlled unavailable dates
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    scheduled: 0,
-    inTransit: 0,
-    delivered: 0,
-    delayed: 0,
-    cancelled: 0
-  });
-
   // Memoize filtered orders to prevent unnecessary re-renders and key conflicts
   const filteredOrders = useMemo(() => {
     return orders
       .filter(order => {
-        if (orderFilter === 'regular') return order.order_type === 'regular';
-        if (orderFilter === 'custom') return order.order_type === 'custom' || order.order_type === 'custom_order';
-        return true;
+        // Show all order types (regular, custom_order, custom_design)
+        return ['regular', 'custom_order', 'custom_design'].includes(order.order_type);
       })
       .filter(order => {
         // Filter by search query
@@ -1740,7 +1113,7 @@ const DeliveryPage = () => {
         
         // Search in multiple fields
         return (
-          (order.order_number && order.order_number.toString().includes(query)) ||
+          (order.order_number && order.order_number.toString().toLowerCase().includes(query)) ||
           (order.id && order.id.toString().includes(query)) ||
           (order.customerName && order.customerName.toLowerCase().includes(query)) ||
           (order.shipping_address && order.shipping_address.toLowerCase().includes(query)) ||
@@ -1748,52 +1121,11 @@ const DeliveryPage = () => {
           (order.order_type && order.order_type.toLowerCase().includes(query))
         );
       });
-  }, [orders, orderFilter, searchQuery]);
+  }, [orders, searchQuery]);
 
-  const updateStats = useCallback(() => {
-    // Ensure orders is always an array to prevent runtime errors
-    const safeOrders = Array.isArray(orders) ? orders : [];
-    const total = safeOrders.length;
-    const pending = safeOrders.filter(o => !o.delivery_status).length;
-    const scheduled = safeOrders.filter(o => o.delivery_status === 'scheduled').length;
-    const inTransit = safeOrders.filter(o => o.delivery_status === 'in_transit').length;
-    const delivered = safeOrders.filter(o => o.delivery_status === 'delivered').length;
-    const delayed = safeOrders.filter(o => o.delivery_status === 'delayed').length;
-    const cancelled = safeOrders.filter(o => o.delivery_status === 'cancelled').length;
-
-    setStats({ total, pending, scheduled, inTransit, delivered, delayed, cancelled });
-  }, [orders]);  // Priority Algorithm Implementation - Sort by creation date and amount
+  // Priority Algorithm Implementation - Sort by creation date and amount
   // Debug function to manually refresh data and check status persistence
-  const debugRefreshData = async () => {
-    console.log('🔍 DEBUG: Manual data refresh initiated...');
-    try {
-      // Fetch fresh delivery schedules
-      const schedulesResponse = await api.get('/delivery/schedules');
-      console.log('🔍 DEBUG: Fresh schedules response:', schedulesResponse.data);
-      
-      let schedulesData;
-      if (schedulesResponse.data && schedulesResponse.data.success && schedulesResponse.data.schedules) {
-        schedulesData = schedulesResponse.data.schedules;
-      } else if (schedulesResponse.data && Array.isArray(schedulesResponse.data)) {
-        schedulesData = schedulesResponse.data;
-      } else {
-        schedulesData = [];
-      }
-      
-      console.log('🔍 DEBUG: Processed schedules data:', schedulesData);
-      
-      // Check each schedule's status fields
-      schedulesData.forEach(schedule => {
-        console.log(`🔍 DEBUG: Schedule ${schedule.id} - delivery_status: "${schedule.delivery_status}", status: "${schedule.status}"`);
-      });
-      
-      showPopup('Debug Complete', 'Check the browser console for detailed debug information about data persistence.', 'info');
-      
-    } catch (error) {
-      console.error('🔍 DEBUG: Error during manual refresh:', error);
-      showPopup('Debug Error', 'Error during debug refresh. Check console for details.', 'error');
-    }
-  };
+
 
   const calculatePriority = useCallback((order) => {
     const now = new Date();
@@ -1803,126 +1135,8 @@ const DeliveryPage = () => {
     // Higher priority for older orders and higher amounts
     return daysSinceOrder * 10 + (order.total_amount / 100);
   }, []);
-  // Custom Order Production Timeline - Admin-controlled production completion dates (15-day timeline)
-  const getCustomOrderProductionStatus = (order) => {
-    if (order.order_type !== 'custom' && order.order_type !== 'custom_order') {
-      return null; // Not a custom order
-    }
 
-    const now = new Date();
-    const orderDate = new Date(order.created_at);
-    
-    // Check if admin has set a custom production completion date
-    const adminSetCompletionDate = customOrderProductionDates[order.id];
-    
-    let completionDate;
-    if (adminSetCompletionDate) {
-      completionDate = new Date(adminSetCompletionDate);
-    } else {
-      // Updated to 15 days for custom orders as requested
-      const defaultProductionDays = 15;
-      completionDate = new Date(orderDate.getTime() + (defaultProductionDays * 24 * 60 * 60 * 1000));
-    }
-    
-    const isComplete = now >= completionDate;
-    const daysSinceOrder = Math.floor((now - orderDate) / (24 * 60 * 60 * 1000));
-    const daysUntilCompletion = Math.ceil((completionDate - now) / (24 * 60 * 60 * 1000));
-    
-    if (!isComplete) {
-      return {
-        status: 'production',
-        remainingDays: Math.max(0, daysUntilCompletion),
-        completionDate: completionDate,
-        isReady: false,
-        adminControlled: !!adminSetCompletionDate,
-        message: `Production in progress - ${Math.max(0, daysUntilCompletion)} day${Math.max(0, daysUntilCompletion) !== 1 ? 's' : ''} remaining${adminSetCompletionDate ? ' (Admin Set)' : ' (Default 15-day timeline)'}`
-      };
-    } else {
-      return {
-        status: 'ready',
-        remainingDays: 0,
-        completionDate: completionDate,
-        isReady: true,
-        adminControlled: !!adminSetCompletionDate,
-        message: `Production completed - Ready for delivery${adminSetCompletionDate ? ' (Admin Set)' : ' (15-day timeline)'}`
-      };
-    }
-  };
-  // Function to set production completion date for custom orders
-  const setCustomOrderProductionDate = (orderId, completionDate) => {
-    setCustomOrderProductionDates(prev => ({
-      ...prev,
-      [orderId]: completionDate
-    }));
-    
-    showPopup(
-      'Production Date Set',
-      `Production completion date has been set. The order will be available for delivery scheduling after this date.`,
-      'success'
-    );
-  };
 
-  // Function to set production start date for custom orders (15-day timeline)
-  const setCustomOrderProductionStartDate = async (orderId, startDate) => {
-    console.log(`🎨 Setting production start date for order ID: ${orderId}, date: ${startDate}`);
-    
-    setCustomOrderProductionStartDates(prev => ({
-      ...prev,
-      [orderId]: startDate
-    }));
-    
-    // Auto-calculate completion date as start date + 15 days (updated from 10 days)
-    const completionDate = new Date(startDate);
-    completionDate.setDate(completionDate.getDate() + 15);
-    
-    setCustomOrderProductionDate(orderId, completionDate.toISOString().split('T')[0]);
-    
-    // Find the order to update its delivery status to 'scheduled'
-    const orderToUpdate = orders.find(order => order.id === orderId);
-    if (orderToUpdate) {
-      console.log(`📅 Setting production start for order ${orderToUpdate.order_number} - updating status to 'scheduled'`);
-      
-      try {
-        // Update the delivery status to 'scheduled' since production timeline is now set
-        await handleUpdateDeliveryStatus(orderToUpdate, 'scheduled');
-        
-        console.log(`✅ Successfully updated order ${orderToUpdate.order_number} status to 'scheduled'`);
-      } catch (error) {
-        console.error('❌ Failed to update delivery status to scheduled:', error);
-        // Still show success for production start even if status update fails
-      }
-    } else {
-      console.error(`❌ Could not find order with ID ${orderId} to update status`);
-    }
-    
-    // Clear the production start selection
-    setSelectedOrderForProductionStart(null);
-    
-    showPopup(
-      '✅ Production Start Date Set',
-      `Production start date set to: ${new Date(startDate).toLocaleDateString()}\n` +
-      `Production completion date auto-calculated to: ${completionDate.toLocaleDateString()}\n\n` +
-      `Order status updated to 'Scheduled' - delivery buttons are now available.\n` +
-      `The order will now follow the 15-day production timeline.`,
-      'success'
-    );
-  };
-
-  const prioritizedOrders = useMemo(() => {
-    return [...orders].sort((a, b) => {
-      const priorityA = calculatePriority(a);
-      const priorityB = calculatePriority(b);
-      
-      // Higher priority = earlier in list
-      if (priorityA !== priorityB) {
-        return priorityB - priorityA;
-      }
-      
-      // If priority is same, sort by order date (FIFO)
-      return new Date(a.created_at) - new Date(b.created_at);
-    });
-  }, [orders, calculatePriority]);
-  
   // Function to fetch all orders and delivery data using enhanced API
   const fetchData = useCallback(async () => {
     try {
@@ -1931,53 +1145,84 @@ const DeliveryPage = () => {
       const ordersResponse = await api.get('/delivery-enhanced/orders');
       if (ordersResponse.data.success) {
         const ordersData = ordersResponse.data.data;
-        // Enhanced order processing with comprehensive custom order detection
-        const processedOrders = ordersData.map(order => {
-          // TRUST THE API'S ORDER TYPE DETERMINATION FIRST
-          // The API knows the correct order type based on which table the order comes from
-          if (order.order_type === 'regular' || order.order_type === 'custom_order' || order.order_type === 'custom_design') {
-            // API has already determined the correct type, trust it
+        
+        // ========================================
+        // DEDUPLICATION LOGIC (Fix for duplicate custom orders)
+        // ========================================
+        console.log(`📦 Received ${ordersData.length} orders from API`);
+        
+        // Group orders by order_number and order_type to identify duplicates
+        const orderMap = new Map();
+        const duplicates = [];
+        
+        ordersData.forEach((order, index) => {
+          const key = `${order.order_number}_${order.order_type}`;
+          if (orderMap.has(key)) {
+            duplicates.push({
+              key,
+              first: orderMap.get(key),
+              duplicate: { ...order, originalIndex: index }
+            });
+            console.log(`🔄 Duplicate detected: ${order.order_number} (${order.order_type})`);
+          } else {
+            orderMap.set(key, { ...order, originalIndex: index });
+          }
+        });
+        
+        // Remove duplicates - keep the first occurrence of each order
+        const deduplicatedOrders = Array.from(orderMap.values());
+        
+        if (duplicates.length > 0) {
+          console.log(`⚠️ Removed ${duplicates.length} duplicate order(s) from DeliveryPage.js`);
+          duplicates.forEach(dup => {
+            console.log(`   - ${dup.key} (kept first occurrence)`);
+          });
+        }
+        
+        console.log(`✅ Final deduplicated count: ${deduplicatedOrders.length} orders`);
+        // ========================================
+        
+        // Enhanced order processing for all order types
+        const processedOrders = deduplicatedOrders.map(order => {
+          // Process regular orders
+          if (order.order_type === 'regular') {
             return {
               ...order,
-              order_type: order.order_type === 'custom_order' || order.order_type === 'custom_design' ? 'custom' : order.order_type,
+              order_type: 'regular',
               priority: calculatePriority(order),
               customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
             };
           }
           
-          // Enhanced detection for custom orders when API doesn't provide type
-          const isCustomOrder = order.custom_order_id || 
-                               order.design_id ||
-                               (order.order_number && order.order_number.startsWith('CUSTOM')) ||
-                               (order.id && order.id.toString().startsWith('custom')) ||
-                               order.order_type === 'custom';
+          // Process custom orders (verified custom orders ready for delivery)
+          if (order.order_type === 'custom_order') {
+            return {
+              ...order,
+              order_type: 'custom_order',
+              priority: calculatePriority(order),
+              customerName: order.customer_name || 'Unknown Customer'
+            };
+          }
           
-          // Additional check for orders with custom ID format patterns
-          const hasCustomIdFormat = order.id && (
-            order.id.toString().includes('custom') ||
-            order.id.toString().length > 10 // Very long IDs often indicate custom orders
-          );
+          // Process custom designs
+          if (order.order_type === 'custom_design') {
+            return {
+              ...order,
+              order_type: 'custom_design',
+              priority: calculatePriority(order),
+              customerName: order.customer_name || 'Unknown Customer'
+            };
+          }
           
-          // Check for custom order number patterns
-          const hasCustomOrderNumber = order.order_number && (
-            order.order_number.includes('CUSTOM') ||
-            order.order_number.includes('DESIGN') ||
-            order.order_number.includes('CUS')
-          );
-          
-          const finalIsCustomOrder = isCustomOrder || 
-                                  hasCustomIdFormat || hasCustomOrderNumber;
-          
-          // Set the order type only if API didn't provide one
-          const finalOrderType = finalIsCustomOrder ? 'custom' : 'regular';
-          
+          // Default fallback for unknown order types
           return {
             ...order,
-            order_type: finalOrderType,
+            order_type: order.order_type || 'regular',
             priority: calculatePriority(order),
             customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
           };
         });
+        
         setOrders(processedOrders);
       }
       // Fetch calendar for current month (use current date at time of mount)
@@ -2007,81 +1252,6 @@ const DeliveryPage = () => {
   
   // Fetch all orders and delivery data using enhanced API
   useEffect(() => {
-    const fetchDataWrapper = async () => {
-      try {
-        setLoading(true);
-        // Fetch orders
-        const ordersResponse = await api.get('/delivery-enhanced/orders');
-        if (ordersResponse.data.success) {
-          const ordersData = ordersResponse.data.data;
-          // Enhanced order processing with comprehensive custom order detection
-          const processedOrders = ordersData.map(order => {
-            // TRUST THE API'S ORDER TYPE DETERMINATION FIRST
-            // The API knows the correct order type based on which table the order comes from
-            if (order.order_type === 'regular' || order.order_type === 'custom_order' || order.order_type === 'custom_design') {
-              // API has already determined the correct type, trust it
-              return {
-                ...order,
-                order_type: order.order_type === 'custom_order' || order.order_type === 'custom_design' ? 'custom' : order.order_type,
-                priority: calculatePriority(order),
-                customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
-              };
-            }
-            
-            // FALLBACK: Only do custom detection if API didn't provide order_type
-            const hasCustomDesignId = Boolean(order.custom_design_id);
-            const isExplicitlyCustom = order.is_custom === true || order.is_custom === 'true';
-            const hasCustomDetails = order.custom_details && Object.keys(order.custom_details).length > 0;
-            const hasCustomIdFormat = order.id && typeof order.id === 'string' && order.id.includes('custom-');
-            
-            // Check order number patterns for custom orders (only as fallback)
-            const hasCustomOrderNumber = order.order_number && (
-              order.order_number.includes('CUSTOM') ||
-              order.order_number.includes('#CUSTOM') ||
-              order.order_number.startsWith('CUSTOM-') ||
-              order.order_number.includes('-CUSTOM-')
-            );
-            
-            // Any of these indicators means it's a custom order
-            const isCustomOrder = hasCustomDesignId || isExplicitlyCustom || hasCustomDetails || 
-                                hasCustomIdFormat || hasCustomOrderNumber;
-            
-            // Set the order type only if API didn't provide one
-            const finalOrderType = isCustomOrder ? 'custom' : 'regular';
-            
-            return {
-              ...order,
-              order_type: finalOrderType,
-              priority: calculatePriority(order),
-              customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
-            };
-          });
-          setOrders(processedOrders);
-        }
-        // Fetch calendar for current month (use current date at time of mount)
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth() + 1;
-        const calendarResponse = await api.get('/delivery-enhanced/calendar', {
-          params: { year: currentYear, month: currentMonth }
-        });
-        if (calendarResponse.data.success) {
-          const calendarData = calendarResponse.data.data;
-          setDeliverySchedules(calendarData.calendar || []);
-        }
-        // Fetch couriers
-        await fetchCouriers();
-      } catch (error) {
-        setPopup({
-          show: true,
-          title: 'Error',
-          message: 'Failed to load delivery data. Please refresh the page.',
-          type: 'error'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, [fetchData]); // Run when fetchData changes
   
@@ -2092,106 +1262,73 @@ const DeliveryPage = () => {
       console.log('📅 Order data:', order);
       console.log('📅 Schedule data:', scheduleData);
       
-      if (order.order_type === 'custom' || order.order_type === 'custom_order') {
-        // Custom order scheduling logic
-        console.log('🎨 Detected custom order, using custom_order type for API');
-        const response = await api.post('/delivery-enhanced/schedule', {
-          order_id: order.id,
-          order_number: order.order_number,
-          order_type: 'custom_order',
-          customer_name: order.customer_name || order.customerName,
-          customer_email: order.customer_email,
-          customer_phone: order.customer_phone,
-          delivery_date: scheduleData.date,
-          delivery_time_slot: scheduleData.timeSlot || null,
-          delivery_address: order.shipping_address,
-          delivery_city: order.shipping_city,
-          delivery_province: order.shipping_province,
-          delivery_postal_code: order.shipping_postal_code,
-          delivery_contact_phone: order.shipping_phone,
-          delivery_notes: scheduleData.notes || `Scheduled delivery for custom order ${order.order_number}`,
-          priority_level: scheduleData.priority || 'normal'
-        });
+      // Check delivery limit before scheduling
+      const selectedDate = new Date(scheduleData.date);
+      const maxDeliveriesPerDay = 3;
+      
+      // Count existing deliveries for the selected date
+      const dayOrders = orders.filter(o => {
+        if (!o.scheduled_delivery_date) return false;
+        const orderDate = new Date(o.scheduled_delivery_date);
+        return orderDate.toDateString() === selectedDate.toDateString();
+      });
+      
+      const currentBookings = dayOrders.length;
+      
+      if (currentBookings >= maxDeliveriesPerDay) {
+        showPopup(
+          'Delivery Limit Exceeded',
+          `Cannot schedule delivery for ${selectedDate.toLocaleDateString()}. Maximum of ${maxDeliveriesPerDay} deliveries per day already reached (${currentBookings} deliveries scheduled).`,
+          'error'
+        );
+        return;
+      }
+      
+      // Regular order scheduling logic
+      const response = await api.post('/delivery-enhanced/schedule', {
+        order_id: order.id,
+        order_number: order.order_number,
+        order_type: order.order_type || 'regular',
+        customer_name: order.customer_name || order.customerName,
+        customer_email: order.customer_email,
+        customer_phone: order.customer_phone,
+        delivery_date: scheduleData.date,
+        delivery_time_slot: scheduleData.timeSlot || null,
+        delivery_address: order.shipping_address,
+        delivery_city: order.shipping_city,
+        delivery_province: order.shipping_province,
+        delivery_postal_code: order.shipping_postal_code,
+        delivery_contact_phone: order.shipping_phone,
+        delivery_notes: scheduleData.notes || `Scheduled delivery for order ${order.order_number}`,
+        priority_level: scheduleData.priority || 'normal'
+      });
+      
+      if (response.data.success) {
+        console.log('✅ Regular order scheduled successfully');
         
-        console.log('🎨 Custom order API response:', response.data);
+        // Update the order status in local state immediately
+        setOrders(prevOrders => 
+          prevOrders.map(o => 
+            o.id === order.id 
+              ? { 
+                  ...o, 
+                  delivery_status: 'scheduled',
+                  scheduled_delivery_date: scheduleData.date,
+                  delivery_schedule_id: response.data.data.delivery_schedule_id
+                }
+              : o
+          )
+        );
         
-        if (response.data.success) {
-          console.log('✅ Custom order scheduled successfully');
-          
-          // Update the order status in local state immediately
-          setOrders(prevOrders => 
-            prevOrders.map(o => 
-              o.id === order.id 
-                ? { 
-                    ...o, 
-                    delivery_status: 'scheduled',
-                    scheduled_delivery_date: scheduleData.date,
-                    delivery_schedule_id: response.data.data?.delivery_schedule_id
-                  }
-                : o
-            )
-          );
-          
-          // Show success message
-          showPopup(
-            'Custom Order Scheduled Successfully',
-            `Custom order ${order.order_number} has been scheduled for delivery on ${new Date(scheduleData.date).toLocaleDateString()}. Status updated to "SCHEDULED" and action buttons are now available.`,
-            'success'
-          );
-          
-          // Refresh data without full page reload
-          await fetchData();
-        } else {
-          console.error('❌ Custom order scheduling failed:', response.data);
-          showPopup('Scheduling Failed', response.data.message || 'Failed to schedule custom order delivery', 'error');
-        }
-      } else {
-        // Regular order scheduling logic
-        const response = await api.post('/delivery-enhanced/schedule', {
-          order_id: order.id,
-          order_number: order.order_number,
-          order_type: 'regular',
-          customer_name: order.customer_name || order.customerName,
-          customer_email: order.customer_email,
-          customer_phone: order.customer_phone,
-          delivery_date: scheduleData.date,
-          delivery_time_slot: scheduleData.timeSlot || null,
-          delivery_address: order.shipping_address,
-          delivery_city: order.shipping_city,
-          delivery_province: order.shipping_province,
-          delivery_postal_code: order.shipping_postal_code,
-          delivery_contact_phone: order.shipping_phone,
-          delivery_notes: scheduleData.notes || `Scheduled delivery for order ${order.order_number}`,
-          priority_level: scheduleData.priority || 'normal'
-        });
+        // Show success message
+        showPopup(
+          'Order Scheduled Successfully',
+          `Order ${order.order_number} has been scheduled for delivery on ${new Date(scheduleData.date).toLocaleDateString()}. Status updated to "SCHEDULED" and action buttons are now available.`,
+          'success'
+        );
         
-        if (response.data.success) {
-          console.log('✅ Regular order scheduled successfully');
-          
-          // Update the order status in local state immediately
-          setOrders(prevOrders => 
-            prevOrders.map(o => 
-              o.id === order.id 
-                ? { 
-                    ...o, 
-                    delivery_status: 'scheduled',
-                    scheduled_delivery_date: scheduleData.date,
-                    delivery_schedule_id: response.data.data.delivery_schedule_id
-                  }
-                : o
-            )
-          );
-          
-          // Show success message
-          showPopup(
-            'Order Scheduled Successfully',
-            `Order ${order.order_number} has been scheduled for delivery on ${new Date(scheduleData.date).toLocaleDateString()}. Status updated to "SCHEDULED" and action buttons are now available.`,
-            'success'
-          );
-          
-          // Force refresh all data to ensure UI is in sync
-          fetchData();
-        }
+        // Force refresh all data to ensure UI is in sync
+        fetchData();
       }
       
       // Refresh calendar data to show new schedule icon
@@ -2233,76 +1370,11 @@ const DeliveryPage = () => {
     try {
       console.log(`🗑️ Attempting to delete order ${order.order_number} (ID: ${order.id})`);
 
-      // Delete from appropriate database based on order type
-      if (order.order_type === 'custom') {
-        const customOrderId = order.id.replace('custom-order-', '');
-        
-        // Try to delete from custom_designs first
-        try {
-          await api.delete(`/custom-designs/${customOrderId}`);
-          console.log(`✅ Deleted custom design ${customOrderId}`);
-        } catch (designError) {
-          console.log('⚠️ Could not delete from custom_designs, trying custom_orders');
-          await api.delete(`/custom-orders/${customOrderId}`);
-          console.log(`✅ Deleted custom order ${customOrderId}`);
-        }
-      } else {
-        // Delete regular order
-        const numericId = parseInt(order.id);
-        if (!isNaN(numericId)) {
-          await api.delete(`/orders/${numericId}`);
-          console.log(`✅ Deleted regular order ${numericId}`);
-        }
-      }
-
-      // Delete associated delivery schedule
-      const associatedSchedule = deliverySchedules.find(schedule => 
-        schedule.order_id === order.id || schedule.order_number === order.order_number
-      );
-      
-      if (associatedSchedule) {
-        await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
-        console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
-      }
-
-      // Update local state - remove order and schedule
-      setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
-      setDeliverySchedules(prevSchedules => 
-        prevSchedules.filter(schedule => 
-          schedule.order_id !== order.id && schedule.order_number !== order.order_number
-        )
-      );
-
-      showPopup('Order Deleted', `Order ${order.order_number} has been permanently deleted from the system.`, 'success');
-      
-    } catch (error) {
-      console.error('❌ Error deleting order:', error);
-      showPopup('Deletion Failed', `Failed to delete order ${order.order_number}. Please try again.`, 'error');
-    }
-
-    try {
-      console.log(`🗑️ Attempting to delete order ${order.order_number} (ID: ${order.id})`);
-
-      // Delete from appropriate database based on order type
-      if (order.order_type === 'custom') {
-        const customOrderId = order.id.replace('custom-order-', '');
-        
-        // Try to delete from custom_designs first
-        try {
-          await api.delete(`/custom-designs/${customOrderId}`);
-          console.log(`✅ Deleted custom design ${customOrderId}`);
-        } catch (designError) {
-          console.log('⚠️ Could not delete from custom_designs, trying custom_orders');
-          await api.delete(`/custom-orders/${customOrderId}`);
-          console.log(`✅ Deleted custom order ${customOrderId}`);
-        }
-      } else {
-        // Delete regular order
-        const numericId = parseInt(order.id);
-        if (!isNaN(numericId)) {
-          await api.delete(`/orders/${numericId}`);
-          console.log(`✅ Deleted regular order ${numericId}`);
-        }
+      // Delete regular order
+      const numericId = parseInt(order.id);
+      if (!isNaN(numericId)) {
+        await api.delete(`/orders/${numericId}`);
+        console.log(`✅ Deleted regular order ${numericId}`);
       }
 
       // Delete associated delivery schedule
@@ -2341,13 +1413,12 @@ const DeliveryPage = () => {
     }
     
     try {
-      console.log(`📦 CUSTOM ORDER FIX: Updating delivery status for order ${order.order_number} to ${newStatus}`);
+      console.log(`📦 Updating delivery status for order ${order.order_number} to ${newStatus}`);
       console.log(`🔍 Order details:`, {
         id: order.id,
         order_number: order.order_number,
         order_type: order.order_type,
-        current_status: order.delivery_status,
-        isCustomOrder: order.order_type === 'custom' || order.order_type === 'custom_order'
+        current_status: order.delivery_status
       });
       
       // Check authentication
@@ -2367,7 +1438,7 @@ const DeliveryPage = () => {
           `Mark order ${order.order_number} as DELIVERED?\n\n` +
           `This will:\n` +
           `✅ Complete the delivery process\n` +
-          `💰 Mark payment as received (COD)\n` +
+          `💰 Mark payment as received (GCash)\n` +
           `📅 Set delivery date to today\n` +
           `📧 Notify customer of completion\n\n` +
           `This action will be logged for audit purposes.`
@@ -2397,42 +1468,10 @@ const DeliveryPage = () => {
       }
 
       try {
-        console.log(`📡 Calling unified delivery status API for ${order.order_type} order...`);
+        console.log(`📡 Calling delivery status API for regular order...`);
         
-        // For custom orders, we need to handle ID properly
-        let apiOrderId = order.id;
-        
-        // Handle different custom order ID formats
-        if (order.order_type === 'custom' || order.order_type === 'custom_order') {
-          console.log(`🎨 Processing custom order ID: ${order.id}`);
-          
-          // If the ID is a string with prefixes, extract the numeric part
-          if (typeof order.id === 'string') {
-            // Handle formats like "custom-order-123" or "design-456"
-            const match = order.id.match(/(\d+)$/);
-            if (match) {
-              apiOrderId = match[1];
-              console.log(`🔧 Extracted numeric ID: ${apiOrderId} from ${order.id}`);
-            } else {
-              // If no number found, try using the ID as is
-              apiOrderId = order.id;
-            }
-          }
-          
-          // Also try with the original order number or custom_order_id
-          if (order.custom_order_id) {
-            apiOrderId = order.custom_order_id;
-            console.log(`🔧 Using custom_order_id: ${apiOrderId}`);
-          } else if (order.order_number) {
-            apiOrderId = order.order_number;
-            console.log(`🔧 Using order_number: ${apiOrderId}`);
-          }
-        }
-        
-        console.log(`📤 Making API call with order ID: ${apiOrderId}`);
-        
-        // Use the configured API instance instead of direct fetch for better error handling
-        const response = await api.put(`/delivery-status/orders/${apiOrderId}/status`, {
+        // Use the specific delivery status endpoint
+        const response = await api.put(`/delivery-status/orders/${order.id}/status`, {
           delivery_status: newStatus,
           order_type: order.order_type || 'regular',
           delivery_notes: `Status updated to ${newStatus} via DeliveryPage on ${new Date().toLocaleString()}`
@@ -2445,27 +1484,20 @@ const DeliveryPage = () => {
           throw new Error(responseData.message || 'API returned failure status');
         }
 
-        console.log(`✅ UNIFIED API: Successfully updated order ${order.order_number} to ${newStatus}`);
+        console.log(`✅ Successfully updated order ${order.order_number} to ${newStatus}`);
 
-        // Update local state immediately with the confirmed data from backend
+        // Update local state immediately
         const updatedOrder = {
           ...order,
           delivery_status: newStatus,
           updated_at: responseData.data?.updated_at || new Date().toISOString()
         };
 
-        // Update orders state - prevent re-render loops
+        // Update orders state
         setOrders(prevOrders => {
           const safePrevOrders = Array.isArray(prevOrders) ? prevOrders : [];
           const updatedOrders = safePrevOrders.map(o => {
-            // Match by ID or order number for both regular and custom orders
-            const isMatchingOrder = 
-              o.id === order.id || 
-              o.order_number === order.order_number ||
-              (order.custom_order_id && o.custom_order_id === order.custom_order_id) ||
-              (order.design_id && o.design_id === order.design_id);
-              
-            if (isMatchingOrder) {
+            if (o.id === order.id || o.order_number === order.order_number) {
               console.log(`🔄 Updated order ${o.order_number} in local state`);
               return updatedOrder;
             }
@@ -2478,18 +1510,12 @@ const DeliveryPage = () => {
         setDeliverySchedules(prev => {
           const safePrev = Array.isArray(prev) ? prev : [];
           return safePrev.map(schedule => {
-            const isMatchingSchedule = 
-              schedule.order_id === order.id || 
-              schedule.order_number === order.order_number ||
-              schedule.order_id === parseInt(order.id) ||
-              (order.custom_order_id && schedule.order_id === order.custom_order_id);
-              
-            if (isMatchingSchedule) {
+            if (schedule.order_id === order.id || schedule.order_number === order.order_number) {
               console.log(`📅 Updated delivery schedule for order ${order.order_number}`);
               return { 
                 ...schedule, 
                 delivery_status: newStatus,
-                status: newStatus, // Update both fields for compatibility
+                status: newStatus,
                 updated_at: responseData.data?.updated_at || new Date().toISOString()
               };
             }
@@ -2497,7 +1523,7 @@ const DeliveryPage = () => {
           });
         });
 
-        // Show success message with different text based on status
+        // Show success message
         let successMessage = '';
         if (newStatus === 'delivered') {
           successMessage = `Order ${order.order_number} marked as DELIVERED! ✅\nPayment recorded and customer notified.`;
@@ -2513,10 +1539,6 @@ const DeliveryPage = () => {
 
         showPopup('Status Updated Successfully', successMessage, 'success');
 
-        // DO NOT automatically refresh - let the state updates handle the UI changes
-        // This prevents the page refresh issue that was preventing status updates
-        console.log(`✅ Status update complete for ${order.order_number}. UI updated via state.`);
-
         // Force a data refresh after a short delay to ensure backend consistency
         setTimeout(() => {
           console.log(`🔄 Forcing data refresh to ensure consistency for ${order.order_number}`);
@@ -2524,7 +1546,7 @@ const DeliveryPage = () => {
         }, 1000);
 
       } catch (apiError) {
-        console.error('❌ Unified API Error:', apiError);
+        console.error('❌ API Error:', apiError);
         
         let errorMessage = 'Failed to update delivery status. ';
         
@@ -2537,39 +1559,23 @@ const DeliveryPage = () => {
           if (status === 401) {
             errorMessage += 'Your session has expired. Please log in again.';
             localStorage.removeItem('token');
-            // Redirect to login or refresh page
             window.location.reload();
           } else if (status === 403) {
             errorMessage += 'You do not have permission to perform this action.';
           } else if (status === 404) {
-            errorMessage += 'Order not found in the system. This might be a custom order ID issue.';
+            errorMessage += 'Order not found in the system.';
           } else if (status === 400) {
             errorMessage += data?.message || 'Invalid request. Please check the order details and try again.';
           } else {
             errorMessage += data?.message || `Server error (${status}). Please try again.`;
           }
         } else if (apiError.request) {
-          // Network error
           errorMessage += 'Network error. Please check your connection and try again.';
         } else {
-          // Other error
           errorMessage += apiError.message || 'Please try again or contact support if the problem persists.';
         }
         
         showPopup('Update Failed', errorMessage, 'error');
-        
-        // For debugging custom order issues
-        if (order.order_type === 'custom' || order.order_type === 'custom_order') {
-          console.error('🎨 Custom Order Debug Info:', {
-            original_id: order.id,
-            order_number: order.order_number,
-            custom_order_id: order.custom_order_id,
-            design_id: order.design_id,
-            order_type: order.order_type,
-            error: apiError.message,
-            full_error: apiError
-          });
-        }
         
         // Attempt to refresh data on error to get current state
         console.log('🔄 Refreshing data due to update error...');
@@ -2603,84 +1609,6 @@ const DeliveryPage = () => {
       }
       return newSet;
     });
-  };
-  const checkScheduleConflicts = (scheduleData) => {
-    const conflicts = [];
-    
-    // Check if scheduleData is provided and has required properties
-    if (!scheduleData || !scheduleData.date || !scheduleData.time) {
-      conflicts.push('Invalid schedule data provided');
-      return conflicts;
-    }
-    
-    const scheduleDateTime = new Date(`${scheduleData.date} ${scheduleData.time}`);
-    
-    // Check if date is in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const scheduleDate = new Date(scheduleData.date);
-    if (scheduleDate < today) {
-      conflicts.push('Cannot schedule delivery for past dates');
-    }
-    
-    // Check for existing deliveries at the same time
-    const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
-    const existingDeliveries = safeDeliverySchedules.filter(schedule => {
-      const existingDateTime = new Date(`${schedule.delivery_date} ${schedule.delivery_time}`);
-      return Math.abs(existingDateTime - scheduleDateTime) < 60 * 60 * 1000; // 1 hour buffer
-    });
-    
-    // Check for orders scheduled at the same time
-    const safeOrders = Array.isArray(orders) ? orders : [];
-    const existingOrders = safeOrders.filter(order => {
-      if (!order.scheduled_delivery_date || !order.scheduled_delivery_time) return false;
-      const existingDateTime = new Date(`${order.scheduled_delivery_date} ${order.scheduled_delivery_time}`);
-      return Math.abs(existingDateTime - scheduleDateTime) < 60 * 60 * 1000; // 1 hour buffer
-    });
-    
-    if (existingDeliveries.length > 0 || existingOrders.length > 0) {
-      conflicts.push('Time slot already booked');
-    }      // Check daily capacity
-    const sameDayDeliveries = safeDeliverySchedules.filter(schedule => {
-      const scheduleDate = new Date(schedule.delivery_date);
-      const targetDate = new Date(scheduleData.date);
-      return scheduleDate.toDateString() === targetDate.toDateString();
-    });
-    
-    const sameDayOrders = safeOrders.filter(order => {
-      if (!order.scheduled_delivery_date) return false;
-      const orderDate = new Date(order.scheduled_delivery_date);
-      const targetDate = new Date(scheduleData.date);
-      return orderDate.toDateString() === targetDate.toDateString();
-    });
-
-    // Filter out deliveries that correspond to orders to avoid double counting
-    const standaloneDeliveries = sameDayDeliveries.filter(delivery => {
-      return !sameDayOrders.some(order => order.id === delivery.order_id);
-    });
-    
-    const maxDeliveriesPerDay = 3; // Updated maximum capacity
-    const currentBookings = sameDayOrders.length + standaloneDeliveries.length;
-    
-    if (currentBookings >= maxDeliveriesPerDay) {
-      conflicts.push(`Daily delivery capacity exceeded (${currentBookings}/3 deliveries). Please select another date.`);
-    }
-    
-    // Check for user-defined unavailable dates
-    const dateString = scheduleDateTime.toDateString();
-    if (unavailableDates.has(dateString)) {
-      conflicts.push('This date has been marked as unavailable for delivery');
-    }
-    
-    // Removed automatic weekend blocking - now user controlled
-    
-    // Check business hours
-    const hour = parseInt(scheduleData.time.split(':')[0]);
-    if (hour < 9 || hour > 17) {
-      conflicts.push('Delivery time outside business hours (9 AM - 5 PM)');
-    }
-    
-    return conflicts;
   };
   const generateCalendarDays = () => {
     const year = currentDate.getFullYear();
@@ -2790,55 +1718,17 @@ const DeliveryPage = () => {
         order.delivery_status === 'delivered'
       );
       
-      // Find custom orders with production timeline for this date (15-day timeline)
-      const productionInfo = safeOrders.filter(order => {
-        if (order.order_type !== 'custom' && order.order_type !== 'custom_order') return false;
-        
-        const adminSetStartDate = customOrderProductionStartDates[order.id];
-        if (!adminSetStartDate) return false;
-        
-        const productionStartDate = new Date(adminSetStartDate);
-        const completionDate = new Date(productionStartDate.getTime() + (15 * 24 * 60 * 60 * 1000));
-        const calendarDate = new Date(date);
-        
-        // Check if this date is within the production timeline
-        return calendarDate >= productionStartDate && calendarDate <= completionDate;
-      }).map(order => {
-        const adminSetStartDate = customOrderProductionStartDates[order.id];
-        const productionStartDate = new Date(adminSetStartDate);
-        const completionDate = new Date(productionStartDate.getTime() + (15 * 24 * 60 * 60 * 1000));
-        const calendarDate = new Date(date);
-        
-        // Calculate production progress for this date
-        const totalDuration = completionDate - productionStartDate;
-        const elapsed = calendarDate - productionStartDate;
-        let progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-        
-        // If order is delivered, show 100% progress on all timeline days
-        if (order.delivery_status === 'delivered') {
-          progress = 100;
-        }
-        
-        const isStart = calendarDate.toDateString() === productionStartDate.toDateString();
-        const isEnd = calendarDate.toDateString() === completionDate.toDateString();
-        
-        return {
-          ...order,
-          productionProgress: progress,
-          isProductionStart: isStart,
-          isProductionEnd: isEnd,
-          productionStartDate,
-          productionCompletionDate: completionDate
-        };
-      });
 
+      
       // Filter out deliveries that correspond to orders to avoid double counting
       const standaloneDeliveries = dayDeliveries.filter(delivery => {
         return !dayOrders.some(order => order.id === delivery.order_id);
-      });      // Determine availability status
+      });
+      
+      // Determine availability status
       const maxDeliveriesPerDay = 3; // Updated maximum capacity
-      // Include scheduled orders in booking count
-      const currentBookings = dayOrders.length + standaloneDeliveries.length + dayScheduledOrders.length;
+      // Include scheduled orders in booking count (dayScheduledOrders already includes all orders for this date)
+      const currentBookings = dayScheduledOrders.length + standaloneDeliveries.length;
       let availabilityStatus = 'available';
       
       // Check if date is user-marked as unavailable
@@ -2862,8 +1752,8 @@ const DeliveryPage = () => {
         orders: dayOrders,
         scheduledOrders: dayScheduledOrders, // Add scheduled orders to day data
         availabilityStatus: availabilityStatus,
-        bookingCount: currentBookings,
-        productionOrders: productionInfo // Add production timeline info
+        bookingCount: Math.min(currentBookings, 3) // Cap display at 3 deliveries max
+
       });
     }
     
@@ -2878,20 +1768,7 @@ const DeliveryPage = () => {
     
     setSelectedDate(day.date);
     
-    // Check if we're selecting a production start date for a custom order
-    if (selectedOrderForProductionStart) {
-      const selectedDate = new Date(day.date);
-      const today = new Date();
-      
-      // Ensure the selected date is not in the past
-      if (selectedDate < today.setHours(0, 0, 0, 0)) {
-        showPopup('Invalid Date', 'Production start date cannot be in the past. Please select a future date.', 'warning');
-        return;
-      }
-      
-      setCustomOrderProductionStartDate(selectedOrderForProductionStart.id, day.date);
-      return;
-    }
+
     
     // Find orders that need scheduling (including those that can be rescheduled)
     const safeOrders = Array.isArray(orders) ? orders : [];
@@ -2971,32 +1848,24 @@ const DeliveryPage = () => {
 
       <StatsGrid>
         <StatCard>
-          <StatNumber>{stats.total}</StatNumber>
+          <StatNumber>{Array.isArray(orders) ? orders.length : 0}</StatNumber>
           <StatLabel>Total Orders</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>{stats.pending}</StatNumber>
-          <StatLabel>Pending Schedule</StatLabel>
+          <StatNumber>{Array.isArray(orders) ? orders.filter(o => {
+            const status = o.delivery_status;
+            // Count all non-delivered, non-in-transit orders as confirmed
+            return !status || (status !== 'delivered' && status !== 'shipped' && status !== 'in_transit');
+          }).length : 0}</StatNumber>
+          <StatLabel>Confirmed</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>{stats.scheduled}</StatNumber>
-          <StatLabel>Scheduled</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.inTransit}</StatNumber>
+          <StatNumber>{Array.isArray(orders) ? orders.filter(o => o.delivery_status === 'shipped' || o.delivery_status === 'in_transit').length : 0}</StatNumber>
           <StatLabel>In Transit</StatLabel>
         </StatCard>
         <StatCard>
-          <StatNumber>{stats.delivered}</StatNumber>
+          <StatNumber>{Array.isArray(orders) ? orders.filter(o => o.delivery_status === 'delivered').length : 0}</StatNumber>
           <StatLabel>Delivered</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.delayed}</StatNumber>
-          <StatLabel>Delayed</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatNumber>{stats.cancelled}</StatNumber>
-          <StatLabel>Cancelled</StatLabel>
         </StatCard>
       </StatsGrid>      <MainContent>
         <ContentSection>
@@ -3029,24 +1898,7 @@ const DeliveryPage = () => {
                 </CalendarButton>
               </CalendarNav>              <MonthYear>
                 {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                {selectedOrderForProductionStart && (
-                  <div style={{
-                    fontSize: '0.8rem',
-                    color: '#667eea',
-                    fontWeight: '500',
-                    marginTop: '0.5rem',
-                    padding: '0.5rem',
-                    backgroundColor: '#f8f9ff',
-                    borderRadius: '4px',
-                    border: '1px solid #667eea'
-                  }}>
-                    🎯 Production start for {selectedOrderForProductionStart.order_number}
-                    <br />
-                    <span style={{ fontSize: '0.7rem', color: '#666' }}>
-                      Click on any future date to set production start
-                    </span>
-                  </div>
-                )}
+
               </MonthYear><CalendarNav>
                 <CalendarButton onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigateMonth(-1); }}>
                   <FontAwesomeIcon icon={faChevronLeft} style={{ color: '#000000' }} />
@@ -3070,35 +1922,22 @@ const DeliveryPage = () => {
                     isToday={day.isToday}
                     availabilityStatus={day.availabilityStatus}
                     style={{
-                      ...(selectedOrderForProductionStart && day.isCurrentMonth && 
-                          day.availabilityStatus !== 'unavailable' && {
-                        boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
-                        borderColor: '#667eea',
-                        cursor: 'pointer'
-                      })
+
                     }}
                   >
                     <DayNumber isToday={day.isToday} isCurrentMonth={day.isCurrentMonth}>
                       {day.dayNumber}
                     </DayNumber>
                     
-                    {/* Availability indicator */}                    <AvailabilityIndicator                      availability={day.availabilityStatus} 
-                      title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle availability`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (day.isCurrentMonth) {
-                          toggleDateAvailability(day.date);
-                        }
-                      }}
-                    >
-                      {day.bookingCount > 0 ? day.bookingCount : ''}
-                    </AvailabilityIndicator>                    {/* Enhanced Delivery Status Icon - Larger and more visible */}
-                    {(day.deliveries.length > 0 || (day.scheduledOrders && day.scheduledOrders.length > 0)) && (
+                    {/* Delivery Status Icon - Only show when there are deliveries */}
+                    {(() => {
+                      const totalDeliveries = day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0);
+                      return totalDeliveries > 0;
+                    })() && (
                       <DeliveryIcon 
                         status={(() => {
                           // Determine the overall status for this day
                           const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
-                          if (allOrders.length === 0) return 'scheduled';
                           
                           // Priority: delivered > in_transit > delayed > cancelled > scheduled > pending
                           if (allOrders.some(order => order.delivery_status === 'delivered')) return 'delivered';
@@ -3108,21 +1947,23 @@ const DeliveryPage = () => {
                           if (allOrders.some(order => order.delivery_status === 'scheduled')) return 'scheduled';
                           return 'pending';
                         })()}
+                        availability={day.availabilityStatus}
                         title={(() => {
                           const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
                           const count = allOrders.length;
-                          const status = allOrders.length > 0 ? 
+                          const deliveryInfo = allOrders.length > 0 ? 
                             (allOrders.some(order => order.delivery_status === 'delivered') ? 'DELIVERED' :
                              allOrders.some(order => order.delivery_status === 'in_transit') ? 'IN TRANSIT' :
                              allOrders.some(order => order.delivery_status === 'delayed') ? 'DELAYED' :
                              allOrders.some(order => order.delivery_status === 'cancelled') ? 'CANCELLED' :
-                             allOrders.some(order => order.delivery_status === 'scheduled') ? 'SCHEDULED' : 'PENDING') : 'SCHEDULED';
+                             allOrders.some(order => order.delivery_status === 'scheduled') ? 'SCHEDULED' : 'PENDING') : '';
                           
-                          return `${count} delivery(ies) - Status: ${status}\nClick to view order details`;
+                          return `${count} delivery(ies) - Status: ${deliveryInfo}\nClick to view order details`;
                         })()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Show detailed popup with all orders scheduled for this day
+                          
+                          // Handle left-click for delivery info
                           const allScheduledOrders = [...(day.scheduledOrders || [])];
                           if (allScheduledOrders.length > 0) {
                             const orderDetails = allScheduledOrders.map(order => {
@@ -3136,7 +1977,7 @@ const DeliveryPage = () => {
                                 'cancelled': '❌ CANCELLED'
                               }[status] || '📦 UNKNOWN';
                               
-                              const orderType = (order.order_type === 'custom' || order.order_type === 'custom_order') ? '🎨 Custom' : '🛍️ Regular';
+                              const orderType = '🛍️ Regular';
                               
                               return `${statusIcon}\n${orderType} Order: ${order.order_number}\nCustomer: ${order.customerName}\nAmount: ₱${parseFloat(order.total_amount || 0).toFixed(2)}`;
                             }).join('\n\n');
@@ -3149,216 +1990,25 @@ const DeliveryPage = () => {
                           }
                         }}
                       >
-                        {/* Order count badge - Enhanced visibility */}
-                        {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '-6px',
-                            right: '-6px',
-                            background: (() => {
-                              const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
-                              if (allOrders.some(order => order.delivery_status === 'delivered')) return '#28a745';
-                              if (allOrders.some(order => order.delivery_status === 'in_transit')) return '#17a2b8';
-                              if (allOrders.some(order => order.delivery_status === 'delayed')) return '#ffc107';
-                              if (allOrders.some(order => order.delivery_status === 'cancelled')) return '#6c757d';
-                              return '#007bff'; // Default for scheduled
-                            })(),
-                            color: (() => {
-                              const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
-                              if (allOrders.some(order => order.delivery_status === 'delayed')) return '#212529';
-                              return 'white';
-                            })(),
-                            borderRadius: '50%',
-                            width: '18px',
-                            height: '18px',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            border: '2px solid white',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                            zIndex: 10
-                          }}>
-                            {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
-                          </div>
-                        )}
+                        {/* Remove delivery count numbers - show only status icons */}
                       </DeliveryIcon>
-                    )}                      {/* Production start selection indicator */}
-                    {selectedOrderForProductionStart && day.isCurrentMonth && 
-                     day.availabilityStatus !== 'unavailable' && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '2px',
-                        left: '2px',
-                        width: '12px',
-                        height: '12px',
-                        backgroundColor: '#667eea',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '8px',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        zIndex: 10
-                      }}>
-                        🎯
-                      </div>
                     )}
                     
-                    {/* Enhanced 15-Day Production Timeline - Same logic as minimized calendar */}
-                    {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
-                      <div key={`mini-calendar-production-${prodOrder.id}-${currentDate.getFullYear()}-${currentDate.getMonth()}-${idx}`}>
-                        {/* Production start marker */}
-                        {prodOrder.isProductionStart && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '2px',
-                            right: '2px',
-                            width: '20px',
-                            height: '20px',
-                            background: 'linear-gradient(135deg, #28a745, #20c997)',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            zIndex: 15,
-                            border: '3px solid white',
-                            boxShadow: '0 2px 4px rgba(40,167,69,0.4)'
-                          }}
-                          title={`🎨 Custom Order Production START\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionStartDate.toLocaleDateString()}\n15-day production timeline begins`}
-                          >
-                            🚀
-                          </div>
-                        )}
-                        
-                        {/* Production completion marker */}
-                        {prodOrder.isProductionEnd && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '2px',
-                            right: '2px',
-                            width: '20px',
-                            height: '20px',
-                            background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '10px',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            zIndex: 15,
-                            border: '3px solid white',
-                            boxShadow: '0 2px 4px rgba(255,193,7,0.4)'
-                          }}
-                          title={`🎨 Custom Order Production COMPLETE\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionCompletionDate.toLocaleDateString()}\nReady for delivery scheduling`}
-                          >
-                            ✨
-                          </div>
-                        )}
-                        
-                        {/* Enhanced Production Progress Bar */}
-                        {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
-                          <div style={{
-                            position: 'absolute',
-                            bottom: '4px',
-                            left: '4px',
-                            right: '4px',
-                            height: '6px',
-                            background: '#e9ecef',
-                            borderRadius: '3px',
-                            zIndex: 10,
-                            border: '1px solid rgba(0,0,0,0.1)',
-                            overflow: 'hidden'
-                          }}
-                          title={`🎨 Custom Order Production ${prodOrder.delivery_status === 'delivered' ? 'COMPLETED ✅' : 'Progress'}\nOrder: ${prodOrder.order_number}\nProgress: ${Math.round(prodOrder.productionProgress)}%\nDay ${Math.ceil((prodOrder.productionProgress / 100) * 15)} of 15-day timeline${prodOrder.delivery_status === 'delivered' ? '\n✅ ORDER DELIVERED' : ''}`}
-                          >
-                            <div style={{
-                              width: `${prodOrder.productionProgress}%`,
-                              height: '100%',
-                              background: prodOrder.delivery_status === 'delivered' 
-                                ? `linear-gradient(90deg, #28a745 0%, #28a745 100%)` 
-                                : `linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)`,
-                              borderRadius: '4px',
-                              transition: 'width 0.3s ease',
-                              position: 'relative'
-                            }}>
-                              {/* Progress indicator dot */}
-                              {prodOrder.productionProgress > 10 && (
-                                <div style={{
-                                  position: 'absolute',
-                                  right: '-3px',
-                                  top: '-2px',
-                                  width: '10px',
-                                  height: '10px',
-                                  background: '#ffffff',
-                                  borderRadius: '50%',
-                                  border: '2px solid #28a745',
-                                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                }} />
-                              )}
-                            </div>
-                            
-                            {/* Timeline markers for days */}
-                            <div style={{
-                              position: 'absolute',
-                              top: '0',
-                              left: '0',
-                              right: '0',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center'
-                            }}>
-                              {/* Day markers - every 5th day */}
-                              {[33.33, 66.66].map((position, index) => (
-                                <div
-                                  key={`mini-timeline-marker-${currentDate.getFullYear()}-${currentDate.getMonth()}-${index}`}
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${position}%`,
-                                    width: '1px',
-                                    height: '100%',
-                                    background: 'rgba(255,255,255,0.5)',
-                                    zIndex: 1
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Custom order type indicator */}
-                        {(prodOrder.isProductionStart || prodOrder.isProductionEnd || (!prodOrder.isProductionStart && !prodOrder.isProductionEnd)) && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '2px',
-                            left: '2px',
-                            width: '16px',
-                            height: '16px',
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '8px',
-                            color: 'white',
-                            fontWeight: 'bold',
-                            zIndex: 12,
-                            border: '2px solid white',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                          }}
-                          title={`🎨 Custom Order: ${prodOrder.order_number}\n15-day production timeline`}
-                          >
-                            🎨
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {/* Availability Indicator - Circle overlay */}
+                    <AvailabilityIndicator
+                      availability={day.availabilityStatus}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (day.isCurrentMonth) {
+                          toggleDateAvailability(day.date);
+                        }
+                      }}
+                      title={`Availability: ${day.availabilityStatus} (${Math.min(day.bookingCount, 3)}${day.bookingCount > 3 ? '+' : ''}/3 deliveries) - Click to toggle`}
+                    >
+                      {day.bookingCount > 0 ? (day.bookingCount > 3 ? '3+' : day.bookingCount) : ''}
+                    </AvailabilityIndicator>
+                    
+
                 </CalendarDay>
               ))}
             </CalendarGrid>
@@ -3410,43 +2060,6 @@ const DeliveryPage = () => {
                         ✅
                       </div>
                       <span>Delivered Orders</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Production Timeline */}
-                <div>
-                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Production Timeline</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #28a745, #20c997)', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        🚀
-                      </div>
-                      <span>Production Start</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #ffc107, #f39c12)', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        ✨
-                      </div>
-                      <span>Production Complete</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '50px', height: '8px', borderRadius: '4px',
-                        background: 'linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)',
-                        border: '1px solid rgba(0,0,0,0.1)'
-                      }} />
-                      <span>Production Progress (15 days)</span>
                     </div>
                   </div>
                 </div>
@@ -3534,22 +2147,7 @@ const DeliveryPage = () => {
               <CardTitle>📋 Order Management</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Search and Filter Controls */}
-              <FilterControlsContainer>
-                <FilterButtons>
-                  <FilterButton 
-                    active={orderFilter === 'regular' ? 'true' : 'false'} 
-                    onClick={() => setOrderFilter('regular')}
-                  >
-                    🛍️ Regular ({orders.filter(o => o.order_type === 'regular').length})
-                  </FilterButton>
-                  <FilterButton 
-                    active={orderFilter === 'custom' ? 'true' : 'false'} 
-                    onClick={() => setOrderFilter('custom')}
-                  >
-                    🎨 Custom ({orders.filter(o => o.order_type === 'custom' || o.order_type === 'custom_order').length})
-                  </FilterButton>
-                </FilterButtons>
+              {/* Search and Filter Controls */}              <FilterControlsContainer>
                 <SearchContainer>
                   <div style={{ position: 'relative', width: '100%' }}>
                     <SearchInput
@@ -3570,120 +2168,30 @@ const DeliveryPage = () => {
                 </SearchContainer>
               </FilterControlsContainer>
               
-              {/* Debug Panel for Custom Order Issues */}
-              <div style={{
-                margin: '1rem 0',
-                padding: '1rem',
-                background: '#f8f9fa',
-                border: '1px solid #dee2e6',
-                borderRadius: '8px',
-                fontSize: '0.85rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <strong>🔧 Debug Panel</strong>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      onClick={async () => {
-                        console.log('🔄 Manual data refresh initiated...');
-                        setLoading(true);
-                        try {
-                          await fetchData();
-                          showPopup('Data Refreshed', 'All order and schedule data has been refreshed from the server.', 'success');
-                        } catch (error) {
-                          console.error('❌ Manual refresh failed:', error);
-                          showPopup('Refresh Failed', 'Failed to refresh data. Check console for details.', 'error');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }}
-                      style={{
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.75rem',
-                        background: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🔄 Refresh Data
-                    </button>
-                    <button
-                      onClick={() => {
-                        console.log('🎨 Custom Orders Debug:', {
-                          totalOrders: orders.length,
-                          customOrders: orders.filter(o => o.order_type === 'custom' || o.order_type === 'custom_order'),
-                          productionStartDates: customOrderProductionStartDates,
-                          orderStatuses: orders.reduce((acc, o) => {
-                            acc[o.order_number] = o.delivery_status;
-                            return acc;
-                          }, {}),
-                          schedules: deliverySchedules
-                        });
-                        showPopup('Debug Info', 'Check browser console for detailed debug information.', 'info');
-                      }}
-                      style={{
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.75rem',
-                        background: '#6c757d',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🔍 Debug Log
-                    </button>
-                  </div>
-                </div>
-                <div style={{ color: '#6c757d', fontSize: '0.75rem' }}>
-                  Total Orders: {orders.length} | 
-                  Custom Orders: {orders.filter(o => o.order_type === 'custom' || o.order_type === 'custom_order').length} | 
-                  With Production Timeline: {Object.keys(customOrderProductionStartDates).length} | 
-                  Auth Token: {localStorage.getItem('token') ? '✅ Present' : '❌ Missing'}
-                </div>
-              </div>
-              
               <OrdersList>
                 {/* Use memoized filtered orders */}
                 {filteredOrders.length === 0 ? (
                   <EmptyMessage>
                     <span role="img" aria-label="Search">🔍</span>
                     {searchQuery ? (
-                      <>No orders found matching "<strong>{searchQuery}</strong>"</>
+                      <>No orders found</>
                     ) : (
-                      <>No {orderFilter} orders found</>
+                      <>No orders found</>
                     )}
                   </EmptyMessage>
                 ) : (
                   filteredOrders.map((order, orderIndex) => {
-                    // Improved scheduling state determination to fix the "schedule requirement loop"
-                    // For custom orders: check if they have a production timeline OR a delivery status
-                    const isCustomOrder = order.order_type === 'custom' || order.order_type === 'custom_order';
-                    
-                    // Check if custom order has production timeline set
-                    const hasProductionTimeline = isCustomOrder && customOrderProductionStartDates[order.id];
+                    // Simplified scheduling state determination - Custom orders now follow regular order workflow
                     
                     // Check if order has any delivery status beyond 'pending'
                     const hasDeliveryStatus = order.delivery_status && 
                                             order.delivery_status !== 'pending' && 
                                             order.delivery_status !== null;
                     
-                    // An order is considered "scheduled" if:
-                    // 1. It has a delivery status (scheduled, in_transit, delivered, etc.) OR
-                    // 2. For custom orders: it has a production timeline set
-                    const isScheduled = hasDeliveryStatus || hasProductionTimeline;
+                    // An order is considered "scheduled" if it has a delivery status (same for both regular and custom orders)
+                    const isScheduled = hasDeliveryStatus;
                     
-                    // For debugging the schedule requirement loop
-                    if (isCustomOrder) {
-                      console.log(`🎨 Custom Order ${order.order_number} Schedule Status:`, {
-                        hasProductionTimeline,
-                        hasDeliveryStatus,
-                        delivery_status: order.delivery_status,
-                        isScheduled,
-                        production_start: customOrderProductionStartDates[order.id]
-                      });
-                    }
+
                   
                     return (
                     <OrderItem key={`delivery-page-order-${order.id}-idx-${orderIndex}`} orderType={order.order_type}>
@@ -3691,7 +2199,8 @@ const DeliveryPage = () => {
                         <OrderNumber>
                           Order #{order.order_number || order.id}
                           <OrderTypeIcon className={order.order_type}>
-                            {(order.order_type === 'custom' || order.order_type === 'custom_order') ? '🎨' : '🛍️'}
+                            {order.order_type === 'custom_order' ? '🎨' : 
+                             order.order_type === 'custom_design' ? '✏️' : '🛍️'}
                           </OrderTypeIcon>
                         </OrderNumber>
 
@@ -3699,480 +2208,229 @@ const DeliveryPage = () => {
                         <div><strong>Amount:</strong> ₱{parseFloat(order.total_amount).toFixed(2)}</div>
                         <div><strong>Order Date:</strong> {new Date(order.created_at).toLocaleDateString()}</div>
                         <div><strong>Address:</strong> {order.shipping_address}</div>
-                        {order.scheduled_delivery_date && (
-                          <div><strong>Scheduled:</strong> {new Date(order.scheduled_delivery_date).toLocaleDateString()}</div>
-                        )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <strong>Status:</strong> 
                           <StatusBadge status={order.delivery_status || 'pending'}>
-                            {(order.delivery_status || 'pending').toUpperCase()}
+                            {(() => {
+                              const status = order.delivery_status || 'pending';
+                              // Map all statuses to the three allowed display names
+                              if (status === 'delivered') return 'DELIVERED';
+                              if (status === 'shipped' || status === 'in_transit') return 'IN TRANSIT';
+                              // All other statuses map to confirmed
+                              return 'CONFIRMED';
+                            })()}
                           </StatusBadge>
                         </div>
                       </OrderInfo>
                       <OrderActions>
                         {!isScheduled ? (
                           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Production Start Button - Only for custom orders without any scheduling */}
-                            {isCustomOrder && !hasProductionTimeline && !hasDeliveryStatus && (
-                              <ActionButton 
-                                onClick={() => {
-                                  setSelectedOrderForProductionStart(order);
-                                  showPopup(
-                                    '🎨 Set Production Start Date',
-                                    `Order ${order.order_number} is selected for production timeline setup. Click on any future date in the calendar to set the production start date. This will automatically create a 15-day production timeline and enable delivery scheduling.`,
-                                    'info'
-                                  );
-                                }}
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                                  color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '120px',
-                                  fontWeight: '600',
-                                  border: '2px solid #667eea'
-                                }}
-                                title="Set production start date for this custom order (15-day timeline)"
-                              >
-                                🎨 Set Production Start
-                              </ActionButton>
-                            )}
+                            {/* Schedule Delivery Button - Same for both regular and custom orders */}
+                            <ActionButton 
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowScheduleModal(true);
+                                showPopup(
+                                  'Schedule Delivery',
+                                  `Opening schedule modal for order ${order.order_number}. Set delivery date and details.`,
+                                  'info'
+                                );
+                              }}
+                              style={{ 
+                                background: 'linear-gradient(135deg, #28a745, #20c997)',
+                                color: 'white', 
+                                fontSize: '0.75rem', 
+                                padding: '0.4rem 0.8rem',
+                                minWidth: '100px',
+                                fontWeight: '600'
+                              }}
+                            >
+                              📅 Schedule Delivery
+                            </ActionButton>
                             
-                            {/* Schedule Delivery Button - For regular orders or custom orders ready for delivery */}
-                            {(!isCustomOrder || hasProductionTimeline) && (
+
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {/* Unified Action Buttons - Same for both regular and custom orders */}
+                            
+                            {/* Delivered Button - Available for scheduled and in_transit orders */}
+                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
                               <ActionButton 
-                                onClick={() => {
-                                  setSelectedOrder(order);
-                                  setShowScheduleModal(true);
-                                  showPopup(
-                                    'Schedule Delivery',
-                                    `Opening schedule modal for order ${order.order_number}. Set delivery date and details.`,
-                                    'info'
-                                  );
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUpdateDeliveryStatus(order, 'delivered', e);
                                 }}
+                                variant="success"
+                                title="Mark as Delivered - Order completed and paid"
                                 style={{ 
                                   background: 'linear-gradient(135deg, #28a745, #20c997)',
                                   color: 'white', 
                                   fontSize: '0.75rem', 
                                   padding: '0.4rem 0.8rem',
-                                  minWidth: '100px',
+                                  minWidth: '80px',
                                   fontWeight: '600'
                                 }}
                               >
-                                📅 Schedule Delivery
+                                ✅ Delivered
                               </ActionButton>
                             )}
                             
-                            {/* Production Timeline Status - Show for custom orders with production start date OR scheduled status */}
-                            {(order.order_type === 'custom' || order.order_type === 'custom_order') && 
-                             (customOrderProductionStartDates[order.id] || 
-                              ['scheduled', 'in_transit', 'delivered', 'delayed', 'cancelled'].includes(order.delivery_status)) && (
-                              <div style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '0.25rem',
-                                padding: '0.5rem',
-                                background: 'linear-gradient(135deg, #e8f5e8, #f0f8f0)',
-                                borderRadius: '6px',
-                                border: '1px solid #28a745',
-                                fontSize: '0.75rem'
-                              }}>
-                                <div style={{ fontWeight: '600', color: '#155724' }}>
-                                  🎨 {customOrderProductionStartDates[order.id] ? 'Production Timeline Active' : 'Custom Order Scheduled'}
-                                </div>
-                                {customOrderProductionStartDates[order.id] ? (
-                                  <>
-                                    <div style={{ color: '#155724' }}>
-                                      Started: {new Date(customOrderProductionStartDates[order.id]).toLocaleDateString()}
-                                    </div>
-                                    <div style={{ color: '#155724' }}>
-                                      Completion: {new Date(new Date(customOrderProductionStartDates[order.id]).getTime() + (15 * 24 * 60 * 60 * 1000)).toLocaleDateString()}
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div style={{ color: '#155724' }}>
-                                    Status: {(order.delivery_status || 'scheduled').toUpperCase()}
-                                  </div>
-                                )}
-                              </div>
+                            {/* In Transit Button - Available for scheduled orders */}
+                            {order.delivery_status === 'scheduled' && (
+                              <ActionButton 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUpdateDeliveryStatus(order, 'in_transit', e);
+                                }}
+                                variant="info"
+                                title="Mark as In Transit - Package is on the way"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #17a2b8, #3498db)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                🚚 In Transit
+                              </ActionButton>
                             )}
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Custom Order Action Buttons - Show when production timeline is set OR when delivery status is scheduled or later */}
-                            {(order.order_type === 'custom' || order.order_type === 'custom_order') && 
-                             (customOrderProductionStartDates[order.id] || 
-                              ['scheduled', 'in_transit', 'delivered', 'delayed', 'cancelled'].includes(order.delivery_status)) ? (
-                              <>
-                                {/* Custom Order Delivered Button - Available for any status except delivered and cancelled */}
-                                {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'delivered', e);
-                                    }}
-                                    variant="success"
-                                    title="Mark custom order as delivered - Completes production timeline"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ✅ Delivered
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order In Transit Button - Available when not delivered, cancelled, or already in transit */}
-                                {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && order.delivery_status !== 'in_transit' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'in_transit', e);
-                                    }}
-                                    variant="info"
-                                    title="Mark custom order as in transit - Being delivered by courier"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #17a2b8, #3498db)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🚚 In Transit
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order Delay Button - Available when not delivered, cancelled, or already delayed */}
-                                {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && order.delivery_status !== 'delayed' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      // Remove from production timeline and set as delayed
-                                      setCustomOrderProductionStartDates(prev => {
-                                        const updated = { ...prev };
-                                        delete updated[order.id];
-                                        return updated;
-                                      });
-                                      handleUpdateDeliveryStatus(order, 'delayed', e);
-                                      showPopup(
-                                        'Custom Order Delayed',
-                                        `Production timeline has been removed for order ${order.order_number}. Use the "📅 Reschedule Production" button to set a new production start date.`,
-                                        'warning'
-                                      );
-                                    }}
-                                    variant="warning"
-                                    title="Delay custom order - Removes production timeline and requires rescheduling"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                                      color: '#212529', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ⚠️ Delay
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order Reschedule Production Button - Only for delayed custom orders */}
-                                {order.delivery_status === 'delayed' && (
-                                  <ActionButton 
-                                    onClick={() => {
-                                      setSelectedOrderForProductionStart(order);
-                                      showPopup(
-                                        '🎨 Reschedule Production Timeline',
-                                        `Order ${order.order_number} is selected for production rescheduling. Click on any future date in the calendar to set a new production start date.`,
-                                        'info'
-                                      );
-                                    }}
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '120px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    📅 Reschedule Production
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order Cancel Button - Available when not delivered or already cancelled */}
-                                {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      // Remove from production timeline and set as cancelled
-                                      setCustomOrderProductionStartDates(prev => {
-                                        const updated = { ...prev };
-                                        delete updated[order.id];
-                                        return updated;
-                                      });
-                                      handleUpdateDeliveryStatus(order, 'cancelled', e);
-                                      showPopup(
-                                        'Custom Order Cancelled',
-                                        `Order ${order.order_number} has been cancelled and removed from production timeline. Use "Restore" to reactivate if needed.`,
-                                        'warning'
-                                      );
-                                    }}
-                                    variant="danger"
-                                    title="Cancel custom order - Removes from production timeline"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ❌ Cancel
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order Restore Button - Only for cancelled custom orders */}
-                                {order.delivery_status === 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, null, e);
-                                      showPopup(
-                                        'Custom Order Restored',
-                                        `Order ${order.order_number} has been restored. You can now set a new production timeline using the "🎨 Set Production Start" button.`,
-                                        'success'
-                                      );
-                                    }}
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🔄 Restore
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Custom Order Delete Button - Only for cancelled custom orders */}
-                                {order.delivery_status === 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={() => {
-                                      if (window.confirm(`Are you sure you want to permanently delete custom order ${order.order_number}? This action cannot be undone.`)) {
-                                        handleRemoveOrder(order);
-                                      }
-                                    }}
-                                    variant="danger"
-                                    title="Permanently delete this custom order from the system"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #6c757d, #5a6268)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '90px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🗑️ Delete
-                                  </ActionButton>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                {/* Regular Order Action Buttons */}
-                                {/* Delivered Button - Available for scheduled and in_transit orders */}
-                                {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'delivered', e);
-                                    }}
-                                    variant="success"
-                                    title="Mark as Delivered - Order completed and paid"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ✅ Delivered
-                                  </ActionButton>
-                                )}
-                                
-                                {/* In Transit Button - Available for scheduled orders */}
-                                {order.delivery_status === 'scheduled' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'in_transit', e);
-                                    }}
-                                    variant="info"
-                                    title="Mark as In Transit - Package is on the way"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #17a2b8, #3498db)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🚚 In Transit
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Delay Button - Available for scheduled and in_transit orders */}
-                                {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'delayed', e);
-                                    }}
-                                    variant="warning"
-                                    title="Mark as Delayed - Removes schedule and requires rescheduling"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                                      color: '#212529', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ⚠️ Delay
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Cancel Button - Available for scheduled and in_transit orders */}
-                                {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'cancelled', e);
-                                    }}
-                                    variant="danger"
-                                    title="Cancel Order - Marks order as cancelled and removes from delivery schedule"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    ❌ Cancel
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Reschedule Button - Only for delayed orders */}
-                                {order.delivery_status === 'delayed' && (
-                                  <ActionButton 
-                                    onClick={() => {
-                                      setSelectedOrder(order);
-                                      setShowScheduleModal(true);
-                                      showPopup(
-                                        'Reschedule Delayed Order',
-                                        `Opening schedule modal for order ${order.order_number}. Set a new delivery date.`,
-                                        'info'
-                                      );
-                                    }}
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                                      color: '#212529', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    📅 Reschedule
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Restore Button - Only for cancelled orders */}
-                                {order.delivery_status === 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      handleUpdateDeliveryStatus(order, 'pending', e);
-                                    }}
-                                    variant="success"
-                                    title="Restore Order - Changes status back to pending and makes it available for scheduling"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🔄 Restore
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Delete Button - Available for cancelled orders */}
-                                {order.delivery_status === 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={() => handleRemoveOrder(order)}
-                                    variant="danger"
-                                    title="Permanently delete this order from the system"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #6c757d, #5a6268)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600'
-                                    }}
-                                  >
-                                    🗑️ Delete
-                                  </ActionButton>
-                                )}
-                                
-                                {/* Remove Button - Available for all orders except delivered and cancelled */}
-                                {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
-                                  <ActionButton 
-                                    onClick={() => handleRemoveOrder(order)}
-                                    variant="danger"
-                                    title="Permanently remove this order from the system"
-                                    style={{ 
-                                      background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                                      color: 'white', 
-                                      fontSize: '0.75rem', 
-                                      padding: '0.4rem 0.8rem',
-                                      minWidth: '80px',
-                                      fontWeight: '600',
-                                      border: '2px solid #dc3545'
-                                    }}
-                                  >
-                                    🗑️ Remove
-                                  </ActionButton>
-                                )}
-                              </>
+                            
+                            {/* Delay Button - Available for scheduled and in_transit orders */}
+                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                              <ActionButton 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUpdateDeliveryStatus(order, 'delayed', e);
+                                }}
+                                variant="warning"
+                                title="Mark as Delayed - Removes schedule and requires rescheduling"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
+                                  color: '#212529', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                ⚠️ Delay
+                              </ActionButton>
+                            )}
+                            
+                            {/* Cancel Button - Available for scheduled and in_transit orders */}
+                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                              <ActionButton 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUpdateDeliveryStatus(order, 'cancelled', e);
+                                }}
+                                variant="danger"
+                                title="Cancel Order - Marks order as cancelled and removes from delivery schedule"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                ❌ Cancel
+                              </ActionButton>
+                            )}
+                            
+                            {/* Reschedule Button - Only for delayed orders */}
+                            {order.delivery_status === 'delayed' && (
+                              <ActionButton 
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowScheduleModal(true);
+                                  showPopup(
+                                    'Reschedule Delayed Order',
+                                    `Opening schedule modal for order ${order.order_number}. Set a new delivery date.`,
+                                    'info'
+                                  );
+                                }}
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
+                                  color: '#212529', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                📅 Reschedule
+                              </ActionButton>
+                            )}
+                            
+                            {/* Restore Button - Only for cancelled orders */}
+                            {order.delivery_status === 'cancelled' && (
+                              <ActionButton 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleUpdateDeliveryStatus(order, 'pending', e);
+                                }}
+                                variant="success"
+                                title="Restore Order - Changes status back to pending and makes it available for scheduling"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #28a745, #20c997)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                🔄 Restore
+                              </ActionButton>
+                            )}
+                            
+                            {/* Delete Button - Available for cancelled orders */}
+                            {order.delivery_status === 'cancelled' && (
+                              <ActionButton 
+                                onClick={() => handleRemoveOrder(order)}
+                                variant="danger"
+                                title="Permanently delete this order from the system"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #6c757d, #5a6268)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                🗑️ Delete
+                              </ActionButton>
+                            )}
+                            
+                            {/* Remove Button - Available for all orders except delivered and cancelled */}
+                            {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
+                              <ActionButton 
+                                onClick={() => handleRemoveOrder(order)}
+                                variant="danger"
+                                title="Permanently remove this order from the system"
+                                style={{ 
+                                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
+                                  color: 'white', 
+                                  fontSize: '0.75rem', 
+                                  padding: '0.4rem 0.8rem',
+                                  minWidth: '80px',
+                                  fontWeight: '600',
+                                  border: '2px solid #dc3545'
+                                }}
+                              >
+                                🗑️ Remove
+                              </ActionButton>
                             )}
                           </div>
                         )}
@@ -4198,14 +2456,13 @@ const DeliveryPage = () => {
                 <p>4. Use the new action buttons to update delivery progress</p>
                 <br />
                 <p><strong>⚡ New Action Buttons:</strong></p>
-                <p>• <span style={{color: '#28a745', fontWeight: 'bold'}}>✅ Delivered</span> - Mark as delivered and paid (COD)</p>
+                <p>• <span style={{color: '#28a745', fontWeight: 'bold'}}>✅ Delivered</span> - Mark as delivered and paid (GCash)</p>
                 <p>• <span style={{color: '#17a2b8', fontWeight: 'bold'}}>🚚 In Transit</span> - Package is on the way</p>
                 <p>• <span style={{color: '#ffc107', fontWeight: 'bold'}}>⚠️ Delay</span> - Removes schedule, requires rescheduling</p>
                 <p>• <span style={{color: '#dc3545', fontWeight: 'bold'}}>🗑️ Remove</span> - Permanently delete order</p>
                 <br />
-                <p><strong>📊 Order Types & Production:</strong></p>
-                <p>• <span style={{color: '#667eea', fontWeight: 'bold'}}>🎨 Custom Orders</span> - 15-day production timeline</p>
-                <p>• <span style={{color: '#f093fb', fontWeight: 'bold'}}>🛍️ Regular Orders</span> - Direct scheduling (no timeline)</p>
+                <p><strong>📊 Order Types:</strong></p>
+                <p>• <span style={{color: '#f093fb', fontWeight: 'bold'}}>🛍️ Regular Orders</span> - Direct scheduling</p>
                 <br />
                 <p><strong>⏰ Operating Schedule:</strong></p>
                 <p><strong>Hours:</strong> 9:00 AM - 5:00 PM</p>
@@ -4229,7 +2486,7 @@ const DeliveryPage = () => {
         <ScheduleModal 
           order={selectedOrder}
           preSelectedDate={selectedDate}
-          customOrderProductionDates={customOrderProductionDates}
+          // Removed customOrderProductionDates - Custom orders now follow regular order workflow
           couriers={couriers}
           onClose={() => {
             setShowScheduleModal(false);
@@ -4331,12 +2588,16 @@ const DeliveryPage = () => {
                     height: '48px'
                   }}
                   onMouseOver={(e) => {
-                    e.target.style.background = '#f8f8f8';
-                    e.target.style.borderColor = '#000000';
+                    if (e.target) {
+                      e.target.style.background = '#f8f8f8';
+                      e.target.style.borderColor = '#000000';
+                    }
                   }}
                   onMouseOut={(e) => {
-                    e.target.style.background = '#ffffff';
-                    e.target.style.borderColor = '#e0e0e0';
+                    if (e.target) {
+                      e.target.style.background = '#ffffff';
+                      e.target.style.borderColor = '#e0e0e0';
+                    }
                   }}
                 >
                   <FontAwesomeIcon icon={faChevronLeft} style={{ color: '#000000' }} />
@@ -4359,12 +2620,16 @@ const DeliveryPage = () => {
                     height: '48px'
                   }}
                   onMouseOver={(e) => {
-                    e.target.style.background = '#f8f8f8';
-                    e.target.style.borderColor = '#000000';
+                    if (e.target) {
+                      e.target.style.background = '#f8f8f8';
+                      e.target.style.borderColor = '#000000';
+                    }
                   }}
                   onMouseOut={(e) => {
-                    e.target.style.background = '#ffffff';
-                    e.target.style.borderColor = '#e0e0e0';
+                    if (e.target) {
+                      e.target.style.background = '#ffffff';
+                      e.target.style.borderColor = '#e0e0e0';
+                    }
                   }}
                 >
                   <FontAwesomeIcon icon={faChevronRight} style={{ color: '#000000' }} />
@@ -4387,12 +2652,16 @@ const DeliveryPage = () => {
                     marginLeft: '0.5rem'
                   }}
                   onMouseOver={(e) => {
-                    e.target.style.background = '#333333';
-                    e.target.style.transform = 'scale(1.05)';
+                    if (e.target) {
+                      e.target.style.background = '#333333';
+                      e.target.style.transform = 'scale(1.05)';
+                    }
                   }}
                   onMouseOut={(e) => {
-                    e.target.style.background = '#000000';
-                    e.target.style.transform = 'scale(1)';
+                    if (e.target) {
+                      e.target.style.background = '#000000';
+                      e.target.style.transform = 'scale(1)';
+                    }
                   }}
                 >
                   <FontAwesomeIcon icon={faTimes} style={{ color: '#ffffff' }} />
@@ -4444,25 +2713,22 @@ const DeliveryPage = () => {
                     })(),
                     cursor: day.isCurrentMonth && day.availabilityStatus !== 'unavailable' ? 'pointer' : 'default',
                     position: 'relative',
-                    transition: 'all 0.2s ease',
-                    ...(selectedOrderForProductionStart && day.isCurrentMonth && 
-                        day.availabilityStatus !== 'unavailable' && {
-                      boxShadow: '0 0 12px rgba(102, 126, 234, 0.5)',
-                      borderColor: '#667eea'
-                    })
+                    transition: 'all 0.2s ease'
                   }}
                   onMouseOver={(e) => {
-                    if (day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
+                    if (e.target && day.isCurrentMonth && day.availabilityStatus !== 'unavailable') {
                       e.target.style.background = '#f5f5f5';
                     }
                   }}
                   onMouseOut={(e) => {
-                    if (!day.isCurrentMonth) {
-                      e.target.style.background = '#f8f8f8';
-                    } else if (day.isToday) {
-                      e.target.style.background = '#f0f8ff';
-                    } else {
-                      e.target.style.background = '#ffffff';
+                    if (e.target) {
+                      if (!day.isCurrentMonth) {
+                        e.target.style.background = '#f8f8f8';
+                      } else if (day.isToday) {
+                        e.target.style.background = '#f0f8ff';
+                      } else {
+                        e.target.style.background = '#ffffff';
+                      }
                     }
                   }}
                 >
@@ -4522,14 +2788,18 @@ const DeliveryPage = () => {
                         fontWeight: 'bold'
                       }}
                       onMouseOver={(e) => {
-                        e.target.style.transform = 'scale(1.2)';
+                        if (e.target) {
+                          e.target.style.transform = 'scale(1.2)';
+                        }
                       }}
                       onMouseOut={(e) => {
-                        e.target.style.transform = 'scale(1)';
+                        if (e.target) {
+                          e.target.style.transform = 'scale(1)';
+                        }
                       }}
-                      title={`Availability: ${day.availabilityStatus} (${day.bookingCount}/3 deliveries) - Click to toggle`}
+                      title={`Availability: ${day.availabilityStatus} (${Math.min(day.bookingCount, 3)}${day.bookingCount > 3 ? '+' : ''}/3 deliveries) - Click to toggle`}
                     >
-                      {day.bookingCount > 0 ? day.bookingCount : ''}
+                      {day.bookingCount > 0 ? (day.bookingCount > 3 ? '3+' : day.bookingCount) : ''}
                     </div>
                   </div>
 
@@ -4551,7 +2821,7 @@ const DeliveryPage = () => {
                               'cancelled': '❌ CANCELLED'
                             }[status] || '📦 UNKNOWN';
                             
-                            const orderType = order.order_type === 'custom' ? '🎨 Custom' : '🛍️ Regular';
+                            const orderType = '🛍️ Regular';
                             
                             return `${statusIcon}\n${orderType} Order: ${order.order_number}\nCustomer: ${order.customerName}\nAmount: ₱${parseFloat(order.total_amount || 0).toFixed(2)}`;
                           }).join('\n\n');
@@ -4589,10 +2859,14 @@ const DeliveryPage = () => {
                         zIndex: 5
                       }}
                       onMouseOver={(e) => {
-                        e.target.style.transform = 'scale(1.1)';
+                        if (e.target) {
+                          e.target.style.transform = 'scale(1.1)';
+                        }
                       }}
                       onMouseOut={(e) => {
-                        e.target.style.transform = 'scale(1)';
+                        if (e.target) {
+                          e.target.style.transform = 'scale(1)';
+                        }
                       }}
                       title={(() => {
                         const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
@@ -4634,217 +2908,10 @@ const DeliveryPage = () => {
                         if (allOrders.some(order => order.delivery_status === 'scheduled')) return '📅';
                         return '⏳'; // Default for pending orders
                       })()}
-                      {/* Order count badge */}
-                      {(day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)) > 1 && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '-8px',
-                          background: (() => {
-                            const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
-                            if (allOrders.some(order => order.delivery_status === 'delivered')) return '#28a745';
-                            if (allOrders.some(order => order.delivery_status === 'in_transit')) return '#17a2b8';
-                            if (allOrders.some(order => order.delivery_status === 'delayed')) return '#ffc107';
-                            if (allOrders.some(order => order.delivery_status === 'cancelled')) return '#6c757d';
-                            return '#007bff';
-                          })(),
-                          color: (() => {
-                            const allOrders = [...(day.scheduledOrders || []), ...day.deliveries];
-                            if (allOrders.some(order => order.delivery_status === 'delayed')) return '#212529';
-                            return 'white';
-                          })(),
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          fontSize: '0.875rem',
-                          fontWeight: 'bold',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '2px solid white',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
-                          zIndex: 10
-                        }}>
-                          {day.deliveries.length + (day.scheduledOrders ? day.scheduledOrders.length : 0)}
-                        </div>
-                      )}
                     </div>
                   )}
 
-                  {/* Production start selection indicator */}
-                  {selectedOrderForProductionStart && day.isCurrentMonth && 
-                   day.availabilityStatus !== 'unavailable' && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '1rem',
-                      left: '1rem',
-                      width: '20px',
-                      height: '20px',
-                      backgroundColor: '#667eea',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      color: 'white',
-                      fontWeight: 'bold',
-                      zIndex: 10,
-                      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-                    }}>
-                      🎯
-                    </div>
-                  )}
-                  
-                  {/* Enhanced 15-Day Production Timeline - Same logic as minimized calendar */}
-                  {day.productionOrders && day.productionOrders.length > 0 && day.productionOrders.map((prodOrder, idx) => (
-                    <div key={`full-calendar-production-${prodOrder.id}-${currentDate.getFullYear()}-${currentDate.getMonth()}-${idx}`}>
-                      {/* Production start marker */}
-                      {prodOrder.isProductionStart && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '1rem',
-                          right: '1rem',
-                          width: '32px',
-                          height: '32px',
-                          background: 'linear-gradient(135deg, #28a745, #20c997)',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1rem',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          zIndex: 15,
-                          border: '3px solid white',
-                          boxShadow: '0 4px 12px rgba(40,167,69,0.4)'
-                        }}
-                        title={`🎨 Custom Order Production START\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionStartDate.toLocaleDateString()}\n15-day production timeline begins`}
-                        >
-                          🚀
-                        </div>
-                      )}
-                      
-                      {/* Production completion marker */}
-                      {prodOrder.isProductionEnd && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '1rem',
-                          right: '1rem',
-                          width: '32px',
-                          height: '32px',
-                          background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '1rem',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          zIndex: 15,
-                          border: '3px solid white',
-                          boxShadow: '0 4px 12px rgba(255,193,7,0.4)'
-                        }}
-                        title={`🎨 Custom Order Production COMPLETE\nOrder: ${prodOrder.order_number}\nDate: ${prodOrder.productionCompletionDate.toLocaleDateString()}\nReady for delivery scheduling`}
-                        >
-                          ✨
-                        </div>
-                      )}
-                      
-                      {/* Enhanced Production Progress Bar */}
-                      {!prodOrder.isProductionStart && !prodOrder.isProductionEnd && (
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '1rem',
-                          left: '1rem',
-                          right: '1rem',
-                          height: '10px',
-                          background: '#e9ecef',
-                          borderRadius: '5px',
-                          zIndex: 10,
-                          border: '1px solid rgba(0,0,0,0.1)',
-                          overflow: 'hidden'
-                        }}
-                        title={`🎨 Custom Order Production ${prodOrder.delivery_status === 'delivered' ? 'COMPLETED ✅' : 'Progress'}\nOrder: ${prodOrder.order_number}\nProgress: ${Math.round(prodOrder.productionProgress)}%\nDay ${Math.ceil((prodOrder.productionProgress / 100) * 15)} of 15-day timeline${prodOrder.delivery_status === 'delivered' ? '\n✅ ORDER DELIVERED' : ''}`}
-                        >
-                          <div style={{
-                            width: `${prodOrder.productionProgress}%`,
-                            height: '100%',
-                            background: prodOrder.delivery_status === 'delivered' 
-                              ? `linear-gradient(90deg, #28a745 0%, #28a745 100%)` 
-                              : `linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)`,
-                            borderRadius: '4px',
-                            transition: 'width 0.3s ease',
-                            position: 'relative'
-                          }}>
-                            {prodOrder.productionProgress > 15 && (
-                              <div style={{
-                                position: 'absolute',
-                                right: '-5px',
-                                top: '-4px',
-                                width: '18px',
-                                height: '18px',
-                                background: '#ffffff',
-                                borderRadius: '50%',
-                                border: '2px solid #28a745',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                              }} />
-                            )}
-                          </div>
-                          
-                          {/* Timeline markers */}
-                          <div style={{
-                            position: 'absolute',
-                            top: '0',
-                            left: '0',
-                            right: '0',
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            {[33.33, 66.66].map((position, index) => (
-                              <div
-                                key={`full-timeline-marker-${currentDate.getFullYear()}-${currentDate.getMonth()}-${index}`}
-                                style={{
-                                  position: 'absolute',
-                                  left: `${position}%`,
-                                  width: '2px',
-                                  height: '100%',
-                                  background: 'rgba(255,255,255,0.7)',
-                                  zIndex: 1
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Custom order type indicator */}
-                      {(prodOrder.isProductionStart || prodOrder.isProductionEnd || (!prodOrder.isProductionStart && !prodOrder.isProductionEnd)) && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '1rem',
-                          left: '1rem',
-                          width: '24px',
-                          height: '24px',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.875rem',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          zIndex: 12,
-                          border: '2px solid white',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                        }}
-                        title={`🎨 Custom Order: ${prodOrder.order_number}\n15-day production timeline`}
-                        >
-                          🎨
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {/* Removed production timeline indicators - Custom orders now follow regular order workflow */}
                 </div>
               ))}
             </div>
@@ -4900,43 +2967,6 @@ const DeliveryPage = () => {
                   </div>
                 </div>
 
-                {/* Production Timeline */}
-                <div>
-                  <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Production Timeline</h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #28a745, #20c997)', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        🚀
-                      </div>
-                      <span>Production Start</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #ffc107, #f39c12)', color: 'white',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '0.75rem', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}>
-                        ✨
-                      </div>
-                      <span>Production Complete</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem' }}>
-                      <div style={{
-                        width: '50px', height: '8px', borderRadius: '4px',
-                        background: 'linear-gradient(90deg, #28a745 0%, #20c997 50%, #ffc107 100%)',
-                        border: '1px solid rgba(0,0,0,0.1)'
-                      }} />
-                      <span>Production Progress (15 days)</span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Day Availability */}
                 <div>
                   <h5 style={{ margin: '0 0 0.75rem 0', color: '#333333', fontSize: '0.9rem', fontWeight: '500' }}>Day Availability</h5>
@@ -4984,7 +3014,7 @@ const DeliveryPage = () => {
 };
 
 // Schedule Modal Component
-const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrderProductionDates, couriers = [] }) => {
+const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, couriers = [] }) => {
   const [scheduleData, setScheduleData] = useState({
     date: preSelectedDate ? 
       `${preSelectedDate.getFullYear()}-${String(preSelectedDate.getMonth() + 1).padStart(2, '0')}-${String(preSelectedDate.getDate()).padStart(2, '0')}` : 
@@ -4993,50 +3023,14 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrde
     notes: ''
   });
 
-  // Calculate minimum date for custom orders (admin-controlled production dates)
+  // Calculate minimum date for orders
   const getMinDate = () => {
-    if (order.order_type === 'custom') {
-      const orderDate = new Date(order.created_at);
-      
-      // Check if admin has set a custom production completion date
-      const adminSetCompletionDate = customOrderProductionDates[order.id];
-      let completionDate;
-      
-      if (adminSetCompletionDate) {
-        completionDate = new Date(adminSetCompletionDate);
-      } else {
-        // Default to 10 days if admin hasn't set a date
-        completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-      }
-      
-      const today = new Date();
-      
-      // Use the later of today or production completion date
-      const minDate = completionDate > today ? completionDate : today;
-      return minDate.toISOString().split('T')[0];
-    } else {
-      // Regular orders can be scheduled from today
-      return new Date().toISOString().split('T')[0];
-    }
+    // Regular orders can be scheduled from today
+    return new Date().toISOString().split('T')[0];
   };
 
-  // Get production status message for custom orders
-  const getProductionStatusMessage = () => {
-    if (order.order_type === 'custom') {
-      const orderDate = new Date(order.created_at);
-      const adminSetCompletionDate = customOrderProductionDates[order.id];
-      let completionDate;
-      
-      if (adminSetCompletionDate) {
-        completionDate = new Date(adminSetCompletionDate);
-        return `Custom order production completion date set by admin: ${completionDate.toLocaleDateString()}`;
-      } else {
-        completionDate = new Date(orderDate.getTime() + (10 * 24 * 60 * 60 * 1000));
-        return `Custom order default production period: 10 days (completion: ${completionDate.toLocaleDateString()})`;
-      }
-    }
-    return '';
-  };
+  // Get production status message for orders
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -5115,16 +3109,6 @@ const ScheduleModal = ({ order, onClose, onSchedule, preSelectedDate, customOrde
               min={getMinDate()}
               required
             />
-            {order.order_type === 'custom' && (
-              <div style={{ 
-                fontSize: '0.8rem', 
-                color: '#666666', 
-                marginTop: '4px',
-                fontStyle: 'italic'
-              }}>
-                ℹ️ {getProductionStatusMessage()}
-              </div>
-            )}
           </FormGroup>
 
           <FormGroup>

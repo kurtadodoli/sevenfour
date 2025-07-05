@@ -65,6 +65,81 @@ router.get('/cancellation-requests', auth, orderController.getCancellationReques
 // @access  Private/Admin/Staff
 router.get('/transactions/all', auth, orderController.getAllTransactions);
 
+// @route   GET api/orders/refund-requests
+// @desc    Get all refund requests (Admin only)
+// @access  Private (Admin)
+router.get('/refund-requests', adminAuth, orderController.getRefundRequests);
+
+// @route   GET api/orders/my-refund-requests
+// @desc    Get refund requests for current user
+// @access  Private
+router.get('/my-refund-requests', auth, async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+
+        const query = `
+            SELECT * FROM refund_requests 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC
+        `;
+
+        const [requests] = await connection.execute(query, [req.user.id]);
+        await connection.end();
+
+        res.json({
+            success: true,
+            data: requests
+        });
+    } catch (error) {
+        console.error('Error fetching user refund requests:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch refund requests',
+            error: error.message
+        });
+    }
+});
+
+// @route   PUT api/orders/refund-requests/:id
+// @desc    Update refund request status (Admin only)
+// @access  Private (Admin)
+router.put('/refund-requests/:id', adminAuth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, admin_notes } = req.body;
+
+        if (!status || !['approved', 'rejected'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid status (approved/rejected) is required'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+
+        const updateQuery = `
+            UPDATE refund_requests 
+            SET status = ?, admin_notes = ?, updated_at = NOW()
+            WHERE id = ?
+        `;
+
+        await connection.execute(updateQuery, [status, admin_notes || null, id]);
+        await connection.end();
+
+        res.json({
+            success: true,
+            message: `Refund request ${status} successfully`
+        });
+    } catch (error) {
+        console.error('Error updating refund request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update refund request',
+            error: error.message
+        });
+    }
+});
+
 // @route   GET api/orders/export
 // @desc    Export orders as CSV
 // @access  Private/Admin
@@ -78,7 +153,7 @@ router.get('/', auth, orderController.getAllOrders);
 // @route   POST api/orders
 // @desc    Create a new order from cart
 // @access  Private (any authenticated user)
-router.post('/', auth, orderController.createOrderFromCart);
+router.post('/', auth, paymentUpload.single('payment_proof'), orderController.createOrderFromCart);
 
 // @route   GET api/orders/confirmed
 // @desc    Get all confirmed orders for admin transaction page
@@ -247,20 +322,21 @@ router.get('/pending-verification', auth, async (req, res) => {
                     FROM order_items oi
                     LEFT JOIN products p ON oi.product_id = p.product_id
                     WHERE oi.order_id = ?
-                    ORDER BY oi.sort_order
+                    ORDER BY oi.id
                 `, [order.order_id]);
                 
                 // Use the first order item with payment proof for customer details
                 const firstItemWithProof = items[0];
-                order.customer_fullname = firstItemWithProof.customer_fullname;
-                order.customer_phone = firstItemWithProof.customer_phone;
-                order.gcash_reference_number = firstItemWithProof.gcash_reference_number;
-                order.payment_proof_image_path = firstItemWithProof.payment_proof_image_path;
-                order.province = firstItemWithProof.province;
-                order.city_municipality = firstItemWithProof.city_municipality;
-                order.street_address = firstItemWithProof.street_address;
-                order.postal_code = firstItemWithProof.postal_code;
-                order.order_notes = firstItemWithProof.order_notes;
+                // Note: These fields may not exist in order_items table, using fallbacks
+                order.customer_fullname = order.customer_name || 'N/A';
+                order.customer_phone = order.contact_phone || 'N/A';
+                order.gcash_reference_number = order.payment_reference || 'N/A';
+                order.payment_proof_image_path = order.payment_proof_filename || 'N/A';
+                order.province = order.shipping_address || 'N/A';
+                order.city_municipality = 'N/A';
+                order.street_address = order.shipping_address || 'N/A';
+                order.postal_code = 'N/A';
+                order.order_notes = order.notes || 'N/A';
                 order.items = allItems;
                 order.item_count = allItems.length;
                 
@@ -338,728 +414,10 @@ router.put('/cancellation-requests/:id', auth, orderController.processCancellati
 // @access  Private/Admin/Staff
 router.post('/:id/process-cancellation', auth, orderController.processOrderCancellation);
 
-// @route   PATCH api/orders/:id/delivery-status
-// @desc    Update delivery status for an order
+// @route   POST api/orders/:id/mark-received
+// @desc    Mark order as received by customer
 // @access  Private
-router.patch('/:id/delivery-status', async (req, res) => {
-    try {
-        const { id: orderId } = req.params;
-        const { delivery_status, delivery_notes } = req.body;
-        
-        console.log(`🚚 Updating delivery status for order ${orderId} to: ${delivery_status}`);
-        
-        // Create database connection
-        const connection = await mysql.createConnection(dbConfig);
-        
-        try {
-            // Update the order's delivery status in the database
-            const [updateResult] = await connection.execute(
-                'UPDATE orders SET delivery_status = ?, delivery_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                [delivery_status, delivery_notes, orderId]
-            );
-            
-            if (updateResult.affectedRows === 0) {
-                await connection.end();
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found'
-                });
-            }
-            
-            // Get the updated order
-            const [orders] = await connection.execute(
-                'SELECT id, order_number, delivery_status, delivery_notes FROM orders WHERE id = ?',
-                [orderId]
-            );
-            
-            console.log(`✅ Successfully updated order ${orderId} delivery status to ${delivery_status}`);
-            
-            res.json({
-                success: true,
-                message: 'Delivery status updated successfully',
-                order: orders[0]
-            });
-        } finally {
-            await connection.end();
-        }
-        
-    } catch (error) {
-        console.error('Error updating delivery status:', error);
-        res.status(500).json({ 
-            success: false,
-            message: 'Error updating delivery status',
-            error: error.message 
-        });
-    }
-});
-
-// @route   POST api/orders/verify-payment
-// @desc    Verify GCash payment proof using SHA256
-// @access  Private
-router.post('/verify-payment', auth, paymentUpload.single('payment_proof'), async (req, res) => {
-    try {
-        console.log('=== PAYMENT VERIFICATION REQUEST ===');
-        console.log('User ID:', req.user.id);
-        console.log('File uploaded:', req.file ? req.file.filename : 'No file');
-        console.log('Request body:', req.body);
-        
-        const { payment_reference, order_total } = req.body;
-        
-        // DEBUG: Log individual address fields
-        console.log('=== ADDRESS FIELDS DEBUG ===');
-        console.log('street_address:', street_address);
-        console.log('city:', city);
-        console.log('province:', province);
-        console.log('postal_code:', postal_code);
-        console.log('=== END ADDRESS FIELDS DEBUG ===');
-
-        const paymentProofFile = req.file;
-        
-        if (!paymentProofFile) {
-            return res.status(400).json({
-                success: false,
-                message: 'Payment proof image is required'
-            });
-        }
-        
-        if (!payment_reference || payment_reference.length < 8) {
-            return res.status(400).json({
-                success: false,
-                message: 'Valid GCash reference number is required (minimum 8 characters)'
-            });
-        }
-        
-        // Generate server-side verification hash
-        const serverHashInput = `${req.user.email}_${order_total}_${paymentProofFile.originalname}_${paymentProofFile.size}_${Date.now()}`;
-        const serverVerificationHash = crypto.createHash('sha256').update(serverHashInput).digest('hex');
-        
-        console.log('Server verification hash generated:', serverVerificationHash);
-        
-        // Store payment verification record
-        const connection = await mysql.createConnection(dbConfig);
-        
-        const insertPaymentQuery = `
-            INSERT INTO payment_verifications (
-                user_id, payment_reference, verification_hash, server_hash,
-                payment_proof_filename, payment_proof_path, order_total,
-                verification_status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'verified', NOW())
-        `;
-        
-        await connection.execute(insertPaymentQuery, [
-            req.user.id,
-            payment_reference,
-            'client_generated_hash', // Placeholder for client hash
-            serverVerificationHash,
-            paymentProofFile.filename,
-            paymentProofFile.path,
-            parseFloat(order_total)
-        ]);
-        
-        await connection.end();
-        
-        console.log('✅ Payment verification stored successfully');
-        
-        res.json({
-            success: true,
-            message: 'Payment proof verified successfully',
-            verification_hash: serverVerificationHash,
-            payment_reference,
-            verified_at: new Date().toISOString()
-        });
-        
-    } catch (error) {
-        console.error('❌ Payment verification error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Payment verification failed',
-            error: error.message
-        });
-    }
-});
-
-// @route   POST api/orders/gcash
-// @desc    Create a new order with GCash payment proof
-// @access  Private
-router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, res) => {
-    try {
-        console.log('=== CREATE GCASH ORDER ===');
-        console.log('User ID:', req.user.id);
-        console.log('File uploaded:', req.file ? req.file.filename : 'No file');
-        console.log('Request body:', req.body);
-        
-        const { 
-            customer_name,
-            customer_email,
-            customer_phone,
-            shipping_address,
-            province,
-            city,
-            street_address,
-            postal_code,
-            payment_reference,
-            payment_verification_hash,
-            notes
-        } = req.body;
-        
-        const paymentProofFile = req.file;
-        
-        if (!paymentProofFile) {
-            return res.status(400).json({
-                success: false,
-                message: 'Payment proof is required for GCash orders'
-            });
-        }
-        
-        if (!payment_reference || payment_reference.length < 8) {
-            return res.status(400).json({
-                success: false,
-                message: 'Valid GCash reference number is required'
-            });
-        }
-        
-        if (!shipping_address || !customer_phone) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Shipping address and contact phone are required' 
-            });
-        }
-        
-        const connection = await mysql.createConnection(dbConfig);
-        await connection.beginTransaction();
-        
-        try {
-            // Get user's cart
-            const [carts] = await connection.execute(
-                'SELECT id FROM carts WHERE user_id = ?',
-                [req.user.id]
-            );
-            
-            if (carts.length === 0) {
-                throw new Error('Cart not found');
-            }
-            
-            const cartId = carts[0].id;
-            
-            // Get cart items
-            const [cartItems] = await connection.execute(`
-                SELECT 
-                    ci.*, 
-                    p.productname, 
-                    p.productprice,
-                    p.productcolor,
-                    p.product_type
-                FROM cart_items ci
-                JOIN products p ON ci.product_id = p.product_id
-                WHERE ci.cart_id = ?
-            `, [cartId]);
-            
-            if (cartItems.length === 0) {
-                throw new Error('Cart is empty');
-            }
-            
-            // Calculate total
-            const totalAmount = cartItems.reduce((sum, item) => 
-                sum + (item.productprice * item.quantity), 0
-            );
-            
-            // Generate IDs
-            const invoiceId = `INV${Date.now()}${Math.floor(Math.random() * 10000)}`;
-            const transactionId = `TXN${Date.now()}${Math.floor(Math.random() * 10000)}`;
-            const orderNumber = `ORD${Date.now()}${Math.floor(Math.random() * 10000)}`;
-            
-            // Create invoice
-            await connection.execute(`
-                INSERT INTO order_invoices (
-                    invoice_id, user_id, total_amount, customer_name, 
-                    customer_email, customer_phone, delivery_address, notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [
-                invoiceId, req.user.id, totalAmount, customer_name || req.user.username,
-                customer_email || req.user.email, customer_phone, shipping_address, notes
-            ]);
-            
-            // Create transaction with GCash payment method
-            await connection.execute(`
-                INSERT INTO sales_transactions (
-                    transaction_id, invoice_id, user_id, amount, payment_method, transaction_status
-                ) VALUES (?, ?, ?, ?, 'gcash', 'confirmed')
-            `, [transactionId, invoiceId, req.user.id, totalAmount]);
-            
-            // Create order with payment verification details
-            await connection.execute(`
-                INSERT INTO orders (
-                    order_number, user_id, invoice_id, transaction_id, 
-                    total_amount, shipping_address, contact_phone, notes,
-                    payment_method, payment_reference, payment_verification_hash,
-                    payment_proof_filename, payment_status, status,
-                    street_address, city_municipality, province, zip_code
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'gcash', ?, ?, ?, 'verified', 'pending', ?, ?, ?, ?)
-            `, [
-                orderNumber, req.user.id, invoiceId, transactionId,
-                totalAmount, shipping_address, customer_phone, notes,
-                payment_reference, payment_verification_hash, paymentProofFile.filename,
-                street_address, city, province, postal_code
-            ]);
-            
-            // Get the created order ID
-            const [orderResult] = await connection.execute(
-                'SELECT id FROM orders WHERE order_number = ?',
-                [orderNumber]
-            );
-            const orderId = orderResult[0].id;
-            
-            // Create order items with comprehensive information
-            for (let index = 0; index < cartItems.length; index++) {
-                const item = cartItems[index];
-                await connection.execute(`
-                    INSERT INTO order_items (
-                        order_id, invoice_id, product_id, product_name, product_price,
-                        quantity, sort_order, color, size, subtotal,
-                        customer_fullname, customer_phone,
-                        gcash_reference_number, payment_proof_image_path,
-                        province, city_municipality, street_address, postal_code,
-                        order_notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [
-                    orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, index + 1, item.color || item.productcolor, item.size || 'N/A',
-                    item.productprice * item.quantity,
-                    customer_name, customer_phone,
-                    payment_reference, paymentProofFile.path,
-                    province, city, street_address, postal_code,
-                    notes
-                ]);
-            }
-            
-            // Clear cart
-            await connection.execute(`
-                DELETE FROM cart_items 
-                WHERE cart_id = ? AND cart_id IN (
-                    SELECT id FROM carts WHERE user_id = ?
-                )
-            `, [cartId, req.user.id]);
-            
-            await connection.commit();
-            await connection.end();
-            
-            console.log('✅ GCash order created successfully');
-            
-            res.json({
-                success: true,
-                message: 'GCash order created successfully with verified payment. Please confirm your order to complete the process.',
-                data: {
-                    orderNumber,
-                    invoiceId,
-                    transactionId,
-                    totalAmount,
-                    paymentMethod: 'gcash',
-                    paymentStatus: 'verified',
-                    orderStatus: 'pending'
-                }
-            });
-            
-        } catch (error) {
-            await connection.rollback();
-            await connection.end();
-            throw error;
-        }
-        
-    } catch (error) {
-        console.error('❌ Error creating GCash order:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to create GCash order'
-        });
-    }
-});
-
-// @route   PUT api/orders/:orderId/approve-payment
-// @desc    Approve payment and move order to confirmed status
-// @access  Private/Admin
-router.put('/:orderId/approve-payment', auth, async (req, res) => {
-    try {
-        console.log('=== APPROVE PAYMENT ===');
-        console.log('Order ID:', req.params.orderId);
-        console.log('Admin User:', req.user.email);
-        
-        // Check if user is admin/staff
-        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied. Admin privileges required.'
-            });
-        }
-        
-        const orderId = req.params.orderId;
-        const connection = await mysql.createConnection(dbConfig);
-        
-        await connection.beginTransaction();
-        
-        try {
-            // Check if order exists and is pending
-            const [orderCheck] = await connection.execute(`
-                SELECT id, status, total_amount, user_id
-                FROM orders 
-                WHERE id = ? AND status = 'pending'
-            `, [orderId]);
-            
-            if (orderCheck.length === 0) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found or not in pending status'
-                });
-            }
-            
-            const order = orderCheck[0];
-            
-            // Get order items to convert reserved stock to deducted stock
-            const [orderItems] = await connection.execute(`
-                SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
-                       p.productname, p.total_available_stock
-                FROM order_items oi
-                JOIN products p ON oi.product_id = p.product_id
-                WHERE oi.order_id = ?
-            `, [orderId]);
-            
-            console.log(`Processing stock deduction for ${orderItems.length} items`);
-            
-            // Convert reserved stock to actual stock deduction
-            for (const item of orderItems) {
-                console.log(`Converting reserved to deducted for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
-                
-                // Deduct from actual stock_quantity and reduce reserved_quantity
-                const [variantResult] = await connection.execute(`
-                    UPDATE product_variants 
-                    SET stock_quantity = stock_quantity - ?,
-                        reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ? AND stock_quantity >= ?
-                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
-                
-                if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Deducted stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units from stock`);
-                    
-                    // Log the stock movement as actual stock deduction
-                    await connection.execute(`
-                        INSERT INTO stock_movements 
-                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
-                        VALUES (?, 'OUT', ?, ?, 'Order Approved - Stock Deducted', ?, ?, ?)
-                    `, [item.product_id, item.quantity, item.size || 'N/A', 
-                        orderId, req.user.id, `Order approved - deducted ${item.quantity} units from ${item.productname} ${item.size}/${item.color}`]);
-                } else {
-                    // Fallback to general product stock update
-                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
-                    await connection.execute(`
-                        UPDATE products 
-                        SET total_available_stock = GREATEST(0, total_available_stock - ?),
-                            total_reserved_stock = GREATEST(0, total_reserved_stock - ?),
-                            productquantity = GREATEST(0, productquantity - ?),
-                            last_stock_update = CURRENT_TIMESTAMP
-                        WHERE product_id = ? AND total_available_stock >= ?
-                    `, [item.quantity, item.quantity, item.quantity, item.product_id, item.quantity]);
-                }
-            }
-            
-            // Update overall product stock totals from variants
-            const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
-            
-            for (const productId of uniqueProductIds) {
-                await connection.execute(`
-                    UPDATE products p
-                    SET p.total_stock = (
-                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.total_available_stock = (
-                        SELECT COALESCE(SUM(pv.available_quantity), 0) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.total_reserved_stock = (
-                        SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.stock_status = CASE 
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
-                        ELSE 'in_stock'
-                    END,
-                    p.last_stock_update = CURRENT_TIMESTAMP
-                    WHERE p.product_id = ?
-                `, [productId]);
-                
-                console.log(`Updated product totals for product ID: ${productId}`);
-                
-                // Import the sync function if not already available
-                // await syncAllStockFields(connection, productId);
-            }
-            
-            // Update order status to confirmed
-            await connection.execute(`
-                UPDATE orders 
-                SET status = 'confirmed', 
-                    updated_at = CURRENT_TIMESTAMP,
-                    confirmed_by = ?,
-                    confirmed_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            `, [req.user.id, orderId]);
-            
-            // Update transaction status
-            await connection.execute(`
-                UPDATE sales_transactions st
-                JOIN orders o ON st.transaction_id = o.transaction_id
-                SET st.transaction_status = 'confirmed'
-                WHERE o.id = ?
-            `, [orderId]);
-            
-            // Update order invoice status if exists
-            await connection.execute(`
-                UPDATE order_invoices 
-                SET invoice_status = 'confirmed',
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
-            `, [orderId]);
-            
-            await connection.commit();
-            await connection.end();
-            
-            console.log(`✅ Order ${orderId} approved and confirmed by admin ${req.user.email}`);
-            
-            res.json({
-                success: true,
-                message: 'Payment approved successfully. Order moved to confirmed status and stock deducted.',
-                data: {
-                    orderId,
-                    newStatus: 'confirmed',
-                    approvedBy: req.user.email,
-                    approvedAt: new Date().toISOString(),
-                    stockDeducted: orderItems.map(item => ({
-                        product: item.productname,
-                        size: item.size,
-                        color: item.color,
-                        quantity: item.quantity
-                    }))
-                }
-            });
-            
-        } catch (error) {
-            await connection.rollback();
-            await connection.end();
-            throw error;
-        }
-        
-    } catch (error) {
-        console.error('Error approving payment:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to approve payment',
-            error: error.message
-        });
-    }
-});
-
-// @route   PUT api/orders/:orderId/deny-payment
-// @desc    Deny payment, restore stock, and cancel order
-// @access  Private/Admin
-router.put('/:orderId/deny-payment', auth, async (req, res) => {
-    try {
-        console.log('=== DENY PAYMENT ===');
-        console.log('Order ID:', req.params.orderId);
-        console.log('Admin User:', req.user.email);
-        
-        // Check if user is admin/staff
-        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied. Admin privileges required.'
-            });
-        }
-        
-        const orderId = req.params.orderId;
-        const { reason } = req.body;
-        const connection = await mysql.createConnection(dbConfig);
-        
-        await connection.beginTransaction();
-        
-        try {
-            // Check if order exists and is pending
-            const [orderCheck] = await connection.execute(`
-                SELECT id, status, total_amount, user_id
-                FROM orders 
-                WHERE id = ? AND status = 'pending'
-            `, [orderId]);
-            
-            if (orderCheck.length === 0) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(404).json({
-                    success: false,
-                    message: 'Order not found or not in pending status'
-                });
-            }
-            
-            // Get order items to restore stock
-            const [orderItems] = await connection.execute(`
-                SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
-                       oi.product_name, p.productname
-                FROM order_items oi
-                JOIN products p ON oi.product_id = p.product_id
-                WHERE oi.order_id = ?
-            `, [orderId]);
-            
-            console.log(`Found ${orderItems.length} items to restore stock for`);
-            
-            // Restore stock for each item
-            for (const item of orderItems) {
-                console.log(`Restoring stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
-                
-                // Try to restore to specific variant first
-                const [variantResult] = await connection.execute(`
-                    UPDATE product_variants 
-                    SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        available_quantity = stock_quantity - GREATEST(0, reserved_quantity - ?),
-                        last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ?
-                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
-                
-                if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units`);
-                } else {
-                    // Fallback to general product stock restoration
-                    console.log(`No variant found, restoring general stock for ${item.productname}`);
-                    await connection.execute(`
-                        UPDATE products 
-                        SET total_available_stock = total_available_stock + ?,
-                            total_reserved_stock = GREATEST(0, COALESCE(total_reserved_stock, 0) - ?),
-                            last_stock_update = CURRENT_TIMESTAMP
-                        WHERE product_id = ?
-                    `, [item.quantity, item.quantity, item.product_id]);
-                }
-            }
-            
-            // Update order status to cancelled
-            await connection.execute(`
-                UPDATE orders 
-                SET status = 'cancelled', 
-                    updated_at = CURRENT_TIMESTAMP,
-                    cancelled_by = ?,
-                    cancelled_at = CURRENT_TIMESTAMP,
-                    cancellation_reason = ?
-                WHERE id = ?
-            `, [req.user.id, reason || 'Payment denied by admin', orderId]);
-            
-            // Update order invoice status if exists
-            await connection.execute(`
-                UPDATE order_invoices 
-                SET invoice_status = 'cancelled',
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
-            `, [orderId]);
-            
-            await connection.commit();
-            await connection.end();
-            
-            console.log(`✅ Order ${orderId} denied and cancelled by admin ${req.user.email}. Stock restored.`);
-            
-            res.json({
-                success: true,
-                message: 'Payment denied successfully. Order cancelled and stock restored.',
-                data: {
-                    orderId,
-                    newStatus: 'cancelled',
-                    deniedBy: req.user.email,
-                    deniedAt: new Date().toISOString(),
-                    reason: reason || 'Payment denied by admin',
-                    stockRestored: orderItems.length
-                }
-            });
-            
-        } catch (error) {
-            await connection.rollback();
-            await connection.end();
-            throw error;
-        }
-        
-    } catch (error) {
-        console.error('Error denying payment:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to deny payment',
-            error: error.message
-        });
-    }
-});
-
-// @route   GET api/orders/refund-requests
-// @desc    Get all refund requests for admin
-// @access  Private/Admin/Staff
-router.get('/refund-requests', auth, orderController.getRefundRequests);
-
-// @route   POST api/orders/refund-requests
-// @desc    Create a refund request
-// @access  Private
-router.post('/refund-requests', auth, orderController.createRefundRequest);
-
-// @route   PUT api/orders/refund-requests/:id
-// @desc    Process refund request (approve/reject)
-// @access  Private/Admin/Staff
-router.put('/refund-requests/:id', auth, orderController.processRefundRequest);
-
-// @route   GET api/orders/:id
-// @desc    Get a specific order (customer can only see their own)
-// @access  Private (customer for their own orders, staff/admin for any)
-router.get('/:id', auth, orderController.getOrder);
-
-// @route   GET api/orders/:id/items
-// @desc    Get order items for invoice
-// @access  Private (customer for their own orders, staff/admin for any)
-router.get('/:id/items', auth, orderController.getOrderItems);
-
-// @route   PUT api/orders/:id/status
-// @desc    Update order status
-// @access  Private/Staff/Admin
-router.put('/:id/status', auth, orderController.updateOrderStatus);
-
-// @route   PUT api/orders/:id/cancel
-// @desc    Cancel order (customer can cancel their own orders)
-// @access  Private
-router.put('/:id/cancel', auth, orderController.processOrderCancellation);
-
-// @route   POST api/orders/:id/confirm
-// @desc    Confirm order (update status to confirmed)
-// @access  Private
-router.post('/:id/confirm', auth, orderController.confirmOrder);
-
-// @route   POST api/orders/cancellation-requests
-// @desc    Create a cancellation request
-// @access  Private
-router.post('/cancellation-requests', auth, orderController.createCancellationRequest);
-
-// @route   GET api/orders/invoice/:invoiceId/pdf
-// @desc    Generate and download invoice PDF
-// @access  Private
-router.get('/invoice/:invoiceId/pdf', auth, orderController.generateInvoicePDF);
-
-// @route   GET api/orders/admin/invoice/:invoiceId/pdf
-// @desc    Generate and download invoice PDF (Admin access)
-// @access  Private/Admin
-router.get('/admin/invoice/:invoiceId/pdf', adminAuth, orderController.generateAdminInvoicePDF);
-
-// @route   PUT api/orders/cancellation-requests/:id
-// @desc    Process cancellation request (approve/deny)
-// @access  Private/Admin/Staff
-router.put('/cancellation-requests/:id', auth, orderController.processCancellationRequest);
-
-// @route   POST api/orders/:id/process-cancellation
-// @desc    Process order cancellation and restore stock (Admin/Staff only)
-// @access  Private/Admin/Staff
-router.post('/:id/process-cancellation', auth, orderController.processOrderCancellation);
+router.post('/:id/mark-received', auth, orderController.markOrderReceived);
 
 // @route   PATCH api/orders/:id/delivery-status
 // @desc    Update delivery status for an order
@@ -1329,20 +687,12 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
                 await connection.execute(`
                     INSERT INTO order_items (
                         order_id, invoice_id, product_id, product_name, product_price,
-                        quantity, sort_order, color, size, subtotal,
-                        customer_fullname, customer_phone,
-                        gcash_reference_number, payment_proof_image_path,
-                        province, city_municipality, street_address, postal_code,
-                        order_notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        quantity, color, size, subtotal
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, index + 1, item.color || item.productcolor, item.size || 'N/A',
-                    item.productprice * item.quantity,
-                    customer_name, customer_phone,
-                    payment_reference, paymentProofFile.path,
-                    province, city, street_address, postal_code,
-                    notes
+                    item.quantity, item.color || item.productcolor, item.size || 'N/A',
+                    item.productprice * item.quantity
                 ]);
             }
             
@@ -1394,7 +744,7 @@ router.post('/gcash', auth, paymentUpload.single('payment_proof'), async (req, r
 router.put('/:orderId/approve-payment', auth, async (req, res) => {
     try {
         console.log('=== APPROVE PAYMENT ===');
-        console.log('Order ID:', req.params.orderId);
+        console.log('Order ID/Number:', req.params.orderId);
         console.log('Admin User:', req.user.email);
         
         // Check if user is admin/staff
@@ -1405,18 +755,29 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
             });
         }
         
-        const orderId = req.params.orderId;
+        const orderIdOrNumber = req.params.orderId;
         const connection = await mysql.createConnection(dbConfig);
         
         await connection.beginTransaction();
         
         try {
-            // Check if order exists and is pending
-            const [orderCheck] = await connection.execute(`
-                SELECT id, status, total_amount, user_id
-                FROM orders 
-                WHERE id = ? AND status = 'pending'
-            `, [orderId]);
+            // Check if order exists and is pending - handle both ID and order number
+            let orderCheck;
+            if (isNaN(parseInt(orderIdOrNumber))) {
+                // It's an order number (string)
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, total_amount, user_id
+                    FROM orders 
+                    WHERE order_number = ? AND status = 'pending'
+                `, [orderIdOrNumber]);
+            } else {
+                // It's a numeric order ID
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, total_amount, user_id
+                    FROM orders 
+                    WHERE id = ? AND status = 'pending'
+                `, [parseInt(orderIdOrNumber)]);
+            }
             
             if (orderCheck.length === 0) {
                 await connection.rollback();
@@ -1428,6 +789,7 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
             }
             
             const order = orderCheck[0];
+            const orderId = order.id; // Use the actual numeric ID for database operations
             
             // Get order items to convert reserved stock to deducted stock
             const [orderItems] = await connection.execute(`
@@ -1584,7 +946,7 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
 router.put('/:orderId/deny-payment', auth, async (req, res) => {
     try {
         console.log('=== DENY PAYMENT ===');
-        console.log('Order ID:', req.params.orderId);
+        console.log('Order ID/Number:', req.params.orderId);
         console.log('Admin User:', req.user.email);
         
         // Check if user is admin/staff
@@ -1595,19 +957,30 @@ router.put('/:orderId/deny-payment', auth, async (req, res) => {
             });
         }
         
-        const orderId = req.params.orderId;
+        const orderIdOrNumber = req.params.orderId;
         const { reason } = req.body;
         const connection = await mysql.createConnection(dbConfig);
         
         await connection.beginTransaction();
         
         try {
-            // Check if order exists and is pending
-            const [orderCheck] = await connection.execute(`
-                SELECT id, status, total_amount, user_id
-                FROM orders 
-                WHERE id = ? AND status = 'pending'
-            `, [orderId]);
+            // Check if order exists and is pending - handle both ID and order number
+            let orderCheck;
+            if (isNaN(parseInt(orderIdOrNumber))) {
+                // It's an order number (string)
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, total_amount, user_id
+                    FROM orders 
+                    WHERE order_number = ? AND status = 'pending'
+                `, [orderIdOrNumber]);
+            } else {
+                // It's a numeric order ID
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, total_amount, user_id
+                    FROM orders 
+                    WHERE id = ? AND status = 'pending'
+                `, [parseInt(orderIdOrNumber)]);
+            }
             
             if (orderCheck.length === 0) {
                 await connection.rollback();
@@ -1617,6 +990,9 @@ router.put('/:orderId/deny-payment', auth, async (req, res) => {
                     message: 'Order not found or not in pending status'
                 });
             }
+            
+            const order = orderCheck[0];
+            const orderId = order.id; // Use the actual numeric ID for database operations
             
             // Get order items to restore stock
             const [orderItems] = await connection.execute(`
@@ -1715,9 +1091,9 @@ router.put('/:orderId/deny-payment', auth, async (req, res) => {
 // @access  Private/Admin/Staff
 router.put('/:id/approve-payment', auth, async (req, res) => {
     try {
-        console.log('=== APPROVE PAYMENT ===');
+        console.log('=== APPROVE PAYMENT (Alt Route) ===');
         
-        const orderId = req.params.id;
+        const orderIdOrNumber = req.params.id;
         const { notes } = req.body;
         
         // Check if user is admin/staff
@@ -1728,7 +1104,7 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
             });
         }
         
-        console.log(`Admin ${req.user.email} approving payment for order ${orderId}`);
+        console.log(`Admin ${req.user.email} approving payment for order ${orderIdOrNumber}`);
         
         const connection = await mysql.createConnection(dbConfig);
         
@@ -1736,12 +1112,23 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
         await connection.beginTransaction();
         
         try {
-            // First, check if the order exists and is pending
-            const [orderCheck] = await connection.execute(`
-                SELECT id, order_number, status, user_id, total_amount
-                FROM orders 
-                WHERE id = ?
-            `, [orderId]);
+            // First, check if the order exists and is pending - handle both ID and order number
+            let orderCheck;
+            if (isNaN(parseInt(orderIdOrNumber))) {
+                // It's an order number (string)
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, user_id, total_amount
+                    FROM orders 
+                    WHERE order_number = ?
+                `, [orderIdOrNumber]);
+            } else {
+                // It's a numeric order ID
+                [orderCheck] = await connection.execute(`
+                    SELECT id, order_number, status, user_id, total_amount
+                    FROM orders 
+                    WHERE id = ?
+                `, [parseInt(orderIdOrNumber)]);
+            }
             
             if (orderCheck.length === 0) {
                 await connection.rollback();
@@ -1753,6 +1140,7 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
             }
             
             const order = orderCheck[0];
+            const orderId = order.id; // Use the actual numeric ID for database operations
             
             if (order.status !== 'pending') {
                 await connection.rollback();
@@ -1826,6 +1214,202 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to approve payment',
+            error: error.message
+        });
+    }
+});
+
+// @route   POST api/orders/refund-request
+// @desc    Create a refund request
+// @access  Private
+router.post('/refund-request', auth, async (req, res) => {
+    try {
+        const { 
+            order_id, 
+            custom_order_id, 
+            product_name, 
+            product_image, 
+            price, 
+            quantity, 
+            size, 
+            color, 
+            phone_number, 
+            street_address, 
+            city_municipality, 
+            province, 
+            reason 
+        } = req.body;
+
+        // Validate required fields
+        if (!product_name || !price || !quantity || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: product_name, price, quantity, and reason are required'
+            });
+        }
+
+        if (!order_id && !custom_order_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'Either order_id or custom_order_id is required'
+            });
+        }
+
+        const connection = await mysql.createConnection(dbConfig);
+
+        try {
+            // Get user details
+            const [users] = await connection.execute('SELECT first_name, last_name, email FROM users WHERE user_id = ?', [req.user.id]);
+            
+            if (users.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
+            }
+
+            const user = users[0];
+            const customerName = `${user.first_name} ${user.last_name}`;
+
+            // Handle order_id vs custom_order_id logic
+            let finalOrderId = null;
+            let finalCustomOrderId = null;
+            let orderNumber = `REF-${Date.now()}`; // Default fallback
+            
+            // Check if order_id looks like a custom order (starts with "custom-")
+            if (order_id && typeof order_id === 'string' && order_id.startsWith('custom-')) {
+                // This is actually a custom order
+                finalCustomOrderId = order_id.replace('custom-', ''); // Remove 'custom-' prefix
+                finalOrderId = null;
+                orderNumber = finalCustomOrderId;
+            } else if (order_id && !isNaN(parseInt(order_id))) {
+                // This is a regular order ID (numeric)
+                finalOrderId = parseInt(order_id);
+                finalCustomOrderId = null;
+                
+                // Try to get the actual order number from orders table
+                const [orders] = await connection.execute('SELECT order_number FROM orders WHERE id = ?', [finalOrderId]);
+                if (orders.length > 0) {
+                    orderNumber = orders[0].order_number;
+                } else {
+                    orderNumber = `ORD-${finalOrderId}`;
+                }
+            } else if (custom_order_id) {
+                // Direct custom order ID provided
+                finalCustomOrderId = custom_order_id;
+                finalOrderId = null;
+                orderNumber = `CUSTOM-${custom_order_id}`;
+            }
+
+            // Prepare values for insertion - matching table structure
+            const values = [
+                finalOrderId,                        // order_id (NULL for custom orders)
+                finalCustomOrderId,                  // custom_order_id (NULL for regular orders) 
+                orderNumber,                         // order_number (NOT NULL)
+                req.user.id,                         // user_id (NOT NULL)
+                customerName,                        // customer_name (NOT NULL)
+                user.email,                          // customer_email (NOT NULL)
+                phone_number || null,                // customer_phone
+                product_name,                        // product_name
+                product_image || null,               // product_image
+                price,                               // price
+                quantity,                            // quantity
+                size || null,                        // size
+                color || null,                       // color
+                phone_number || null,                // phone_number
+                street_address || null,              // street_address
+                city_municipality || null,           // city_municipality
+                province || null,                    // province
+                price,                               // amount (same as price for individual items) (NOT NULL)
+                reason                               // reason (NOT NULL)
+            ];
+
+            // Insert refund request with all required fields
+            const insertQuery = `
+                INSERT INTO refund_requests (
+                    order_id, custom_order_id, order_number, user_id, customer_name, customer_email,
+                    customer_phone, product_name, product_image, price, quantity, size, color, 
+                    phone_number, street_address, city_municipality, province, 
+                    amount, reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            await connection.execute(insertQuery, values);
+
+            res.json({
+                success: true,
+                message: 'Refund request submitted successfully'
+            });
+        } finally {
+            await connection.end();
+        }
+    } catch (error) {
+        console.error('Error creating refund request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create refund request',
+            error: error.message
+        });
+    }
+});
+
+// @route   GET api/orders/refund-requests-test
+// @desc    Test endpoint for refund requests (no auth required)
+// @access  Public (for testing)
+router.get('/refund-requests-test', async (req, res) => {
+    try {
+        console.log('=== TEST REFUND REQUESTS ENDPOINT ===');
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [refundRequests] = await connection.execute(`
+            SELECT DISTINCT
+                rr.*,
+                o.order_number,
+                o.status as order_status,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                u.email as customer_email,
+                u.phone as phone_number,
+                u.address as street_address,
+                u.city as city_municipality,
+                u.province,
+                CONCAT(admin_user.first_name, ' ', admin_user.last_name) as processed_by_name,
+                COALESCE(oi.product_name, 'Unknown Product') as product_name,
+                COALESCE(oi.product_price, rr.amount) as price,
+                COALESCE(oi.quantity, 1) as quantity,
+                COALESCE(oi.size, 'N/A') as size,
+                COALESCE(oi.color, 'N/A') as color,
+                (SELECT pi.image_filename 
+                 FROM order_items oi2 
+                 JOIN products p ON oi2.product_id = p.product_id 
+                 JOIN product_images pi ON p.product_id = pi.product_id 
+                 WHERE oi2.order_id = rr.order_id 
+                 LIMIT 1) as product_image,
+                NULL as custom_order_id
+            FROM refund_requests rr
+            LEFT JOIN orders o ON rr.order_id = o.id
+            LEFT JOIN users u ON rr.user_id = u.user_id
+            LEFT JOIN users admin_user ON rr.processed_by = admin_user.user_id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            ORDER BY rr.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        console.log(`Test endpoint found ${refundRequests.length} refund requests`);
+        
+        res.json({
+            success: true,
+            data: refundRequests,
+            count: refundRequests.length,
+            message: 'Test endpoint - authentication bypassed'
+        });
+        
+    } catch (error) {
+        console.error('Error in test refund requests endpoint:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch refund requests (test)',
             error: error.message
         });
     }

@@ -1150,12 +1150,16 @@ if (typeof document !== 'undefined') {
                                         <div 
                                             style={styles.uploadArea}
                                             onMouseEnter={(e) => {
-                                                e.target.style.borderColor = '#000000';
-                                                e.target.style.backgroundColor = '#f5f5f5';
+                                                if (e.target) {
+                                                  e.target.style.borderColor = '#000000';
+                                                  e.target.style.backgroundColor = '#f5f5f5';
+                                                }
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.target.style.borderColor = '#e0e0e0';
-                                                e.target.style.backgroundColor = '#fafafa';
+                                                if (e.target) {
+                                                  e.target.style.borderColor = '#e0e0e0';
+                                                  e.target.style.backgroundColor = '#fafafa';
+                                                }
                                             }}
                                         >
                                             <div style={styles.uploadContent}>
