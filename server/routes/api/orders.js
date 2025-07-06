@@ -880,11 +880,13 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
             await connection.execute(`
                 UPDATE orders 
                 SET status = 'confirmed', 
-                    updated_at = CURRENT_TIMESTAMP,
+                    payment_status = 'verified',
                     confirmed_by = ?,
-                    confirmed_at = CURRENT_TIMESTAMP
+                    confirmed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP,
+                    notes = CONCAT(COALESCE(notes, ''), ' | Payment approved by admin: ', ?)
                 WHERE id = ?
-            `, [req.user.id, orderId]);
+            `, [req.user.id, req.user.email, orderId]);
             
             // Update transaction status
             await connection.execute(`
@@ -1038,11 +1040,9 @@ router.put('/:orderId/deny-payment', auth, async (req, res) => {
                 UPDATE orders 
                 SET status = 'cancelled', 
                     updated_at = CURRENT_TIMESTAMP,
-                    cancelled_by = ?,
-                    cancelled_at = CURRENT_TIMESTAMP,
-                    cancellation_reason = ?
+                    notes = CONCAT(COALESCE(notes, ''), ' | Payment denied by admin: ', ?)
                 WHERE id = ?
-            `, [req.user.id, reason || 'Payment denied by admin', orderId]);
+            `, [reason || 'Payment denied by admin', orderId]);
             
             // Update order invoice status if exists
             await connection.execute(`
@@ -1155,16 +1155,16 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
             await connection.execute(`
                 UPDATE orders 
                 SET status = 'confirmed',
-                    confirmed_at = NOW(),
-                    confirmed_by = ?
+                    payment_status = 'verified',
+                    confirmed_by = ?,
+                    confirmed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP,
+                    notes = CONCAT(COALESCE(notes, ''), ' | Payment approved by admin: ', ?)
                 WHERE id = ?
-            `, [req.user.user_id, orderId]);
+            `, [req.user.id, req.user.email, orderId]);
             
-            // Log the approval action
-            await connection.execute(`
-                INSERT INTO order_status_logs (order_id, status, changed_by, changed_at, notes)
-                VALUES (?, 'confirmed', ?, NOW(), ?)
-            `, [orderId, req.user.user_id, notes || 'Payment approved by admin']);
+            // Log the approval action in notes instead of separate table
+            console.log(`Order ${orderId} approved by admin ${req.user.email}: ${notes || 'Payment approved by admin'}`);
             
             // Get order details for response
             const [orderDetails] = await connection.execute(`
@@ -1173,7 +1173,7 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
                     o.order_number,
                     o.status,
                     o.total_amount,
-                    o.confirmed_at,
+                    o.updated_at,
                     u.first_name,
                     u.last_name,
                     u.email as customer_email
@@ -1195,7 +1195,7 @@ router.put('/:id/approve-payment', auth, async (req, res) => {
                     orderNumber: orderDetails[0].order_number,
                     newStatus: 'confirmed',
                     approvedBy: req.user.email,
-                    approvedAt: orderDetails[0].confirmed_at,
+                    approvedAt: orderDetails[0].updated_at,
                     customerName: `${orderDetails[0].first_name} ${orderDetails[0].last_name}`,
                     customerEmail: orderDetails[0].customer_email,
                     totalAmount: orderDetails[0].total_amount,

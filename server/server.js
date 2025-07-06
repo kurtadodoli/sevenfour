@@ -1,3 +1,6 @@
+// Load environment variables FIRST before any other imports
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./config/database');
@@ -7,13 +10,14 @@ const enhancedMaintenanceRoutes = require('./routes/enhanced_maintenance');
 const cartRoutes = require('./routes/api/cart');
 const orderRoutes = require('./routes/api/orders');
 const deliveryRoutes = require('./routes/api/delivery');
+const deliveryEnhancedRoutes = require('./routes/deliveryEnhanced');
+const deliveryStatusRoutes = require('./routes/delivery-status-fixed');
 const courierRoutes = require('./routes/api/couriers');
 const customOrderRoutes = require('./routes/custom-orders');
 const customDesignRoutes = require('./routes/custom-designs');
 const searchRoutes = require('./routes/api/search');
 const salesReportRoutes = require('./routes/api/salesReport');
 const adminRoutes = require('./routes/admin');
-require('dotenv').config();
 
 const app = express();
 
@@ -34,7 +38,7 @@ const logError = (err) => {
 app.use(cors({
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
 }));
 
@@ -55,6 +59,8 @@ app.use('/api/enhanced-maintenance', enhancedMaintenanceRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/delivery-enhanced', deliveryEnhancedRoutes);
+app.use('/api/delivery-status', deliveryStatusRoutes);
 app.use('/api/couriers', courierRoutes);
 app.use('/api/custom-orders', customOrderRoutes);
 app.use('/api/custom-designs', customDesignRoutes);

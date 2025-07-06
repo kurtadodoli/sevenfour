@@ -210,6 +210,7 @@ const courierRoutes = require('./routes/couriers');
 const testDeliveryRoutes = require('./routes/testDelivery');
 const salesReportRoutes = require('./routes/api/salesReport');
 const unifiedDeliveryStatusRoutes = require('./routes/unifiedDeliveryStatus'); // NEW: Unified delivery status routes
+const deliveryStatusFixRoutes = require('./routes/delivery-status-fix'); // DELIVERY STATUS FIX
 
 // Define specific custom-orders endpoints BEFORE mounting the router
 // Test endpoint to verify routing works
@@ -290,7 +291,8 @@ app.use('/api/custom-designs', customDesignsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/delivery-enhanced', deliveryEnhancedRoutes);
-app.use('/api/delivery-status', unifiedDeliveryStatusRoutes); // NEW: Unified delivery status endpoint
+app.use('/api/delivery-status', deliveryStatusFixRoutes); // DELIVERY STATUS FIX - Priority route
+app.use('/api/delivery-status-unified', unifiedDeliveryStatusRoutes); // Backup unified endpoint
 app.use('/api/couriers', courierRoutes);
 app.use('/api/test-delivery', testDeliveryRoutes);
 app.use('/api/sales-report', salesReportRoutes);
@@ -884,6 +886,182 @@ app.post('/api/test-schedule', (req, res) => {
     message: 'Test schedule endpoint working!',
     data: req.body
   });
+});
+
+// Test confirmed orders endpoint directly in app.js (no auth required)
+app.get('/api/custom-orders-confirmed-public', async (req, res) => {
+    console.log('✅ Public confirmed orders endpoint hit');
+    const mysql = require('mysql2/promise');
+    const { dbConfig } = require('./config/db');
+    
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        
+        const [orders] = await connection.execute(`
+            SELECT 
+                co.*,
+                latest_payment.payment_amount,
+                latest_payment.gcash_reference,
+                latest_payment.payment_proof_filename,
+                latest_payment.verified_at,
+                latest_payment.admin_notes as payment_admin_notes,
+                u.email as user_email,
+                u.first_name,
+                u.last_name
+            FROM custom_orders co
+            LEFT JOIN users u ON co.user_id = u.user_id
+            LEFT JOIN (
+                SELECT 
+                    custom_order_id,
+                    payment_amount,
+                    gcash_reference,
+                    payment_proof_filename,
+                    verified_at,
+                    admin_notes,
+                    ROW_NUMBER() OVER (PARTITION BY custom_order_id ORDER BY verified_at DESC) as rn
+                FROM custom_order_payments 
+                WHERE payment_status = 'verified'
+            ) latest_payment ON co.custom_order_id = latest_payment.custom_order_id AND latest_payment.rn = 1
+            WHERE co.status = 'confirmed' AND co.payment_status = 'verified'
+            ORDER BY co.updated_at DESC
+        `);
+        
+        res.json({
+            success: true,
+            data: orders,
+            count: orders.length,
+            message: 'Public endpoint working'
+        });
+        
+    } catch (error) {
+        console.error('❌ Error in public endpoint:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Database error'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Test refund requests endpoint (no auth required)
+app.get('/api/public/refund-requests-test', async (req, res) => {
+  console.log('🔍 Public refund requests test endpoint hit (no auth)');
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    const [refundRequests] = await connection.execute(`
+      SELECT DISTINCT
+          rr.*,
+          o.order_number,
+          o.status as order_status,
+          CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+          u.email as customer_email,
+          u.phone as phone_number,
+          u.address as street_address,
+          u.city as city_municipality,
+          u.province,
+          CONCAT(admin_user.first_name, ' ', admin_user.last_name) as processed_by_name,
+          COALESCE(oi.product_name, 'Unknown Product') as product_name,
+          COALESCE(oi.product_price, rr.amount) as price,
+          COALESCE(oi.quantity, 1) as quantity,
+          COALESCE(oi.size, 'N/A') as size,
+          COALESCE(oi.color, 'N/A') as color,
+          (SELECT pi.image_filename 
+           FROM order_items oi2 
+           JOIN products p ON oi2.product_id = p.product_id 
+           JOIN product_images pi ON p.product_id = pi.product_id 
+           WHERE oi2.order_id = rr.order_id 
+           LIMIT 1) as product_image,
+          NULL as custom_order_id
+      FROM refund_requests rr
+      LEFT JOIN orders o ON rr.order_id = o.id
+      LEFT JOIN users u ON rr.user_id = u.user_id
+      LEFT JOIN users admin_user ON rr.processed_by = admin_user.user_id
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      ORDER BY rr.created_at DESC
+    `);
+    
+    console.log(`✅ Retrieved ${refundRequests.length} refund requests (public endpoint)`);
+    
+    res.json({
+      success: true,
+      message: 'Test endpoint for refund requests (no auth required)',
+      data: refundRequests,
+      count: refundRequests.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching refund requests (public):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch refund requests',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+  }
+});
+
+// Test transactions endpoint (no auth required)
+app.get('/api/public/transactions-test', async (req, res) => {
+  console.log('🔍 Public transactions test endpoint hit (no auth)');
+  let connection;
+  try {
+    connection = await mysql.createConnection(dbConfig);
+    
+    // Simple transactions query to test the endpoint
+    const [transactions] = await connection.execute(`
+      SELECT 
+          st.*,
+          o.order_number,
+          o.status as order_status,
+          CONCAT(u.first_name, ' ', u.last_name) as user_name,
+          u.email as user_email
+      FROM sales_transactions st
+      LEFT JOIN orders o ON st.transaction_id = (
+          SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
+      )
+      LEFT JOIN users u ON st.user_id = u.user_id
+      ORDER BY st.created_at DESC
+      LIMIT 10
+    `);
+    
+    console.log(`✅ Retrieved ${transactions.length} transactions (public endpoint)`);
+    
+    res.json({
+      success: true,
+      message: 'Test endpoint for transactions (no auth required)',
+      data: transactions,
+      count: transactions.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching transactions (public):', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch transactions',
+      error: error.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.end();
+      } catch (closeError) {
+        console.error('Error closing connection:', closeError);
+      }
+    }
+  }
 });
 
 // Error handling middleware

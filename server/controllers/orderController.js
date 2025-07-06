@@ -81,7 +81,9 @@ exports.getUserOrders = async (req, res) => {
                     GROUP BY order_id
                 ) cr2 ON cr1.order_id = cr2.order_id AND cr1.id = cr2.max_id
             ) latest_cr ON o.id = latest_cr.order_id
-            WHERE o.user_id = ?
+            WHERE o.user_id = ? 
+            AND o.order_number NOT LIKE 'CUSTOM-%-%-%'
+            AND (o.notes IS NULL OR o.notes NOT LIKE '%Reference: CUSTOM-%')
             ORDER BY o.order_date DESC
         `, [req.user.id]);
         
@@ -106,14 +108,147 @@ exports.getUserOrders = async (req, res) => {
     }
 };
 
+// Get user's orders with items details
+exports.getUserOrdersWithItems = async (req, res) => {
+    let connection;
+    try {
+        console.log('=== GET USER ORDERS WITH ITEMS DEBUG ===');
+        console.log('User ID from token:', req.user?.id);
+        console.log('User object:', req.user);
+        
+        if (!req.user || !req.user.id) {
+            console.error('❌ No user ID found in request');
+            return res.status(401).json({
+                success: false,
+                message: 'User authentication failed'
+            });
+        }
+        
+        console.log('🔗 Creating database connection...');
+        connection = await mysql.createConnection(dbConfig);
+        console.log('✅ Database connection created');
+        
+        // Start with a simple query first to test
+        console.log('🔍 Testing basic orders query...');
+        const [basicOrders] = await connection.execute(`
+            SELECT o.* FROM orders o 
+            WHERE o.user_id = ? 
+            AND o.order_number NOT LIKE 'CUSTOM-%-%-%'
+            AND (o.notes IS NULL OR o.notes NOT LIKE '%Reference: CUSTOM-%')
+            ORDER BY o.order_date DESC
+        `, [req.user.id]);
+        
+        console.log(`✅ Found ${basicOrders.length} basic orders`);
+        
+        if (basicOrders.length === 0) {
+            console.log('ℹ️ No orders found for user');
+            await connection.end();
+            return res.json({
+                success: true,
+                data: []
+            });
+        }
+        
+        // Now try the full query with joins
+        console.log('🔍 Executing full query with joins...');
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                oi.total_amount as invoice_total,
+                oi.invoice_status,
+                st.transaction_status,
+                st.payment_method,
+                latest_cr.status as cancellation_request_status,
+                latest_cr.reason as cancellation_reason,
+                latest_cr.created_at as cancellation_requested_at,
+                latest_cr.admin_notes as cancellation_admin_notes,
+                latest_cr.processed_at as cancellation_processed_at
+            FROM orders o
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            LEFT JOIN (
+                SELECT cr1.*
+                FROM cancellation_requests cr1
+                INNER JOIN (
+                    SELECT order_id, MAX(id) as max_id
+                    FROM cancellation_requests
+                    GROUP BY order_id
+                ) cr2 ON cr1.order_id = cr2.order_id AND cr1.id = cr2.max_id
+            ) latest_cr ON o.id = latest_cr.order_id
+            WHERE o.user_id = ?
+            AND o.order_number NOT LIKE 'CUSTOM-%-%-%'
+            AND (o.notes IS NULL OR o.notes NOT LIKE '%Reference: CUSTOM-%')
+            ORDER BY o.order_date DESC
+        `, [req.user.id]);
+        
+        console.log(`✅ Full query executed, found ${orders.length} orders`);
+        
+        // Get items for each order
+        console.log('🔍 Fetching items for each order...');
+        for (let order of orders) {
+            try {
+                const [items] = await connection.execute(`
+                    SELECT 
+                        oi.*,
+                        p.productname,
+                        p.productimage,
+                        p.productdescription
+                    FROM order_items oi
+                    LEFT JOIN products p ON oi.product_id = p.product_id
+                    WHERE oi.order_id = ?
+                `, [order.id]);
+                
+                order.items = items;
+                console.log(`✅ Order ${order.order_number}: ${items.length} items`);
+            } catch (itemError) {
+                console.error(`❌ Error fetching items for order ${order.id}:`, itemError.message);
+                order.items = []; // Set empty array if items fetch fails
+            }
+        }
+        
+        console.log(`✅ Found ${orders.length} orders with items for user ID ${req.user.id}`);
+        console.log('=== END GET USER ORDERS WITH ITEMS DEBUG ===');
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: orders
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching user orders with items:', error);
+        console.error('❌ Error stack:', error.stack);
+        
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (closeError) {
+                console.error('❌ Error closing connection:', closeError.message);
+            }
+        }
+        
+        res.status(500).json({ 
+            success: false, 
+            message: `Failed to fetch orders with items: ${error.message}` 
+        });
+    }
+};
+
 // Create order from cart
 exports.createOrderFromCart = async (req, res) => {
     try {
+        console.log('🚨 ===== UNIQUE LOG: JULY 4 2025 - ORDER CREATION STARTED =====');
+        console.log('🕐 Current time:', new Date().toISOString());
         console.log('=== CREATE ORDER FROM CART DEBUG ===');
         console.log('User ID from token:', req.user.id);
         console.log('User email:', req.user.email);
         console.log('User role:', req.user.role);
         console.log('Request body:', req.body);
+        console.log('Uploaded file:', req.file);
+        console.log('=== CUSTOMER DEBUG ===');
+        console.log('customer_name from body:', req.body.customer_name);
+        console.log('=== END CUSTOMER DEBUG ===');
         
         const { 
             shipping_address, 
@@ -124,13 +259,29 @@ exports.createOrderFromCart = async (req, res) => {
             street_address,
             city_municipality,
             province,
-            zip_code
+            zip_code,
+            payment_method,
+            payment_reference
         } = req.body;
         
         if (!shipping_address || !contact_phone) {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Shipping address and contact phone are required' 
+            });
+        }
+        
+        if (!payment_reference) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Payment reference is required' 
+            });
+        }
+        
+        if (!req.file) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Payment proof is required' 
             });
         }
         
@@ -205,22 +356,48 @@ exports.createOrderFromCart = async (req, res) => {
             await connection.execute(`
                 INSERT INTO sales_transactions (
                     transaction_id, invoice_id, user_id, amount, payment_method
-                ) VALUES (?, ?, ?, ?, 'gcash')
-            `, [transactionId, invoiceId, req.user.id, totalAmount]);
+                ) VALUES (?, ?, ?, ?, ?)
+            `, [transactionId, invoiceId, req.user.id, totalAmount, payment_method || 'gcash']);
             
             console.log('Transaction created with user_id:', req.user.id);
-              // Create order
+            
+            // Create order - SIMPLIFIED VERSION WITHOUT customer_fullname
+            console.log('🚀 Creating order WITHOUT customer_fullname field...');
+            console.log('🔍 SQL STATEMENT ABOUT TO EXECUTE:');
+            console.log(`
+                INSERT INTO orders (
+                    order_number, user_id, invoice_id, transaction_id, 
+                    total_amount, shipping_address, contact_phone, notes,
+                    street_address, city_municipality, province, zip_code,
+                    payment_method, payment_reference, payment_proof_filename,
+                    payment_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            console.log('🔍 VALUES:', [
+                orderNumber, req.user.id, invoiceId, transactionId,
+                totalAmount, shipping_address, contact_phone, notes,
+                street_address, city_municipality, province, zip_code,
+                payment_method || 'gcash', payment_reference, req.file.filename,
+                'pending'
+            ]);
+            
             await connection.execute(`
                 INSERT INTO orders (
                     order_number, user_id, invoice_id, transaction_id, 
                     total_amount, shipping_address, contact_phone, notes,
-                    street_address, city_municipality, province, zip_code
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    street_address, city_municipality, province, zip_code,
+                    payment_method, payment_reference, payment_proof_filename,
+                    payment_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
                 orderNumber, req.user.id, invoiceId, transactionId,
                 totalAmount, shipping_address, contact_phone, notes,
-                street_address, city_municipality, province, zip_code
+                street_address, city_municipality, province, zip_code,
+                payment_method || 'gcash', payment_reference, req.file.filename,
+                'pending'
             ]);
+            
+            console.log('✅ Order created successfully!');
             
             // Get the created order ID
             const [orderResult] = await connection.execute(
@@ -244,26 +421,27 @@ exports.createOrderFromCart = async (req, res) => {
                 console.log(`  Default color: "${item.productcolor}"`);
                 console.log(`  Final color: "${finalColor}"`);
                 
+                console.log('🔧 FIXED: Adding all required fields to order_items INSERT...');
+                
                 await connection.execute(`
                     INSERT INTO order_items (
                         order_id, invoice_id, product_id, product_name, product_price,
-                        quantity, sort_order, color, size, subtotal, customer_fullname, customer_phone,
-                        gcash_reference_number, payment_proof_image_path, 
-                        province, city_municipality, street_address, postal_code, order_notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        quantity, color, size, subtotal,
+                        customer_fullname, customer_phone, gcash_reference_number,
+                        payment_proof_image_path, province, city_municipality, street_address
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     orderId, invoiceId, item.product_id, item.productname, item.productprice,
-                    item.quantity, index + 1, finalColor, item.size || 'N/A',
+                    item.quantity, finalColor, item.size || 'N/A',
                     item.productprice * item.quantity,
-                    customer_name || req.user.username || 'N/A',
+                    // Add the missing required fields
+                    customer_name || req.user.username || 'Guest Customer',
                     contact_phone || 'N/A',
-                    'COD_ORDER', // Default reference for cash on delivery
-                    'N/A', // No payment proof for COD
-                    'Metro Manila', // Default province
-                    'Manila', // Default city
-                    shipping_address || 'N/A',
-                    '1000', // Default postal code
-                    notes || 'N/A'
+                    payment_reference || 'N/A',
+                    req.file.filename || 'N/A',
+                    province || 'N/A',
+                    city_municipality || 'N/A',
+                    street_address || 'N/A'
                 ]);
             }
             
@@ -729,15 +907,18 @@ exports.generateInvoicePDF = async (req, res) => {
         // List items
         let subtotal = 0;
         items.forEach((item, index) => {
-            const itemTotal = (item.product_price || 0) * (item.quantity || 0);
+            // Ensure price is a number
+            const price = parseFloat(item.product_price || item.price || 0);
+            const quantity = parseInt(item.quantity || 1);
+            const itemTotal = price * quantity;
             subtotal += itemTotal;
             
             doc.fontSize(10)
                .text(item.product_name || item.productname || 'Product', 50, yPosition, { width: 140 })
                .text(item.size || 'N/A', 200, yPosition)
                .text(item.color || item.productcolor || 'N/A', 250, yPosition, { width: 90 })
-               .text(item.quantity?.toString() || '1', 350, yPosition)
-               .text(`₱${(item.product_price || 0).toFixed(2)}`, 400, yPosition)
+               .text(quantity.toString(), 350, yPosition)
+               .text(`₱${price.toFixed(2)}`, 400, yPosition)
                .text(`₱${itemTotal.toFixed(2)}`, 480, yPosition);
             
             yPosition += 20;
@@ -750,7 +931,7 @@ exports.generateInvoicePDF = async (req, res) => {
         
         // Total
         doc.fontSize(14)
-           .text(`TOTAL AMOUNT: ₱${(order.total_amount || subtotal).toFixed(2)}`, 350, yPosition, { align: 'right' });
+           .text(`TOTAL AMOUNT: ₱${(parseFloat(order.total_amount) || subtotal).toFixed(2)}`, 350, yPosition, { align: 'right' });
         
         yPosition += 40;
         
@@ -777,11 +958,13 @@ exports.generateInvoicePDF = async (req, res) => {
         
     } catch (error) {
         console.error('❌ Error generating PDF:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to generate invoice PDF',
-            error: error.message
-        });
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                success: false, 
+                message: 'Failed to generate invoice PDF',
+                error: error.message
+            });
+        }
     }
 };
 
@@ -924,15 +1107,18 @@ exports.generateAdminInvoicePDF = async (req, res) => {
         // List items
         let subtotal = 0;
         items.forEach((item, index) => {
-            const itemTotal = (item.product_price || 0) * (item.quantity || 0);
+            // Ensure price is a number
+            const price = parseFloat(item.product_price || item.price || 0);
+            const quantity = parseInt(item.quantity || 1);
+            const itemTotal = price * quantity;
             subtotal += itemTotal;
             
             doc.fontSize(10)
                .text(item.product_name || item.productname || 'Product', 50, yPosition, { width: 140 })
                .text(item.size || 'N/A', 200, yPosition)
                .text(item.color || item.productcolor || 'N/A', 250, yPosition, { width: 90 })
-               .text(item.quantity?.toString() || '1', 350, yPosition)
-               .text(`₱${(item.product_price || 0).toFixed(2)}`, 400, yPosition)
+               .text(quantity.toString(), 350, yPosition)
+               .text(`₱${price.toFixed(2)}`, 400, yPosition)
                .text(`₱${itemTotal.toFixed(2)}`, 480, yPosition);
             
             yPosition += 20;
@@ -982,9 +1168,11 @@ exports.generateAdminInvoicePDF = async (req, res) => {
 
 // Get all transactions for admin dashboard
 exports.getAllTransactions = async (req, res) => {
+    let connection;
     try {
-        console.log('=== GET ALL TRANSACTIONS ===');
-        console.log('User role:', req.user.role);
+        console.log('=== GET ALL TRANSACTIONS DEBUG ===');
+        console.log('User:', req.user?.id, req.user?.role);
+        console.log('Query params:', req.query);
         
         // Only allow admin/staff to view all transactions
         if (!['admin', 'staff'].includes(req.user.role)) {
@@ -994,35 +1182,52 @@ exports.getAllTransactions = async (req, res) => {
             });
         }
         
-        const connection = await mysql.createConnection(dbConfig);
+        connection = await mysql.createConnection(dbConfig);
+        console.log('✅ Database connection created');
         
         const { status, page = 1, limit = 10, search } = req.query;
         const offset = (page - 1) * limit;
         
-        let whereClause = '1=1';
+        console.log('Raw params:', { status, page, limit, search });
+        console.log('Calculated offset:', offset);
+        
+        let whereConditions = [];
         let queryParams = [];
         
         // Add status filter
         if (status && status !== 'all') {
-            whereClause += ' AND st.transaction_status = ?';
+            whereConditions.push('st.transaction_status = ?');
             queryParams.push(status);
         }
         
         // Add search filter
         if (search) {
-            whereClause += ` AND (
+            whereConditions.push(`(
                 st.transaction_id LIKE ? OR 
                 o.order_number LIKE ? OR 
                 u.email LIKE ? OR 
-                u.username LIKE ?
-            )`;
+                CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+            )`);
             const searchTerm = `%${search}%`;
             queryParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
         }
-          // Get transactions with order and user details
-        const [transactions] = await connection.execute(`
+        
+        // Build WHERE clause properly
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+        console.log('WHERE clause:', whereClause);
+        
+        // Get transactions with order and user details - use string concatenation for LIMIT/OFFSET
+        let mainQuery = `
             SELECT 
-                st.*,
+                st.transaction_id,
+                st.invoice_id,
+                st.user_id,
+                st.transaction_date,
+                st.amount,
+                st.transaction_status,
+                st.payment_method,
+                st.created_at as transaction_created_at,
+                st.updated_at as transaction_updated_at,
                 o.order_number,
                 o.status as order_status,
                 o.shipping_address,
@@ -1032,37 +1237,38 @@ exports.getAllTransactions = async (req, res) => {
                 oi.customer_email,
                 oi.total_amount as invoice_total,
                 oi.invoice_status,
-                u.username,
+                CONCAT(u.first_name, ' ', u.last_name) as username,
                 u.email as user_email,
                 u.first_name,
                 u.last_name
             FROM sales_transactions st
-            LEFT JOIN orders o ON st.transaction_id = (
-                SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
-            )
+            LEFT JOIN orders o ON st.transaction_id = o.transaction_id
             LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
             LEFT JOIN users u ON st.user_id = u.user_id
-            WHERE ${whereClause}
+            ${whereClause}
             ORDER BY st.created_at DESC
-            LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-        `, queryParams);
-          // Get total count for pagination
-        const [countResult] = await connection.execute(`
+            LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+            
+        console.log('Main query:', mainQuery);
+        console.log('Query params (without limit/offset):', queryParams);
+        
+        const [transactions] = await connection.execute(mainQuery, queryParams);
+        console.log(`✅ Found ${transactions.length} transactions`);
+        
+        // Get total count for pagination - simplified query
+        let countQuery = `
             SELECT COUNT(*) as total
             FROM sales_transactions st
-            LEFT JOIN orders o ON st.transaction_id = (
-                SELECT transaction_id FROM orders WHERE transaction_id = st.transaction_id LIMIT 1
-            )
+            LEFT JOIN orders o ON st.transaction_id = o.transaction_id
             LEFT JOIN order_invoices oi ON st.invoice_id = oi.invoice_id
             LEFT JOIN users u ON st.user_id = u.user_id
-            WHERE ${whereClause}
-        `, queryParams);
-        
+            ${whereClause}`;
+            
+        const [countResult] = await connection.execute(countQuery, queryParams);
         const total = countResult[0].total;
+        console.log(`✅ Total count: ${total}`);
         
         await connection.end();
-        
-        console.log(`Found ${transactions.length} transactions (${total} total)`);
         
         res.json({
             success: true,
@@ -1077,11 +1283,23 @@ exports.getAllTransactions = async (req, res) => {
             }
         });
         
+        console.log('=== END GET ALL TRANSACTIONS DEBUG ===');
+        
     } catch (error) {
-        console.error('Error fetching transactions:', error);
+        console.error('❌ Error fetching transactions:', error);
+        console.error('❌ Error stack:', error.stack);
+        
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (closeError) {
+                console.error('❌ Error closing connection:', closeError.message);
+            }
+        }
+        
         res.status(500).json({ 
             success: false, 
-            message: 'Failed to fetch transactions' 
+            message: `Failed to fetch transactions: ${error.message}` 
         });
     }
 };
@@ -1446,20 +1664,26 @@ exports.getRefundRequests = async (req, res) => {
         
         const connection = await mysql.createConnection(dbConfig);
         
+        // Query to get refund requests - simplified with better fallbacks
         const [refundRequests] = await connection.execute(`
             SELECT 
                 rr.*,
-                o.order_number,
                 o.status as order_status,
-                u.first_name,
-                u.last_name,
-                u.email as customer_email,
-                admin_user.first_name as processed_by_name,
-                admin_user.last_name as processed_by_lastname
+                COALESCE(oi.product_name, CONCAT('Product from Order #', CAST(rr.order_id AS CHAR))) as product_name,
+                COALESCE(oi.product_price, rr.amount) as price,
+                COALESCE(oi.quantity, 1) as quantity,
+                COALESCE(oi.size, 'N/A') as size,
+                COALESCE(oi.color, 'N/A') as color,
+                COALESCE(pi.image_filename, 'default-product.png') as product_image,
+                COALESCE(oi.customer_phone, rr.customer_phone, 'N/A') as phone_number,
+                COALESCE(oi.street_address, 'N/A') as street_address,
+                COALESCE(oi.city_municipality, 'N/A') as city_municipality,
+                COALESCE(oi.province, 'N/A') as province
             FROM refund_requests rr
             LEFT JOIN orders o ON rr.order_id = o.id
-            LEFT JOIN users u ON rr.user_id = u.user_id
-            LEFT JOIN users admin_user ON rr.processed_by = admin_user.user_id
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN products p ON oi.product_id = p.product_id 
+            LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_thumbnail = 1
             ORDER BY rr.created_at DESC
         `);
         
@@ -1679,256 +1903,116 @@ exports.processRefundRequest = async (req, res) => {
     }
 };
 
-// Legacy functions for compatibility
-exports.createOrder = exports.createOrderFromCart;
-exports.getMyOrders = exports.getUserOrders;
-exports.getOrder = async (req, res) => {
+// Mark order as received by customer
+exports.markOrderReceived = async (req, res) => {
     try {
-        const { orderId } = req.params;
+        const { id: orderId } = req.params;
+        const userId = req.user.id;
+        
         const connection = await mysql.createConnection(dbConfig);
         
-        const [orders] = await connection.execute(`
-            SELECT 
-                o.*,
-                oi.total_amount as invoice_total,
-                oi.invoice_status,
-                st.transaction_status,
-                st.payment_method
-            FROM orders o
-            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            WHERE o.id = ? AND o.user_id = ?
-        `, [orderId, req.user.id]);
+        // First, verify the order belongs to the user and is delivered
+        const [orderCheck] = await connection.execute(
+            'SELECT * FROM orders WHERE id = ? AND user_id = ? AND (status = "delivered" OR delivery_status = "delivered")',
+            [orderId, userId]
+        );
+        
+        if (orderCheck.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found or not eligible for received confirmation'
+            });
+        }
+        
+        // Update order status to "Order Received"
+        await connection.execute(
+            'UPDATE orders SET status = "Order Received", delivery_status = "Order Received", received_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [orderId]
+        );
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Order marked as received successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error marking order as received:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to mark order as received'
+        });
+    }
+};
+
+// Update order status
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        const orderId = req.params.id;
+        const { status, delivery_status, notes } = req.body;
+        const userRole = req.user.role;
+        
+        // Only admin/staff can update order status
+        if (userRole !== 'admin' && userRole !== 'staff') {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Only admin/staff can update order status.'
+            });
+        }
+        
+        // Check if order exists
+        const [orders] = await connection.execute(
+            'SELECT id, status, delivery_status FROM orders WHERE id = ?',
+            [orderId]
+        );
         
         if (orders.length === 0) {
             await connection.end();
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Order not found' 
-            });
-        }
-        
-        // Get order items
-        const [items] = await connection.execute(`
-            SELECT * FROM order_items WHERE invoice_id = ?
-        `, [orders[0].invoice_id]);
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            data: {
-                ...orders[0],
-                items
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching order:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch order' 
-        });
-    }
-};
-
-exports.getAllOrders = async (req, res) => {
-    try {
-        // Only allow admin access
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({
+            return res.status(404).json({
                 success: false,
-                message: 'Admin access required'
+                message: 'Order not found'
             });
         }
-
-        const connection = await mysql.createConnection(dbConfig);
         
-        // Extract query parameters
-        const {
-            page = 1,
-            limit = 20,
-            search = '',
-            status = '',
-            dateFrom = '',
-            dateTo = '',
-            minAmount = '',
-            maxAmount = '',
-            sortBy = 'order_date',
-            sortOrder = 'desc',
-            export: isExport = false
-        } = req.query;
-
-        // Build WHERE clause
-        let whereConditions = [];
-        let queryParams = [];
-
-        if (search) {
-            whereConditions.push(`(o.order_number LIKE ? OR o.customer_name LIKE ? OR o.customer_email LIKE ?)`);
-            const searchPattern = `%${search}%`;
-            queryParams.push(searchPattern, searchPattern, searchPattern);
-        }
-
+        // Build update query
+        let updateFields = [];
+        let updateValues = [];
+        
         if (status) {
-            whereConditions.push('o.status = ?');
-            queryParams.push(status);
+            updateFields.push('status = ?');
+            updateValues.push(status);
         }
-
-        if (dateFrom) {
-            whereConditions.push('DATE(o.order_date) >= ?');
-            queryParams.push(dateFrom);
-        }
-
-        if (dateTo) {
-            whereConditions.push('DATE(o.order_date) <= ?');
-            queryParams.push(dateTo);
-        }
-
-        if (minAmount) {
-            whereConditions.push('o.total_amount >= ?');
-            queryParams.push(parseFloat(minAmount));
-        }
-
-        if (maxAmount) {
-            whereConditions.push('o.total_amount <= ?');
-            queryParams.push(parseFloat(maxAmount));
-        }
-
-        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
         
-        // Validate sort parameters
-        const validSortColumns = ['order_number', 'order_date', 'customer_name', 'total_amount', 'status'];
-        const sortColumn = validSortColumns.includes(sortBy) ? sortBy : 'order_date';
-        const sortDirection = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-
-        // If exporting, don't use pagination
-        if (isExport === 'csv') {
-            const [orders] = await connection.execute(`
-                SELECT 
-                    o.order_number,
-                    o.order_date,
-                    o.customer_name,
-                    o.customer_email,
-                    o.contact_phone,
-                    o.shipping_address,
-                    o.total_amount,
-                    o.status,
-                    oi.invoice_status,
-                    st.transaction_status,
-                    st.payment_method,
-                    o.notes
-                FROM orders o
-                LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-                LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-                ${whereClause}
-                ORDER BY o.${sortColumn} ${sortDirection}
-            `, queryParams);
-
-            // Generate CSV
-            const csvHeaders = [
-                'Order Number', 'Order Date', 'Customer Name', 'Customer Email', 
-                'Phone', 'Shipping Address', 'Total Amount', 'Status', 
-                'Invoice Status', 'Transaction Status', 'Payment Method', 'Notes'
-            ];
-            
-            let csvContent = csvHeaders.join(',') + '\n';
-            
-            orders.forEach(order => {
-                const row = [
-                    order.order_number,
-                    new Date(order.order_date).toLocaleDateString(),
-                    `"${order.customer_name || ''}"`,
-                    order.customer_email || '',
-                    order.contact_phone || '',
-                    `"${(order.shipping_address || '').replace(/"/g, '""')}"`,
-                    order.total_amount || 0,
-                    order.status || '',
-                    order.invoice_status || '',
-                    order.transaction_status || '',
-                    order.payment_method || '',
-                    `"${(order.notes || '').replace(/"/g, '""')}"`
-                ].join(',');
-                csvContent += row + '\n';
+        if (delivery_status) {
+            updateFields.push('delivery_status = ?');
+            updateValues.push(delivery_status);
+        }
+        
+        if (notes) {
+            updateFields.push('admin_notes = ?');
+            updateValues.push(notes);
+        }
+        
+        if (updateFields.length === 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'No valid fields to update'
             });
-
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename=orders-export.csv');
-            return res.send(csvContent);
         }
-
-        // Regular pagination query
-        const offset = (parseInt(page) - 1) * parseInt(limit);
-        const limitClause = `LIMIT ${parseInt(limit)} OFFSET ${offset}`;
-
-        // Get total count for pagination
-        const [countResult] = await connection.execute(`
-            SELECT COUNT(*) as total
-            FROM orders o
-            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            ${whereClause}
-        `, queryParams);
-
-        const totalOrders = countResult[0].total;
-        const totalPages = Math.ceil(totalOrders / parseInt(limit));
-
-        // Get orders with count of items
-        const [orders] = await connection.execute(`
-            SELECT 
-                o.*,
-                oi.total_amount as invoice_total,
-                oi.invoice_status,
-                st.transaction_status,
-                st.payment_method,
-                COALESCE(item_counts.item_count, 0) as item_count
-            FROM orders o
-            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            LEFT JOIN (
-                SELECT order_id, COUNT(*) as item_count 
-                FROM order_items 
-                GROUP BY order_id
-            ) item_counts ON o.id = item_counts.order_id
-            ${whereClause}
-            ORDER BY o.${sortColumn} ${sortDirection}
-            ${limitClause}
-        `, queryParams);
         
-        await connection.end();
-        
-        res.json({
-            success: true,
-            data: {
-                orders,
-                pagination: {
-                    currentPage: parseInt(page),
-                    totalPages,
-                    totalOrders,
-                    itemsPerPage: parseInt(limit)
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching all orders:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch orders',
-            error: error.message
-        });
-    }
-};
-
-exports.updateOrderStatus = async (req, res) => {
-    try {
-        const { orderId } = req.params;
-        const { status } = req.body;
-        
-        const connection = await mysql.createConnection(dbConfig);
+        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        updateValues.push(orderId);
         
         await connection.execute(`
             UPDATE orders 
-            SET status = ?, updated_at = CURRENT_TIMESTAMP 
+            SET ${updateFields.join(', ')}
             WHERE id = ?
-        `, [status, orderId]);
+        `, updateValues);
         
         await connection.end();
         
@@ -1936,767 +2020,16 @@ exports.updateOrderStatus = async (req, res) => {
             success: true,
             message: 'Order status updated successfully'
         });
-    } catch (error) {        console.error('Error updating order status:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to update order status' 
-        });
-    }
-};
-
-// Get order items for invoice
-exports.getOrderItems = async (req, res) => {
-    try {
-        const orderId = req.params.id;
-        console.log('=== GET ORDER ITEMS (FIXED) ===');
-        console.log('Order ID:', orderId);
-        console.log('User ID:', req.user.id);
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // First verify the order belongs to the user (unless admin)
-        if (req.user.role !== 'admin') {
-            const [orderCheck] = await connection.execute(
-                'SELECT user_id FROM orders WHERE id = ?',
-                [orderId]
-            );
-            
-            if (orderCheck.length === 0) {
-                await connection.end();
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'Order not found' 
-                });
-            }
-            
-            if (orderCheck[0].user_id !== req.user.id) {
-                console.log(`Access denied: Order ${orderId} belongs to user ${orderCheck[0].user_id}, not ${req.user.id}`);
-                await connection.end();
-                return res.status(403).json({ 
-                    success: false, 
-                    message: 'Access denied - Order does not belong to this user' 
-                });
-            }
-        }
-          // Get order items with product details using order_id
-        const [orderItems] = await connection.execute(`
-            SELECT 
-                oi.*,
-                p.productname,
-                p.productdescription,
-                p.productcolor,
-                p.product_type,
-                p.productimage,
-                oi.product_price as price,
-                oi.quantity,
-                oi.subtotal as total_price
-            FROM order_items oi
-            LEFT JOIN products p ON oi.product_id = p.product_id
-            WHERE oi.order_id = ?
-            ORDER BY oi.sort_order, oi.id
-        `, [orderId]);
-        
-        console.log(`Found ${orderItems.length} items for order ${orderId}`);
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            data: orderItems
-        });
-    } catch (error) {
-        console.error('Error fetching order items:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch order items' 
-        });
-    }
-};
-
-// Get user's orders with items
-exports.getUserOrdersWithItems = async (req, res) => {
-    try {
-        console.log('=== GET USER ORDERS WITH ITEMS ===');
-        console.log('User ID from token:', req.user.id);
-        
-        const connection = await mysql.createConnection(dbConfig);        // Get user's orders with user details, delivery status, and latest cancellation request
-        const [orders] = await connection.execute(`
-            SELECT 
-                o.*,
-                oi.total_amount as invoice_total,
-                oi.invoice_status,
-                oi.customer_name,
-                oi.customer_email,
-                st.transaction_status,
-                st.payment_method,
-                u.first_name,
-                u.last_name,
-                u.email as user_email,
-                latest_cr.status as cancellation_request_status,
-                latest_cr.reason as cancellation_reason,
-                latest_cr.created_at as cancellation_requested_at,
-                latest_cr.admin_notes as cancellation_admin_notes,
-                latest_cr.processed_at as cancellation_processed_at,
-                ds.delivery_status,
-                ds.delivery_date as scheduled_delivery_date,
-                ds.delivery_time_slot as scheduled_delivery_time,
-                ds.delivery_notes,
-                ds.courier_id,
-                c.name as courier_name,
-                c.phone_number as courier_phone
-            FROM orders o
-            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
-            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
-            LEFT JOIN users u ON o.user_id = u.user_id
-            LEFT JOIN (
-                SELECT cr1.*
-                FROM cancellation_requests cr1
-                INNER JOIN (
-                    SELECT order_id, MAX(id) as max_id
-                    FROM cancellation_requests
-                    GROUP BY order_id
-                ) cr2 ON cr1.order_id = cr2.order_id AND cr1.id = cr2.max_id
-            ) latest_cr ON o.id = latest_cr.order_id
-            LEFT JOIN delivery_schedules ds ON o.id = ds.order_id
-            LEFT JOIN couriers c ON ds.courier_id = c.id
-            WHERE o.user_id = ?
-            ORDER BY o.order_date DESC
-        `, [req.user.id]);
-        
-        // For each order, get its items with product details
-        for (let order of orders) {
-            const [items] = await connection.execute(`
-                SELECT 
-                    oitems.*,
-                    p.productname,
-                    p.productdescription,
-                    p.productcolor,
-                    p.product_type,
-                    p.productimage,
-                    oitems.product_price as price,
-                    oitems.quantity,
-                    oitems.subtotal as total_price
-                FROM order_items oitems
-                LEFT JOIN products p ON oitems.product_id = p.product_id
-                WHERE oitems.invoice_id = ?
-                ORDER BY oitems.id
-            `, [order.invoice_id]);
-            
-            order.items = items;
-        }
-        
-        console.log(`Found ${orders.length} orders with items for user ID ${req.user.id}`);
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            data: orders
-        });
-    } catch (error) {
-        console.error('Error fetching user orders with items:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch orders with items' 
-        });
-    }
-};
-
-// Create a cancellation request
-exports.createCancellationRequest = async (req, res) => {
-    try {
-        const { order_id, order_number, reason } = req.body;
-        const userId = req.user.id;
-        
-        console.log('=== CREATE CANCELLATION REQUEST ===');
-        console.log('User ID:', userId);
-        console.log('Order ID:', order_id);
-        console.log('Order Number:', order_number);
-        console.log('Reason:', reason);
-        
-        // Validate required fields
-        if (!order_id || !reason) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Order ID and reason are required' 
-            });
-        }
-        
-        if (reason.trim().length < 10) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Cancellation reason must be at least 10 characters long' 
-            });
-        }
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        try {
-            // Check if order exists and belongs to the user
-            const [orderResult] = await connection.execute(`
-                SELECT id, order_number, status, user_id
-                FROM orders 
-                WHERE id = ? AND user_id = ?
-            `, [order_id, userId]);
-            
-            if (orderResult.length === 0) {
-                await connection.end();
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'Order not found or you do not have permission to cancel this order' 
-                });
-            }
-            
-            const order = orderResult[0];
-            
-            // Check if order can be cancelled (pending or confirmed orders)
-            if (!['pending', 'confirmed'].includes(order.status)) {
-                await connection.end();
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `Cannot cancel order with status: ${order.status}. Only pending or confirmed orders can be cancelled.` 
-                });
-            }
-            
-            // Check if there's already a cancellation request for this order
-            const [existingRequest] = await connection.execute(`
-                SELECT id, status FROM cancellation_requests 
-                WHERE order_id = ?
-            `, [order_id]);
-            
-            if (existingRequest.length > 0) {
-                await connection.end();
-                return res.status(400).json({ 
-                    success: false, 
-                    message: `A cancellation request already exists for this order (Status: ${existingRequest[0].status})` 
-                });
-            }
-            
-            // Create the cancellation request
-            const [result] = await connection.execute(`
-                INSERT INTO cancellation_requests (
-                    order_id, user_id, order_number, reason, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, 'pending', NOW(), NOW())
-            `, [order_id, userId, order.order_number, reason.trim()]);
-            
-            console.log('✅ Cancellation request created with ID:', result.insertId);
-            
-            // Get the created request details
-            const [newRequest] = await connection.execute(`
-                SELECT cr.*, o.order_number, u.first_name, u.last_name, u.email
-                FROM cancellation_requests cr
-                JOIN orders o ON cr.order_id = o.id
-                JOIN users u ON cr.user_id = u.user_id
-                WHERE cr.id = ?
-            `, [result.insertId]);
-            
-            await connection.end();
-            
-            res.status(201).json({
-                success: true,
-                message: 'Cancellation request submitted successfully. Admin will review your request.',
-                data: newRequest[0]
-            });
-            
-        } catch (dbError) {
-            await connection.end();
-            throw dbError;
-        }
         
     } catch (error) {
-        console.error('❌ Error creating cancellation request:', error);
+        console.error('Error updating order status:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create cancellation request'
+            message: 'Failed to update order status'
         });
     }
 };
 
-// Get all cancellation requests for admin
-exports.getCancellationRequests = async (req, res) => {
-    try {
-        console.log('=== GET CANCELLATION REQUESTS ===');
-        console.log('User role:', req.user?.role);
-        
-        // Only allow admin/staff to view cancellation requests
-        if (!req.user || !['admin', 'staff'].includes(req.user.role)) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Access denied - Admin/staff only' 
-            });
-        }
-
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Check if cancellation_requests table exists
-        const [tables] = await connection.execute(
-            "SHOW TABLES LIKE 'cancellation_requests'"
-        );
-        
-        if (tables.length === 0) {
-            console.log('ℹ️ Cancellation requests table does not exist yet');
-            await connection.end();
-            return res.json({
-                success: true,
-                data: [],
-                pagination: {
-                    total: 0,
-                    page: 1,
-                    limit: 20,
-                    pages: 0
-                }
-            });
-        }
-        
-        const { status = 'all', page = 1, limit = 20 } = req.query;
-        const pageNum = parseInt(page) || 1;
-        const limitNum = parseInt(limit) || 20;
-        const offset = (pageNum - 1) * limitNum;
-        
-        let whereClause = '1=1';
-        let whereParams = [];
-        
-        // Add status filter
-        if (status && status !== 'all') {
-            whereClause += ' AND cr.status = ?';
-            whereParams.push(status);
-        }
-          // Query for the actual data with pagination
-        const [requests] = await connection.execute(`
-            SELECT 
-                cr.*,
-                u.first_name as customer_first_name,
-                u.last_name as customer_last_name,
-                u.email as customer_email,
-                o.total_amount as order_total,
-                o.status as order_status,
-                admin_user.first_name as admin_first_name,
-                admin_user.last_name as admin_last_name
-            FROM cancellation_requests cr
-            JOIN users u ON cr.user_id = u.user_id
-            JOIN orders o ON cr.order_id = o.id
-            LEFT JOIN users admin_user ON cr.processed_by = admin_user.user_id
-            WHERE ${whereClause}
-            ORDER BY cr.created_at DESC
-            LIMIT ${limitNum} OFFSET ${offset}
-        `, whereParams);
-        
-        // For each cancellation request, get the order items (product details)
-        for (let i = 0; i < requests.length; i++) {
-            const request = requests[i];
-            
-            const [orderItems] = await connection.execute(`
-                SELECT 
-                    oi.product_id,
-                    oi.product_name,
-                    oi.quantity,
-                    oi.color,
-                    oi.size,
-                    oi.product_price,
-                    oi.subtotal,
-                    p.productname,
-                    p.productimage,
-                    p.productdescription
-                FROM order_items oi
-                JOIN orders o ON CAST(oi.invoice_id AS CHAR) = CAST(o.invoice_id AS CHAR)
-                LEFT JOIN products p ON CAST(oi.product_id AS UNSIGNED) = CAST(p.product_id AS UNSIGNED)
-                WHERE o.id = ?
-            `, [request.order_id]);
-            
-            // Add order items to the request object
-            requests[i].order_items = orderItems;
-        }
-        
-        // Get total count using only where parameters (no pagination)
-        const [countResult] = await connection.execute(`
-            SELECT COUNT(*) as total
-            FROM cancellation_requests cr
-            JOIN users u ON cr.user_id = u.user_id
-            JOIN orders o ON cr.order_id = o.id
-            WHERE ${whereClause}
-        `, whereParams);
-        
-        await connection.end();
-        
-        console.log(`✅ Found ${requests.length} cancellation requests (total: ${countResult[0].total})`);
-        
-        res.json({
-            success: true,            data: requests,
-            pagination: {
-                total: countResult[0].total,
-                page: pageNum,
-                limit: limitNum,
-                pages: Math.ceil(countResult[0].total / limitNum)
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error fetching cancellation requests:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to fetch cancellation requests' 
-        });
-    }
-};
-
-// Process cancellation request (approve/deny)
-exports.processCancellationRequest = async (req, res) => {
-    try {
-        const requestId = req.params.id;
-        const { action, adminNotes } = req.body; // action: 'approve' or 'deny'
-        
-        console.log('=== PROCESS CANCELLATION REQUEST ===');
-        console.log('Request ID:', requestId);
-        console.log('Action:', action);
-        console.log('Admin ID:', req.user.id);
-        console.log('Admin Notes:', adminNotes);
-        
-        // Only allow admin/staff to process cancellation requests
-        if (!['admin', 'staff'].includes(req.user.role)) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Access denied - Admin/staff only' 
-            });
-        }
-        
-        if (!['approve', 'deny'].includes(action)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Invalid action. Must be approve or deny' 
-            });
-        }
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        try {
-            await connection.beginTransaction();
-            
-            // Get the cancellation request
-            const [requestResult] = await connection.execute(`
-                SELECT cr.*, o.status as order_status
-
-                FROM cancellation_requests cr
-                JOIN orders o ON cr.order_id = o.id
-                WHERE cr.id = ? AND cr.status = 'pending'
-            `, [requestId]);
-            
-            if (requestResult.length === 0) {
-                await connection.rollback();
-                await connection.end();
-                return res.status(404).json({ 
-                    success: false, 
-                    message: 'Cancellation request not found or already processed' 
-                });
-            }
-            
-            const request = requestResult[0];
-            
-            // Update the cancellation request
-            const newStatus = action === 'approve' ? 'approved' : 'denied';
-            await connection.execute(`
-                UPDATE cancellation_requests 
-                SET status = ?, admin_notes = ?, processed_by = ?, processed_at = NOW()
-                WHERE id = ?
-            `, [newStatus, adminNotes || null, req.user.id, requestId]);
-            
-            // If approved, update the order status to cancelled
-            if (action === 'approve') {
-                // First, check the original order status to determine if stock was ever subtracted
-                console.log('Checking original order status...');
-                const [originalOrder] = await connection.execute(`
-                    SELECT o.status, o.order_number
-                    FROM orders o
-                    WHERE o.id = ?
-                `, [request.order_id]);
-                
-                if (originalOrder.length === 0) {
-                    throw new Error('Order not found');
-                }
-                
-                const originalStatus = originalOrder[0].status;
-                const orderNumber = originalOrder[0].order_number;
-                console.log(`Original order status: ${originalStatus} (Order: ${orderNumber})`);
-                
-                // Only restore inventory if the order was previously confirmed
-                // Orders in 'pending' status never had stock subtracted, so no need to restore
-                const shouldRestoreStock = ['confirmed', 'processing', 'shipped'].includes(originalStatus);
-                
-                if (shouldRestoreStock) {
-                    console.log('Order was confirmed - restoring inventory...');
-                    
-                    // Get the order items to restore inventory with variant details
-                    // First try to get items with valid products (JOIN with products table)
-                    const [orderItems] = await connection.execute(`
-                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname, 
-                               p.total_available_stock, p.total_reserved_stock
-                        FROM order_items oi
-                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
-                        JOIN products p ON oi.product_id = p.product_id
-                        WHERE o.id = ?
-                    `, [request.order_id]);
-                    
-                    // Also check for orphaned order items (items with invalid product_id)
-                    const [orphanedItems] = await connection.execute(`
-                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, oi.product_name,
-                               'orphaned' as productname, 0 as total_available_stock, 0 as total_reserved_stock
-                        FROM order_items oi
-                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
-                        LEFT JOIN products p ON oi.product_id = p.product_id
-                        WHERE o.id = ? AND p.product_id IS NULL
-                    `, [request.order_id]);
-                    
-                    console.log(`Found ${orderItems.length} valid items and ${orphanedItems.length} orphaned items in cancelled order`);
-                    
-                    if (orphanedItems.length > 0) {
-                        console.log('⚠️ WARNING: Found orphaned order items (product_id not in products table):');
-                        orphanedItems.forEach(item => {
-                            console.log(`  - Product ID ${item.product_id}: ${item.product_name} (${item.color}/${item.size}) x${item.quantity}`);
-                        });
-                        console.log('These items will be skipped for stock restoration due to missing product data.');
-                    }
-                    
-                    // Log each item details before restoration
-                    for (const item of orderItems) {
-                        console.log(`Order Item: ${item.productname} - Size: "${item.size}" Color: "${item.color}" Qty: ${item.quantity}`);
-                        
-                        // Check current variant stock before restoration
-                        const [currentVariant] = await connection.execute(`
-                            SELECT stock_quantity, available_quantity, reserved_quantity
-                            FROM product_variants 
-                            WHERE product_id = ? AND size = ? AND color = ?
-                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
-                        
-                        if (currentVariant.length > 0) {
-                            console.log(`Before restoration - Stock: ${currentVariant[0].stock_quantity}, Available: ${currentVariant[0].available_quantity}, Reserved: ${currentVariant[0].reserved_quantity}`);
-                        } else {
-                            console.log(`⚠️ No variant found for ${item.productname} Size: "${item.size || 'N/A'}" Color: "${item.color || 'Default'}"`);
-                        }
-                    }
-                    
-                    // Restore inventory - add back to stock_quantity that was subtracted during confirmation
-                    for (const item of orderItems) {
-                        console.log(`Restoring variant stock for ${item.productname} ${item.color || 'Default'}/${item.size || 'N/A'}: adding back ${item.quantity} units`);
-                        
-                        // Restore the variant stock by adding back to stock_quantity and available_quantity
-                        const [variantResult] = await connection.execute(`
-                            UPDATE product_variants 
-                            SET stock_quantity = stock_quantity + ?,
-                                available_quantity = available_quantity + ?,
-                                last_updated = CURRENT_TIMESTAMP
-                            WHERE product_id = ? AND size = ? AND color = ?
-                        `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
-                        
-                        if (variantResult.affectedRows > 0) {
-                            console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units`);
-                        } else {
-                            // Fallback to general product stock update
-                            console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
-                            await connection.execute(`
-                                UPDATE products 
-                                SET total_available_stock = total_available_stock + ?,
-                                    productquantity = productquantity + ?,
-                                    last_stock_update = CURRENT_TIMESTAMP
-                                WHERE product_id = ?
-                            `, [item.quantity, item.quantity, item.product_id]);
-                        }
-                        
-                        console.log(`Restored variant stock for ${item.productname} ${item.color || 'Default'} ${item.size || 'N/A'}: added back ${item.quantity} units`);
-                        
-                        // Check variant stock after restoration for verification
-                        const [updatedVariant] = await connection.execute(`
-                            SELECT stock_quantity, available_quantity, reserved_quantity
-                            FROM product_variants 
-                            WHERE product_id = ? AND size = ? AND color = ?
-                        `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
-                        
-                        if (updatedVariant.length > 0) {
-                            console.log(`After restoration - Stock: ${updatedVariant[0].stock_quantity}, Available: ${updatedVariant[0].available_quantity}, Reserved: ${updatedVariant[0].reserved_quantity}`);
-                        }
-                        
-                        // Record stock movement for variant restoration
-                        await connection.execute(`
-                            INSERT INTO stock_movements (
-                                product_id, movement_type, quantity, size, reason, 
-                                reference_number, user_id, notes
-                            ) VALUES (?, 'IN', ?, ?, 'Order Cancellation - Stock Restored', ?, ?, ?)
-                        `, [
-                            item.product_id, 
-                            item.quantity, 
-                            item.size || 'N/A', 
-                            orderId, 
-                            req.user?.id || null,
-                            `Order cancelled - restored ${item.quantity} units to ${item.productname} ${item.size || 'N/A'}/${item.color || 'Default'}`
-                        ]);
-                    }
-                    
-                    // Now sync product-level totals from variants
-                    console.log('Syncing product-level stock from variants...');
-                    for (const item of orderItems) {
-                        await syncAllStockFields(connection, item.product_id);
-                        console.log(`Synced all stock fields for ${item.productname}`);
-                    }
-                } else {
-                    console.log(`Order was in '${originalStatus}' status - no stock to restore (stock was never subtracted)`);
-                }
-                
-                await connection.execute(`
-                    UPDATE orders 
-                    SET status = 'cancelled', updated_at = NOW()
-                    WHERE id = ?
-                `, [request.order_id]);
-                
-                // Also update the invoice status if it exists
-                await connection.execute(`
-                    UPDATE order_invoices 
-                    SET invoice_status = 'cancelled', updated_at = NOW()
-                    WHERE invoice_id = (SELECT invoice_id FROM orders WHERE id = ?)
-                `, [request.order_id]);
-                
-                // Update sales transaction status
-                await connection.execute(`
-                    UPDATE sales_transactions 
-                    SET transaction_status = 'cancelled', updated_at = NOW()
-                    WHERE transaction_id = (SELECT transaction_id FROM orders WHERE id = ?)
-                `, [request.order_id]);
-                
-                console.log(`Order cancelled successfully. Stock restoration: ${shouldRestoreStock ? 'YES' : 'NO'}`);
-                
-                // Prepare response data for notifications
-                var stockUpdateEvent = {
-                    type: 'order_cancelled',
-                    orderId: request.order_id,
-                    originalStatus: originalStatus,
-                    stockRestored: shouldRestoreStock,
-                    timestamp: new Date().toISOString()
-                };
-                
-                if (shouldRestoreStock) {
-                    // Get the order items for the response (we have them from the restoration logic)
-                    const [responseOrderItems] = await connection.execute(`
-                        SELECT oi.product_id, oi.quantity, oi.color, oi.size, p.productname
-                        FROM order_items oi
-                        JOIN orders o ON oi.invoice_id COLLATE utf8mb4_unicode_ci = o.invoice_id COLLATE utf8mb4_unicode_ci
-                        JOIN products p ON oi.product_id = p.product_id
-                        WHERE o.id = ?
-                    `, [request.order_id]);
-                    
-                    // Get updated stock levels for notifications
-                    const [updatedStock] = await connection.execute(`
-                        SELECT p.product_id, p.productname, p.total_available_stock, p.total_stock
-                        FROM products p
-                        WHERE p.product_id IN (${responseOrderItems.map(() => '?').join(',')})
-                    `, responseOrderItems.map(item => item.product_id));
-                    
-                    // Prepare stock restoration data
-                    const stockRestorations = responseOrderItems.map(item => {
-                        const updatedProduct = updatedStock.find(p => p.product_id === item.product_id);
-                        return {
-                            product_id: item.product_id,
-                            product: item.productname,
-                            color: item.color,
-                            size: item.size,
-                            quantityRestored: item.quantity,
-                            newAvailableStock: updatedProduct ? updatedProduct.total_available_stock : 0,
-                            newTotalStock: updatedProduct ? updatedProduct.total_stock : 0
-                        };
-                    });
-                    
-                    stockUpdateEvent.productIds = responseOrderItems.map(item => item.product_id);
-                    stockUpdateEvent.stockRestorations = stockRestorations;
-                } else {
-                    stockUpdateEvent.message = `Order was in '${originalStatus}' status - no stock restoration needed`;
-                }
-            }
-            
-            await connection.commit();
-            await connection.end();
-            
-            const message = action === 'approve' 
-                ? 'Cancellation request approved and order cancelled successfully'
-                : 'Cancellation request denied successfully';
-            
-            const responseData = {
-                requestId,
-                action,
-                status: newStatus,
-                adminNotes
-            };
-            
-            // Add stock update event if cancellation was approved
-            if (action === 'approve' && typeof stockUpdateEvent !== 'undefined') {
-                responseData.stockUpdateEvent = stockUpdateEvent;
-                if (stockUpdateEvent.stockRestored && stockUpdateEvent.stockRestorations) {
-                    responseData.inventoryRestored = stockUpdateEvent.stockRestorations;
-                } else {
-                    responseData.inventoryRestored = [];
-                    responseData.message = stockUpdateEvent.message;
-                }
-            }
-            
-            res.json({
-                success: true,
-                message,
-                data: responseData
-            });
-            
-        } catch (error) {
-            await connection.rollback();
-            await connection.end();
-            throw error;
-        }
-    } catch (error) {
-        console.error('Error processing cancellation request:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to process cancellation request' 
-        });
-    }
-};
-
-// Helper function to sync product sizes JSON with variant data
-async function syncProductSizesWithVariants(connection, productId) {
-    try {
-        console.log(`Syncing sizes JSON for product ${productId}...`);
-        
-        // Get current variants for this product
-        const [variants] = await connection.execute(
-            'SELECT size, color, available_quantity FROM product_variants WHERE product_id = ? ORDER BY size, color',
-            [productId]
-        );
-        
-        if (variants.length > 0) {
-            // Build the new sizes JSON structure
-            const sizesMap = {};
-            variants.forEach(variant => {
-                if (!sizesMap[variant.size]) {
-                    sizesMap[variant.size] = {
-                        size: variant.size,
-                        colorStocks: []
-                    };
-                }
-                sizesMap[variant.size].colorStocks.push({
-                    color: variant.color,
-                    stock: variant.available_quantity
-                });
-            });
-            
-            const newSizesArray = Object.values(sizesMap);
-            const newSizesJSON = JSON.stringify(newSizesArray);
-            
-            // Update the products table
-            await connection.execute(
-                'UPDATE products SET sizes = ? WHERE product_id = ?',
-                [newSizesJSON, productId]
-            );
-            
-            console.log(`✅ Synced sizes JSON for product ${productId}`);
-        }
-    } catch (error) {
-        console.error(`Error syncing sizes JSON for product ${productId}:`, error);
-    }
-}
-
-// Helper function to sync all stock fields (totals + sizes JSON)
 async function syncAllStockFields(connection, productId) {
     try {
         console.log(`Syncing all stock fields for product ${productId}...`);
@@ -2737,3 +2070,496 @@ async function syncAllStockFields(connection, productId) {
         console.error(`Error syncing all stock fields for product ${productId}:`, error);
     }
 }
+
+// Get all cancellation requests for admin
+exports.getCancellationRequests = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        const [requests] = await connection.execute(`
+            SELECT 
+                cr.*,
+                o.order_number,
+                o.total_amount,
+                u.first_name,
+                u.last_name,
+                u.email as customer_email,
+                CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                oi.customer_name,
+                oi.customer_email as invoice_customer_email,
+                -- Handle both regular orders and custom orders for product images
+                CASE 
+                    -- Check if this is a custom order by pattern
+                    WHEN cr.order_number LIKE 'CUSTOM-%' THEN
+                        COALESCE(
+                            -- Try to get custom order image first
+                            (SELECT 
+                                CASE 
+                                    WHEN coi.image_filename IS NOT NULL THEN 
+                                        CONCAT('custom-orders/', coi.image_filename)
+                                    ELSE NULL
+                                END
+                             FROM custom_order_images coi
+                             WHERE coi.custom_order_id = cr.order_number
+                             ORDER BY coi.upload_order ASC, coi.created_at ASC
+                             LIMIT 1),
+                            -- Fallback: check if custom order exists and return null for proper frontend handling
+                            (SELECT 
+                                CASE 
+                                    WHEN co.custom_order_id IS NOT NULL THEN NULL
+                                    ELSE NULL
+                                END
+                             FROM custom_orders co 
+                             WHERE co.custom_order_id = cr.order_number
+                             LIMIT 1),
+                            -- Default fallback for custom orders without images
+                            NULL
+                        )
+                    ELSE
+                        -- Handle regular orders
+                        COALESCE(
+                            -- Try to get image from regular order items
+                            (SELECT CASE 
+                                WHEN pi.image_filename IS NOT NULL THEN 
+                                    CASE 
+                                        WHEN pi.image_filename LIKE '%.%' THEN pi.image_filename
+                                        ELSE CONCAT(pi.image_filename, '.jpg')
+                                    END
+                                WHEN p.productimage IS NOT NULL THEN p.productimage
+                                ELSE NULL
+                             END
+                             FROM order_items oit2 
+                             LEFT JOIN products p ON oit2.product_id = p.product_id
+                             LEFT JOIN product_images pi ON p.product_id = pi.product_id AND pi.is_thumbnail = 1
+                             WHERE oit2.order_id = o.id 
+                             LIMIT 1),
+                            -- Default fallback for regular orders
+                            'default-product.png'
+                        )
+                END as product_image,
+                -- Add order type indicator for frontend
+                CASE 
+                    WHEN cr.order_number LIKE 'CUSTOM-%' THEN 'custom'
+                    ELSE 'regular'
+                END as order_type
+            FROM cancellation_requests cr
+            LEFT JOIN orders o ON cr.order_id = o.id
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            ORDER BY cr.created_at DESC
+        `);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: requests
+        });
+        
+    } catch (error) {
+        console.error('Error fetching cancellation requests:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch cancellation requests'
+        });
+    }
+};
+
+// Get all orders for admin
+exports.getAllOrders = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get query parameters for filtering and pagination
+        const { 
+            page = 1, 
+            limit = 50, 
+            status, 
+            payment_status, 
+            delivery_status,
+            search,
+            start_date,
+            end_date 
+        } = req.query;
+        
+        let whereConditions = [];
+        let queryParams = [];
+        
+        // Add status filters
+        if (status) {
+            whereConditions.push('o.status = ?');
+            queryParams.push(status);
+        }
+        
+        if (payment_status) {
+            whereConditions.push('o.payment_status = ?');
+            queryParams.push(payment_status);
+        }
+        
+        if (delivery_status) {
+            whereConditions.push('o.delivery_status = ?');
+            queryParams.push(delivery_status);
+        }
+        
+        // Add search filter
+        if (search) {
+            whereConditions.push('(o.order_number LIKE ? OR o.customer_name LIKE ? OR o.customer_email LIKE ?)');
+            const searchPattern = `%${search}%`;
+            queryParams.push(searchPattern, searchPattern, searchPattern);
+        }
+        
+        // Add date range filter
+        if (start_date) {
+            whereConditions.push('DATE(o.created_at) >= ?');
+            queryParams.push(start_date);
+        }
+        
+        if (end_date) {
+            whereConditions.push('DATE(o.created_at) <= ?');
+            queryParams.push(end_date);
+        }
+        
+        // Build WHERE clause
+        const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+        
+        // Calculate offset for pagination
+        const offset = (page - 1) * limit;
+        
+        // Get total count
+        const [countResult] = await connection.execute(`
+            SELECT COUNT(*) as total
+            FROM orders o
+            ${whereClause}
+        `, queryParams);
+        
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
+        
+        // Get orders with pagination
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                u.email as user_email
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            ${whereClause}
+            ORDER BY o.created_at DESC
+            LIMIT ? OFFSET ?
+        `, [...queryParams, parseInt(limit), parseInt(offset)]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: orders,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages,
+                totalItems: total,
+                itemsPerPage: parseInt(limit)
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching all orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch orders'
+        });
+    }
+};
+
+// Get a specific order
+exports.getOrder = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        const orderId = req.params.id;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        
+        // Build query based on user role
+        let whereClause = '';
+        let queryParams = [orderId];
+        
+        if (userRole === 'admin' || userRole === 'staff') {
+            // Admin/staff can see any order
+            whereClause = 'WHERE o.id = ?';
+        } else {
+            // Regular users can only see their own orders
+            whereClause = 'WHERE o.id = ? AND o.user_id = ?';
+            queryParams.push(userId);
+        }
+        
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                u.email as user_email
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            ${whereClause}
+        `, queryParams);
+        
+        await connection.end();
+        
+        if (orders.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found or access denied'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: orders[0]
+        });
+        
+    } catch (error) {
+        console.error('Error fetching order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order'
+        });
+    }
+};
+
+// Get order items for invoice
+exports.getOrderItems = async (req, res) => {
+    try {
+        const connection = await mysql.createConnection(dbConfig);
+        const orderId = req.params.id;
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        
+        // Check if this is a custom order ID (they start with 'custom-')
+        if (typeof orderId === 'string' && orderId.startsWith('custom-')) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Custom orders do not support this endpoint. Items are included in the main custom order response.'
+            });
+        }
+        
+        // First check if user has access to this order
+        let orderWhereClause = '';
+        let orderQueryParams = [orderId];
+        
+        if (userRole === 'admin' || userRole === 'staff') {
+            orderWhereClause = 'WHERE id = ?';
+        } else {
+            orderWhereClause = 'WHERE id = ? AND user_id = ?';
+            orderQueryParams.push(userId);
+        }
+        
+        const [orderCheck] = await connection.execute(`
+            SELECT id FROM orders ${orderWhereClause}
+        `, orderQueryParams);
+        
+        if (orderCheck.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found or access denied'
+            });
+        }
+        
+        // Get order items
+        const [items] = await connection.execute(`
+            SELECT 
+                oi.*,
+                p.productname,
+                p.productimage,
+                p.productdescription
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.id
+        `, [orderId]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: items
+        });
+        
+    } catch (error) {
+        console.error('Error fetching order items:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order items'
+        });
+    }
+};
+
+// Create a cancellation request
+exports.createCancellationRequest = async (req, res) => {
+    try {
+        const { order_id, order_number, reason } = req.body;
+        const userId = req.user.id;
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Verify that the order belongs to the user
+        const [orders] = await connection.execute(
+            'SELECT id, status, user_id FROM orders WHERE id = ? AND user_id = ?',
+            [order_id, userId]
+        );
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found or access denied'
+            });
+        }
+        
+        const order = orders[0];
+        
+        // Check if order can be cancelled
+        if (!['pending', 'confirmed'].includes(order.status)) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Order cannot be cancelled at this stage'
+            });
+        }
+        
+        // Check if cancellation request already exists
+        const [existingRequests] = await connection.execute(
+            'SELECT id FROM cancellation_requests WHERE order_id = ?',
+            [order_id]
+        );
+        
+        if (existingRequests.length > 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation request already exists for this order'
+            });
+        }
+        
+        // Create cancellation request
+        await connection.execute(
+            `INSERT INTO cancellation_requests (order_id, order_number, reason, status, created_at)
+             VALUES (?, ?, ?, 'pending', NOW())`,
+            [order_id, order_number, reason]
+        );
+        
+        // Update order to show cancellation pending
+        await connection.execute(
+            'UPDATE orders SET cancellation_request_status = "pending" WHERE id = ?',
+            [order_id]
+        );
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Cancellation request submitted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error creating cancellation request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create cancellation request'
+        });
+    }
+};
+
+// Process cancellation request (approve/deny)
+exports.processCancellationRequest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { action, admin_notes } = req.body; // action: 'approve' or 'deny'
+        const adminId = req.user.id;
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get cancellation request details
+        const [requests] = await connection.execute(
+            `SELECT cr.*, o.id as order_id, o.status as order_status, o.user_id
+             FROM cancellation_requests cr
+             JOIN orders o ON cr.order_id = o.id
+             WHERE cr.id = ?`,
+            [id]
+        );
+        
+        if (requests.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Cancellation request not found'
+            });
+        }
+        
+        const request = requests[0];
+        
+        if (request.status !== 'pending') {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation request already processed'
+            });
+        }
+        
+        if (action === 'approve') {
+            // Update cancellation request status
+            await connection.execute(
+                `UPDATE cancellation_requests 
+                 SET status = 'approved', admin_notes = ?, processed_by = ?, processed_at = NOW()
+                 WHERE id = ?`,
+                [admin_notes || null, adminId, id]
+            );
+            
+            // Update order status
+            await connection.execute(
+                `UPDATE orders 
+                 SET status = 'cancelled', cancellation_request_status = 'approved'
+                 WHERE id = ?`,
+                [request.order_id]
+            );
+            
+            // TODO: Restore stock if needed
+            
+        } else if (action === 'deny') {
+            // Update cancellation request status
+            await connection.execute(
+                `UPDATE cancellation_requests 
+                 SET status = 'denied', admin_notes = ?, processed_by = ?, processed_at = NOW()
+                 WHERE id = ?`,
+                [admin_notes || null, adminId, id]
+            );
+            
+            // Update order status
+            await connection.execute(
+                `UPDATE orders 
+                 SET cancellation_request_status = 'denied'
+                 WHERE id = ?`,
+                [request.order_id]
+            );
+        } else {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid action. Must be "approve" or "deny"'
+            });
+        }
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: `Cancellation request ${action}d successfully`
+        });
+        
+    } catch (error) {
+        console.error('Error processing cancellation request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process cancellation request'
+        });
+    }
+};

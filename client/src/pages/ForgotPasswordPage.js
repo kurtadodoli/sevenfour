@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import axios from 'axios';
+import emailJSService from '../services/emailService';
 import logo from '../assets/images/sfc-logo.png';
 
 const ForgotContainer = styled.div`
@@ -107,24 +108,67 @@ const ForgotPasswordPage = () => {
         setMessage('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/auth/forgot-password', {
+            // First, check if user exists in the backend
+            const checkUserResponse = await axios.post('http://localhost:5000/api/auth/check-user', {
                 email
-            });            if (response.data.success) {
-                if (response.data.isDevelopmentMode) {
-                    setMessage('Verification code generated! Check the server console for the 6-digit code, then proceed to reset your password.');
-                } else {
-                    setMessage('Verification code has been sent to your email. Please check your inbox and spam folder.');
-                }
-                // Navigate to reset password page after 3 seconds
+            });
+
+            if (!checkUserResponse.data.success) {
+                // For security, don't reveal if email exists or not
+                setMessage('If this email is registered, you will receive a verification code shortly.');
                 setTimeout(() => {
-                    navigate('/reset-password', { 
-                        state: { 
-                            email,
-                            isDevelopmentMode: response.data.isDevelopmentMode
-                        } 
-                    });
-                }, 3000);
-            }} catch (err) {
+                    setMessage('');
+                }, 5000);
+                return;
+            }
+
+            // Generate OTP on client side
+            const otp = emailJSService.generateOTP();
+            
+            // Send OTP via EmailJS
+            const emailResult = await emailJSService.sendOTPEmail(
+                email, 
+                otp, 
+                checkUserResponse.data.user?.first_name || '', 
+                'password reset'
+            );
+
+            if (!emailResult.success && !emailResult.isDevelopmentMode) {
+                setError(emailResult.message || 'Failed to send verification code. Please try again.');
+                return;
+            }
+
+            // Store OTP in backend for verification
+            const storeOTPResponse = await axios.post('http://localhost:5000/api/auth/store-otp', {
+                email,
+                otp,
+                purpose: 'password_reset'
+            });
+
+            if (!storeOTPResponse.data.success) {
+                setError('Error generating verification code. Please try again.');
+                return;
+            }
+
+            // Show success message
+            if (emailResult.isDevelopmentMode) {
+                setMessage(`Verification code generated! Check the browser console for the 6-digit code: ${emailResult.otp}`);
+            } else {
+                setMessage('Verification code has been sent to your email. Please check your inbox and spam folder.');
+            }
+
+            // Navigate to reset password page after 3 seconds
+            setTimeout(() => {
+                navigate('/reset-password', { 
+                    state: { 
+                        email,
+                        isDevelopmentMode: emailResult.isDevelopmentMode,
+                        otp: emailResult.isDevelopmentMode ? emailResult.otp : null
+                    } 
+                });
+            }, 3000);
+
+        } catch (err) {
             console.error('Password reset error:', err);
             if (err.response?.data?.message) {
                 setError(err.response.data.message);

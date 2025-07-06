@@ -40,6 +40,7 @@ import OrderPage from './pages/OrderPage'; // Import OrderPage
 import TrackingPage from './pages/TrackingPage'; // Import TrackingPage
 import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
+import FAQPage from './pages/FAQPage'; // Import FAQPage
 import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
 import SearchPage from './pages/SearchPage'; // Import SearchPage
 import CustomPage from './pages/CustomPage'; // Import CustomPage
@@ -122,6 +123,7 @@ const Layout = () => {
           
           {/* Additional Routes */}
           <Route path="/help" element={<HelpPage />} />
+          <Route path="/faq" element={<FAQPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/shipping" element={<ShippingPage />} />

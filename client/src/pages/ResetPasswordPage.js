@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import axios from 'axios';
+import emailJSService from '../services/emailService';
 import logo from '../assets/images/sfc-logo.png';
 
 const ResetContainer = styled.div`
@@ -226,25 +227,49 @@ const ResetPasswordPage = () => {
         setMessage('');
 
         try {
-            const response = await axios.post('http://localhost:5000/api/auth/resend-otp', {
-                email: formData.email
-            });
+            // Generate new OTP using EmailJS service
+            const otp = emailJSService.generateOTP();
+            
+            // Send OTP via EmailJS
+            const emailResult = await emailJSService.sendOTPEmail(
+                formData.email, 
+                otp, 
+                '', // userName - will use email prefix
+                'password reset'
+            );
 
-            if (response.data.success) {
-                setMessage('New verification code sent! Check your email or server console.');
-                setIsDevelopmentMode(response.data.isDevelopmentMode || false);
-                
-                // Start cooldown timer
-                setResendCooldown(60); // 60 seconds cooldown
-                const timer = setInterval(() => {
-                    setResendCooldown(prev => {
-                        if (prev <= 1) {
-                            clearInterval(timer);
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
+            if (emailResult.success) {
+                // Store OTP on backend for validation
+                const storeResponse = await axios.post('http://localhost:5000/api/auth/store-otp', {
+                    email: formData.email,
+                    otp: otp
+                });
+
+                if (storeResponse.data.success) {
+                    if (emailResult.isDevelopmentMode) {
+                        setMessage(`New verification code sent! Development Mode - Check console. OTP: ${emailResult.otp}`);
+                        setIsDevelopmentMode(true);
+                    } else {
+                        setMessage('New verification code sent to your email!');
+                        setIsDevelopmentMode(false);
+                    }
+                    
+                    // Start cooldown timer
+                    setResendCooldown(60); // 60 seconds cooldown
+                    const timer = setInterval(() => {
+                        setResendCooldown(prev => {
+                            if (prev <= 1) {
+                                clearInterval(timer);
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                } else {
+                    setError('Failed to store verification code. Please try again.');
+                }
+            } else {
+                setError('Failed to send verification code. Please try again.');
             }
         } catch (err) {
             console.error('Resend OTP error:', err);

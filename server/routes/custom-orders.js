@@ -44,6 +44,37 @@ function generateCustomOrderId() {
     return `CUSTOM-${timestamp}-${random}`.toUpperCase();
 }
 
+// Configure multer for payment proof uploads
+const paymentProofStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, '../../uploads/payment-proofs');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'payment-proof-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const paymentProofUpload = multer({ 
+    storage: paymentProofStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed for payment proof!'));
+        }
+    }
+});
+
 // Create a new custom order (with optional authentication)
 router.post('/', upload.array('images', 10), async (req, res) => {
     console.log('=== CUSTOM ORDER SUBMISSION RECEIVED ===');
@@ -236,6 +267,13 @@ router.get('/me', auth, async (req, res) => {
         const [orders] = await connection.execute(`
             SELECT 
                 co.*,
+                cop.full_name as payment_full_name,
+                cop.contact_number as payment_contact_number,
+                cop.gcash_reference as payment_gcash_reference,
+                cop.payment_proof_filename,
+                cop.payment_amount as payment_amount_submitted,
+                cop.created_at as payment_submitted_at,
+                cop.admin_notes as payment_admin_notes,
                 GROUP_CONCAT(
                     JSON_OBJECT(
                         'id', coi.id,
@@ -247,6 +285,7 @@ router.get('/me', auth, async (req, res) => {
                 ) as images
             FROM custom_orders co
             LEFT JOIN custom_order_images coi ON co.custom_order_id = coi.custom_order_id
+            LEFT JOIN custom_order_payments cop ON co.custom_order_id = cop.custom_order_id
             WHERE co.user_id = ?
             GROUP BY co.id
             ORDER BY co.created_at DESC
@@ -278,6 +317,93 @@ router.get('/me', auth, async (req, res) => {
             message: 'Failed to fetch custom orders',
             error: error.message
         });
+    }
+});
+
+// Get confirmed custom orders for transaction page (no auth required for admin dashboard)
+router.get('/confirmed', async (req, res) => {
+    console.log('=== Getting confirmed custom orders for transaction page ===');
+    
+    let connection;
+    try {
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Get confirmed custom orders (payment verified and ready for delivery)
+        const [orders] = await connection.execute(`
+            SELECT 
+                co.*,
+                latest_payment.payment_amount,
+                latest_payment.gcash_reference,
+                latest_payment.payment_proof_filename,
+                latest_payment.verified_at,
+                latest_payment.admin_notes as payment_admin_notes,
+                u.email as user_email,
+                u.first_name,
+                u.last_name
+            FROM custom_orders co
+            LEFT JOIN users u ON co.user_id = u.user_id
+            LEFT JOIN (
+                SELECT 
+                    custom_order_id,
+                    payment_amount,
+                    gcash_reference,
+                    payment_proof_filename,
+                    verified_at,
+                    admin_notes,
+                    ROW_NUMBER() OVER (PARTITION BY custom_order_id ORDER BY verified_at DESC) as rn
+                FROM custom_order_payments 
+                WHERE payment_status = 'verified'
+            ) latest_payment ON co.custom_order_id = latest_payment.custom_order_id AND latest_payment.rn = 1
+            WHERE co.status = 'confirmed' AND co.payment_status = 'verified'
+            ORDER BY co.updated_at DESC
+        `);
+        
+        // Fetch images for each order separately to avoid duplicates
+        const ordersWithImages = await Promise.all(orders.map(async (order) => {
+            try {
+                const [images] = await connection.execute(`
+                    SELECT 
+                        id,
+                        image_filename as filename,
+                        original_filename,
+                        image_url as url,
+                        upload_order
+                    FROM custom_order_images 
+                    WHERE custom_order_id = ?
+                    ORDER BY upload_order ASC
+                `, [order.custom_order_id]);
+                
+                return {
+                    ...order,
+                    images: images || []
+                };
+            } catch (imageError) {
+                console.warn(`⚠️ Failed to fetch images for order ${order.custom_order_id}:`, imageError.message);
+                return {
+                    ...order,
+                    images: []
+                };
+            }
+        }));
+        
+        console.log(`Found ${ordersWithImages.length} confirmed custom orders`);
+        
+        res.json({
+            success: true,
+            data: ordersWithImages,
+            count: ordersWithImages.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching confirmed custom orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch confirmed custom orders'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
     }
 });
 
@@ -341,6 +467,14 @@ router.get('/', auth, async (req, res) => {
 // Update custom order status (admin only)
 router.put('/:customOrderId/status', auth, async (req, res) => {
     try {
+        console.log('\n🚨 CUSTOM ORDER STATUS UPDATE DEBUG:');
+        console.log('='.repeat(50));
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Custom Order ID:', req.params.customOrderId);
+        console.log('Request Body:', req.body);
+        console.log('Admin User:', req.user.email);
+        console.log('='.repeat(50));
+        
         // Check if user is admin
         if (req.user.role !== 'admin') {
             return res.status(403).json({
@@ -350,7 +484,9 @@ router.put('/:customOrderId/status', auth, async (req, res) => {
         }
 
         const { customOrderId } = req.params;
-        const { status, admin_notes } = req.body;        // Validate status
+        const { status, admin_notes } = req.body;
+        
+        // Validate status
         const validStatuses = ['pending', 'approved', 'rejected', 'completed', 'cancelled'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
@@ -372,114 +508,69 @@ router.put('/:customOrderId/status', auth, async (req, res) => {
                 success: false,
                 message: 'Custom order not found'
             });
-        }        // Update the order
+        }
+
+        console.log('📝 BEFORE UPDATE - Order Status:', existingOrder[0].status);
+
+        // Update the order status
         await connection.execute(`
             UPDATE custom_orders 
             SET status = ?, admin_notes = ?, updated_at = NOW()
             WHERE custom_order_id = ?
         `, [status, admin_notes || null, customOrderId]);
 
-        // If order is approved, create a delivery order in the orders table
+        console.log('✅ AFTER UPDATE - New Status:', status);
+        console.log('⚠️  CRITICAL: NO DELIVERY ORDER SHOULD BE CREATED AT THIS POINT!');
+        
+        // ADDITIONAL SAFETY CHECK: Ensure no delivery orders are created during approval
         if (status === 'approved') {
-            console.log(`🚚 Creating delivery order for approved custom order ${customOrderId}...`);
+            console.log('🔒 SAFETY CHECK: Verifying no delivery orders were created...');
             
-            // Get the custom order details first
-            const [orderDetails] = await connection.execute(`
-                SELECT co.*, u.email, u.first_name, u.last_name
-                FROM custom_orders co
-                LEFT JOIN users u ON co.user_id = u.user_id
-                WHERE co.custom_order_id = ?
-            `, [customOrderId]);
+            // Check if any delivery orders were created for this custom order
+            const [deliveryOrderCheck] = await connection.execute(`
+                SELECT order_number, created_at 
+                FROM orders 
+                WHERE notes LIKE ?
+            `, [`%Reference: ${customOrderId}%`]);
             
-            if (orderDetails.length > 0) {
-                const order = orderDetails[0];
+            if (deliveryOrderCheck.length > 0) {
+                console.log('🚨 CRITICAL ERROR: Delivery order was created during approval!');
+                console.log('Delivery orders found:', deliveryOrderCheck);
                 
-                // Generate order number for delivery
-                const deliveryOrderNumber = `CUSTOM-${customOrderId.slice(-8)}-${Date.now().toString().slice(-4)}`;
+                // Log this as a serious issue but don't fail the request
+                console.error('🚨 SYSTEM INTEGRITY VIOLATION: Delivery order created during design approval');
+                console.error('This should NEVER happen. Delivery orders should only be created after payment verification.');
                 
-                // Create invoice first
-                const invoiceId = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-                  await connection.execute(`
-                    INSERT INTO order_invoices (
-                        invoice_id, user_id, customer_name, customer_email, customer_phone,
-                        total_amount, invoice_status, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, 'paid', NOW())
-                `, [
-                    invoiceId,
-                    order.user_id,
-                    order.customer_name,
-                    order.customer_email || order.email,
-                    order.customer_phone,
-                    order.estimated_price || 0
-                ]);
-                  // Create order entry for delivery system
-                const [orderResult] = await connection.execute(`
-                    INSERT INTO orders (
-                        order_number, user_id, invoice_id, status, total_amount,
-                        shipping_address, notes, created_at, updated_at
-                    ) VALUES (?, ?, ?, 'confirmed', ?, ?, ?, NOW(), NOW())
-                `, [
-                    deliveryOrderNumber,
-                    order.user_id,
-                    invoiceId,
-                    order.estimated_price || 0,
-                    `${order.street_number || ''} ${order.barangay || ''}, ${order.municipality || ''}, ${order.province || ''}`.trim(),
-                    `Custom Order: ${order.product_type} | Size: ${order.size} | Color: ${order.color} | Qty: ${order.quantity}${order.special_instructions ? ' | Notes: ' + order.special_instructions : ''} | Reference: ${customOrderId}`
-                ]);
-                
-                const orderId = orderResult.insertId;
-                
-                // Create order item for the custom product
-                await connection.execute(`
-                    INSERT INTO order_items (
-                        order_id, invoice_id, product_id, product_name, 
-                        product_price, quantity, color, size, subtotal
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `, [
-                    orderId,
-                    invoiceId,
-                    0, // Custom orders don't have product_id, use 0
-                    `Custom ${order.product_type} - ${order.product_name || 'Custom Design'}`,
-                    order.estimated_price || 0,
-                    order.quantity || 1,
-                    order.color,
-                    order.size,
-                    (order.estimated_price || 0) * (order.quantity || 1)
-                ]);
-                
-                console.log(`✅ Delivery order ${deliveryOrderNumber} created for custom order ${customOrderId}`);
+                // Could optionally delete the erroneous delivery order here
+                // but for now just log it for investigation
+            } else {
+                console.log('✅ SAFETY CHECK PASSED: No delivery orders created during approval');
             }
         }
-
-        // Get updated order details
-        const [updatedOrder] = await connection.execute(`
-            SELECT 
-                co.*,
-                u.first_name,
-                u.last_name,
-                u.email as user_email
-            FROM custom_orders co
-            LEFT JOIN users u ON co.user_id = u.user_id
-            WHERE co.custom_order_id = ?
-        `, [customOrderId]);        await connection.end();
-
-        const successMessage = status === 'approved' 
-            ? `Order ${status} and moved to delivery queue`
-            : `Order status updated to ${status}`;
-
+        
+        // Note: When status is 'approved', we don't create delivery order yet
+        // The customer needs to submit payment proof first, then admin verifies payment
+        // Only after payment verification should the order move to confirmed status and create delivery order
+        
         console.log(`✅ Custom order ${customOrderId} status updated to ${status} by admin ${req.user.email}`);
+
+        await connection.end();
 
         res.json({
             success: true,
-            message: successMessage,
-            data: updatedOrder[0]
+            message: `Custom order ${status} successfully`,
+            data: {
+                customOrderId,
+                status,
+                admin_notes
+            }
         });
 
     } catch (error) {
-        console.error('❌ Error updating custom order status:', error);
+        console.error('Error updating custom order status:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to update order status',
+            message: 'Failed to update custom order status',
             error: error.message
         });
     }
@@ -677,28 +768,19 @@ router.get('/approved', auth, async (req, res) => {
                 co.*,
                 u.first_name,
                 u.last_name,
-                u.email as user_email,
-                GROUP_CONCAT(
-                    JSON_OBJECT(
-                        'id', coi.id,
-                        'filename', coi.image_filename,
-                        'original_filename', coi.original_filename,
-                        'url', coi.image_url,
-                        'upload_order', coi.upload_order
-                    )
-                ) as images
+                u.email as user_email
             FROM custom_orders co
             LEFT JOIN users u ON co.user_id = u.user_id
-            LEFT JOIN custom_order_images coi ON co.custom_order_id = coi.custom_order_id
             WHERE co.status = 'approved'
-            GROUP BY co.id, u.user_id
             ORDER BY co.created_at DESC
         `);
         
-        // Parse images JSON
+        console.log(`Found ${orders.length} approved custom orders`);
+        
+        // For now, return orders without images to get the endpoint working
         const ordersWithImages = orders.map(order => ({
             ...order,
-            images: order.images ? JSON.parse(`[${order.images}]`) : []
+            images: []
         }));
         
         await connection.end();
@@ -795,6 +877,16 @@ router.get('/test', (req, res) => {
             'GET /api/custom-orders/test',
             'POST /api/custom-orders'
         ]
+    });
+});
+
+// Simple test endpoint (no auth required)
+router.get('/test-public', (req, res) => {
+    console.log('✅ Test public endpoint hit');
+    res.json({ 
+        success: true, 
+        message: 'Public endpoint working',
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -1230,6 +1322,423 @@ router.get('/test-approved', async (req, res) => {
             message: 'Failed to fetch approved custom orders',
             error: error.message
         });
+    }
+});
+
+// Submit payment for approved custom order
+router.post('/payment', auth, paymentProofUpload.single('paymentProof'), async (req, res) => {
+    console.log('=== PAYMENT SUBMISSION RECEIVED ===');
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+    console.log('User ID:', req.user.id);
+    
+    let connection;
+    try {
+        const { customOrderId, fullName, contactNumber, gcashReference } = req.body;
+        
+        // Validate required fields
+        if (!customOrderId || !fullName || !contactNumber || !gcashReference || !req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'All fields are required including payment proof'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Verify that the order exists, is approved, and belongs to the user
+        const [orderCheck] = await connection.execute(`
+            SELECT id, status, final_price, estimated_price, user_id 
+            FROM custom_orders 
+            WHERE custom_order_id = ? AND user_id = ?
+        `, [customOrderId, req.user.id]);
+        
+        if (orderCheck.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found or does not belong to you'
+            });
+        }
+        
+        const order = orderCheck[0];
+        
+        if (order.status !== 'approved') {
+            return res.status(400).json({
+                success: false,
+                message: 'Order must be approved before payment can be submitted'
+            });
+        }
+        
+        // Insert payment information
+        const paymentAmount = order.final_price || order.estimated_price;
+        
+        await connection.execute(`
+            INSERT INTO custom_order_payments 
+            (custom_order_id, user_id, full_name, contact_number, gcash_reference, 
+             payment_proof_filename, payment_amount, payment_status, created_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', NOW())
+        `, [
+            customOrderId,
+            req.user.id,
+            fullName,
+            contactNumber,
+            gcashReference,
+            req.file.filename,
+            paymentAmount
+        ]);
+        
+        // Update order status to indicate payment submitted
+        await connection.execute(`
+            UPDATE custom_orders 
+            SET payment_status = 'submitted', 
+                payment_submitted_at = NOW(),
+                updated_at = NOW()
+            WHERE custom_order_id = ?
+        `, [customOrderId]);
+        
+        console.log('✅ Payment submitted successfully for order:', customOrderId);
+        
+        res.json({
+            success: true,
+            message: 'Payment submitted successfully',
+            data: {
+                customOrderId,
+                paymentAmount,
+                paymentProofFilename: req.file.filename
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error submitting payment:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to submit payment'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Admin endpoint to get orders pending payment verification
+router.get('/admin/pending-verification', auth, async (req, res) => {
+    console.log('=== ADMIN: Getting orders pending payment verification ===');
+    
+    let connection;
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin access required'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Get custom orders with submitted payments pending verification
+        const [orders] = await connection.execute(`
+            SELECT 
+                co.custom_order_id,
+                co.customer_name,
+                co.customer_email,
+                co.product_type,
+                co.quantity,
+                co.final_price,
+                co.status as order_status,
+                co.payment_status,
+                co.payment_submitted_at,
+                cop.id as payment_id,
+                cop.full_name as payment_full_name,
+                cop.contact_number,
+                cop.gcash_reference,
+                cop.payment_proof_filename,
+                cop.payment_amount,
+                cop.payment_status as payment_verification_status,
+                cop.created_at as payment_submitted_date,
+                u.email as user_email,
+                u.first_name,
+                u.last_name
+            FROM custom_orders co
+            JOIN custom_order_payments cop ON co.custom_order_id = cop.custom_order_id
+            LEFT JOIN users u ON co.user_id = u.user_id
+            WHERE cop.payment_status = 'submitted'
+            ORDER BY cop.created_at DESC
+        `);
+        
+        console.log(`Found ${orders.length} orders pending payment verification`);
+        
+        res.json({
+            success: true,
+            data: orders,
+            count: orders.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching pending verification orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch pending verification orders'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Admin endpoint to approve custom order payment
+router.put('/admin/approve-payment/:paymentId', auth, async (req, res) => {
+    console.log('=== ADMIN: Approving custom order payment ===');
+    console.log('Payment ID:', req.params.paymentId);
+    console.log('Admin user:', req.user.email);
+    
+    let connection;
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin access required'
+            });
+        }
+        
+        const paymentId = req.params.paymentId;
+        const { notes } = req.body;
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Get payment details
+        const [payments] = await connection.execute(`
+            SELECT cop.*, co.custom_order_id, co.customer_name
+            FROM custom_order_payments cop
+            JOIN custom_orders co ON cop.custom_order_id = co.custom_order_id
+            WHERE cop.id = ?
+        `, [paymentId]);
+        
+        if (payments.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Payment not found'
+            });
+        }
+        
+        const payment = payments[0];
+        
+        // Update payment status to verified
+        await connection.execute(`
+            UPDATE custom_order_payments 
+            SET payment_status = 'verified',
+                verified_by = ?,
+                verified_at = NOW(),
+                admin_notes = ?
+            WHERE id = ?
+        `, [req.user.id, notes || '', paymentId]);
+        
+        // Check if delivery order already exists to prevent duplicates
+        const [existingDeliveryOrders] = await connection.execute(`
+            SELECT order_number FROM orders WHERE notes LIKE ?
+        `, [`%${payment.custom_order_id}%`]);
+        
+        // Update custom order status and payment verification
+        await connection.execute(`
+            UPDATE custom_orders 
+            SET payment_status = 'verified',
+                payment_verified_at = NOW(),
+                status = 'confirmed',
+                final_price = estimated_price,
+                payment_notes = ?
+            WHERE custom_order_id = ?
+        `, [notes || '', payment.custom_order_id]);
+        
+        // Create delivery order ONLY if it doesn't already exist
+        if (existingDeliveryOrders.length === 0) {
+            console.log(`🚚 Creating delivery order for payment-approved custom order ${payment.custom_order_id}...`);
+            
+            // Get the custom order details
+            const [orderDetails] = await connection.execute(`
+                SELECT co.*, u.email, u.first_name, u.last_name
+                FROM custom_orders co
+                LEFT JOIN users u ON co.user_id = u.user_id
+                WHERE co.custom_order_id = ?
+            `, [payment.custom_order_id]);
+            
+            if (orderDetails.length > 0) {
+                const order = orderDetails[0];
+                
+                // Generate order number for delivery
+                const deliveryOrderNumber = `CUSTOM-${payment.custom_order_id.slice(-8)}-${Date.now().toString().slice(-4)}`;
+                
+                // Create invoice first
+                const invoiceId = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                await connection.execute(`
+                    INSERT INTO order_invoices (
+                        invoice_id, user_id, customer_name, customer_email, customer_phone,
+                        total_amount, delivery_address, invoice_status, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'paid', NOW())
+                `, [
+                    invoiceId,
+                    order.user_id,
+                    order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
+                    order.customer_email || order.email,
+                    order.customer_phone,
+                    order.estimated_price || 0,
+                    `${order.street_number || ''}, ${order.municipality || ''}, Metro Manila`.trim()
+                ]);
+                
+                // Create order entry for delivery system
+                const [orderResult] = await connection.execute(`
+                    INSERT INTO orders (
+                        order_number, user_id, invoice_id, status, total_amount,
+                        shipping_address, notes, created_at, updated_at
+                    ) VALUES (?, ?, ?, 'confirmed', ?, ?, ?, NOW(), NOW())
+                `, [
+                    deliveryOrderNumber,
+                    order.user_id,
+                    invoiceId,
+                    order.estimated_price || 0,
+                    `${order.street_number || ''} ${order.barangay || ''}, ${order.municipality || ''}, ${order.province || ''}`.trim(),
+                    `Custom Order: ${order.product_type} | Size: ${order.size} | Color: ${order.color} | Qty: ${order.quantity}${order.special_instructions ? ' | Notes: ' + order.special_instructions : ''} | Reference: ${payment.custom_order_id}`
+                ]);
+                
+                const orderId = orderResult.insertId;
+                
+                // Create order item for the custom product
+                await connection.execute(`
+                    INSERT INTO order_items (
+                        order_id, invoice_id, product_id, product_name, 
+                        product_price, quantity, color, size, subtotal
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `, [
+                    orderId,
+                    invoiceId,
+                    0, // Custom orders don't have product_id, use 0
+                    `Custom ${order.product_type} - ${order.product_name || 'Custom Design'}`,
+                    order.estimated_price || 0,
+                    order.quantity || 1,
+                    order.color,
+                    order.size,
+                    (order.estimated_price || 0) * (order.quantity || 1)
+                ]);
+                
+                console.log(`✅ Delivery order ${deliveryOrderNumber} created for payment-approved custom order ${payment.custom_order_id}`);
+            }
+        } else {
+            console.log(`⚠️ Delivery order already exists for ${payment.custom_order_id}:`, existingDeliveryOrders.map(o => o.order_number));
+            console.log(`✅ Payment approved without creating duplicate delivery order`);
+        }
+        
+        console.log(`✅ Payment approved for order: ${payment.custom_order_id}`);
+        
+        res.json({
+            success: true,
+            message: 'Payment approved successfully',
+            data: {
+                customOrderId: payment.custom_order_id,
+                customerName: payment.customer_name,
+                paymentAmount: payment.payment_amount
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error approving payment:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to approve payment'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Admin endpoint to reject custom order payment
+router.put('/admin/reject-payment/:paymentId', auth, async (req, res) => {
+    console.log('=== ADMIN: Rejecting custom order payment ===');
+    console.log('Payment ID:', req.params.paymentId);
+    
+    let connection;
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Admin access required'
+            });
+        }
+        
+        const paymentId = req.params.paymentId;
+        const { reason } = req.body;
+        
+        if (!reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Rejection reason is required'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Get payment details
+        const [payments] = await connection.execute(`
+            SELECT cop.*, co.custom_order_id, co.customer_name
+            FROM custom_order_payments cop
+            JOIN custom_orders co ON cop.custom_order_id = co.custom_order_id
+            WHERE cop.id = ?
+        `, [paymentId]);
+        
+        if (payments.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Payment not found'
+            });
+        }
+        
+        const payment = payments[0];
+        
+        // Update payment status to rejected
+        await connection.execute(`
+            UPDATE custom_order_payments 
+            SET payment_status = 'rejected',
+                verified_by = ?,
+                verified_at = NOW(),
+                admin_notes = ?
+            WHERE id = ?
+        `, [req.user.id, reason, paymentId]);
+        
+        // Update custom order to reset payment status to pending
+        await connection.execute(`
+            UPDATE custom_orders 
+            SET payment_status = 'pending',
+                payment_submitted_at = NULL,
+                payment_notes = ?
+            WHERE custom_order_id = ?
+        `, [reason, payment.custom_order_id]);
+        
+        console.log(`❌ Payment rejected for order: ${payment.custom_order_id} - Reason: ${reason}`);
+        
+        res.json({
+            success: true,
+            message: 'Payment rejected successfully',
+            data: {
+                customOrderId: payment.custom_order_id,
+                customerName: payment.customer_name,
+                rejectionReason: reason
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error rejecting payment:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to reject payment'
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
     }
 });
 

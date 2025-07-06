@@ -553,57 +553,94 @@ const SearchPage = () => {
         setProducts([]);
       }
 
-      // Fetch transactions from database
+      // Fetch transactions from database - Updated to include all confirmed orders
       try {
-        console.log('Fetching transactions from database...');
-        const ordersResponse = await fetch('http://localhost:5000/api/orders/confirmed-test', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        console.log('Fetching all confirmed transactions from database...');
         
-        if (ordersResponse.ok) {
-          const ordersData = await ordersResponse.json();
+        // Try multiple endpoints to get comprehensive transaction data
+        let allTransactions = [];
+        
+        // 1. Try to get confirmed orders
+        try {
+          const confirmedResponse = await fetch('http://localhost:5000/api/orders/confirmed', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
           
-          let allOrders = [];
-          if (ordersData && Array.isArray(ordersData.data)) {
-            allOrders = ordersData.data;
-          } else if (ordersData && Array.isArray(ordersData.orders)) {
-            allOrders = ordersData.orders;
-          } else if (Array.isArray(ordersData)) {
-            allOrders = ordersData;
+          if (confirmedResponse.ok) {
+            const confirmedData = await confirmedResponse.json();
+            let confirmedOrders = [];
+            
+            if (confirmedData && Array.isArray(confirmedData.data)) {
+              confirmedOrders = confirmedData.data;
+            } else if (confirmedData && Array.isArray(confirmedData.orders)) {
+              confirmedOrders = confirmedData.orders;
+            } else if (Array.isArray(confirmedData)) {
+              confirmedOrders = confirmedData;
+            }
+            
+            console.log(`Found ${confirmedOrders.length} confirmed orders`);
+            allTransactions = [...allTransactions, ...confirmedOrders];
           }
+        } catch (confirmedError) {
+          console.warn('Confirmed orders endpoint failed:', confirmedError);
+        }
+        
+        // 2. Try to get all transactions
+        try {
+          const transactionsResponse = await fetch('http://localhost:5000/api/orders/transactions/all', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
           
-          const confirmedOrders = allOrders.filter(order => 
-            order && (
-              order.status === 'confirmed' || 
-              order.delivery_status === 'confirmed' ||
-              order.status === 'completed' ||
-              order.delivery_status === 'completed' ||
-              !order.status
-            )
-          );
+          if (transactionsResponse.ok) {
+            const transactionsData = await transactionsResponse.json();
+            let allOrderTransactions = [];
+            
+            if (transactionsData && Array.isArray(transactionsData.data)) {
+              allOrderTransactions = transactionsData.data;
+            } else if (transactionsData && Array.isArray(transactionsData.transactions)) {
+              allOrderTransactions = transactionsData.transactions;
+            } else if (Array.isArray(transactionsData)) {
+              allOrderTransactions = transactionsData;
+            }
+            
+            console.log(`Found ${allOrderTransactions.length} order transactions`);
+            allTransactions = [...allTransactions, ...allOrderTransactions];
+          }
+        } catch (transactionsError) {
+          console.warn('Transactions endpoint failed:', transactionsError);
+        }
+        
+        // 3. Fallback to existing confirmed-test endpoint
+        if (allTransactions.length === 0) {
+          const ordersResponse = await fetch('http://localhost:5000/api/orders/confirmed-test', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
           
-          const databaseTransactions = confirmedOrders.map(order => ({
-            id: order.id,
-            customer_name: order.customer_name || order.customerName || 
-                          `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
-            amount: order.total_amount || order.amount || 0,
-            transaction_type: 'Transaction',
-            status: order.status || order.delivery_status || 'confirmed',
-            created_at: order.created_at || order.order_date,
-            order_number: order.order_number,
-            transaction_number: order.order_number || order.transaction_id,
-            email: order.customer_email || order.user_email || order.email,
-            phone: order.contact_phone || order.phone
-          }));
-          
-          setTransactions(databaseTransactions);
-          console.log(`Loaded ${databaseTransactions.length} transactions`);
-        } else {
-          console.warn('Orders API failed, trying fallback...');
-          // Try fallback endpoint
+          if (ordersResponse.ok) {
+            const ordersData = await ordersResponse.json();
+            
+            if (ordersData && Array.isArray(ordersData.data)) {
+              allTransactions = ordersData.data;
+            } else if (ordersData && Array.isArray(ordersData.orders)) {
+              allTransactions = ordersData.orders;
+            } else if (Array.isArray(ordersData)) {
+              allTransactions = ordersData;
+            }
+            console.log(`Found ${allTransactions.length} transactions from confirmed-test`);
+          }
+        }
+        
+        // 4. Final fallback to test-list endpoint
+        if (allTransactions.length === 0) {
           const testResponse = await fetch('http://localhost:5000/api/orders/test-list', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -614,36 +651,61 @@ const SearchPage = () => {
           if (testResponse.ok) {
             const testData = await testResponse.json();
             let allOrders = testData && Array.isArray(testData.data) ? testData.data : [];
-            
-            const confirmedOrders = allOrders.filter(order => 
-              order && (
-                order.status === 'confirmed' || 
-                order.delivery_status === 'confirmed' ||
-                order.status === 'completed' ||
-                order.delivery_status === 'completed'
-              )
-            );
-            
-            const databaseTransactions = confirmedOrders.map(order => ({
-              id: order.id,
-              customer_name: order.customer_name || order.customerName || 
-                            `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
-              amount: order.total_amount || order.amount || 0,
-              transaction_type: 'Transaction',
-              status: order.status || order.delivery_status || 'confirmed',
-              created_at: order.created_at || order.order_date,
-              order_number: order.order_number,
-              transaction_number: order.order_number || order.transaction_id,
-              email: order.customer_email || order.user_email || order.email,
-              phone: order.contact_phone || order.phone
-            }));
-            
-            setTransactions(databaseTransactions);
-            console.log(`Loaded ${databaseTransactions.length} transactions from fallback`);
-          } else {
-            setTransactions([]);
+            allTransactions = allOrders;
+            console.log(`Found ${allTransactions.length} transactions from test-list`);
           }
         }
+        
+        // Remove duplicates based on order_number or id
+        const uniqueTransactions = allTransactions.reduce((unique, transaction) => {
+          const identifier = transaction.order_number || transaction.id;
+          if (!unique.some(t => (t.order_number || t.id) === identifier)) {
+            unique.push(transaction);
+          }
+          return unique;
+        }, []);
+        
+        // Filter to include all relevant orders (confirmed, completed, delivered, shipped, processing)
+        const relevantOrders = uniqueTransactions.filter(order => 
+          order && (
+            order.status === 'confirmed' || 
+            order.status === 'completed' ||
+            order.status === 'delivered' ||
+            order.status === 'shipped' ||
+            order.status === 'processing' ||
+            order.delivery_status === 'confirmed' ||
+            order.delivery_status === 'completed' ||
+            order.delivery_status === 'delivered' ||
+            order.delivery_status === 'shipped' ||
+            order.delivery_status === 'processing' ||
+            order.payment_status === 'verified' ||
+            order.payment_status === 'paid' ||
+            !order.status // Include orders without status as they might be valid
+          )
+        );
+        
+        const databaseTransactions = relevantOrders.map(order => ({
+          id: order.id,
+          customer_name: order.customer_name || order.customerName || 
+                        `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer',
+          amount: parseFloat(order.total_amount || order.amount || 0),
+          transaction_type: 'Order Transaction',
+          status: order.status || order.delivery_status || order.payment_status || 'confirmed',
+          created_at: order.created_at || order.order_date,
+          order_number: order.order_number,
+          transaction_number: order.order_number || order.transaction_id,
+          email: order.customer_email || order.user_email || order.email,
+          phone: order.contact_phone || order.phone,
+          payment_method: order.payment_method || 'gcash',
+          payment_status: order.payment_status || 'verified',
+          delivery_status: order.delivery_status,
+          shipping_address: order.shipping_address,
+          invoice_id: order.invoice_id,
+          transaction_id: order.transaction_id
+        }));
+        
+        setTransactions(databaseTransactions);
+        console.log(`✅ Successfully loaded ${databaseTransactions.length} transactions from all confirmed orders`);
       } catch (ordersError) {
         console.error('Error fetching transactions:', ordersError);
         setTransactions([]);
@@ -689,8 +751,14 @@ const SearchPage = () => {
       (transaction.order_number && transaction.order_number.toString().includes(searchQuery)) ||
       (transaction.status && transaction.status.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (transaction.id && transaction.id.toString().includes(searchQuery)) ||
-      (transaction.transaction_id && transaction.transaction_id.toString().includes(searchQuery)) ||
-      (transaction.email && transaction.email.toLowerCase().includes(searchQuery.toLowerCase()))
+      (transaction.transaction_id && transaction.transaction_id && transaction.transaction_id.toString().includes(searchQuery)) ||
+      (transaction.email && transaction.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.phone && transaction.phone.toString().includes(searchQuery)) ||
+      (transaction.payment_method && transaction.payment_method.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.payment_status && transaction.payment_status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.delivery_status && transaction.delivery_status.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.shipping_address && transaction.shipping_address.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (transaction.invoice_id && transaction.invoice_id.toString().includes(searchQuery))
     );
   }, [transactions, searchQuery]);
 
@@ -731,7 +799,7 @@ const SearchPage = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by name, category, color, size, or transactions by customer..."
+              placeholder="Search products by name, category, color, size... or orders by customer, order number, payment method, status..."
             />
           </SearchBarContainer>
           
@@ -779,23 +847,6 @@ const SearchPage = () => {
                 : `${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''} found`
               }
             </ResultsCount>
-            
-            <ViewToggle>
-              <ViewButton 
-                $active={viewMode === 'table'} 
-                onClick={() => setViewMode('table')}
-                title="Table View"
-              >
-                <FontAwesomeIcon icon={faList} />
-              </ViewButton>
-              <ViewButton 
-                $active={viewMode === 'grid'} 
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-              >
-                <FontAwesomeIcon icon={faTh} />
-              </ViewButton>
-            </ViewToggle>
           </ResultsHeader>
 
           {/* Products Table */}
@@ -877,27 +928,45 @@ const SearchPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHeaderCell>Transaction ID</TableHeaderCell>
+                      <TableHeaderCell>Order ID</TableHeaderCell>
                       <TableHeaderCell>Order Number</TableHeaderCell>
                       <TableHeaderCell>Customer</TableHeaderCell>
                       <TableHeaderCell>Amount</TableHeaderCell>
-                      <TableHeaderCell>Type</TableHeaderCell>
-                      <TableHeaderCell>Status</TableHeaderCell>
+                      <TableHeaderCell>Payment Method</TableHeaderCell>
+                      <TableHeaderCell>Payment Status</TableHeaderCell>
+                      <TableHeaderCell>Order Status</TableHeaderCell>
                       <TableHeaderCell>Date</TableHeaderCell>
                       <TableHeaderCell>Actions</TableHeaderCell>
                     </TableRow>
                   </TableHeader>
                   <tbody>
                     {filteredTransactions.map((transaction, index) => (
-                      <TableRow key={transaction.transaction_id || transaction.id || index}>
-                        <TableCell>{transaction.transaction_id || transaction.id || 'N/A'}</TableCell>
+                      <TableRow key={transaction.id || transaction.transaction_id || index}>
+                        <TableCell>{transaction.id || 'N/A'}</TableCell>
                         <TableCell>{transaction.order_number || transaction.transaction_number || 'N/A'}</TableCell>
-                        <TableCell>{transaction.customer_name || 'N/A'}</TableCell>
+                        <TableCell>
+                          <div>{transaction.customer_name || 'N/A'}</div>
+                          {transaction.email && (
+                            <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '2px' }}>
+                              {transaction.email}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>₱{parseFloat(transaction.amount || 0).toFixed(2)}</TableCell>
-                        <TableCell>{transaction.transaction_type || 'Order'}</TableCell>
+                        <TableCell>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FontAwesomeIcon icon={faCreditCard} style={{ color: '#666' }} />
+                            {transaction.payment_method || 'GCash'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={transaction.payment_status}>
+                            {transaction.payment_status || 'verified'}
+                          </StatusBadge>
+                        </TableCell>
                         <TableCell>
                           <StatusBadge status={transaction.status}>
-                            {transaction.status || 'pending'}
+                            {transaction.status || 'confirmed'}
                           </StatusBadge>
                         </TableCell>
                         <TableCell>{formatDate(transaction.created_at)}</TableCell>

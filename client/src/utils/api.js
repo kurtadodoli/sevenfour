@@ -42,6 +42,18 @@ api.interceptors.response.use(
     (error) => {
         console.error('🚫 API Error:', error);
         
+        // Handle token expiration
+        if (error.response?.status === 401 || error.message === 'Token has expired') {
+            console.warn('🔑 Token expired - clearing localStorage and redirecting to login');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            
+            // Redirect to login page
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
+        }
+        
         // Enhance error object with more useful information
         const enhancedError = {
             message: 'Unknown API error',

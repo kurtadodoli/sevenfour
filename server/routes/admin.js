@@ -62,27 +62,39 @@ router.put('/transactions/:id/approve', async (req, res) => {
         
         console.log(`🚀 Processing approval for transaction ID: ${id}`);
         
-        // Update order status to approved
+        // Update order status to confirmed (this is what confirmed orders query looks for)
         await connection.execute(
             'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-            ['approved', id]
+            ['confirmed', id]
         );
         
-        // Also update sales transaction status if exists
+        // Also update sales transaction status to confirmed and payment_status
         await connection.execute(`
             UPDATE sales_transactions st
             JOIN orders o ON st.transaction_id = o.transaction_id
-            SET st.transaction_status = 'approved'
+            SET st.transaction_status = 'confirmed'
             WHERE o.id = ?
         `, [id]);
         
+        // Update payment status and confirmed_by in orders table (required for delivery-enhanced endpoint)
+        // Get default admin user ID since this is a no-auth endpoint
+        const [adminUsers] = await connection.execute(`
+            SELECT user_id FROM users WHERE email = 'krutadodoli@gmail.com' LIMIT 1
+        `);
+        const adminUserId = adminUsers.length > 0 ? adminUsers[0].user_id : 1;
+        
+        await connection.execute(
+            'UPDATE orders SET payment_status = ?, confirmed_by = ?, confirmed_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['verified', adminUserId, id]
+        );
+        
         await connection.end();
         
-        console.log(`✅ Transaction ${id} approved successfully`);
+        console.log(`✅ Transaction ${id} confirmed successfully (status: confirmed, payment: verified)`);
         
         res.json({
             success: true,
-            message: 'Transaction approved successfully'
+            message: 'Transaction approved and order confirmed successfully'
         });
     } catch (error) {
         console.error('❌ Error approving transaction:', error);
@@ -490,25 +502,31 @@ router.put('/transactions/:id/approve', requireAdmin, async (req, res) => {
         const { id } = req.params;
         const connection = await mysql.createConnection(dbConfig);
         
-        // Update order status to approved
+        // Update order status to confirmed (this is what confirmed orders query looks for)
         await connection.execute(
             'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-            ['approved', id]
+            ['confirmed', id]
         );
         
-        // Also update sales transaction status if exists
+        // Also update sales transaction status to confirmed and payment_status
         await connection.execute(`
             UPDATE sales_transactions st
             JOIN orders o ON st.transaction_id = o.transaction_id
-            SET st.transaction_status = 'approved'
+            SET st.transaction_status = 'confirmed'
             WHERE o.id = ?
         `, [id]);
+        
+        // Update payment status and confirmed_by in orders table (required for delivery-enhanced endpoint)
+        await connection.execute(
+            'UPDATE orders SET payment_status = ?, confirmed_by = ?, confirmed_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['verified', req.user.id, id]
+        );
         
         await connection.end();
         
         res.json({
             success: true,
-            message: 'Transaction approved successfully'
+            message: 'Transaction approved and order confirmed successfully'
         });
     } catch (error) {
         console.error('Error approving transaction:', error);
@@ -561,25 +579,37 @@ router.put('/no-auth/transactions/:id/approve', async (req, res) => {
         const { id } = req.params;
         const connection = await mysql.createConnection(dbConfig);
         
-        // Update order status to approved
+        // Update order status to confirmed (this is what confirmed orders query looks for)
         await connection.execute(
             'UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?',
-            ['approved', id]
+            ['confirmed', id]
         );
         
-        // Also update sales transaction status if exists
+        // Also update sales transaction status to confirmed and payment_status
         await connection.execute(`
             UPDATE sales_transactions st
             JOIN orders o ON st.transaction_id = o.transaction_id
-            SET st.transaction_status = 'approved'
+            SET st.transaction_status = 'confirmed'
             WHERE o.id = ?
         `, [id]);
+        
+        // Update payment status and confirmed_by in orders table (required for delivery-enhanced endpoint)
+        // Get default admin user ID since this is a no-auth endpoint
+        const [adminUsers] = await connection.execute(`
+            SELECT user_id FROM users WHERE email = 'krutadodoli@gmail.com' LIMIT 1
+        `);
+        const adminUserId = adminUsers.length > 0 ? adminUsers[0].user_id : 1;
+        
+        await connection.execute(
+            'UPDATE orders SET payment_status = ?, confirmed_by = ?, confirmed_at = CURRENT_TIMESTAMP WHERE id = ?',
+            ['verified', adminUserId, id]
+        );
         
         await connection.end();
         
         res.json({
             success: true,
-            message: 'Transaction approved successfully'
+            message: 'Transaction approved and order confirmed successfully'
         });
     } catch (error) {
         console.error('Error approving transaction:', error);

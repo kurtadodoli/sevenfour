@@ -15,9 +15,6 @@ export const StockProvider = ({ children }) => {
   const [stockData, setStockData] = useState({});
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
-  
-  // Generate a unique session ID to prevent self-triggered events
-  const sessionId = useState(() => `session_${Date.now()}_${Math.random()}`)[0];
 
   // Fetch current stock levels for all products
   const fetchStockData = useCallback(async () => {
@@ -45,12 +42,6 @@ export const StockProvider = ({ children }) => {
         setStockData(stockMap);
         setLastUpdate(new Date());
         
-        // Notify other tabs about stock update (with session ID to prevent self-triggering)
-        localStorage.setItem('stock_updated', JSON.stringify({
-          timestamp: Date.now(),
-          sessionId: sessionId
-        }));
-        
         console.log('📦 Stock data updated:', Object.keys(stockMap).length, 'products');
       }
     } catch (error) {
@@ -58,7 +49,7 @@ export const StockProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, []);
 
   // Update stock for a specific product (used after order confirmation/cancellation)
   const updateProductStock = useCallback(async (productId) => {
@@ -81,20 +72,12 @@ export const StockProvider = ({ children }) => {
           }
         }));
         
-        // Notify other tabs
-        // Notify other tabs about the update
-        localStorage.setItem('stock_updated', JSON.stringify({
-          timestamp: Date.now(),
-          sessionId: sessionId
-        }));
-        localStorage.setItem('product_stock_updated', productId.toString());
-        
         console.log('📦 Updated stock for product:', productId);
       }
     } catch (error) {
       console.error('Error updating product stock:', error);
     }
-  }, [sessionId]);
+  }, []);
 
   // Bulk update stock (used after orders with multiple items)
   const updateMultipleProductsStock = useCallback(async (productIds) => {
@@ -120,18 +103,11 @@ export const StockProvider = ({ children }) => {
       
       setStockData(prev => ({ ...prev, ...updates }));
       
-      // Notify other tabs
-      localStorage.setItem('stock_updated', JSON.stringify({
-        timestamp: Date.now(),
-        sessionId: sessionId
-      }));
-      localStorage.setItem('multiple_products_updated', productIds.join(','));
-      
       console.log('📦 Updated stock for multiple products:', productIds);
     } catch (error) {
       console.error('Error updating multiple products stock:', error);
     }
-  }, [sessionId]);
+  }, []);
 
   // Get stock for a specific product
   const getProductStock = useCallback((productId) => {
@@ -179,37 +155,20 @@ export const StockProvider = ({ children }) => {
     };
   }, [stockData, getTotalStock]);
 
-  // Listen for stock updates from other tabs/windows
+  // Listen for stock updates from other tabs/windows (simplified to prevent loops)
   useEffect(() => {
     const handleStorageChange = (e) => {
-      // Only listen for storage events from OTHER windows/tabs, not from this current window
-      if (e.storageArea === localStorage && e.key === 'stock_updated' && e.newValue !== e.oldValue) {
-        try {
-          const updateData = JSON.parse(e.newValue);
-          // Only refresh if the update came from a different session (different tab/window)
-          if (updateData.sessionId !== sessionId) {
-            console.log('📦 Stock updated in another tab, refreshing...');
-            fetchStockData();
-          }
-        } catch (error) {
-          // Fallback for old format - assume it's from another tab
-          console.log('📦 Stock updated in another tab, refreshing...');
-          fetchStockData();
-        }
-      } else if (e.key === 'product_stock_updated') {
-        const productId = parseInt(e.newValue);
-        if (productId) {
-          updateProductStock(productId);
-        }
-      } else if (e.key === 'multiple_products_updated') {
-        const productIds = e.newValue.split(',').map(id => parseInt(id));
-        updateMultipleProductsStock(productIds);
-      }
+      // Only process localStorage events for stock-related keys
+      if (e.storageArea !== localStorage) return;
+      
+      // For now, we'll disable cross-tab communication to prevent infinite loops
+      // This can be re-enabled later with better debouncing logic if needed
+      console.log('📦 Storage event detected, but cross-tab sync is disabled to prevent loops');
     };
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [sessionId, fetchStockData, updateProductStock, updateMultipleProductsStock]);
+  }, []);
 
   // Initial fetch
   useEffect(() => {
@@ -217,11 +176,12 @@ export const StockProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount
 
-  // Auto-refresh every 5 minutes (reduced frequency to prevent spam)
+  // Auto-refresh every 10 minutes (reduced frequency to prevent spam)
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log('📦 Auto-refreshing stock data (10-minute interval)');
       fetchStockData();
-    }, 300000); // 5 minutes instead of 30 seconds
+    }, 600000); // 10 minutes instead of 5 minutes
 
     return () => clearInterval(interval);
   }, [fetchStockData]);

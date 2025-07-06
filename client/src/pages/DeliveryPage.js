@@ -461,49 +461,83 @@ const OrdersList = styled.div`
 const OrderItem = styled.div.withConfig({
   shouldForwardProp: (prop) => prop !== 'isSelected' && prop !== 'orderType',
 })`
-  padding: 1rem;
-  border-bottom: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: #ffffff;
+  border: 2px solid #e9ecef;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
   
   &:hover {
-    background: #f8f8f8;
+    border-color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   }
   
   &:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
   }
   
   ${props => props.isSelected && `
-    background: #f0f8ff;
-    border-left: 4px solid #000000;
+    border-color: #007bff;
+    background: linear-gradient(135deg, #f8fbff, #ffffff);
+    box-shadow: 0 8px 24px rgba(0, 123, 255, 0.15);
+  `}
+  
+  ${props => props.orderType === 'custom_order' && `
+    border-left: 6px solid #e91e63;
+    &:hover {
+      border-left-color: #e91e63;
+    }
+  `}
+  
+  ${props => props.orderType === 'custom_design' && `
+    border-left: 6px solid #9c27b0;
+    &:hover {
+      border-left-color: #9c27b0;
+    }
+  `}
+  
+  ${props => props.orderType === 'regular' && `
+    border-left: 6px solid #4caf50;
+    &:hover {
+      border-left-color: #4caf50;
+    }
   `}
 `;
 
 const OrderInfo = styled.div`
   flex: 1;
+  padding: 1.5rem;
 `;
 
 const OrderNumber = styled.div`
-  font-weight: 500;
+  font-weight: 600;
   color: #000000;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.5rem;
+  font-size: 1.1rem;
 `;
 
 const OrderTypeIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: ${props => {
+    if (props.className === 'custom_order') return 'linear-gradient(135deg, #e91e63, #f06292)';
+    if (props.className === 'custom_design') return 'linear-gradient(135deg, #9c27b0, #ba68c8)';
+    return 'linear-gradient(135deg, #4caf50, #81c784)';
+  }};
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
 
@@ -592,9 +626,7 @@ const EmptyMessage = styled.div`
 const OrderActions = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  align-items: flex-end;
-  min-width: 200px;
+  align-items: stretch;
 `;
 
 
@@ -2194,247 +2226,936 @@ const DeliveryPage = () => {
 
                   
                     return (
-                    <OrderItem key={`delivery-page-order-${order.id}-idx-${orderIndex}`} orderType={order.order_type}>
-                      <OrderInfo>
-                        <OrderNumber>
-                          Order #{order.order_number || order.id}
-                          <OrderTypeIcon className={order.order_type}>
+                    <OrderItem key={`delivery-page-order-${order.id}-idx-${orderIndex}`} orderType={order.order_type} style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      background: '#ffffff',
+                      border: `1px solid ${
+                        order.delivery_status === 'delivered' ? '#d4edda' :
+                        order.delivery_status === 'in_transit' ? '#bee5eb' :
+                        order.delivery_status === 'scheduled' ? '#e3f2fd' :
+                        order.delivery_status === 'delayed' ? '#fff3cd' :
+                        order.delivery_status === 'cancelled' ? '#f5c6cb' :
+                        '#f0f0f0'
+                      }`,
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                      transition: 'all 0.2s ease',
+                      marginBottom: '1.5rem'
+                    }}>
+                      {/* Clean Order Header */}
+                      <div style={{
+                        background: '#fafafa',
+                        padding: '1.5rem 2rem',
+                        borderBottom: '1px solid #f0f0f0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <OrderTypeIcon className={order.order_type} style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.5rem',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                          }}>
                             {order.order_type === 'custom_order' ? '🎨' : 
                              order.order_type === 'custom_design' ? '✏️' : '🛍️'}
                           </OrderTypeIcon>
-                        </OrderNumber>
-
-                        <div><strong>Customer:</strong> {order.customerName}</div>
-                        <div><strong>Amount:</strong> ₱{parseFloat(order.total_amount).toFixed(2)}</div>
-                        <div><strong>Order Date:</strong> {new Date(order.created_at).toLocaleDateString()}</div>
-                        <div><strong>Address:</strong> {order.shipping_address}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <strong>Status:</strong> 
-                          <StatusBadge status={order.delivery_status || 'pending'}>
-                            {(() => {
-                              const status = order.delivery_status || 'pending';
-                              // Map all statuses to the three allowed display names
-                              if (status === 'delivered') return 'DELIVERED';
-                              if (status === 'shipped' || status === 'in_transit') return 'IN TRANSIT';
-                              // All other statuses map to confirmed
-                              return 'CONFIRMED';
-                            })()}
-                          </StatusBadge>
-                        </div>
-                      </OrderInfo>
-                      <OrderActions>
-                        {!isScheduled ? (
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Schedule Delivery Button - Same for both regular and custom orders */}
-                            <ActionButton 
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setShowScheduleModal(true);
-                                showPopup(
-                                  'Schedule Delivery',
-                                  `Opening schedule modal for order ${order.order_number}. Set delivery date and details.`,
-                                  'info'
-                                );
-                              }}
-                              style={{ 
-                                background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                color: 'white', 
-                                fontSize: '0.75rem', 
-                                padding: '0.4rem 0.8rem',
-                                minWidth: '100px',
-                                fontWeight: '600'
-                              }}
-                            >
-                              📅 Schedule Delivery
-                            </ActionButton>
-                            
-
+                          <div>
+                            <div style={{ 
+                              fontSize: '1.2rem', 
+                              fontWeight: '700',
+                              color: '#000000',
+                              marginBottom: '0.25rem'
+                            }}>
+                              Order #{order.order_number || order.id}
+                            </div>
+                            <div style={{ 
+                              fontSize: '0.9rem', 
+                              color: '#666666',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
+                              <span>👤 {order.customerName}</span>
+                              <span style={{ color: '#dee2e6' }}>•</span>
+                              <span style={{ color: '#28a745', fontWeight: '600' }}>₱{parseFloat(order.total_amount).toFixed(2)}</span>
+                            </div>
                           </div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {/* Unified Action Buttons - Same for both regular and custom orders */}
+                        </div>
+                        <StatusBadge status={order.delivery_status || 'pending'} style={{
+                          fontSize: '0.8rem',
+                          padding: '0.5rem 1rem',
+                          borderRadius: '20px',
+                          fontWeight: '600',
+                          boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        }}>
+                          {(() => {
+                            const status = order.delivery_status || 'pending';
+                            if (status === 'delivered') return '✅ DELIVERED';
+                            if (status === 'shipped' || status === 'in_transit') return '🚚 IN TRANSIT';
+                            if (status === 'scheduled') return '📅 SCHEDULED';
+                            if (status === 'delayed') return '⚠️ DELAYED';
+                            if (status === 'cancelled') return '❌ CANCELLED';
+                            return '📋 CONFIRMED';
+                          })()}
+                        </StatusBadge>
+                      </div>
+
+                      {/* Clean Content Area */}
+                      <div style={{ display: 'flex', minHeight: '400px' }}>
+                        {/* Left Column - Order Information */}
+                        <div style={{ 
+                          flex: '1', 
+                          padding: '2rem'
+                        }}>
+                          {/* Date Information Cards */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: order.scheduled_delivery_date ? '1fr 1fr' : '1fr',
+                            gap: '1rem',
+                            marginBottom: '1.5rem'
+                          }}>
+                            {/* Order Date Card */}
+                            <div style={{
+                              background: 'linear-gradient(135deg, #f1f8ff, #e3f2fd)',
+                              border: '1px solid #bbdefb',
+                              borderRadius: '8px',
+                              padding: '0.75rem'
+                            }}>
+                              <div style={{ 
+                                fontSize: '0.75rem', 
+                                fontWeight: '600', 
+                                color: '#1976d2', 
+                                marginBottom: '0.25rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                📅 Order Date
+                              </div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#0d47a1' }}>
+                                {(() => {
+                                  const orderDate = order.order_date || order.created_at;
+                                  if (!orderDate) return 'Date not available';
+                                  try {
+                                    const date = new Date(orderDate);
+                                    return isNaN(date.getTime()) ? 'Invalid date' : date.toLocaleDateString();
+                                  } catch (e) {
+                                    return 'Invalid date';
+                                  }
+                                })()}
+                              </div>
+                            </div>
                             
-                            {/* Delivered Button - Available for scheduled and in_transit orders */}
-                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                              <ActionButton 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleUpdateDeliveryStatus(order, 'delivered', e);
-                                }}
-                                variant="success"
-                                title="Mark as Delivered - Order completed and paid"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #28a745, #20c997)',
-                                  color: 'white', 
+                            {/* Scheduled Delivery Card */}
+                            {order.scheduled_delivery_date && (
+                              <div style={{
+                                background: 'linear-gradient(135deg, #e8f5e8, #c8e6c9)',
+                                border: '1px solid #81c784',
+                                borderRadius: '8px',
+                                padding: '0.75rem'
+                              }}>
+                                <div style={{ 
                                   fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                ✅ Delivered
-                              </ActionButton>
+                                  fontWeight: '600', 
+                                  color: '#2e7d32', 
+                                  marginBottom: '0.25rem',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  🚚 Scheduled Delivery
+                                </div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#1b5e20' }}>
+                                  {new Date(order.scheduled_delivery_date).toLocaleDateString()}
+                                  {order.delivery_time_slot && (
+                                    <div style={{ fontSize: '0.8rem', fontWeight: '400', marginTop: '0.125rem' }}>
+                                      at {order.delivery_time_slot}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )}
-                            
-                            {/* In Transit Button - Available for scheduled orders */}
-                            {order.delivery_status === 'scheduled' && (
-                              <ActionButton 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleUpdateDeliveryStatus(order, 'in_transit', e);
-                                }}
-                                variant="info"
-                                title="Mark as In Transit - Package is on the way"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #17a2b8, #3498db)',
-                                  color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                🚚 In Transit
-                              </ActionButton>
-                            )}
-                            
-                            {/* Delay Button - Available for scheduled and in_transit orders */}
-                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                              <ActionButton 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleUpdateDeliveryStatus(order, 'delayed', e);
-                                }}
-                                variant="warning"
-                                title="Mark as Delayed - Removes schedule and requires rescheduling"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                                  color: '#212529', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                ⚠️ Delay
-                              </ActionButton>
-                            )}
-                            
-                            {/* Cancel Button - Available for scheduled and in_transit orders */}
-                            {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
-                              <ActionButton 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleUpdateDeliveryStatus(order, 'cancelled', e);
-                                }}
-                                variant="danger"
-                                title="Cancel Order - Marks order as cancelled and removes from delivery schedule"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                                  color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                ❌ Cancel
-                              </ActionButton>
-                            )}
-                            
-                            {/* Reschedule Button - Only for delayed orders */}
-                            {order.delivery_status === 'delayed' && (
+                          </div>
+
+                          {/* Delivery Address Card */}
+                          <div style={{
+                            background: 'linear-gradient(135deg, #fff8e1, #fff3c4)',
+                            border: '1px solid #ffcc02',
+                            borderRadius: '8px',
+                            padding: '0.75rem',
+                            marginBottom: '1.5rem'
+                          }}>
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              fontWeight: '600', 
+                              color: '#e65100', 
+                              marginBottom: '0.25rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}>
+                              📍 Delivery Address
+                            </div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: '400', color: '#e65100', lineHeight: '1.4' }}>
+                              {order.shipping_address}
+                            </div>
+                          </div>
+
+                          {/* ENHANCED COURIER INFORMATION - ALWAYS VISIBLE FOR SCHEDULED ORDERS */}
+                          {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit' || order.delivery_status === 'delivered') && (
+                            <div style={{ 
+                              background: order.courier_name ? 
+                                'linear-gradient(135deg, #e3f2fd, #bbdefb)' : 
+                                'linear-gradient(135deg, #fff3e0, #ffe0b2)',
+                              border: `2px solid ${order.courier_name ? '#2196f3' : '#ff9800'}`,
+                              borderRadius: '12px',
+                              padding: '1rem',
+                              marginBottom: '1.5rem',
+                              position: 'relative',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                            }}>
+                              {/* Courier Header */}
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.75rem',
+                                marginBottom: '0.75rem'
+                              }}>
+                                <div style={{
+                                  width: '44px',
+                                  height: '44px',
+                                  borderRadius: '50%',
+                                  background: order.courier_name ? 
+                                    'linear-gradient(135deg, #2196f3, #1976d2)' : 
+                                    'linear-gradient(135deg, #ff9800, #f57c00)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.2rem',
+                                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                                }}>
+                                  🚚
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ 
+                                    fontSize: '1rem', 
+                                    fontWeight: '700',
+                                    color: order.courier_name ? '#1565c0' : '#e65100',
+                                    marginBottom: '0.125rem'
+                                  }}>
+                                    {order.courier_name ? '✅ Courier Assigned' : '⚠️ No Courier Assigned'}
+                                  </div>
+                                  <div style={{ 
+                                    fontSize: '0.8rem', 
+                                    color: order.courier_name ? '#1976d2' : '#f57c00',
+                                    fontWeight: '500'
+                                  }}>
+                                    {order.courier_name ? 'Ready for delivery' : 'Awaiting courier assignment'}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Courier Details */}
+                              {order.courier_name ? (
+                                <div style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr 1fr',
+                                  gap: '0.75rem',
+                                  background: 'rgba(255, 255, 255, 0.7)',
+                                  padding: '0.75rem',
+                                  borderRadius: '8px'
+                                }}>
+                                  <div>
+                                    <div style={{ 
+                                      fontSize: '0.7rem', 
+                                      color: '#1565c0', 
+                                      marginBottom: '0.25rem',
+                                      fontWeight: '600',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.5px'
+                                    }}>
+                                      👤 Courier Name
+                                    </div>
+                                    <div style={{ 
+                                      fontSize: '0.9rem', 
+                                      fontWeight: '600', 
+                                      color: '#0d47a1' 
+                                    }}>
+                                      {order.courier_name}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div style={{ 
+                                      fontSize: '0.7rem', 
+                                      color: '#1565c0', 
+                                      marginBottom: '0.25rem',
+                                      fontWeight: '600',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.5px'
+                                    }}>
+                                      📱 Phone Number
+                                    </div>
+                                    <div style={{ 
+                                      fontSize: '0.9rem', 
+                                      fontWeight: '600', 
+                                      color: '#0d47a1' 
+                                    }}>
+                                      {order.courier_phone || 'Not provided'}
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{
+                                  background: 'rgba(255, 152, 0, 0.15)',
+                                  padding: '0.75rem',
+                                  borderRadius: '8px',
+                                  border: '1px dashed #ff9800',
+                                  textAlign: 'center'
+                                }}>
+                                  <div style={{ 
+                                    fontSize: '0.85rem', 
+                                    color: '#e65100', 
+                                    fontWeight: '600',
+                                    marginBottom: '0.25rem'
+                                  }}>
+                                    ⚠️ Action Required
+                                  </div>
+                                  <div style={{ fontSize: '0.8rem', color: '#ef6c00' }}>
+                                    Use the scheduling modal to assign a courier for this delivery
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Enhanced Products Section */}
+
+                        {/* Clean Date Information Grid */}
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: order.scheduled_delivery_date ? '1fr 1fr' : '1fr',
+                          gap: '1.5rem',
+                          marginBottom: '1.5rem'
+                        }}>
+                          <div style={{
+                            padding: '1rem',
+                            background: '#ffffff',
+                            borderRadius: '8px',
+                            border: '1px solid #f0f0f0'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Order Date</div>
+                            <div style={{ fontSize: '1rem', fontWeight: '500', color: '#333' }}>{(() => {
+                              const orderDate = order.created_at || order.order_date || order.timestamp;
+                              if (!orderDate) return 'Date not available';
+                              try {
+                                const date = new Date(orderDate);
+                                return isNaN(date.getTime()) ? 'Invalid date' : date.toLocaleDateString();
+                              } catch (e) {
+                                return 'Invalid date';
+                              }
+                            })()}</div>
+                          </div>
+                          
+                          {order.scheduled_delivery_date && (
+                            <div style={{
+                              padding: '1rem',
+                              background: '#f8fafe',
+                              borderRadius: '8px',
+                              border: '1px solid #e8f2ff'
+                            }}>
+                              <div style={{ fontSize: '0.75rem', color: '#1976d2', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>📅 Scheduled Delivery</div>
+                              <div style={{ fontSize: '1rem', fontWeight: '500', color: '#1976d2' }}>
+                                {new Date(order.scheduled_delivery_date).toLocaleDateString()}
+                                {order.delivery_time_slot && (
+                                  <div style={{ fontSize: '0.875rem', fontWeight: '400', marginTop: '0.25rem' }}>
+                                    at {order.delivery_time_slot}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Clean Address Section */}
+                        <div style={{ 
+                          marginBottom: '1.5rem',
+                          padding: '1rem',
+                          background: '#ffffff',
+                          borderRadius: '8px',
+                          border: '1px solid #f0f0f0'
+                        }}>
+                          <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Delivery Address</div>
+                          <div style={{ fontSize: '1rem', fontWeight: '400', color: '#333', lineHeight: '1.5' }}>{order.shipping_address}</div>
+                        </div>                          {/* Clean Courier Information Section */}
+                          {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit' || order.delivery_status === 'delivered') && (
+                            <div style={{ 
+                              background: '#ffffff',
+                              padding: '1.5rem', 
+                              borderRadius: '12px', 
+                              border: order.courier_name ? '1px solid #e3f2fd' : '1px solid #fff3e0',
+                              marginBottom: '1.5rem',
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '1rem',
+                                marginBottom: order.courier_name ? '1.25rem' : '0'
+                              }}>
+                                <div style={{
+                                  width: '48px',
+                                  height: '48px',
+                                  borderRadius: '12px',
+                                  background: order.courier_name ? '#f0f7ff' : '#fff8e1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1.5rem',
+                                  border: `2px solid ${order.courier_name ? '#e3f2fd' : '#fff3e0'}`
+                                }}>
+                                  🚚
+                                </div>
+                                <div>
+                                  <div style={{ 
+                                    fontSize: '1rem', 
+                                    fontWeight: '600',
+                                    color: order.courier_name ? '#1976d2' : '#f57c00',
+                                    marginBottom: '0.25rem'
+                                  }}>
+                                    {order.courier_name ? 'Courier Assigned' : 'Awaiting Assignment'}
+                                  </div>
+                                  {!order.courier_name && (
+                                    <div style={{ fontSize: '0.875rem', color: '#666', lineHeight: '1.4' }}>
+                                      Use the scheduling button to assign a courier
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {order.courier_name && (
+                                <div style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: '1fr 1fr',
+                                  gap: '1rem',
+                                  padding: '1rem',
+                                  background: '#f8fafe',
+                                  borderRadius: '8px',
+                                  border: '1px solid #e8f2ff'
+                                }}>
+                                  <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Name</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: '500', color: '#333' }}>
+                                      {order.courier_name}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: '500', color: '#333' }}>
+                                      {order.courier_phone || 'Not provided'}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Clean Products Section */}
+                          {order.items && order.items.length > 0 && (
+                            <div style={{
+                              background: '#ffffff',
+                              border: '1px solid #f0f0f0',
+                              borderRadius: '12px',
+                              padding: '1.5rem'
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.75rem',
+                                marginBottom: '1.25rem',
+                                paddingBottom: '1rem',
+                                borderBottom: '1px solid #f0f0f0'
+                              }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  background: '#f8fafe',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '1rem'
+                                }}>
+                                  📦
+                                </div>
+                                <div style={{ 
+                                  fontSize: '1rem', 
+                                  fontWeight: '600', 
+                                  color: '#333'
+                                }}>
+                                  Products ({order.items.length})
+                                </div>
+                              </div>
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                gap: '1rem'
+                              }}>
+                                {order.items.slice(0, 4).map((item, index) => (
+                                  <div 
+                                    key={`product-${order.id}-${item.product_id || item.id}-${index}`}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.75rem',
+                                      padding: '1rem',
+                                      background: '#fafafa',
+                                      border: '1px solid #f0f0f0',
+                                      borderRadius: '8px',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    {item.productimage ? (
+                                      <img
+                                        src={`http://localhost:5000/uploads/${item.productimage}`}
+                                        alt={item.productname || item.product_name || 'Product'}
+                                        style={{
+                                          width: '48px',
+                                          height: '48px',
+                                          objectFit: 'cover',
+                                          borderRadius: '6px',
+                                          border: '1px solid #e0e0e0',
+                                          background: '#ffffff',
+                                          flexShrink: '0'
+                                        }}
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div
+                                      style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        background: '#ffffff',
+                                        border: '1px solid #e0e0e0',
+                                        borderRadius: '6px',
+                                        display: item.productimage ? 'none' : 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '1rem',
+                                        color: '#999',
+                                        flexShrink: '0'
+                                      }}
+                                    >
+                                      📦
+                                    </div>
+                                    <div style={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '0.25rem',
+                                      minWidth: '0',
+                                      flex: '1'
+                                    }}>
+                                      <div style={{
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        color: '#333',
+                                        lineHeight: '1.3',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical'
+                                      }}>
+                                        {item.productname || item.product_name || 'Unknown Product'}
+                                      </div>
+                                      <div style={{
+                                        fontSize: '0.75rem',
+                                        color: '#666',
+                                        lineHeight: '1.3'
+                                      }}>
+                                        {item.productcolor && `${item.productcolor} • `}
+                                        Qty: {item.quantity || 1}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {order.items.length > 4 && (
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '1rem',
+                                    background: '#fafafa',
+                                    border: '1px dashed #d0d0d0',
+                                    borderRadius: '8px',
+                                    fontSize: '0.875rem',
+                                    color: '#666',
+                                    fontWeight: '500',
+                                    minHeight: '80px'
+                                  }}>
+                                    +{order.items.length - 4} more items
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Clean Action Panel */}
+                        <div style={{ 
+                          width: '280px',
+                          background: '#ffffff',
+                          borderLeft: '1px solid #f0f0f0',
+                          padding: '2rem',
+                          display: 'flex',
+                          flexDirection: 'column'
+                        }}>
+                          {!isScheduled ? (
+                            /* Unscheduled Order Actions */
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: '1.5rem',
+                              height: '100%'
+                            }}>
+                              {/* Status Indicator */}
+                              <div style={{
+                                textAlign: 'center',
+                                padding: '1.5rem',
+                                background: '#fffbf0',
+                                borderRadius: '12px',
+                                border: '1px solid #ffeaa7'
+                              }}>
+                                <div style={{
+                                  fontSize: '2rem',
+                                  marginBottom: '0.75rem'
+                                }}>
+                                  📋
+                                </div>
+                                <div style={{
+                                  fontSize: '1.1rem',
+                                  fontWeight: '600',
+                                  color: '#856404',
+                                  marginBottom: '0.5rem'
+                                }}>
+                                  Ready for Scheduling
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: '#856404', lineHeight: '1.4' }}>
+                                  Set delivery date and assign courier
+                                </div>
+                              </div>
+                              
+                              {/* Schedule Button */}
                               <ActionButton 
                                 onClick={() => {
                                   setSelectedOrder(order);
                                   setShowScheduleModal(true);
                                   showPopup(
-                                    'Reschedule Delayed Order',
-                                    `Opening schedule modal for order ${order.order_number}. Set a new delivery date.`,
+                                    'Schedule Delivery',
+                                    `Opening schedule modal for order ${order.order_number}. Set delivery date and assign courier.`,
                                     'info'
                                   );
                                 }}
                                 style={{ 
-                                  background: 'linear-gradient(135deg, #ffc107, #f39c12)',
-                                  color: '#212529', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                📅 Reschedule
-                              </ActionButton>
-                            )}
-                            
-                            {/* Restore Button - Only for cancelled orders */}
-                            {order.delivery_status === 'cancelled' && (
-                              <ActionButton 
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleUpdateDeliveryStatus(order, 'pending', e);
-                                }}
-                                variant="success"
-                                title="Restore Order - Changes status back to pending and makes it available for scheduling"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #28a745, #20c997)',
+                                  background: '#28a745',
                                   color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                🔄 Restore
-                              </ActionButton>
-                            )}
-                            
-                            {/* Delete Button - Available for cancelled orders */}
-                            {order.delivery_status === 'cancelled' && (
-                              <ActionButton 
-                                onClick={() => handleRemoveOrder(order)}
-                                variant="danger"
-                                title="Permanently delete this order from the system"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #6c757d, #5a6268)',
-                                  color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
-                                  fontWeight: '600'
-                                }}
-                              >
-                                🗑️ Delete
-                              </ActionButton>
-                            )}
-                            
-                            {/* Remove Button - Available for all orders except delivered and cancelled */}
-                            {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
-                              <ActionButton 
-                                onClick={() => handleRemoveOrder(order)}
-                                variant="danger"
-                                title="Permanently remove this order from the system"
-                                style={{ 
-                                  background: 'linear-gradient(135deg, #dc3545, #c82333)',
-                                  color: 'white', 
-                                  fontSize: '0.75rem', 
-                                  padding: '0.4rem 0.8rem',
-                                  minWidth: '80px',
+                                  fontSize: '1rem', 
+                                  padding: '1.25rem',
                                   fontWeight: '600',
-                                  border: '2px solid #dc3545'
+                                  borderRadius: '12px',
+                                  border: 'none',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.75rem',
+                                  minHeight: '56px',
+                                  boxShadow: '0 4px 12px rgba(40, 167, 69, 0.25)',
+                                  transition: 'all 0.2s ease',
+                                  cursor: 'pointer'
                                 }}
                               >
-                                🗑️ Remove
+                                📅 Schedule Delivery
                               </ActionButton>
-                            )}
-                          </div>
-                        )}
-                      </OrderActions>
+                            </div>
+                          ) : (
+                            /* Scheduled Order Actions */
+                            <div style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: '1.5rem',
+                              height: '100%'
+                            }}>
+                              {/* Status Indicator */}
+                              <div style={{
+                                textAlign: 'center',
+                                padding: '1.5rem',
+                                background: '#f0f7ff',
+                                borderRadius: '12px',
+                                border: '1px solid #b8e6b8'
+                              }}>
+                                <div style={{
+                                  fontSize: '2rem',
+                                  marginBottom: '0.75rem'
+                                }}>
+                                  🚀
+                                </div>
+                                <div style={{
+                                  fontSize: '1.1rem',
+                                  fontWeight: '600',
+                                  color: '#0c5460',
+                                  marginBottom: '0.5rem'
+                                }}>
+                                  Delivery Management
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: '#0c5460', lineHeight: '1.4' }}>
+                                  Update order status
+                                </div>
+                              </div>
+                              
+                              {/* Action Buttons */}
+                              <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.75rem'
+                              }}>
+                                {/* Primary Status Actions */}
+                                {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                                  <ActionButton 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'delivered', e);
+                                    }}
+                                    style={{ 
+                                      background: '#28a745',
+                                      color: 'white', 
+                                      fontSize: '0.9rem', 
+                                      padding: '0.875rem 1rem',
+                                      fontWeight: '500',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      minHeight: '44px',
+                                      boxShadow: '0 2px 6px rgba(40, 167, 69, 0.2)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    ✅ Mark as Delivered
+                                  </ActionButton>
+                                )}
+                                
+                                {order.delivery_status === 'scheduled' && (
+                                  <ActionButton 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'in_transit', e);
+                                    }}
+                                    style={{ 
+                                      background: '#17a2b8',
+                                      color: 'white', 
+                                      fontSize: '0.9rem', 
+                                      padding: '0.875rem 1rem',
+                                      fontWeight: '500',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      minHeight: '44px',
+                                      boxShadow: '0 2px 6px rgba(23, 162, 184, 0.2)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    🚚 Start Transit
+                                  </ActionButton>
+                                )}
+                                
+                                {/* Secondary Actions */}
+                                <div style={{ 
+                                  display: 'flex', 
+                                  gap: '0.5rem',
+                                  marginTop: '0.5rem'
+                                }}>
+                                  {(order.delivery_status === 'scheduled' || order.delivery_status === 'in_transit') && (
+                                    <>
+                                      <ActionButton 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleUpdateDeliveryStatus(order, 'delayed', e);
+                                        }}
+                                        style={{ 
+                                          background: '#ffc107',
+                                          color: '#212529', 
+                                          fontSize: '0.8rem', 
+                                          padding: '0.75rem',
+                                          fontWeight: '500',
+                                          borderRadius: '6px',
+                                          border: 'none',
+                                          flex: '1',
+                                          minHeight: '36px',
+                                          boxShadow: '0 1px 4px rgba(255, 193, 7, 0.2)',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s ease'
+                                        }}
+                                      >
+                                        ⚠️ Delay
+                                      </ActionButton>
+                                      
+                                      <ActionButton 
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          handleUpdateDeliveryStatus(order, 'cancelled', e);
+                                        }}
+                                        style={{ 
+                                          background: '#dc3545',
+                                          color: 'white', 
+                                          fontSize: '0.8rem', 
+                                          padding: '0.75rem',
+                                          fontWeight: '500',
+                                          borderRadius: '6px',
+                                          border: 'none',
+                                          flex: '1',
+                                          minHeight: '36px',
+                                          boxShadow: '0 1px 4px rgba(220, 53, 69, 0.2)',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s ease'
+                                        }}
+                                      >
+                                        ❌ Cancel                                      </ActionButton>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Special State Actions */}
+                              {order.delivery_status === 'delayed' && (
+                                <ActionButton 
+                                  onClick={() => {
+                                    setSelectedOrder(order);
+                                    setShowScheduleModal(true);
+                                    showPopup(
+                                      'Reschedule Delayed Order',
+                                      `Opening schedule modal for order ${order.order_number}. Set a new delivery date and assign courier.`,
+                                      'info'
+                                    );
+                                  }}
+                                  style={{ 
+                                    background: '#ffc107',
+                                    color: '#212529', 
+                                    fontSize: '0.9rem', 
+                                    padding: '1rem',
+                                    fontWeight: '600',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    width: '100%',
+                                    minHeight: '44px',
+                                    boxShadow: '0 2px 6px rgba(255, 193, 7, 0.2)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                  }}
+                                >
+                                  📅 Reschedule Order
+                                </ActionButton>
+                              )}
+                              
+                              {order.delivery_status === 'cancelled' && (
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <ActionButton 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleUpdateDeliveryStatus(order, 'pending', e);
+                                    }}
+                                    style={{ 
+                                      background: '#28a745',
+                                      color: 'white', 
+                                      fontSize: '0.85rem', 
+                                      padding: '0.75rem',
+                                      fontWeight: '500',
+                                      borderRadius: '6px',
+                                      border: 'none',
+                                      flex: '1',
+                                      minHeight: '36px',
+                                      boxShadow: '0 1px 4px rgba(40, 167, 69, 0.2)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    🔄 Restore
+                                  </ActionButton>
+                                  
+                                  <ActionButton 
+                                    onClick={() => handleRemoveOrder(order)}
+                                    style={{ 
+                                      background: '#6c757d',
+                                      color: 'white', 
+                                      fontSize: '0.85rem', 
+                                      padding: '0.75rem',
+                                      fontWeight: '500',
+                                      borderRadius: '6px',
+                                      border: 'none',
+                                      flex: '1',
+                                      minHeight: '36px',
+                                      boxShadow: '0 1px 4px rgba(108, 117, 125, 0.2)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    🗑️ Delete
+                                  </ActionButton>
+                                </div>
+                              )}
+                              
+                              {/* Danger Zone */}
+                              {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
+                                <div style={{
+                                  marginTop: 'auto',
+                                  borderTop: '1px solid #e0e0e0',
+                                  paddingTop: '1rem'
+                                }}>
+                                  <div style={{
+                                    fontSize: '0.75rem',
+                                    color: '#666',
+                                    marginBottom: '0.75rem',
+                                    textAlign: 'center',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                  }}>
+                                    ⚠️ Danger Zone
+                                  </div>
+                                  <ActionButton 
+                                    onClick={() => handleRemoveOrder(order)}
+                                    style={{ 
+                                      background: '#dc3545',
+                                      color: 'white', 
+                                      fontSize: '0.85rem', 
+                                      padding: '0.75rem',
+                                      fontWeight: '500',
+                                      borderRadius: '6px',
+                                      border: 'none',
+                                      width: '100%',
+                                      minHeight: '36px',
+                                      boxShadow: '0 1px 4px rgba(220, 53, 69, 0.2)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    🗑️ Remove Order
+                                  </ActionButton>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </OrderItem>
                   );
                   })

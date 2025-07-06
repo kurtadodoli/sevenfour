@@ -374,11 +374,20 @@ router.get('/:designId', async (req, res) => {
 });
 
 // Get all custom designs (admin endpoint)
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
     let connection;
 
     try {
         console.log('🔍 GET /api/custom-designs called');
+        
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
         connection = await mysql.createConnection(dbConfig);
         console.log('📡 Database connected for GET request');
 
@@ -387,19 +396,24 @@ router.get('/', async (req, res) => {
         console.log(`📋 Query params - page: ${page}, limit: ${limit}, offset: ${offset}, status: ${status}`);
 
         let whereClause = '';
-        let queryParams = [];        if (status) {
+        let queryParams = [];
+        
+        if (status) {
             whereClause = 'WHERE cd.status = ?';
             queryParams.push(status);
-        }        const query = `
+        }
+        
+        // Use string interpolation for LIMIT and OFFSET to avoid mysql2 parameter binding issues
+        const query = `
             SELECT cd.*, 0 as image_count
             FROM custom_designs cd
             ${whereClause}
             ORDER BY cd.created_at DESC
-            LIMIT ? OFFSET ?
+            LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
         `;
 
-        queryParams.push(parseInt(limit), parseInt(offset));
         console.log('📋 Executing query with params:', queryParams);
+        console.log('📋 Full query:', query);
         
         const [rows] = await connection.execute(query, queryParams);
         console.log(`✅ Query executed successfully, found ${rows.length} records`);

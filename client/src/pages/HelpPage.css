@@ -142,6 +142,33 @@
   line-height: 1.6;
 }
 
+/* Clickable FAQ Section */
+.faq-icon {
+  transition: all 0.3s ease;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.faq-icon:hover {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.faq-icon:hover .icon-circle {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.faq-icon:hover p {
+  color: white;
+}
+
+.faq-icon:active {
+  transform: translateY(-2px);
+}
+
 @media (max-width: 768px) {
   .help-container {
     padding: 2rem 1rem;

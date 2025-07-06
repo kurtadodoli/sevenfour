@@ -51,6 +51,14 @@ router.put('/change-password', auth, userController.changePassword);
 // @desc    Send OTP for password reset
 router.post('/forgot-password', userController.forgotPassword);
 
+// @route   POST /api/auth/check-user
+// @desc    Check if user exists (for EmailJS integration)
+router.post('/check-user', userController.checkUser);
+
+// @route   POST /api/auth/store-otp
+// @desc    Store OTP for verification (for EmailJS integration)
+router.post('/store-otp', userController.storeOTP);
+
 // @route   POST /api/auth/resend-otp
 // @desc    Resend OTP for password reset
 router.post('/resend-otp', userController.resendOTP);

@@ -842,4 +842,101 @@ exports.resendOTP = async (req, res) => {
     }
 };
 
+// Check if user exists (for EmailJS integration)
+exports.checkUser = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        console.log('Checking user existence for:', email);
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        // Check if user exists
+        const user = await query('SELECT user_id, email, first_name, last_name FROM users WHERE email = ?', [email]);
+        
+        if (user.length === 0) {
+            // For security, don't reveal if email exists or not
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            user: {
+                id: user[0].user_id,
+                email: user[0].email,
+                first_name: user[0].first_name,
+                last_name: user[0].last_name
+            },
+            message: 'User found'
+        });
+
+    } catch (error) {
+        console.error('Check user error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error. Please try again later.'
+        });
+    }
+};
+
+// Store OTP (for EmailJS integration)
+exports.storeOTP = async (req, res) => {
+    try {
+        const { email, otp, purpose = 'password_reset' } = req.body;
+        const clientIP = req.ip || req.connection.remoteAddress;
+        const userAgent = req.get('User-Agent');
+
+        console.log('Storing OTP for:', email);
+
+        if (!email || !otp) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and OTP are required'
+            });
+        }
+
+        // Rate limiting - max 5 OTP requests per hour
+        const recentAttempts = await otpService.getOTPAttemptsCount(email, 60);
+        if (recentAttempts >= 5) {
+            return res.status(429).json({
+                success: false,
+                message: 'Too many verification code requests. Please try again in an hour.'
+            });
+        }
+
+        // Store OTP
+        const storeResult = await otpService.storeOTP(email, otp, 10, clientIP, userAgent);
+
+        if (!storeResult.success) {
+            return res.status(500).json({
+                success: false,
+                message: 'Error storing verification code. Please try again.'
+            });
+        }
+
+        console.log(`OTP stored successfully for ${email}`);
+
+        res.json({
+            success: true,
+            message: 'Verification code stored successfully',
+            expiresAt: storeResult.expiresAt
+        });
+
+    } catch (error) {
+        console.error('Store OTP error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error. Please try again later.'
+        });
+    }
+};
+
 console.log('UserController loaded with exports:', Object.keys(exports));

@@ -1,10 +1,17 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import './HelpPage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram } from '@fortawesome/free-brands-svg-icons';
 import { faEnvelope, faMoneyBill, faQuestionCircle } from '@fortawesome/free-solid-svg-icons';
 
 const HelpPage = () => {
+  const navigate = useNavigate();
+
+  const handleFAQClick = () => {
+    navigate('/faq');
+  };
+
   return (
     <div className="help-page-wrapper">
       <div className="help-container">
@@ -71,11 +78,11 @@ const HelpPage = () => {
         <section className="faq-section">
           <div className="section-content">
             <h2>FAQ</h2>
-            <div className="faq-icon">
+            <div className="faq-icon" onClick={handleFAQClick} style={{ cursor: 'pointer' }}>
               <div className="icon-circle large">
                 <FontAwesomeIcon icon={faQuestionCircle} />
               </div>
-              <p>Need assistance? Reach out to us through our social media channels!</p>
+              <p>Need assistance? Click here to view our frequently asked questions!</p>
             </div>          </div>
         </section>
       </div>
