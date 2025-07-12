@@ -240,13 +240,6 @@ const SettingsIcon = () => (
     </svg>
 );
 
-const SearchIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <path d="M21 21l-4.35-4.35"/>
-    </svg>
-);
-
 const DeliveryIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="1" y="3" width="15" height="13"/>
@@ -382,13 +375,6 @@ const Sidebar = () => {
                         </StyledLink>
                     </NavItem>
                     <NavItem>
-                        <StyledLink to="/search" $active={location.pathname === '/search'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Search">
-                                <SearchIcon />
-                            </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Search</LinkText>}
-                        </StyledLink>
-                    </NavItem><NavItem>
                         <StyledLink to="/delivery" $active={location.pathname === '/delivery'} $minimized={isMinimized}>
                             <IconWrapper $minimized={isMinimized} data-tooltip="Delivery">
                                 <DeliveryIcon />

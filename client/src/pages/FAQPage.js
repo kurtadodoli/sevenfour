@@ -21,7 +21,7 @@ const faqData = [
   {
     id: 2,
     question: "What courier do you use when shipping items within the country?",
-    answer: "We use our own delivery man for transactions outside Metro Manila.",
+    answer: "We use our own delivery man for transactions outside Metro Manila (NCR).",
     category: "shipping"
   },
   {

@@ -74,7 +74,7 @@ const TShirtIcon = ({ color = 'currentColor', size = 48 }) => (
   </svg>
 );
 
-// Metro Manila Cities for dropdown
+// Metro Manila Cities for dropdown (NCR)
 const metroManilaCities = [
   'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong', 'Manila', 
   'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque', 'Pasay', 'Pasig', 
@@ -822,7 +822,7 @@ const CustomPage = () => {
     phone: '',
     
     // Shipping address
-    province: 'Metro Manila', // Fixed to Metro Manila
+    province: 'Metro Manila', // Fixed to Metro Manila (NCR)
     city: '',
     streetAddress: '',
     houseNumber: '',
@@ -839,10 +839,7 @@ const CustomPage = () => {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         console.log('   Token payload:', payload);
-        setUser(payload);        setFormData(prev => ({
-          ...prev,
-          customerName: payload.username || ''
-        }));
+        setUser(payload);
         console.log('✅ User state set from token');
       } catch (error) {
         console.error('❌ Error parsing token:', error);
@@ -986,6 +983,19 @@ const CustomPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    
+    // Special handling for quantity to enforce the 8-item limit
+    if (name === 'quantity') {
+      const numValue = parseInt(value);
+      if (numValue > 8) {
+        toast.error('Maximum quantity allowed is 8 items per order');
+        return; // Don't update the state if value exceeds 8
+      }
+      if (numValue < 1) {
+        return; // Don't allow quantities less than 1
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -1010,6 +1020,16 @@ const CustomPage = () => {
 
     if (!formData.color) {
       setSubmitStatus({ type: 'error', message: 'Please select a color.' });
+      return false;
+    }
+
+    if (!formData.quantity || formData.quantity < 1) {
+      setSubmitStatus({ type: 'error', message: 'Please enter a valid quantity.' });
+      return false;
+    }
+
+    if (parseInt(formData.quantity) > 8) {
+      setSubmitStatus({ type: 'error', message: 'Maximum quantity allowed is 8 items per order.' });
       return false;
     }
 
@@ -1819,16 +1839,19 @@ const CustomPage = () => {
           </FormGroup>
 
           <FormGroup>
-            <Label>Quantity</Label>
+            <Label>Quantity (Max: 8)</Label>
             <Input
               type="number"
               name="quantity"
               value={formData.quantity}
               onChange={handleInputChange}
               min="1"
-              max="100"
+              max="8"
               required
             />
+            <small style={{ color: '#666', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+              Maximum 8 items per custom order
+            </small>
           </FormGroup>
 
           <FormGroup className="full-width">
@@ -1894,13 +1917,13 @@ const CustomPage = () => {
               color: '#000000',
               fontSize: '0.875rem'
             }}>
-              <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all custom orders.
+              <strong>📍 Delivery Notice:</strong> We currently deliver only within Metro Manila (National Capital Region). Free delivery for all custom orders.
             </div>
             
             <FormGrid>
               <FormGroup>
                 <Label>
-                  <Icon icon={faMapMarkerAlt} /> Province
+                  <Icon icon={faMapMarkerAlt} /> Area
                 </Label>
                 <Select
                   name="province"

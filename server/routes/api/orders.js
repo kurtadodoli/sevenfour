@@ -60,6 +60,11 @@ router.get('/me-with-items', auth, orderController.getUserOrdersWithItems);
 // @access  Private/Admin/Staff
 router.get('/cancellation-requests', auth, orderController.getCancellationRequests);
 
+// @route   GET api/orders/rejected-payments
+// @desc    Get all rejected payments
+// @access  Private/Admin/Staff
+router.get('/rejected-payments', auth, orderController.getRejectedPayments);
+
 // @route   GET api/orders/transactions/all
 // @desc    Get all transactions for admin dashboard
 // @access  Private/Admin/Staff
@@ -276,9 +281,16 @@ router.get('/pending-verification', auth, async (req, res) => {
                 o.order_date,
                 o.total_amount,
                 o.status,
+                o.payment_reference,
+                o.payment_proof_filename,
+                o.payment_status,
+                o.contact_phone,
+                o.shipping_address,
+                o.notes,
                 u.first_name,
                 u.last_name,
-                u.email as user_email
+                u.email as user_email,
+                CONCAT(IFNULL(u.first_name, ''), ' ', IFNULL(u.last_name, '')) as customer_full_name
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id
             WHERE o.status = 'pending'
@@ -302,9 +314,6 @@ router.get('/pending-verification', auth, async (req, res) => {
                 FROM order_items oi
                 LEFT JOIN products p ON oi.product_id = p.product_id
                 WHERE oi.order_id = ?
-                AND oi.gcash_reference_number IS NOT NULL 
-                AND oi.gcash_reference_number != 'COD_ORDER'
-                AND oi.gcash_reference_number != 'N/A'
                 AND oi.payment_proof_image_path IS NOT NULL
                 AND oi.payment_proof_image_path != 'N/A'
                 ORDER BY oi.sort_order
@@ -327,11 +336,65 @@ router.get('/pending-verification', auth, async (req, res) => {
                 
                 // Use the first order item with payment proof for customer details
                 const firstItemWithProof = items[0];
-                // Note: These fields may not exist in order_items table, using fallbacks
-                order.customer_fullname = order.customer_name || 'N/A';
+                
+                // Debug: Log available fields
+                console.log(`Order ${order.order_id} debug:`, {
+                    order_payment_reference: order.payment_reference,
+                    firstItem_gcash_reference_number: firstItemWithProof.gcash_reference_number,
+                    firstItem_gcash_reference: firstItemWithProof.gcash_reference,
+                    allItemsGcashRefs: items.map(item => ({
+                        id: item.id,
+                        gcash_reference_number: item.gcash_reference_number,
+                        gcash_reference: item.gcash_reference
+                    }))
+                });
+                
+                // Properly construct customer name from the joined users table
+                order.customer_fullname = order.customer_full_name && order.customer_full_name.trim() !== ' ' 
+                    ? order.customer_full_name.trim() 
+                    : `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'N/A';
+                order.customer_name = order.customer_fullname; // Add this for consistency
                 order.customer_phone = order.contact_phone || 'N/A';
-                order.gcash_reference_number = order.payment_reference || 'N/A';
-                order.payment_proof_image_path = order.payment_proof_filename || 'N/A';
+                order.gcash_reference_number = order.payment_reference || 
+                                              firstItemWithProof.gcash_reference_number ||
+                                              firstItemWithProof.gcash_reference ||
+                                              // Try to find gcash reference from any item
+                                              (function() {
+                                                  if (items && items.length > 0) {
+                                                      for (let item of items) {
+                                                          if (item.gcash_reference_number && 
+                                                              item.gcash_reference_number !== 'N/A' && 
+                                                              item.gcash_reference_number !== 'COD_ORDER') {
+                                                              return item.gcash_reference_number;
+                                                          }
+                                                          if (item.gcash_reference && 
+                                                              item.gcash_reference !== 'N/A' && 
+                                                              item.gcash_reference !== 'COD_ORDER') {
+                                                              return item.gcash_reference;
+                                                          }
+                                                      }
+                                                  }
+                                                  return null;
+                                              })() ||
+                                              'N/A';
+                
+                // Also set gcash_reference for consistency
+                order.gcash_reference = order.gcash_reference_number;
+                
+                // Handle payment proof path from either order level or item level
+                if (order.payment_proof_filename) {
+                    order.payment_proof_image_path = `/uploads/payment-proofs/${order.payment_proof_filename}`;
+                } else if (firstItemWithProof.payment_proof_image_path) {
+                    // If the item has a relative path, make it absolute
+                    if (!firstItemWithProof.payment_proof_image_path.startsWith('/')) {
+                        order.payment_proof_image_path = `/uploads/payment-proofs/${firstItemWithProof.payment_proof_image_path}`;
+                    } else {
+                        order.payment_proof_image_path = firstItemWithProof.payment_proof_image_path;
+                    }
+                } else {
+                    order.payment_proof_image_path = null;
+                }
+                
                 order.province = order.shipping_address || 'N/A';
                 order.city_municipality = 'N/A';
                 order.street_address = order.shipping_address || 'N/A';
@@ -800,46 +863,23 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
                 WHERE oi.order_id = ?
             `, [orderId]);
             
-            console.log(`Processing stock deduction for ${orderItems.length} items`);
+            console.log(`Processing payment approval for ${orderItems.length} items (stock already deducted during order placement)`);
             
-            // Convert reserved stock to actual stock deduction
+            // Stock was already deducted during order placement, so we just need to update order status
+            // Log the payment approval with a valid movement type
             for (const item of orderItems) {
-                console.log(`Converting reserved to deducted for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
+                console.log(`Payment approved for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity} (stock already deducted)`);
                 
-                // Deduct from actual stock_quantity and reduce reserved_quantity
-                const [variantResult] = await connection.execute(`
-                    UPDATE product_variants 
-                    SET stock_quantity = stock_quantity - ?,
-                        reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ? AND stock_quantity >= ?
-                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
-                
-                if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Deducted stock: ${item.productname} ${item.size}/${item.color} -${item.quantity} units from stock`);
-                    
-                    // Log the stock movement as actual stock deduction
-                    await connection.execute(`
-                        INSERT INTO stock_movements 
-                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
-                        VALUES (?, 'OUT', ?, ?, 'Order Approved - Stock Deducted', ?, ?, ?)
-                    `, [item.product_id, item.quantity, item.size || 'N/A', 
-                        orderId, req.user.id, `Order approved - deducted ${item.quantity} units from ${item.productname} ${item.size}/${item.color}`]);
-                } else {
-                    // Fallback to general product stock update
-                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, updating general stock`);
-                    await connection.execute(`
-                        UPDATE products 
-                        SET total_available_stock = GREATEST(0, total_available_stock - ?),
-                            total_reserved_stock = GREATEST(0, total_reserved_stock - ?),
-                            productquantity = GREATEST(0, productquantity - ?),
-                            last_stock_update = CURRENT_TIMESTAMP
-                        WHERE product_id = ? AND total_available_stock >= ?
-                    `, [item.quantity, item.quantity, item.quantity, item.product_id, item.quantity]);
-                }
+                // Log the payment approval as an ADJUSTMENT (since stock was already deducted)
+                await connection.execute(`
+                    INSERT INTO stock_movements 
+                    (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                    VALUES (?, 'ADJUSTMENT', ?, ?, 'Payment Approved - Stock Already Deducted', ?, ?, ?)
+                `, [item.product_id, 0, item.size || 'N/A', 
+                    orderId, req.user.id, `Payment approved for ${item.quantity} units of ${item.productname} ${item.size}/${item.color} (stock was already deducted during order placement)`]);
             }
             
-            // Update overall product stock totals from variants
+            // Update overall product stock totals from variants (to ensure consistency)
             const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
             
             for (const productId of uniqueProductIds) {
@@ -871,9 +911,6 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
                 `, [productId]);
                 
                 console.log(`Updated product totals for product ID: ${productId}`);
-                
-                // Import the sync function if not already available
-                // await syncAllStockFields(connection, productId);
             }
             
             // Update order status to confirmed
@@ -911,13 +948,14 @@ router.put('/:orderId/approve-payment', auth, async (req, res) => {
             
             res.json({
                 success: true,
-                message: 'Payment approved successfully. Order moved to confirmed status and stock deducted.',
+                message: 'Payment approved successfully. Order confirmed (stock was already deducted during order placement).',
                 data: {
                     orderId,
                     newStatus: 'confirmed',
                     approvedBy: req.user.email,
                     approvedAt: new Date().toISOString(),
-                    stockDeducted: orderItems.map(item => ({
+                    stockNote: 'Stock was already deducted when order was placed',
+                    orderItems: orderItems.map(item => ({
                         product: item.productname,
                         size: item.size,
                         color: item.color,
@@ -1005,34 +1043,84 @@ router.put('/:orderId/deny-payment', auth, async (req, res) => {
                 WHERE oi.order_id = ?
             `, [orderId]);
             
-            console.log(`Found ${orderItems.length} items to restore stock for`);
+            console.log(`Found ${orderItems.length} items to restore stock for (stock was already deducted during order placement)`);
             
-            // Restore stock for each item
+            // Restore stock for each item since stock was already deducted during order placement
             for (const item of orderItems) {
                 console.log(`Restoring stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
                 
                 // Try to restore to specific variant first
                 const [variantResult] = await connection.execute(`
                     UPDATE product_variants 
-                    SET reserved_quantity = GREATEST(0, reserved_quantity - ?),
-                        available_quantity = stock_quantity - GREATEST(0, reserved_quantity - ?),
+                    SET available_quantity = available_quantity + ?,
+                        stock_quantity = stock_quantity + ?,
                         last_updated = CURRENT_TIMESTAMP
                     WHERE product_id = ? AND size = ? AND color = ?
                 `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default']);
                 
                 if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units`);
+                    console.log(`✅ Restored variant stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} units to both available and stock quantities`);
+                    
+                    // Log the stock restoration
+                    await connection.execute(`
+                        INSERT INTO stock_movements 
+                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                        VALUES (?, 'IN', ?, ?, 'Payment Denied - Stock Restored', ?, ?, ?)
+                    `, [item.product_id, item.quantity, item.size || 'N/A', 
+                        orderId, req.user.id, `Payment denied - restored ${item.quantity} units of ${item.productname} ${item.size}/${item.color}`]);
                 } else {
                     // Fallback to general product stock restoration
                     console.log(`No variant found, restoring general stock for ${item.productname}`);
                     await connection.execute(`
                         UPDATE products 
                         SET total_available_stock = total_available_stock + ?,
-                            total_reserved_stock = GREATEST(0, COALESCE(total_reserved_stock, 0) - ?),
+                            productquantity = productquantity + ?,
                             last_stock_update = CURRENT_TIMESTAMP
                         WHERE product_id = ?
                     `, [item.quantity, item.quantity, item.product_id]);
+                    
+                    // Log the stock restoration
+                    await connection.execute(`
+                        INSERT INTO stock_movements 
+                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                        VALUES (?, 'IN', ?, ?, 'Payment Denied - General Stock Restored', ?, ?, ?)
+                    `, [item.product_id, item.quantity, item.size || 'N/A', 
+                        orderId, req.user.id, `Payment denied - restored ${item.quantity} units of ${item.productname} to general stock`]);
                 }
+            }
+            
+            // Update overall product stock totals from variants
+            const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
+            
+            for (const productId of uniqueProductIds) {
+                await connection.execute(`
+                    UPDATE products p
+                    SET p.total_stock = (
+                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_available_stock = (
+                        SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_reserved_stock = (
+                        SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.stock_status = CASE 
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                        ELSE 'in_stock'
+                    END,
+                    p.last_stock_update = CURRENT_TIMESTAMP
+                    WHERE p.product_id = ?
+                `, [productId]);
+                
+                console.log(`Updated product totals for product ID: ${productId}`);
             }
             
             // Update order status to cancelled

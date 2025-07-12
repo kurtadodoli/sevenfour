@@ -1,6 +1,6 @@
 // Common Philippine Barangays by City/Municipality
 export const philippineBarangays = {
-  // Metro Manila
+  // Metro Manila (NCR)
   "Quezon City": [
     "Bagong Pag-asa", "Balingasa", "Batasan Hills", "Commonwealth", "Diliman",
     "Don Manuel", "Fairview", "Kamuning", "Libis", "Loyola Heights",

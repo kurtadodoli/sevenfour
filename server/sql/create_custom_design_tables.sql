@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS custom_designs (
     customer_email VARCHAR(255) NOT NULL,
     customer_phone VARCHAR(20),
     
-    -- Metro Manila Shipping Details
+    -- Metro Manila (NCR) Shipping Details
     street_address VARCHAR(500) NOT NULL,
     city ENUM(
         'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong', 'Manila', 

@@ -1,54 +1,38 @@
 const mysql = require('mysql2/promise');
 const { dbConfig } = require('./server/config/db');
 
-async function checkCustomOrdersStructure() {
+async function checkCustomOrdersTable() {
+    console.log('=== CHECKING CUSTOM ORDERS TABLE STRUCTURE ===');
+    
+    const connection = await mysql.createConnection(dbConfig);
+    
     try {
-        console.log('🔍 Checking custom_orders table structure...');
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Check if custom_orders table exists and its structure
-        const [tables] = await connection.execute("SHOW TABLES LIKE 'custom_orders'");
-        if (tables.length === 0) {
-            console.log('❌ custom_orders table does not exist');
-            await connection.end();
-            return;
-        }
-        
-        console.log('✅ custom_orders table exists');
-        
-        // Get table structure
-        const [columns] = await connection.execute('DESCRIBE custom_orders');
-        console.log('\n📋 Custom Orders Table Structure:');
-        columns.forEach(column => {
-            console.log(`  - ${column.Field}: ${column.Type} ${column.Null === 'YES' ? '(nullable)' : '(not null)'}`);
-        });
-        
-        // Get sample data
-        console.log('\n📊 Sample custom orders:');
-        const [samples] = await connection.execute(`
-            SELECT * FROM custom_orders 
-            ORDER BY created_at DESC 
-            LIMIT 3
+        // Check table structure
+        const [columns] = await connection.execute(`
+            DESCRIBE custom_orders
         `);
         
-        samples.forEach((order, index) => {
-            console.log(`\n🎨 Custom Order ${index + 1}:`);
-            Object.keys(order).forEach(key => {
-                if (key.toLowerCase().includes('image') || key.toLowerCase().includes('path')) {
-                    console.log(`   ${key}: ${order[key]}`);
-                }
-            });
-            console.log(`   custom_order_id: ${order.custom_order_id || order.id}`);
-            console.log(`   status: ${order.status}`);
+        console.log('\n📋 custom_orders table structure:');
+        columns.forEach((col, index) => {
+            console.log(`${index + 1}. ${col.Field} (${col.Type}) - ${col.Null === 'YES' ? 'Nullable' : 'Not Null'}`);
         });
         
-        await connection.end();
-        console.log('\n✅ Structure check completed!');
+        // Check if received_at column exists
+        const hasReceivedAt = columns.some(col => col.Field === 'received_at');
+        console.log(`\n🔍 Has 'received_at' column: ${hasReceivedAt ? 'YES' : 'NO'}`);
+        
+        if (!hasReceivedAt) {
+            console.log('\n⚠️ The received_at column does not exist in custom_orders table');
+            console.log('💡 We should either:');
+            console.log('   1. Remove the received_at reference from the UPDATE query');
+            console.log('   2. Add the received_at column to the table');
+        }
         
     } catch (error) {
-        console.error('❌ Error checking custom orders structure:', error);
+        console.error('❌ Error:', error.message);
+    } finally {
+        await connection.end();
     }
 }
 
-checkCustomOrdersStructure();
+checkCustomOrdersTable();

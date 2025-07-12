@@ -1,47 +1,44 @@
-const axios = require('axios');
+const fetch = require('node-fetch');
 
 async function testCalendarAPI() {
-  try {
-    console.log('🧪 Testing calendar API for July 2025...\n');
-    
-    const response = await axios.get('http://localhost:5000/api/delivery-enhanced/calendar', {
-      params: { year: 2025, month: 7 }
-    });
-    
-    if (response.data.success) {
-      const calendarData = response.data.data.calendar;
-      
-      // Find July 3rd entry
-      const july3 = calendarData.find(day => {
-        const date = new Date(day.calendar_date);
-        return date.getDate() === 3 && date.getMonth() === 6; // July is month 6 (0-indexed)
-      });
-      
-      if (july3) {
-        console.log('📅 July 3, 2025 Calendar Data:');
-        console.log(`   - Calendar Date: ${july3.calendar_date}`);
-        console.log(`   - Scheduled Deliveries: ${july3.scheduled_deliveries}`);
-        console.log(`   - Available: ${july3.is_available}`);
-        console.log('');
+    try {
+        const response = await fetch('http://localhost:5000/api/delivery-enhanced/calendar?year=2025&month=7');
+        const data = await response.json();
         
-        if (july3.scheduled_deliveries === 2) {
-          console.log('✅ SUCCESS: Calendar API now shows correct count of 2!');
+        console.log('📅 Calendar API Response:');
+        console.log(`Total calendar entries: ${data.data.calendar.length}`);
+        console.log(`Total deliveries: ${data.data.summary.totalDeliveries}`);
+        
+        console.log('\n📊 Calendar entries by date:');
+        data.data.calendar.forEach(entry => {
+            const date = new Date(entry.calendar_date);
+            const dateStr = date.toISOString().split('T')[0];
+            const deliveryCount = entry.deliveries ? entry.deliveries.length : 0;
+            const status = entry.deliveries && entry.deliveries[0] ? entry.deliveries[0].delivery_status : 'no deliveries';
+            
+            console.log(`- ${dateStr}: ${deliveryCount} delivery(ies), Status: ${status}`);
+        });
+        
+        // Check specifically for July 7, 2025
+        const july7Entry = data.data.calendar.find(entry => {
+            const date = new Date(entry.calendar_date);
+            return date.toISOString().split('T')[0] === '2025-07-07';
+        });
+        
+        console.log('\n🔍 July 7, 2025 specific check:');
+        if (july7Entry) {
+            console.log('✅ July 7 found in calendar API');
+            console.log(`   Deliveries: ${july7Entry.deliveries.length}`);
+            if (july7Entry.deliveries.length > 0) {
+                console.log(`   First delivery: ${july7Entry.deliveries[0].order_number} (${july7Entry.deliveries[0].delivery_status})`);
+            }
         } else {
-          console.log(`❌ ISSUE: Calendar API still shows ${july3.scheduled_deliveries} instead of 2`);
+            console.log('❌ July 7 NOT found in calendar API - this is the problem!');
         }
-      } else {
-        console.log('❌ July 3rd not found in calendar data');
-      }
-    } else {
-      console.log('❌ API request failed:', response.data.message);
+        
+    } catch (error) {
+        console.error('Error testing calendar API:', error.message);
     }
-    
-  } catch (error) {
-    console.log('❌ Error testing API:', error.message);
-    if (error.code === 'ECONNREFUSED') {
-      console.log('💡 Make sure the server is running on port 5000');
-    }
-  }
 }
 
 testCalendarAPI();

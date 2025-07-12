@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import styled from 'styled-components';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -13,7 +13,8 @@ import {
   faImage,
   faSpinner,
   faChevronDown,
-  faCheckCircle
+  faCheckCircle,
+  faTimesCircle
 } from '@fortawesome/free-solid-svg-icons';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
@@ -67,51 +68,7 @@ const Subtitle = styled.p`
   margin: 0 auto;
 `;
 
-const StatsContainer = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2px;
-  margin: 40px auto;
-  background: #f5f5f5;
-  border-radius: 16px;
-  overflow: hidden;
-  max-width: 1200px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-`;
 
-const StatCard = styled.div.withConfig({
-  shouldForwardProp: (prop) => prop !== 'color',
-})`
-  background: #ffffff;
-  padding: 40px 32px;
-  text-align: center;
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  
-  &:hover {
-    background: #fafafa;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  }
-  
-  h3 {
-    font-size: 36px;
-    font-weight: 300;
-    margin: 0 0 12px 0;
-    color: ${props => props.color || '#000000'};
-    line-height: 1;
-    letter-spacing: -1px;
-  }
-  
-  p {
-    color: #666666;
-    margin: 0;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    font-weight: 600;
-  }
-`;
 
 const ControlsSection = styled.div`
   background: #ffffff;
@@ -216,21 +173,18 @@ const TransactionsTable = styled.div`
   border-radius: 16px;
   overflow: hidden;
   width: 100%;
-  max-width: 1500px;
-  margin: 0 auto;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   
-  /* Center the table content and improve layout */
+  /* Improve layout */
   display: flex;
   flex-direction: column;
-  align-items: center;
 `;
 
 const TableHeader = styled.div`
   display: grid;
-  grid-template-columns: 50px 150px 110px 200px 180px 120px 100px 120px 120px 120px 120px;
-  gap: 20px;
-  padding: 28px 40px;
+  grid-template-columns: 40px 130px 95px 170px 150px 100px 85px 100px 95px 100px 130px;
+  gap: 16px;
+  padding: 28px 20px;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-bottom: 2px solid #dee2e6;
   font-weight: 700;
@@ -239,41 +193,21 @@ const TableHeader = styled.div`
   text-transform: uppercase;
   letter-spacing: 1.2px;
   width: 100%;
-  justify-items: start;
+  justify-items: center;
   align-items: center;
-  
-  /* Center specific columns that should be centered */
-  > div:nth-child(1),  /* Expand button */
-  > div:nth-child(6),  /* Amount */
-  > div:nth-child(7),  /* Payment */
-  > div:nth-child(8),  /* Status */
-  > div:nth-child(9),  /* Delivery */
-  > div:nth-child(10), /* Created */
-  > div:nth-child(11) { /* Actions */
-    justify-self: center;
-    text-align: center;
-  }
-  
-  /* Left align text-heavy columns */
-  > div:nth-child(2),  /* Order # */
-  > div:nth-child(3),  /* Date */
-  > div:nth-child(4),  /* Customer */
-  > div:nth-child(5) { /* Products */
-    justify-self: start;
-    text-align: left;
-  }
+  text-align: center;
   
   @media (max-width: 1600px) {
-    grid-template-columns: 45px 140px 105px 190px 170px 110px 95px 110px 110px 110px 110px;
-    gap: 18px;
+    grid-template-columns: 35px 130px 95px 170px 150px 100px 85px 100px 95px 100px 130px;
+    gap: 14px;
     font-size: 13px;
-    padding: 26px 36px;
+    padding: 26px 18px;
   }
   
   @media (max-width: 1400px) {
-    grid-template-columns: 40px 130px 100px 180px 160px 100px 90px 100px 100px 100px 100px;
-    gap: 16px;
-    padding: 24px 32px;
+    grid-template-columns: 30px 120px 90px 160px 140px 95px 80px 95px 90px 95px 120px;
+    gap: 12px;
+    padding: 24px 16px;
     font-size: 12px;
   }
   
@@ -291,9 +225,9 @@ const TableHeader = styled.div`
 
 const TableRow = styled.div`
   display: grid;
-  grid-template-columns: 50px 150px 110px 200px 180px 120px 100px 120px 120px 120px 120px;
-  gap: 20px;
-  padding: 32px 40px;
+  grid-template-columns: 40px 130px 95px 170px 150px 100px 85px 100px 95px 100px 130px;
+  gap: 16px;
+  padding: 32px 20px;
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
   transition: all 0.3s ease;
@@ -344,9 +278,9 @@ const TableRow = styled.div`
   }
   
   @media (max-width: 1600px) {
-    grid-template-columns: 45px 140px 105px 190px 170px 110px 95px 110px 110px 110px 110px;
-    gap: 18px;
-    padding: 30px 36px;
+    grid-template-columns: 35px 130px 95px 170px 150px 100px 85px 100px 95px 100px 130px;
+    gap: 14px;
+    padding: 30px 18px;
     min-height: 80px;
   }
   
@@ -617,6 +551,7 @@ const ActionButton = styled.button.withConfig({
   position: relative;
   overflow: hidden;
   white-space: nowrap;
+  user-select: none; /* Prevent text selection */
   
   @media (max-width: 768px) {
     min-width: ${props => props.compact ? '32px' : '70px'};
@@ -629,6 +564,7 @@ const ActionButton = styled.button.withConfig({
     opacity: 0.5;
     cursor: not-allowed;
     transform: none !important;
+    pointer-events: none; /* Completely disable interaction when disabled */
   }
   
   &:not(:disabled):hover {
@@ -641,7 +577,7 @@ const ActionButton = styled.button.withConfig({
   
   // Loading spinner
   ${props => props.loading && `
-    pointer-events: none;
+    pointer-events: none; /* Disable clicks when loading */
     
     &:before {
       content: '';
@@ -662,57 +598,141 @@ const ActionButton = styled.button.withConfig({
     color: transparent;
   `}
   
+  // Pulse animation for action buttons
+  ${props => (props.variant === 'approve' || props.variant === 'reject') && `
+    animation: subtle-pulse 2s ease-in-out infinite;
+    
+    @keyframes subtle-pulse {
+      0% { box-shadow: 0 3px 12px rgba(${props.variant === 'approve' ? '39, 174, 96' : '231, 76, 60'}, 0.4); }
+      50% { box-shadow: 0 3px 12px rgba(${props.variant === 'approve' ? '39, 174, 96' : '231, 76, 60'}, 0.6); }
+      100% { box-shadow: 0 3px 12px rgba(${props.variant === 'approve' ? '39, 174, 96' : '231, 76, 60'}, 0.4); }
+    }
+    
+    &:hover:not(:disabled) {
+      animation: none;
+    }
+  `}
+  
   ${props => {
     switch (props.variant) {
       case 'approve':
         return `
           color: #ffffff;
-          background: linear-gradient(135deg, #27ae60, #2ecc71);
+          background: linear-gradient(135deg, #27ae60, #2ecc71, #58d68d);
           border-color: #27ae60;
-          box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
+          box-shadow: 0 3px 12px rgba(39, 174, 96, 0.4);
+          position: relative;
+          overflow: hidden;
+          
+          &:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+          }
           
           &:hover:not(:disabled) {
-            background: linear-gradient(135deg, #229954, #27ae60);
-            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+            background: linear-gradient(135deg, #229954, #27ae60, #2ecc71);
+            box-shadow: 0 5px 20px rgba(39, 174, 96, 0.5);
+            transform: translateY(-3px);
+            
+            &:before {
+              left: 100%;
+            }
+          }
+          
+          &:active:not(:disabled) {
+            transform: translateY(1px);
+            box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
           }
           
           &:focus:not(:disabled) {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.3);
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.3), 0 3px 12px rgba(39, 174, 96, 0.4);
           }
         `;
       case 'reject':
         return `
           color: #ffffff;
-          background: linear-gradient(135deg, #e74c3c, #c0392b);
+          background: linear-gradient(135deg, #e74c3c, #c0392b, #ec7063);
           border-color: #e74c3c;
-          box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
+          box-shadow: 0 3px 12px rgba(231, 76, 60, 0.4);
+          position: relative;
+          overflow: hidden;
+          
+          &:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+          }
           
           &:hover:not(:disabled) {
-            background: linear-gradient(135deg, #c0392b, #a93226);
-            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+            background: linear-gradient(135deg, #c0392b, #a93226, #e74c3c);
+            box-shadow: 0 5px 20px rgba(231, 76, 60, 0.5);
+            transform: translateY(-3px);
+            
+            &:before {
+              left: 100%;
+            }
+          }
+          
+          &:active:not(:disabled) {
+            transform: translateY(1px);
+            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.3);
           }
           
           &:focus:not(:disabled) {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3);
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.3), 0 3px 12px rgba(231, 76, 60, 0.4);
           }
         `;
       case 'view':
         return `
           color: #ffffff;
-          background: linear-gradient(135deg, #34495e, #2c3e50);
+          background: linear-gradient(135deg, #34495e, #2c3e50, #5d6d7e);
           border-color: #34495e;
-          box-shadow: 0 2px 8px rgba(52, 73, 94, 0.3);
+          box-shadow: 0 3px 12px rgba(52, 73, 94, 0.4);
+          position: relative;
+          overflow: hidden;
+          
+          &:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.5s;
+          }
           
           &:hover:not(:disabled) {
-            background: linear-gradient(135deg, #2c3e50, #1b2631);
-            box-shadow: 0 4px 12px rgba(52, 73, 94, 0.4);
+            background: linear-gradient(135deg, #2c3e50, #1b2631, #34495e);
+            box-shadow: 0 5px 20px rgba(52, 73, 94, 0.5);
+            transform: translateY(-3px);
+            
+            &:before {
+              left: 100%;
+            }
+          }
+          
+          &:active:not(:disabled) {
+            transform: translateY(1px);
+            box-shadow: 0 2px 8px rgba(52, 73, 94, 0.3);
           }
           
           &:focus:not(:disabled) {
             outline: none;
-            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.3);
+            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.3), 0 3px 12px rgba(52, 73, 94, 0.4);
           }
         `;
       default:
@@ -835,23 +855,6 @@ const Tab = styled.button.withConfig({
   
   &:hover {
     background: ${props => props.active ? '#000000' : '#f5f5f5'};
-  }
-`;
-
-const ImageContainer = styled.div`
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f8f9fa;
-  border: 2px solid #e9ecef;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  
-  &:hover {
-    border-color: #007bff;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   }
 `;
 
@@ -1356,7 +1359,8 @@ const PaymentVerificationTableHeader = styled.div`
   color: #555555;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  justify-content: center;
+  justify-items: center;
+  text-align: center;
   
   @media (max-width: 1400px) {
     grid-template-columns: 30px 70px 120px 85px 160px 135px 90px 100px 100px 125px;
@@ -1379,14 +1383,13 @@ const PaymentVerificationTableHeader = styled.div`
 
 const PaymentVerificationTableRow = styled.div`
   display: grid;
-  grid-template-columns: 35px 75px 130px 90px 180px 150px 100px 110px 110px 140px;
-  gap: 12px;
+  grid-template-columns: 40px 130px 95px 170px 150px 100px 85px 100px 95px 100px 130px;
+  gap: 16px;
   padding: 20px 20px;
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
   transition: all 0.2s ease;
   min-height: 70px;
-  justify-content: center;
   
   &:hover {
     background: #fafafa;
@@ -1421,11 +1424,43 @@ const PaymentVerificationTableRow = styled.div`
 `;
 
 const TransactionPage = () => {
+  // Helper function to safely display values, avoiding "N/A" when possible
+  const safeDisplayValue = (value, fallback = '') => {
+    if (value === null || value === undefined || value === '' || value === 'null' || value === 'undefined') {
+      return fallback;
+    }
+    return value;
+  };
+
+  // Add debounce ref to prevent rapid button clicks and request queue
+  const debounceRef = useRef({});
+  const requestQueueRef = useRef(new Map()); // Queue to process requests one at a time
+
+  // Helper function to format address components
+  const formatAddress = (addressComponents) => {
+    const cleanComponents = addressComponents.filter(component => 
+      component && component !== 'null' && component !== 'undefined' && component.trim() !== ''
+    );
+    return cleanComponents.length > 0 ? cleanComponents.join(', ') : '';
+  };
+
+  // Helper function to format phone number
+  const formatPhone = (phone) => {
+    if (!phone || phone === 'null' || phone === 'undefined' || phone.trim() === '') {
+      return '';
+    }
+    return phone;
+  };
+
+  // State for different types of requests
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows
+  const [expandedCancellationRows, setExpandedCancellationRows] = useState(new Set()); // Track expanded cancellation rows
+  const [expandedCustomDesignRows, setExpandedCustomDesignRows] = useState(new Set()); // Track expanded custom design rows
+  const [expandedRefundRows, setExpandedRefundRows] = useState(new Set()); // Track expanded refund rows
   
   // Function to toggle row expansion
   const toggleRowExpansion = (transactionId) => {
@@ -1439,18 +1474,74 @@ const TransactionPage = () => {
       return newSet;
     });
   };
+
+  // Function to toggle cancellation row expansion
+  const toggleCancellationRowExpansion = (requestId) => {
+    console.log('🔄 toggleCancellationRowExpansion called with:', requestId);
+    
+    // Use a callback to ensure we have the latest state
+    setExpandedCancellationRows(prev => {
+      const newSet = new Set(prev);
+      console.log('🔄 Current expanded cancellation rows:', Array.from(prev));
+      
+      if (newSet.has(requestId)) {
+        console.log('🔄 Collapsing cancellation row:', requestId);
+        newSet.delete(requestId);
+      } else {
+        console.log('🔄 Expanding cancellation row:', requestId);
+        newSet.add(requestId);
+      }
+      
+      console.log('🔄 New expanded cancellation rows:', Array.from(newSet));
+      return newSet;
+    });
+  };
+
+  // Function to toggle custom design row expansion
+  const toggleCustomDesignRowExpansion = (requestId) => {
+    setExpandedCustomDesignRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(requestId)) {
+        newSet.delete(requestId);
+      } else {
+        newSet.add(requestId);
+      }
+      return newSet;
+    });
+  };
+
+  // Function to toggle refund row expansion
+  const toggleRefundRowExpansion = (requestId) => {
+    setExpandedRefundRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(requestId)) {
+        newSet.delete(requestId);
+      } else {
+        newSet.add(requestId);
+      }
+      return newSet;
+    });
+  };
+
+  // Function to toggle verification row expansion
+  const toggleVerificationRowExpansion = (orderId) => {
+    console.log('🔄 toggleVerificationRowExpansion called with:', orderId);
+    setExpandedVerificationRows(prev => {
+      const newSet = new Set(prev);
+      console.log('🔄 Current expanded rows:', Array.from(prev));
+      if (newSet.has(orderId)) {
+        console.log('🔄 Collapsing row:', orderId);
+        newSet.delete(orderId);
+      } else {
+        console.log('🔄 Expanding row:', orderId);
+        newSet.add(orderId);
+      }
+      console.log('🔄 New expanded rows:', Array.from(newSet));
+      return newSet;
+    });
+  };
   const [showModal, setShowModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    processing: 0,
-    shipped: 0,
-    delivered: 0,
-    rejected: 0,
-    totalAmount: 0
-  });
   
   // Cancellation request states
   const [cancellationRequests, setCancellationRequests] = useState([]);
@@ -1465,31 +1556,25 @@ const TransactionPage = () => {
   // Design request states
   const [designRequestsLoading, setDesignRequestsLoading] = useState(false);
   const [customDesignRequests, setCustomDesignRequests] = useState([]);
-  const [showDesignProcessingModal, setShowDesignProcessingModal] = useState(false);
-  const [processingDesignRequest, setProcessingDesignRequest] = useState(null);
-  
-  // Processing modal states
-  const [showProcessingModal, setShowProcessingModal] = useState(false);
-  const [processingRequest, setProcessingRequest] = useState(null);
-  const [adminNotes, setAdminNotes] = useState('');
   
   // Refund request state variables
   const [refundRequests, setRefundRequests] = useState([]);
   const [refundRequestsLoading, setRefundRequestsLoading] = useState(false);
   const [refundSearchTerm, setRefundSearchTerm] = useState('');
   
-  // Image modal states
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imageName, setImageName] = useState('');
-  const [showImageModal, setShowImageModal] = useState(false);
-  
   // Payment verification state (for admin users)
   const [pendingVerificationOrders, setPendingVerificationOrders] = useState([]);
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [verificationSearchTerm, setVerificationSearchTerm] = useState('');
+  const [verificationStatusFilter, setVerificationStatusFilter] = useState('all');
+  const [expandedVerificationRows, setExpandedVerificationRows] = useState(new Set()); // Track expanded verification rows
   const [showPaymentProofModal, setShowPaymentProofModal] = useState(false);
   const [selectedPaymentProof, setSelectedPaymentProof] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  
+  // Design images modal state
+  const [showDesignImagesModal, setShowDesignImagesModal] = useState(false);
+  const [selectedDesignImages, setSelectedDesignImages] = useState(null);
   
   // Remove unused user import since not needed in this component
 
@@ -1537,9 +1622,34 @@ const TransactionPage = () => {
                          [order.first_name, order.last_name].filter(Boolean).join(' ') || 
                          'Unknown Customer';
           
+          // Create proper order number with fallback logic
+          const orderNumber = order.order_number || 
+                            order.order_id || 
+                            order.transaction_id || 
+                            `ORD-${order.id}` || 
+                            'N/A';
+          
+          // Create comprehensive shipping address with correct field mappings from OrderPage.js
+          const shippingAddress = order.shipping_address || 
+                                [
+                                  order.street_address,        // From OrderPage.js: street_address
+                                  order.city_municipality,     // From OrderPage.js: city mapped to city_municipality
+                                  order.province,              // From OrderPage.js: province
+                                  order.zip_code              // From OrderPage.js: postal_code mapped to zip_code
+                                ].filter(Boolean).join(', ') ||
+                                // Fallback to other possible field variations
+                                [
+                                  order.address,
+                                  order.city,
+                                  order.area,
+                                  order.postal_code
+                                ].filter(Boolean).join(', ') ||
+                                'Address not provided';
+          
+          
           return {
             id: order.id,
-            order_number: order.order_number,
+            order_number: orderNumber,
             transaction_id: order.transaction_id,
             customer_name: fullName,
             customer_email: order.customer_email || order.user_email,
@@ -1557,8 +1667,15 @@ const TransactionPage = () => {
             order_date: order.order_date,
             created_at: order.created_at,
             updated_at: order.updated_at,
-            shipping_address: order.shipping_address,
-            contact_phone: order.contact_phone,
+            shipping_address: shippingAddress,
+            street_address: order.street_address,
+            city_municipality: order.city_municipality,
+            city: order.city,
+            province: order.province,
+            zip_code: order.zip_code,
+            postal_code: order.postal_code,
+            postalCode: order.postalCode,  // For custom orders
+            contact_phone: order.contact_phone || order.customer_phone || order.phone,
             notes: order.notes,
             items: order.items || order.order_items || [],
             order_type: 'regular' // Mark as regular order
@@ -1579,7 +1696,7 @@ const TransactionPage = () => {
             }
           }
           // Also check if this is directly a custom order (order_type)
-          if (order.order_type === 'custom' && order.order_number.startsWith('CUSTOM-')) {
+          if (order.order_type === 'custom' && order.order_number && order.order_number.startsWith('CUSTOM-')) {
             customOrdersFromDeliveryIds.add(order.order_number);
           }
         });
@@ -1596,16 +1713,88 @@ const TransactionPage = () => {
         const confirmedCustomOrders = customOrdersData
           .filter(order => order && order.status === 'confirmed');
         
-        const processedCustomOrders = confirmedCustomOrders
+        // Check for pending cancellation requests for each custom order
+        let customOrdersWithCancellationStatus = [];
+        
+        try {
+          console.log('🔍 Checking for pending cancellation requests for custom orders...');
+          const cancellationResponse = await api.get('/custom-orders/cancellation-requests').catch(error => {
+            console.warn('Could not fetch custom order cancellation requests:', error.response?.status);
+            return { data: { success: false, data: [] } };
+          });
+          
+          const pendingCancellations = cancellationResponse.data.success ? 
+            cancellationResponse.data.data.filter(req => req.status === 'pending') : [];
+          
+          console.log(`📋 Found ${pendingCancellations.length} pending custom order cancellation requests`);
+          
+          // Create a set of custom order IDs with pending cancellations
+          const pendingCancellationIds = new Set(pendingCancellations.map(req => req.custom_order_id));
+          
+          customOrdersWithCancellationStatus = confirmedCustomOrders.map(order => {
+            const hasPendingCancellation = pendingCancellationIds.has(order.custom_order_id);
+            
+            if (hasPendingCancellation) {
+              console.log(`🔍 Custom order ${order.custom_order_id} has pending cancellation request`);
+            }
+            
+            return {
+              ...order,
+              has_pending_cancellation: hasPendingCancellation
+            };
+          });
+          
+        } catch (error) {
+          console.warn('Could not check cancellation status for custom orders:', error);
+          customOrdersWithCancellationStatus = confirmedCustomOrders;
+        }
+        
+        const processedCustomOrders = customOrdersWithCancellationStatus
           .filter(order => order) // Extra safety check
           .map(order => {
           const fullName = order.customer_name || 
                          [order.first_name, order.last_name].filter(Boolean).join(' ') || 
                          'Unknown Customer';
           
+          // Determine the display status based on cancellation status
+          let displayStatus = 'confirmed';
+          let transactionStatus = 'confirmed';
+          
+          if (order.has_pending_cancellation) {
+            displayStatus = 'Cancellation Pending';
+            transactionStatus = 'Cancellation Pending';
+          }
+          
+          // Create proper order number with fallback logic for custom orders
+          const orderNumber = order.custom_order_id || 
+                            order.order_number || 
+                            order.order_id || 
+                            `CUSTOM-${order.id}` || 
+                            'N/A';
+          
+          // Create comprehensive shipping address for custom orders with correct field mappings from CustomPage.js
+          const shippingAddress = order.shipping_address ||
+                                [
+                                  order.streetNumber,          // From CustomPage.js: streetAddress mapped to streetNumber
+                                  order.houseNumber,          // From CustomPage.js: houseNumber
+                                  order.barangay,             // From CustomPage.js: barangay
+                                  order.municipality,         // From CustomPage.js: city mapped to municipality
+                                  order.province,             // From CustomPage.js: province
+                                  order.postalCode           // From CustomPage.js: postalCode
+                                ].filter(Boolean).join(', ') ||
+                                // Fallback to other possible field variations
+                                [
+                                  order.street_address,
+                                  order.city,
+                                  order.area,
+                                  order.postal_code
+                                ].filter(Boolean).join(', ') ||
+                                'Address not provided';
+          
+          
           return {
             id: 'custom-' + order.id, // Prefix to avoid ID conflicts
-            order_number: order.custom_order_id,
+            order_number: orderNumber,
             transaction_id: null,
             customer_name: fullName,
             customer_email: order.customer_email || order.user_email,
@@ -1616,21 +1805,21 @@ const TransactionPage = () => {
             total_amount: order.estimated_price || order.final_price || 0,
             invoice_total: order.estimated_price || order.final_price || 0,
             payment_method: order.payment_method || 'GCash',
-            order_status: 'confirmed', // Custom orders have confirmed status
-            transaction_status: 'confirmed', // Show as confirmed in transaction view
-            status: 'confirmed', // Show as confirmed for consistency
+            order_status: displayStatus, // Show cancellation status if applicable
+            transaction_status: transactionStatus, // Show cancellation status if applicable
+            status: displayStatus, // Show cancellation status if applicable
             delivery_status: order.delivery_status || 'pending', // Add delivery status for custom orders
             order_date: order.created_at,
             created_at: order.created_at,
             updated_at: order.updated_at,
-            shipping_address: (order.street_number || '') + ' ' + (order.barangay || '') + ', ' + (order.municipality || '') + ', ' + (order.province || ''),
+            shipping_address: shippingAddress,
             street_address: (order.street_number || '') + ' ' + (order.barangay || ''),
             city_municipality: order.municipality,
             city: order.municipality,
             province: order.province,
             zip_code: order.postal_code,
             postal_code: order.postal_code,
-            contact_phone: order.customer_phone,
+            contact_phone: order.customer_phone || order.contact_phone || order.phone,
             notes: 'Custom Order: ' + order.product_type + ' | Size: ' + order.size + ' | Color: ' + order.color + ' | Qty: ' + order.quantity + (order.special_instructions ? ' | Notes: ' + order.special_instructions : ''),
             items: [{
               id: 1,
@@ -1642,7 +1831,8 @@ const TransactionPage = () => {
               subtotal: (order.estimated_price || order.final_price || 0) * (order.quantity || 1)
             }],
             order_type: 'custom', // Mark as custom order
-            custom_order_data: order // Keep original custom order data
+            custom_order_data: order, // Keep original custom order data
+            has_pending_cancellation: order.has_pending_cancellation // Keep cancellation status
           };
         });
         
@@ -1686,7 +1876,6 @@ const TransactionPage = () => {
       console.log('Total transactions: ' + allTransactions.length + ' (' + allTransactions.filter(t => t && t.order_type === 'regular').length + ' regular + ' + allTransactions.filter(t => t && t.order_type === 'custom').length + ' custom)');
       
       setTransactions(allTransactions);
-      calculateStats(allTransactions);
       
     } catch (error) {
       console.error('❌ Error fetching transactions:', error);
@@ -1702,31 +1891,147 @@ const TransactionPage = () => {
   const fetchCancellationRequests = useCallback(async () => {
     try {
       setRequestsLoading(true);
-      console.log('Fetching cancellation requests...');
+      console.log('Fetching cancellation requests (both regular and custom orders)...');
       
-      const response = await api.get('/orders/cancellation-requests');
+      // Fetch both regular and custom order cancellation requests
+      const [regularResponse, customResponse] = await Promise.all([
+        api.get('/orders/cancellation-requests').catch(error => {
+          console.warn('Regular order cancellation requests not available:', error.response?.status);
+          return { data: { success: false, data: [] } };
+        }),
+        api.get('/custom-orders/cancellation-requests').catch(error => {
+          console.warn('Custom order cancellation requests not available:', error.response?.status);
+          return { data: { success: false, data: [] } };
+        })
+      ]);
       
-      if (response.data.success) {
-        console.log('✅ Cancellation requests fetched:', response.data);
-        // Debug: Check the structure of requests to see image field for both regular and custom orders
-        if (response.data.data && response.data.data.length > 0) {
-          response.data.data.forEach((request, index) => {
-            if (index < 3) { // Log first 3 requests for debugging
-              console.log(`🖼️ Cancellation request ${index + 1} image data:`, {
-                id: request.id,
-                order_number: request.order_number,
-                product_image: request.product_image,
-                is_custom: request.order_number?.startsWith('CUSTOM'),
-                total_amount: request.total_amount
-              });
-            }
-          });
-        }
-        setCancellationRequests(response.data.data || []);
-      } else {
-        console.error('❌ Failed to fetch cancellation requests:', response.data);
-        toast.error('Failed to fetch cancellation requests');
+      let allCancellationRequests = [];
+      
+      // Process regular order cancellation requests
+      if (regularResponse.data.success) {
+        const regularRequests = regularResponse.data.data || [];
+        console.log(`✅ Found ${regularRequests.length} regular order cancellation requests`);
+        
+        // Add order_type marker for regular orders
+        const processedRegularRequests = regularRequests.map(request => ({
+          ...request,
+          order_type: 'regular',
+          request_type: 'regular_order_cancellation',
+          
+          // Ensure order_number is properly mapped for regular orders
+          order_number: request.order_number || request.order_id || request.transaction_id || request.id,
+          
+          // Map other fields that might be missing
+          customer_name: request.customer_name || request.user_name || request.full_name,
+          customer_email: request.customer_email || request.user_email || request.email,
+          customer_phone: request.customer_phone || request.phone || request.contact_phone,
+          
+          // Map product information
+          product_type: request.product_type || request.product_name || 'Regular Order',
+          total_amount: request.total_amount || request.amount || request.order_total || 0
+        }));
+        
+        allCancellationRequests = [...allCancellationRequests, ...processedRegularRequests];
       }
+      
+      // Process custom order cancellation requests
+      if (customResponse.data.success) {
+        const customRequests = customResponse.data.data || [];
+        console.log(`✅ Found ${customRequests.length} custom order cancellation requests`);
+        
+        // Add order_type marker for custom orders and format to match regular request structure
+        const processedCustomRequests = customRequests.map(request => ({
+          ...request,
+          order_type: 'custom',
+          request_type: 'custom_order_cancellation',
+          order_number: request.custom_order_id || request.order_number, // Use custom_order_id as order_number
+          // Map custom order fields to match regular order structure
+          product_image: request.product_image || request.image || (request.images && request.images[0]) || null,
+          total_amount: request.total_amount || request.estimated_price || request.final_price || 0,
+          
+          // Map address fields from custom order data (if nested)
+          street_number: request.street_number || request.custom_order?.street_number || request.order?.street_number,
+          house_number: request.house_number || request.custom_order?.house_number || request.order?.house_number,
+          barangay: request.barangay || request.custom_order?.barangay || request.order?.barangay,
+          municipality: request.municipality || request.custom_order?.municipality || request.order?.municipality,
+          province: request.province || request.custom_order?.province || request.order?.province,
+          postal_code: request.postal_code || request.custom_order?.postal_code || request.order?.postal_code,
+          
+          // Map product fields from custom order data (if nested)
+          product_type: request.product_type || request.custom_order?.product_type || request.order?.product_type,
+          product_name: request.product_name || request.custom_order?.product_name || request.order?.product_name,
+          size: request.size || request.custom_order?.size || request.order?.size,
+          color: request.color || request.custom_order?.color || request.order?.color,
+          quantity: request.quantity || request.custom_order?.quantity || request.order?.quantity || 1,
+          final_price: request.final_price || request.custom_order?.final_price || request.order?.final_price,
+          estimated_price: request.estimated_price || request.custom_order?.estimated_price || request.order?.estimated_price,
+          special_instructions: request.special_instructions || request.custom_order?.special_instructions || request.order?.special_instructions,
+          
+          // Map customer fields from custom order data (if nested)
+          customer_name: request.customer_name || request.custom_order?.customer_name || request.order?.customer_name,
+          customer_email: request.customer_email || request.custom_order?.customer_email || request.order?.customer_email,
+          customer_phone: request.customer_phone || request.custom_order?.customer_phone || request.order?.customer_phone
+        }));
+        
+        allCancellationRequests = [...allCancellationRequests, ...processedCustomRequests];
+      }
+      
+      // Sort by creation date (newest first)
+      allCancellationRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      
+      console.log(`📊 Total cancellation requests: ${allCancellationRequests.length} (${allCancellationRequests.filter(r => r.order_type === 'regular').length} regular + ${allCancellationRequests.filter(r => r.order_type === 'custom').length} custom)`);
+      
+      // Debug: Check the structure of requests to see image field for both regular and custom orders
+      if (allCancellationRequests.length > 0) {
+        allCancellationRequests.forEach((request, index) => {
+          if (index < 3) { // Log first 3 requests for debugging
+            console.log(`🖼️ Cancellation request ${index + 1} data structure:`, {
+              id: request.id,
+              order_number: request.order_number,
+              order_type: request.order_type,
+              product_image: request.product_image,
+              total_amount: request.total_amount,
+              request_type: request.request_type,
+              
+              // Customer info
+              customer_name: request.customer_name,
+              customer_email: request.customer_email,
+              customer_phone: request.customer_phone,
+              
+              // Address info
+              street_number: request.street_number,
+              barangay: request.barangay,
+              municipality: request.municipality,
+              province: request.province,
+              postal_code: request.postal_code,
+              
+              // Product info
+              product_type: request.product_type,
+              size: request.size,
+              color: request.color,
+              quantity: request.quantity,
+              final_price: request.final_price,
+              estimated_price: request.estimated_price,
+              
+              // Raw request data (for debugging regular orders)
+              keys: Object.keys(request).slice(0, 15),
+              hasCustomOrder: !!request.custom_order,
+              hasOrder: !!request.order,
+              
+              // Additional fields that might contain order number for regular orders
+              order_id: request.order_id,
+              transaction_id: request.transaction_id,
+              user_name: request.user_name,
+              full_name: request.full_name,
+              user_email: request.user_email,
+              email: request.email
+            });
+          }
+        });
+      }
+      
+      setCancellationRequests(allCancellationRequests);
+      
     } catch (error) {
       console.error('❌ Error fetching cancellation requests:', error);
       toast.error('Failed to fetch cancellation requests');
@@ -1735,19 +2040,102 @@ const TransactionPage = () => {
     }
   }, []);
   
-  // Process cancellation request
+  // Process cancellation request with queue system
   const processCancellationRequest = async (requestId, action) => {
+    // Create a unique identifier for this specific request
+    const actionKey = `${requestId}_${action}`;
+    const requestKey = String(requestId); // Just the request ID for queue management
+    
+    console.log('� BUTTON CLICKED: ' + action + ' for request ' + requestId);
+    
+    // Check if there's already a request being processed for this requestId
+    if (requestQueueRef.current.has(requestKey)) {
+      console.log('🚫 Request already queued/processing for requestId:', requestKey);
+      toast.warning('A request is already being processed for this item. Please wait.');
+      return;
+    }
+    
+    // Check debounce using ref to prevent rapid successive calls
+    const now = Date.now();
+    if (debounceRef.current[actionKey] && (now - debounceRef.current[actionKey] < 3000)) {
+      console.log('� Debounced - preventing rapid successive calls for:', actionKey);
+      toast.warning('Please wait before trying again.');
+      return;
+    }
+    debounceRef.current[actionKey] = now;
+    
     try {
-      console.log('BUTTON CLICKED: ' + action + ' for request ' + requestId);
-      console.log((action === 'approve' ? 'Approving' : 'Rejecting') + ' cancellation request ' + requestId + '...');
+      // Add to request queue
+      requestQueueRef.current.set(requestKey, { action, timestamp: now });
+      console.log('🚀 Added to request queue:', requestKey, 'Action:', action);
+      console.log('🚀 Current queue size:', requestQueueRef.current.size);
+      
+      // Validate action parameter - make sure it's exactly what the backend expects
+      if (action !== 'approve' && action !== 'reject') {
+        console.error('❌ Invalid action:', action, 'Type:', typeof action);
+        toast.error('Invalid action');
+        return;
+      }
+      
+      // Log exactly what we're sending
+      console.log('🔍 Action validation passed. Sending action:', JSON.stringify(action));
+      
+      // Find the request to determine if it's a regular or custom order
+      const request = cancellationRequests.find(r => r.id === requestId);
+      if (!request) {
+        console.error('❌ Request not found:', requestId);
+        toast.error('Request not found');
+        return;
+      }
+      
+      // Check if request is already processed
+      if (request.status !== 'pending') {
+        console.log('⚠️ Request already processed with status:', request.status);
+        toast.error('This cancellation request has already been processed.');
+        return;
+      }
+      
+      console.log('🔍 Processing request type:', request.order_type, 'for request ID:', requestId);
+      console.log('🔍 Request status:', request.status);
       
       // Set loading state for this specific request
-      setButtonLoading(prev => ({ ...prev, [`cancel_${requestId}_${action}`]: true }));
+      const loadingKey = `cancel_${requestId}_${action}`;
+      setButtonLoading(prev => ({ ...prev, [loadingKey]: true }));
       
-      const response = await api.put(`/orders/cancellation-requests/${requestId}`, {
+      // Use different API endpoints based on order type
+      const apiEndpoint = request.order_type === 'custom' 
+        ? `/custom-orders/cancellation-requests/${requestId}`
+        : `/orders/cancellation-requests/${requestId}`;
+      
+      console.log('📤 Making API call to:', apiEndpoint, 'with action:', action);
+      console.log('📤 Full API URL:', `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}${apiEndpoint}`);
+      console.log('📤 API Request payload:', {
         action,
         admin_notes: `Cancellation request ${action}d by admin on ${new Date().toLocaleString()}`
       });
+      
+      // Make the API call with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+      });
+      
+      // Create the exact payload we'll send
+      const requestPayload = {
+        action,
+        admin_notes: `Cancellation request ${action}d by admin on ${new Date().toLocaleString()}`
+      };
+      
+      console.log('📤 EXACT REQUEST PAYLOAD:', JSON.stringify(requestPayload, null, 2));
+      console.log('📤 Action type:', typeof action);
+      console.log('📤 Action length:', action.length);
+      console.log('📤 Action value as string:', JSON.stringify(action));
+      console.log('📤 Action character codes:', Array.from(action).map(c => c.charCodeAt(0)));
+      
+      const apiPromise = api.put(apiEndpoint, requestPayload);
+      
+      console.log('📤 Starting API request...');
+      const response = await Promise.race([apiPromise, timeoutPromise]);
+      console.log('📥 API request completed successfully');
       
       console.log('API Response:', response.data);
       
@@ -1790,12 +2178,14 @@ const TransactionPage = () => {
           }));
         }
         
-        // Refresh cancellation requests
-        fetchCancellationRequests();
+        // Refresh cancellation requests after successful processing
+        console.log('🔄 Refreshing cancellation requests...');
+        await fetchCancellationRequests();
         
         // Also refresh the main transactions if needed
         if (activeTab === 'orders') {
-          fetchTransactions();
+          console.log('🔄 Refreshing transactions...');
+          await fetchTransactions();
         }
       } else {
         console.error('❌ API returned error:', response.data);
@@ -1803,35 +2193,49 @@ const TransactionPage = () => {
       }
     } catch (error) {
       console.error(`❌ Error ${action}ing cancellation request:`, error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config?.url
+      });
       
-      if (error.response?.status === 403) {
+      if (error.message === 'Request timeout') {
+        toast.error('Request timed out. Please try again.');
+      } else if (error.response?.status === 403) {
         toast.error('Access denied. Admin privileges required.');
       } else if (error.response?.status === 404) {
         toast.error('Cancellation request not found or already processed.');
       } else if (error.response?.data?.message) {
+        // Special handling for "already processed" error
+        if (error.response.data.message.includes('already been processed')) {
+          console.log('🔄 Request was already processed, refreshing data...');
+          fetchCancellationRequests(); // Refresh to show current status
+        }
         toast.error(error.response.data.message);
       } else {
-        toast.error(`Failed to ${action} cancellation request`);
+        toast.error(`Failed to ${action} cancellation request: ${error.message}`);
       }
     } finally {
       // Clear loading state
-      setButtonLoading(prev => ({ ...prev, [`cancel_${requestId}_${action}`]: false }));
+      const loadingKey = `cancel_${requestId}_${action}`;
+      setButtonLoading(prev => ({ ...prev, [loadingKey]: false }));
+      
+      // Remove from request queue
+      requestQueueRef.current.delete(requestKey);
+      console.log('🧹 Removed from request queue:', requestKey);
+      console.log('🧹 Remaining queue size:', requestQueueRef.current.size);
+      
+      // Clean up debounce ref after some time
+      setTimeout(() => {
+        if (debounceRef.current[actionKey]) {
+          delete debounceRef.current[actionKey];
+          console.log('🧹 Cleaned up debounce for:', actionKey);
+        }
+      }, 5000); // Clean up after 5 seconds
     }
   };
   
-  // Open processing modal
-  const openProcessingModal = (request, action) => {
-    setProcessingRequest({ ...request, action });
-    setAdminNotes('');
-    setShowProcessingModal(true);
-  };
-  
-  // Close processing modal
-  const closeProcessingModal = () => {
-    setShowProcessingModal(false);
-    setProcessingRequest(null);
-    setAdminNotes('');
-  };  
   // Fetch custom design requests
   const fetchCustomDesignRequests = useCallback(async () => {
     try {
@@ -1849,12 +2253,36 @@ const TransactionPage = () => {
         
         // Debug: Show the structure of the first order
         if (allOrders.length > 0) {
-          console.log('First order structure:', {
+          console.log('🖼️ First order structure for image debugging:', {
             custom_order_id: allOrders[0].custom_order_id,
             id: allOrders[0].id,
             customer_name: allOrders[0].customer_name,
-            status: allOrders[0].status
+            status: allOrders[0].status,
+            // Check price fields for debugging amount display
+            final_price: allOrders[0].final_price,
+            estimated_price: allOrders[0].estimated_price,
+            total_amount: allOrders[0].total_amount,
+            price: allOrders[0].price,
+            // Check all possible image field names
+            images: allOrders[0].images,
+            design_images: allOrders[0].design_images,
+            image_paths: allOrders[0].image_paths,
+            image_urls: allOrders[0].image_urls,
+            uploaded_images: allOrders[0].uploaded_images,
+            // Log all keys to see what other fields might contain images
+            all_keys: Object.keys(allOrders[0])
           });
+          
+          // Also log a few more orders if available to see if structure is consistent
+          if (allOrders.length > 1) {
+            console.log('🖼️ Second order image fields:', {
+              custom_order_id: allOrders[1].custom_order_id,
+              images: allOrders[1].images,
+              design_images: allOrders[1].design_images,
+              image_paths: allOrders[1].image_paths,
+              image_urls: allOrders[1].image_urls
+            });
+          }
         }
         
         // Show all orders as history instead of filtering for just pending
@@ -1933,8 +2361,6 @@ const TransactionPage = () => {
         console.log('🔄 Refreshing design requests...');
         await fetchCustomDesignRequests();
         console.log('✅ Design requests refreshed');
-        setShowDesignProcessingModal(false);
-        setDesignAdminNotes('');
       } else {
         console.error('❌ API Error - response.data.success is false:', response.data);
         toast.error(response.data?.message || 'Failed to process request');
@@ -2010,116 +2436,6 @@ const TransactionPage = () => {
       console.error(`Error ${action} refund request:`, error);
       toast.error(`Failed to ${action} refund request`);
     }
-  };
-
-  const viewRefundDetails = (request) => {
-    // You can implement a modal to view refund details here
-    console.log('Viewing refund details:', request);
-  };
-
-  // Filtered refund requests for search
-  const filteredRefundRequests = refundRequests.filter(request => {
-    if (!refundSearchTerm) return true;
-    
-    const searchLower = refundSearchTerm.toLowerCase();
-    return (
-      request.order_number?.toLowerCase().includes(searchLower) ||
-      request.customer_name?.toLowerCase().includes(searchLower) ||
-      request.reason?.toLowerCase().includes(searchLower) ||
-      request.status?.toLowerCase().includes(searchLower)
-    );
-  });
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // Open design processing modal
-  const openDesignProcessingModal = (request, status) => {
-    setProcessingDesignRequest({ ...request, status });
-    setDesignAdminNotes('');
-    setShowDesignProcessingModal(true);
-  };
-  // Close design processing modal
-  const closeDesignProcessingModal = () => {
-    setShowDesignProcessingModal(false);
-    setProcessingDesignRequest(null);
-    setDesignAdminNotes('');  };
-  
-  // Image handling functions
-  const handleImageView = (imageSrc, imageName) => {
-    setSelectedImage(imageSrc);
-    setImageName(imageName || 'Image');
-    setShowImageModal(true);
-  };
-  
-  const handleImageDownload = async (imageSrc, imageName) => {
-    try {
-      const response = await fetch(imageSrc);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = imageName || 'image.jpg';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('Image downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading image:', error);
-      toast.error('Failed to download image');
-    }
-  };
-  
-  const closeImageModal = () => {
-    setShowImageModal(false);
-    setSelectedImage(null);
-    setImageName('');
   };
 
   // Payment verification functions
@@ -2351,11 +2667,19 @@ const TransactionPage = () => {
   };
 
   // View payment proof image
-  const viewPaymentProof = (imagePath, customerName, orderNumber) => {
+  const viewPaymentProof = (imagePath, customerName, orderNumber, gcashReference) => {
+    console.log('🔍 Payment Proof Debug:', {
+      imagePath,
+      customerName,
+      orderNumber,
+      gcashReference
+    });
+    
     setSelectedPaymentProof({
       imagePath,
       customerName,
-      orderNumber
+      orderNumber,
+      gcashReference
     });
     setShowPaymentProofModal(true);
   };
@@ -2364,6 +2688,99 @@ const TransactionPage = () => {
   const closePaymentProofModal = () => {
     setShowPaymentProofModal(false);
     setSelectedPaymentProof(null);
+  };
+
+  // View design images
+  const viewDesignImages = (request) => {
+    console.log('🎨 Viewing design images for request:', request.custom_order_id);
+    console.log('🎨 Full request data structure:', request);
+    
+    // Based on CustomPage.js, images are stored in request.images array
+    // Each image object should have a filename property
+    let images = [];
+    
+    if (request.images && Array.isArray(request.images) && request.images.length > 0) {
+      console.log('🎨 Found images array:', request.images);
+      
+      // Process images exactly like CustomPage.js does
+      images = request.images.map((image, index) => {
+        console.log(`🎨 Processing image ${index + 1}:`, image);
+        
+        // If image is an object with filename property (like in CustomPage.js)
+        if (typeof image === 'object' && image.filename) {
+          const imageUrl = `http://localhost:5000/uploads/custom-orders/${image.filename}`;
+          console.log(`🎨 Created image URL: ${imageUrl}`);
+          return imageUrl;
+        }
+        // If image is just a string (filename or path)
+        else if (typeof image === 'string') {
+          // Check if it's already a full URL
+          if (image.startsWith('http')) {
+            return image;
+          }
+          // Check if it's a path starting with /uploads/
+          else if (image.startsWith('/uploads/')) {
+            return `http://localhost:5000${image}`;
+          }
+          // Otherwise treat it as a filename
+          else {
+            const imageUrl = `http://localhost:5000/uploads/custom-orders/${image}`;
+            console.log(`🎨 Created image URL from string: ${imageUrl}`);
+            return imageUrl;
+          }
+        }
+        // Fallback - convert to string and treat as filename
+        else {
+          const filename = String(image);
+          const imageUrl = `http://localhost:5000/uploads/custom-orders/${filename}`;
+          console.log(`🎨 Created fallback image URL: ${imageUrl}`);
+          return imageUrl;
+        }
+      });
+    }
+    // Fallback: check other possible field names if images array is empty
+    else {
+      console.log('🎨 No images array found, checking other fields...');
+      console.log('🎨 Available fields:', Object.keys(request));
+      
+      // Try other field names that might contain images
+      const imageFields = ['image_urls', 'design_images', 'image_paths', 'uploaded_images'];
+      
+      for (const field of imageFields) {
+        if (request[field]) {
+          console.log(`🎨 Found ${field}:`, request[field]);
+          
+          if (Array.isArray(request[field]) && request[field].length > 0) {
+            images = request[field].map(img => {
+              if (typeof img === 'string') {
+                if (img.startsWith('http')) return img;
+                if (img.startsWith('/uploads/')) return `http://localhost:5000${img}`;
+                return `http://localhost:5000/uploads/custom-orders/${img}`;
+              }
+              return String(img);
+            });
+            break;
+          }
+        }
+      }
+    }
+    
+    console.log('🎨 Final processed images:', images);
+    
+    setSelectedDesignImages({
+      customerName: request.customer_name,
+      orderNumber: request.custom_order_id || request.order_number,
+      productType: request.product_type,
+      designNotes: request.design_notes || request.special_instructions,
+      images: images || []
+    });
+    setShowDesignImagesModal(true);
+  };
+
+  // Close design images modal
+  const closeDesignImagesModal = () => {
+    setShowDesignImagesModal(false);
+    setSelectedDesignImages(null);
   };
 
   // Get delivery status display text and color
@@ -2406,20 +2823,6 @@ const TransactionPage = () => {
     }
   }, [activeTab, fetchRefundRequests]);
 
-  const calculateStats = (data) => {
-    const stats = {
-      total: data.length,
-      pending: data.filter(t => t.status === 'pending').length,
-      approved: data.filter(t => t.status === 'confirmed' || t.status === 'Order Received').length,
-      processing: data.filter(t => t.status === 'processing').length,
-      shipped: data.filter(t => t.status === 'shipped').length,
-      delivered: data.filter(t => t.status === 'delivered' || t.status === 'order received').length,
-      rejected: data.filter(t => t.status === 'cancelled').length,
-      totalAmount: data.reduce((sum, t) => sum + parseFloat(t.total_amount || t.amount || 0), 0)
-    };
-    setStats(stats);
-  };
-
   // View transaction details
   const viewTransaction = (transaction) => {
     setSelectedTransaction(transaction);
@@ -2430,6 +2833,19 @@ const TransactionPage = () => {
   const filteredTransactions = transactions.filter(transaction => {
     // First check if transaction exists and is not null
     if (!transaction) {
+      return false;
+    }
+    
+    // Filter out blank/invalid orders - must have order_number and customer info
+    const hasValidOrderNumber = transaction.order_number && 
+                               transaction.order_number !== 'null' && 
+                               transaction.order_number !== 'undefined' &&
+                               transaction.order_number.trim() !== '';
+    
+    const hasValidCustomer = (transaction.customer_name || transaction.first_name || transaction.user_email || transaction.customer_email) &&
+                            (transaction.customer_name !== 'null' || transaction.first_name !== 'null' || transaction.user_email !== 'null' || transaction.customer_email !== 'null');
+    
+    if (!hasValidOrderNumber || !hasValidCustomer) {
       return false;
     }
     
@@ -2451,11 +2867,24 @@ const TransactionPage = () => {
 
   // Format date
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    if (!dateString || dateString === 'null' || dateString === 'undefined') {
+      return 'No Date';
+    }
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch (error) {
+      console.warn('Date formatting error:', error, 'for date:', dateString);
+      return 'Invalid Date';
+    }
   };
 
   // Get display status
@@ -2478,13 +2907,8 @@ const TransactionPage = () => {
   margin: 0 auto;
   overflow-x: auto;
   background: #ffffff;
-  border: 1px solid #e0e0e0;
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  
-  /* Center the table content */
-  display: flex;
-  justify-content: center;
   
   /* Custom scrollbar for better UX */
   &::-webkit-scrollbar {
@@ -2587,25 +3011,6 @@ const TransactionPage = () => {
         
         {activeTab === 'orders' && (
           <>
-            {/* Statistics */}
-            <StatsContainer>
-              <StatCard color="#000000">
-                <h3>{stats.total}</h3>
-                <p>Total Confirmed</p>
-              </StatCard>
-              <StatCard color="#27ae60">
-                <h3>{stats.approved}</h3>
-                <p>Confirmed Orders</p>
-              </StatCard>
-              <StatCard color="#000000">
-                <h3>{formatCurrency(stats.totalAmount)}</h3>
-                <p>Total Revenue</p>
-              </StatCard>
-              <StatCard color="#3498db">
-                <h3>{stats.total > 0 ? (stats.totalAmount / stats.total).toFixed(0) : 0}</h3>
-                <p>Avg Order Value</p>
-              </StatCard>            </StatsContainer>
-
             {/* Debug Info - Shows ALL users */}
 
             {/* Controls */}
@@ -2697,17 +3102,24 @@ const TransactionPage = () => {
                     </ExpandToggleButton>
 
                     <OrderNumber>
-                      {transaction.order_number}
+                      {transaction.order_number || 
+                       transaction.order_id || 
+                       transaction.transaction_id || 
+                       `${transaction.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${transaction.id}` || 
+                       'N/A'}
                     </OrderNumber>
                     
                     <DateInfo>
-                      {formatDate(transaction.order_date)}
+                      {(() => {
+                        const orderDate = transaction.order_date || transaction.created_at || transaction.date_created;
+                        return formatDate(orderDate);
+                      })()}
                     </DateInfo>
                     
                     <CustomerInfo>
-                      <div className="name">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</div>
+                      <div className="name">{safeDisplayValue(transaction.customer_name || (transaction.first_name && transaction.last_name ? `${transaction.first_name} ${transaction.last_name}` : ''), 'Unknown Customer')}</div>
                       <div className="separator">•</div>
-                      <div className="email">{transaction.customer_email || transaction.user_email || 'N/A'}</div>
+                      <div className="email">{safeDisplayValue(transaction.customer_email || transaction.user_email, 'No Email')}</div>
                     </CustomerInfo>
 
                     {/* Products Summary */}
@@ -2885,7 +3297,10 @@ const TransactionPage = () => {
                     </div>
                     
                     <DateInfo>
-                      {formatDate(transaction.created_at)}
+                      {(() => {
+                        const createdDate = transaction.created_at || transaction.order_date || transaction.date_created;
+                        return formatDate(createdDate);
+                      })()}
                     </DateInfo>
                     
                     <ActionsContainer>
@@ -2929,23 +3344,17 @@ const TransactionPage = () => {
                           <HorizontalCustomerInfo>
                             <div className="customer-field">
                               <span className="label">Name:</span>
-                              <span className="value">{transaction.customer_name || transaction.first_name + ' ' + transaction.last_name || 'N/A'}</span>
+                              <span className="value">{safeDisplayValue(transaction.customer_name || (transaction.first_name && transaction.last_name ? `${transaction.first_name} ${transaction.last_name}` : ''), 'Unknown Customer')}</span>
                             </div>
                             <span className="separator">•</span>
                             <div className="customer-field">
                               <span className="label">Email:</span>
-                              <span className="value">{transaction.customer_email || transaction.user_email || 'N/A'}</span>
+                              <span className="value">{safeDisplayValue(transaction.customer_email || transaction.user_email, 'No Email')}</span>
                             </div>
                             <span className="separator">•</span>
                             <div className="customer-field">
                               <span className="label">Phone:</span>
-                              <span className="value">{
-                                (transaction.contact_phone && transaction.contact_phone !== 'null' && transaction.contact_phone !== 'undefined') 
-                                  ? transaction.contact_phone 
-                                  : (transaction.customer_phone && transaction.customer_phone !== 'null' && transaction.customer_phone !== 'undefined') 
-                                    ? transaction.customer_phone 
-                                    : 'N/A'
-                              }</span>
+                              <span className="value">{safeDisplayValue(formatPhone(transaction.contact_phone || transaction.customer_phone), 'No Phone')}</span>
                             </div>
                           </HorizontalCustomerInfo>
                         </InfoSection>
@@ -2954,9 +3363,33 @@ const TransactionPage = () => {
                         <InfoSection>
                           <h4>Shipping Address</h4>
                           <InfoItem>
-                            <span className="label">Shipping Information:</span>
-                            <span className="value">{transaction.street_address || transaction.shipping_address || 'N/A'}</span>
+                            <span className="label">Address:</span>
+                            <span className="value">{safeDisplayValue(transaction.shipping_address || transaction.street_address, 'No Address')}</span>
                           </InfoItem>
+                          {(transaction.city_municipality || transaction.city || transaction.shipping_city) && (
+                            <InfoItem>
+                              <span className="label">City:</span>
+                              <span className="value">{safeDisplayValue(transaction.city_municipality || transaction.city || transaction.shipping_city, 'No City')}</span>
+                            </InfoItem>
+                          )}
+                          {(transaction.province || transaction.shipping_province) && (
+                            <InfoItem>
+                              <span className="label">Area:</span>
+                              <span className="value">{safeDisplayValue(transaction.province || transaction.shipping_province, 'No Province')}</span>
+                            </InfoItem>
+                          )}
+                          {(transaction.zip_code || transaction.postalCode || transaction.postal_code || transaction.shipping_postal_code) && (
+                            <InfoItem>
+                              <span className="label">Postal Code:</span>
+                              <span className="value">{safeDisplayValue(transaction.zip_code || transaction.postalCode || transaction.postal_code || transaction.shipping_postal_code, 'No Postal Code')}</span>
+                            </InfoItem>
+                          )}
+                          {(transaction.contact_phone || transaction.shipping_phone || transaction.customer_phone) && (
+                            <InfoItem>
+                              <span className="label">Contact Phone:</span>
+                              <span className="value">{safeDisplayValue(formatPhone(transaction.contact_phone || transaction.shipping_phone || transaction.customer_phone), 'No Phone')}</span>
+                            </InfoItem>
+                          )}
                         </InfoSection>
 
                         {/* Order Details */}
@@ -2976,7 +3409,11 @@ const TransactionPage = () => {
                           </InfoItem>
                           <InfoItem>
                             <span className="label">Delivery Status:</span>
-                            <span className="value">{getDeliveryStatusInfo(transaction.delivery_status || 'pending').text}</span>
+                            <span className="value">
+                              <DeliveryStatusBadge status={transaction.delivery_status || 'pending'}>
+                                {getDeliveryStatusInfo(transaction.delivery_status || 'pending').text}
+                              </DeliveryStatusBadge>
+                            </span>
                           </InfoItem>
                           {(transaction.courier_name || transaction.courier_phone) && (
                             <InfoItem>
@@ -3053,26 +3490,7 @@ const TransactionPage = () => {
         {/* Verify Payment Tab */}
         {activeTab === 'verify-payment' && (
           <>
-            <StatsContainer>
-              <StatCard color="#000000">
-                <h3>{pendingVerificationOrders.length}</h3>
-                <p>Total Orders</p>
-              </StatCard>
-              <StatCard color="#28a745">
-                <h3>{pendingVerificationOrders.filter(order => order.payment_status === 'verified' || order.verification_completed).length}</h3>
-                <p>Verified</p>
-              </StatCard>
-              <StatCard color="#ffc107">
-                <h3>{pendingVerificationOrders.filter(order => !order.payment_status || order.payment_status === 'pending').length}</h3>
-                <p>Pending</p>
-              </StatCard>
-              <StatCard color="#3498db">
-                <h3>{formatCurrency(pendingVerificationOrders.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0))}</h3>
-                <p>Total Amount</p>
-              </StatCard>
-            </StatsContainer>
-
-            {/* Search Bar */}
+            {/* Controls */}
             <ControlsSection>
               <ControlsGrid>
                 <SearchContainer>
@@ -3084,6 +3502,17 @@ const TransactionPage = () => {
                     onChange={(e) => setVerificationSearchTerm(e.target.value)}
                   />
                 </SearchContainer>
+                <FilterSelect
+                  value={verificationStatusFilter}
+                  onChange={(e) => setVerificationStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Payment History</option>
+                  <option value="pending">Pending Verification</option>
+                  <option value="verified">Verified Payments</option>
+                  <option value="rejected">Rejected Payments</option>
+                  <option value="regular">Regular Orders Only</option>
+                  <option value="custom">Custom Orders Only</option>
+                </FilterSelect>
                 <RefreshButton onClick={fetchPendingVerificationOrders} disabled={verificationLoading}>
                   <FontAwesomeIcon icon={faRefresh} />
                   {verificationLoading ? 'Loading...' : 'Refresh'}
@@ -3091,23 +3520,22 @@ const TransactionPage = () => {
               </ControlsGrid>
             </ControlsSection>
 
-            {/* Payment History Table */}
+            {/* Payment Verification Table */}
             <TableWrapper>
               <TransactionsTable>
-                <PaymentVerificationTableHeader>
-                  <div>Image</div>
-                  <div>Type</div>
+                <TableHeader>
+                  <div></div>
                   <div>Order #</div>
                   <div>Date</div>
                   <div>Customer</div>
                   <div>Products</div>
                   <div>Amount</div>
                   <div>Status</div>
-                  <div>Delivery Date</div>
-                  <div>Courier</div>
-                  <div>Payment Proof</div>
+                  <div>Payment</div>
+                  <div>Delivery</div>
+                  <div>Created</div>
                   <div>Actions</div>
-                </PaymentVerificationTableHeader>
+                </TableHeader>
                 
                 {verificationLoading ? (
                   <PaymentVerificationTableRow>
@@ -3136,267 +3564,550 @@ const TransactionPage = () => {
                 ) : (
                   pendingVerificationOrders
                     .filter(order => {
+                      // Search filter
                       const searchLower = verificationSearchTerm.toLowerCase();
-                      return order.order_number?.toLowerCase().includes(searchLower) ||
+                      const matchesSearch = !verificationSearchTerm || 
+                             order.order_number?.toLowerCase().includes(searchLower) ||
                              order.customer_name?.toLowerCase().includes(searchLower) ||
                              order.customer_fullname?.toLowerCase().includes(searchLower) ||
                              `${order.first_name} ${order.last_name}`.toLowerCase().includes(searchLower) ||
                              order.user_email?.toLowerCase().includes(searchLower) ||
-                             order.gcash_reference_number?.toLowerCase().includes(searchLower);
+                             order.gcash_reference_number?.toLowerCase().includes(searchLower) ||
+                             order.gcash_reference?.toLowerCase().includes(searchLower) ||
+                             order.payment_reference?.toLowerCase().includes(searchLower) ||
+                             (order.items && order.items[0] && order.items[0].gcash_reference_number?.toLowerCase().includes(searchLower));
+                      
+                      // Status filter
+                      const matchesStatus = (() => {
+                        switch (verificationStatusFilter) {
+                          case 'all':
+                            return true;
+                          case 'pending':
+                            return !order.payment_status || order.payment_status === 'pending';
+                          case 'verified':
+                            return order.payment_status === 'verified' || order.verification_completed;
+                          case 'rejected':
+                            return order.payment_status === 'rejected' || order.payment_status === 'denied';
+                          case 'regular':
+                            return order.order_type === 'regular' || !order.order_type;
+                          case 'custom':
+                            return order.order_type === 'custom';
+                          default:
+                            return true;
+                        }
+                      })();
+                      
+                      return matchesSearch && matchesStatus;
                     })
-                    .map((order) => (
-                      <PaymentVerificationTableRow key={order.order_id || order.payment_id}>
-                        <div style={{ width: '50px' }}>
-                          {/* Product Image */}
-                          {order.order_type === 'custom' ? (
-                            <img 
-                              src={order.image_paths && order.image_paths.length > 0 
-                                ? `http://localhost:5000${order.image_paths[0]}` 
-                                : `http://localhost:5000/uploads/default-product.png`} 
-                              alt="Custom Product" 
-                              style={{ 
-                                width: 40, 
-                                height: 40, 
-                                objectFit: 'cover', 
-                                borderRadius: 6, 
-                                border: '1px solid #eee' 
-                              }} 
-                              onError={(e) => {
-                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                    .map((order, index) => {
+                      // Create a unique identifier for this verification row - use a stable unique key
+                      const orderId = order.order_id || order.payment_id || order.order_number || `verification-row-${index}`;
+                      const uniqueKey = `verification-${orderId}-${index}`;
+                      const isExpanded = expandedVerificationRows.has(uniqueKey);
+                      
+                      return (
+                        <React.Fragment key={uniqueKey}>
+                          <PaymentVerificationTableRow
+                            onClick={() => {
+                              console.log('🔄 Row clicked, toggling verification row:', uniqueKey);
+                              toggleVerificationRowExpansion(uniqueKey);
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {/* Expand/Collapse Button */}
+                            <ExpandToggleButton
+                              className={isExpanded ? 'expanded' : ''}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('🔄 Button clicked, toggling verification row:', uniqueKey);
+                                toggleVerificationRowExpansion(uniqueKey);
                               }}
-                            />
-                          ) : order.items && order.items.length > 0 && order.items[0].productimage ? (
-                            <img 
-                              src={`http://localhost:5000/uploads/${order.items[0].productimage}`}
-                              alt="Product" 
-                              style={{ 
-                                width: 40, 
-                                height: 40, 
-                                objectFit: 'cover', 
-                                borderRadius: 6, 
-                                border: '1px solid #eee' 
-                              }} 
-                              onError={(e) => {
-                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                              }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              backgroundColor: '#f8f9fa',
-                              border: '1px solid #eee',
-                              borderRadius: 6,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              color: '#666'
-                            }}>
-                              No Img
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div>
-                          <span style={{ 
-                            background: order.order_type === 'custom' ? '#e3f2fd' : '#fff3e0',
-                            color: order.order_type === 'custom' ? '#1976d2' : '#f57c00',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '11px',
-                            fontWeight: '500',
-                            textTransform: 'uppercase'
-                          }}>
-                            {order.order_type === 'custom' ? 'Custom' : 'Regular'}
-                          </span>
-                        </div>
-                        
-                        <div>
-                          <OrderNumber>{order.order_number}</OrderNumber>
-                        </div>
-                        
-                        <DateInfo>
-                          {formatDate(order.order_date || order.created_at)}
-                        </DateInfo>
-                        
-                        <div>
-                          <CustomerInfo>
-                            <div className="name">
-                              {order.customer_name || order.customer_fullname || `${order.first_name} ${order.last_name}`}
-                            </div>
-                            <div className="separator">•</div>
-                            <div className="email">{order.user_email || order.contact_number}</div>
-                          </CustomerInfo>
-                        </div>
-                        
-                        <div>
-                          {order.order_type === 'custom' ? (
-                            <div>
-                              <div style={{ 
-                                fontSize: '11px', 
-                                fontWeight: '500',
-                                marginBottom: '2px' 
-                              }}>
-                                Custom {order.product_type || 'Product'}
-                              </div>
-                              <div style={{ 
-                                fontSize: '9px', 
-                                color: '#666666',
-                                fontStyle: 'italic',
-                                lineHeight: '1.2'
-                              }}>
-                                {order.size && `Size: ${order.size}`}
-                                {order.color && ` • Color: ${order.color}`}
-                                {order.quantity && ` • Qty: ${order.quantity}`}
-                              </div>
-                            </div>
-                          ) : order.items && order.items.length > 0 ? (
-                            <div>
-                              <div style={{ 
-                                fontSize: '11px', 
-                                fontWeight: '500',
-                                marginBottom: '2px' 
-                              }}>
-                                {order.items[0].productname}
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{
-                              color: '#999999', 
-                              fontSize: '12px',
-                              fontStyle: 'italic' 
-                            }}>
-                              No items
-                            </div>
-                          )}
-                        </div>
-                        
-                        <OrderDetails>
-                          <div className="amount">{formatCurrency(order.total_amount)}</div>
-                        </OrderDetails>
-                        
-                        <div>
-                          <span style={{ 
-                            background: order.payment_status === 'verified' || order.verification_completed 
-                              ? '#d4edda' 
-                              : order.payment_status === 'rejected' 
-                                ? '#f8d7da' 
-                                : '#fff3cd',
-                            color: order.payment_status === 'verified' || order.verification_completed 
-                              ? '#155724' 
-                              : order.payment_status === 'rejected' 
-                                ? '#721c24' 
-                                : '#856404',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '11px',
-                            fontWeight: '500',
-                            textTransform: 'uppercase'
-                          }}>
-                            {order.payment_status === 'verified' || order.verification_completed 
-                              ? 'Verified' 
-                              : order.payment_status === 'rejected' 
-                                ? 'Rejected' 
-                                : 'Pending'}
-                          </span>
-                          {order.gcash_reference_number && (
-                            <div style={{ 
-                              fontSize: '9px', 
-                              color: '#666666',
-                              marginTop: '2px',
-                              fontFamily: 'monospace'
-                            }}>
-                              GCash: {order.gcash_reference_number}
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div>
-                          {order.payment_proof_image_path ? (
-                            <ActionButton
-                              variant="view"
-                              onClick={() => viewPaymentProof(order.payment_proof_image_path, order.customer_name, order.order_number)}
                             >
-                              <FontAwesomeIcon icon={faImage} style={{ marginRight: '4px' }} />
-                              View
-                            </ActionButton>
-                          ) : (
-                            <span style={{ 
-                              color: '#999999', 
-                              fontSize: '11px',
-                              fontStyle: 'italic',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '8px',
-                              background: '#f8f9fa',
-                              borderRadius: '4px',
-                              border: '1px solid #e9ecef'
-                            }}>
-                              No proof
-                            </span>
-                          )}
-                        </div>
-                        
-                        <ActionsContainer className="stacked">
-                          {order.payment_status === 'verified' || order.verification_completed ? (
-                            // Already verified - show only view details
-                            <div className="button-full">
-                              <ActionButton
-                                variant="view"
-                                onClick={() => viewTransaction(order)}
-                              >
-                                <FontAwesomeIcon icon={faEye} />
-                                Details
-                              </ActionButton>
-                            </div>
-                          ) : order.payment_status === 'rejected' ? (
-                            // Rejected - show view details only
-                            <div className="button-full">
-                              <ActionButton
-                                variant="view"
-                                onClick={() => viewTransaction(order)}
-                              >
-                                <FontAwesomeIcon icon={faEye} />
-                                Details (Rejected)
-                              </ActionButton>
-                            </div>
-                          ) : (
-                            // Pending - show approve/deny buttons
-                            <>
-                              <div className="button-row">
-                                <ActionButton
-                                  variant="approve"
-                                  onClick={() => approvePayment(order)}
-                                  disabled={processingPayment}
-                                >
-                                  <FontAwesomeIcon icon={faCheck} />
-                                  {processingPayment ? 'Processing...' : 'Approve'}
-                                </ActionButton>
-                                <ActionButton
-                                  variant="reject"
-                                  onClick={() => denyPayment(order)}
-                                  disabled={processingPayment}
-                                >
-                                  <FontAwesomeIcon icon={faTimes} />
-                                  {processingPayment ? 'Processing...' : 'Deny'}
-                                </ActionButton>
+                              <FontAwesomeIcon 
+                                icon={faChevronDown} 
+                                style={{ 
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s ease'
+                                }}
+                              />
+                            </ExpandToggleButton>
+                            
+                            {/* Order # with type badge */}
+                            <div>
+                              <OrderNumber>
+                                {order.order_number || 
+                                 order.order_id || 
+                                 order.transaction_id || 
+                                 `${order.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${order.id}` || 
+                                 'N/A'}
+                              </OrderNumber>
+                              <div style={{ marginTop: '2px' }}>
+                                <span style={{ 
+                                  background: order.order_type === 'custom' ? '#e3f2fd' : '#fff3e0',
+                                  color: order.order_type === 'custom' ? '#1976d2' : '#f57c00',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '11px',
+                                  fontWeight: '500',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {order.order_type === 'custom' ? 'Custom' : 'Regular'}
+                                </span>
                               </div>
-                              <div className="button-full">
+                            </div>
+                            
+                            {/* Date */}
+                            <DateInfo>
+                              {formatDate(order.order_date || order.created_at)}
+                            </DateInfo>
+                            
+                            <div>
+                              <CustomerInfo>
+                                <div className="name">
+                                  {order.customer_name || order.customer_fullname || `${order.first_name} ${order.last_name}`}
+                                </div>
+                                <div className="separator">•</div>
+                                <div className="email">{order.user_email || order.contact_number}</div>
+                              </CustomerInfo>
+                            </div>
+                            
+                            <div>
+                              {order.order_type === 'custom' ? (
+                                <div>
+                                  <div style={{ 
+                                    fontSize: '11px', 
+                                    fontWeight: '500',
+                                    marginBottom: '2px' 
+                                  }}>
+                                    Custom {order.product_type || 'Product'}
+                                  </div>
+                                  <div style={{ 
+                                    fontSize: '9px', 
+                                    color: '#666666',
+                                    fontStyle: 'italic',
+                                    lineHeight: '1.2'
+                                  }}>
+                                    {order.size && `Size: ${order.size}`}
+                                    {order.color && ` • Color: ${order.color}`}
+                                    {order.quantity && ` • Qty: ${order.quantity}`}
+                                  </div>
+                                </div>
+                              ) : order.items && order.items.length > 0 ? (
+                                <div>
+                                  <div style={{ 
+                                    fontSize: '11px', 
+                                    fontWeight: '500',
+                                    marginBottom: '2px' 
+                                  }}>
+                                    {order.items[0].productname}
+                                  </div>
+                                  {order.items.length > 1 && (
+                                    <div style={{ 
+                                      fontSize: '9px', 
+                                      color: '#666666',
+                                      fontStyle: 'italic'
+                                    }}>
+                                      +{order.items.length - 1} more item{order.items.length - 1 > 1 ? 's' : ''}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{
+                                  color: '#999999', 
+                                  fontSize: '12px',
+                                  fontStyle: 'italic' 
+                                }}>
+                                  No items
+                                </div>
+                              )}
+                            </div>
+                            
+                            <OrderDetails>
+                              <div className="amount">{formatCurrency(order.total_amount)}</div>
+                            </OrderDetails>
+                            
+                            {/* Payment Status */}
+                            <div>
+                              <span style={{ 
+                                background: order.payment_status === 'verified' || order.verification_completed 
+                                  ? '#d4edda' 
+                                  : order.payment_status === 'rejected' 
+                                    ? '#f8d7da' 
+                                    : '#fff3cd',
+                                color: order.payment_status === 'verified' || order.verification_completed 
+                                  ? '#155724' 
+                                  : order.payment_status === 'rejected' 
+                                    ? '#721c24' 
+                                    : '#856404',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                textTransform: 'uppercase'
+                              }}>
+                                {order.payment_status === 'verified' || order.verification_completed 
+                                  ? 'Verified' 
+                                  : order.payment_status === 'rejected' 
+                                    ? 'Rejected' 
+                                    : 'Pending'}
+                              </span>
+                              {(() => {
+                                // Try multiple possible GCash reference fields
+                                const gcashRef = order.gcash_reference_number || 
+                                               order.gcash_reference || 
+                                               order.payment_reference ||
+                                               (order.items && order.items[0] && order.items[0].gcash_reference_number) ||
+                                               null;
+                                return gcashRef ? (
+                                  <div style={{ 
+                                    fontSize: '9px', 
+                                    color: '#666666',
+                                    marginTop: '2px',
+                                    fontFamily: 'monospace'
+                                  }}>
+                                    GCash: {gcashRef}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+
+                            {/* Payment Proof */}
+                            <div>
+                              {(order.payment_status === 'verified' || order.verification_completed) ? (
                                 <ActionButton
                                   variant="view"
-                                  onClick={() => viewTransaction(order)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    console.log('🔍 Order data for payment proof:', {
+                                      payment_proof_image_path: order.payment_proof_image_path,
+                                      payment_proof_filename: order.payment_proof_filename,
+                                      payment_proof: order.payment_proof,
+                                      gcash_reference_number: order.gcash_reference_number,
+                                      gcash_reference: order.gcash_reference,
+                                      customer_name: order.customer_name,
+                                      order_number: order.order_number
+                                    });
+                                    
+                                    // Try multiple possible image path fields
+                                    const imagePath = order.payment_proof_image_path || 
+                                                    order.payment_proof_filename || 
+                                                    order.payment_proof ||
+                                                    (order.payment_proof_filename ? `/uploads/payment-proofs/${order.payment_proof_filename}` : null);
+                                    
+                                    // Try multiple possible GCash reference fields
+                                    const gcashRef = order.gcash_reference_number || 
+                                                   order.gcash_reference || 
+                                                   order.payment_reference ||
+                                                   (order.items && order.items[0] && order.items[0].gcash_reference_number) ||
+                                                   null;
+                                    
+                                    viewPaymentProof(
+                                      imagePath, 
+                                      order.customer_name, 
+                                      order.order_number, 
+                                      gcashRef
+                                    );
+                                  }}
                                 >
-                                  <FontAwesomeIcon icon={faEye} />
-                                  Details
+                                  <FontAwesomeIcon icon={faImage} style={{ marginRight: '4px' }} />
+                                  Proof
                                 </ActionButton>
-                              </div>
-                            </>
+                              ) : (
+                                <span style={{ color: '#999', fontSize: '12px' }}>
+                                  No proof available
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Delivery Status */}
+                            <div>
+                              <DeliveryStatusBadge status={order.delivery_status || 'pending'}>
+                                {order.delivery_status || 'pending'}
+                              </DeliveryStatusBadge>
+                            </div>
+
+                            {/* Created Date */}
+                            <DateInfo>
+                              {(() => {
+                                // Try multiple possible date fields
+                                const createdDate = order.created_at || order.order_date || order.date_created || order.payment_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            <ActionsContainer className="stacked">
+                              {order.payment_status === 'verified' || order.verification_completed ? (
+                                // Already verified - no actions needed
+                                <div className="button-full" style={{ color: '#28a745', fontWeight: '500' }}>
+                                  ✓ Verified
+                                </div>
+                              ) : order.payment_status === 'rejected' ? (
+                                // Rejected - no actions needed
+                                <div className="button-full" style={{ color: '#dc3545', fontWeight: '500' }}>
+                                  ✗ Rejected
+                                </div>
+                              ) : (
+                                // Pending - show approve/deny buttons
+                                <>
+                                  <div className="button-row">
+                                    <ActionButton
+                                      variant="approve"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        approvePayment(order);
+                                      }}
+                                      disabled={processingPayment}
+                                    >
+                                      <FontAwesomeIcon icon={faCheck} />
+                                      {processingPayment ? 'Processing...' : 'Approve'}
+                                    </ActionButton>
+                                    <ActionButton
+                                      variant="reject"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        denyPayment(order);
+                                      }}
+                                      disabled={processingPayment}
+                                    >
+                                      <FontAwesomeIcon icon={faTimes} />
+                                      {processingPayment ? 'Processing...' : 'Deny'}
+                                    </ActionButton>
+                                  </div>
+                                </>
+                              )}
+                            </ActionsContainer>
+                          </PaymentVerificationTableRow>
+
+                          {/* Expanded Row Content */}
+                          {isExpanded && (
+                            <ExpandedRowContainer>
+                              <ExpandedContent>
+                                {/* Customer Information */}
+                                <InfoSection>
+                                  <h4>Customer Information</h4>
+                                  <HorizontalCustomerInfo>
+                                    <div className="customer-field">
+                                      <span className="label">Name:</span>
+                                      <span className="value">{safeDisplayValue(order.customer_name || order.customer_fullname || (order.first_name && order.last_name ? `${order.first_name} ${order.last_name}` : ''), 'Unknown Customer')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Email:</span>
+                                      <span className="value">{safeDisplayValue(order.user_email || order.contact_email, 'No Email')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Phone:</span>
+                                      <span className="value">{safeDisplayValue(formatPhone(order.contact_phone || order.customer_phone), 'No Phone')}</span>
+                                    </div>
+                                  </HorizontalCustomerInfo>
+                                </InfoSection>
+
+                                {/* Payment Information */}
+                                <InfoSection>
+                                  <h4>Payment Information</h4>
+                                  <InfoItem>
+                                    <span className="label">Total Amount:</span>
+                                    <span className="value">{formatCurrency(order.total_amount)}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Payment Method:</span>
+                                    <span className="value">GCash</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">GCash Reference:</span>
+                                    <span className="value">
+                                      {safeDisplayValue(order.gcash_reference_number || 
+                                       order.gcash_reference || 
+                                       order.payment_reference ||
+                                       (order.items && order.items[0] && order.items[0].gcash_reference_number), 'No Reference')}
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Payment Status:</span>
+                                    <span className="value">
+                                      {order.payment_status === 'verified' || order.verification_completed 
+                                        ? 'Verified' 
+                                        : order.payment_status === 'rejected' 
+                                          ? 'Rejected' 
+                                          : 'Pending Verification'}
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Payment Proof:</span>
+                                    <span className="value">
+                                      {(order.payment_status === 'verified' || order.verification_completed) ? (
+                                        <ActionButton
+                                          variant="view"
+                                          size="small"
+                                          onClick={() => {
+                                            // Try multiple possible image path fields
+                                            const imagePath = order.payment_proof_image_path || 
+                                                            order.payment_proof_filename || 
+                                                            order.payment_proof ||
+                                                            (order.payment_proof_filename ? `/uploads/payment-proofs/${order.payment_proof_filename}` : null);
+                                            
+                                            // Try multiple possible GCash reference fields
+                                            const gcashRef = order.gcash_reference_number || 
+                                                           order.gcash_reference || 
+                                                           order.payment_reference ||
+                                                           (order.items && order.items[0] && order.items[0].gcash_reference_number) ||
+                                                           null;
+                                            
+                                            viewPaymentProof(imagePath, order.customer_name, order.order_number, gcashRef);
+                                          }}
+                                        >
+                                          <FontAwesomeIcon icon={faImage} style={{ marginRight: '4px' }} />
+                                          View Payment Proof
+                                        </ActionButton>
+                                      ) : (
+                                        <span style={{ color: '#999', fontSize: '12px' }}>
+                                          No proof available
+                                        </span>
+                                      )}
+                                    </span>
+                                  </InfoItem>
+                                </InfoSection>
+
+                                {/* Order Items */}
+                                <InfoSection>
+                                  <h4>Order Items ({order.items ? order.items.length : 0})</h4>
+                                  {order.items && order.items.length > 0 ? (
+                                    <OrderItemsList>
+                                      {order.items.map((item, index) => (
+                                        <OrderItemCard key={index}>
+                                          <OrderItemImage>
+                                            {item.productimage ? (
+                                              <img 
+                                                src={(() => {
+                                                  const imagePath = item.productimage;
+                                                  if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+                                                    return `http://localhost:5000/uploads/default-product.png`;
+                                                  }
+                                                  if (imagePath.startsWith('http')) {
+                                                    return imagePath;
+                                                  }
+                                                  if (imagePath.startsWith('/uploads/')) {
+                                                    return `http://localhost:5000${imagePath}`;
+                                                  }
+                                                  return `http://localhost:5000/uploads/${imagePath}`;
+                                                })()}
+                                                alt={item.productname}
+                                                onError={(e) => {
+                                                  e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                                }}
+                                              />
+                                            ) : (
+                                              <FontAwesomeIcon icon={faImage} />
+                                            )}
+                                          </OrderItemImage>
+                                          <OrderItemDetails>
+                                            <div className="item-name">{item.productname || 'Unknown Product'}</div>
+                                            <div className="item-specs">
+                                              {item.productcolor && <span className="spec">Color: {item.productcolor}</span>}
+                                              {item.size && <span className="spec">Size: {item.size}</span>}
+                                              {item.product_type && <span className="spec">Type: {item.product_type}</span>}
+                                            </div>
+                                            <div className="item-quantity">Quantity: {item.quantity}</div>
+                                            <div className="item-price">Price: {formatCurrency(item.product_price || item.price)}</div>
+                                            <div className="item-subtotal">Subtotal: {formatCurrency(item.subtotal || (item.quantity * (item.product_price || item.price)))}</div>
+                                          </OrderItemDetails>
+                                        </OrderItemCard>
+                                      ))}
+                                    </OrderItemsList>
+                                  ) : order.order_type === 'custom' ? (
+                                    <OrderItemsList>
+                                      <OrderItemCard>
+                                        <OrderItemImage>
+                                          {order.image_paths && order.image_paths.length > 0 ? (
+                                            <img 
+                                              src={(() => {
+                                                const imagePath = order.image_paths[0];
+                                                if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+                                                  return `http://localhost:5000/uploads/default-product.png`;
+                                                }
+                                                if (imagePath.startsWith('http')) {
+                                                  return imagePath;
+                                                }
+                                                if (imagePath.startsWith('/uploads/')) {
+                                                  return `http://localhost:5000${imagePath}`;
+                                                }
+                                                return `http://localhost:5000/uploads/${imagePath}`;
+                                              })()}
+                                              alt="Custom Product"
+                                              onError={(e) => {
+                                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                              }}
+                                            />
+                                          ) : (
+                                            <FontAwesomeIcon icon={faImage} />
+                                          )}
+                                        </OrderItemImage>
+                                        <OrderItemDetails>
+                                          <div className="item-name">Custom {order.product_type || 'Product'}</div>
+                                          <div className="item-specs">
+                                            {order.color && <span className="spec">Color: {order.color}</span>}
+                                            {order.size && <span className="spec">Size: {order.size}</span>}
+                                          </div>
+                                          <div className="item-quantity">Quantity: {order.quantity || 1}</div>
+                                          <div className="item-price">Price: {formatCurrency(order.total_amount)}</div>
+                                        </OrderItemDetails>
+                                      </OrderItemCard>
+                                    </OrderItemsList>
+                                  ) : (
+                                    <div style={{ 
+                                      color: '#999999', 
+                                      fontSize: '14px',
+                                      fontStyle: 'italic',
+                                      textAlign: 'center',
+                                      padding: '20px'
+                                    }}>
+                                      No items found for this order
+                                    </div>
+                                  )}
+                                </InfoSection>
+
+                                {/* Shipping Information */}
+                                {(order.shipping_address || order.street_address) && (
+                                  <InfoSection>
+                                    <h4>Shipping Information</h4>
+                                    <InfoItem>
+                                      <span className="label">Address:</span>
+                                      <span className="value">{safeDisplayValue(order.shipping_address || order.street_address, 'No Address')}</span>
+                                    </InfoItem>
+                                    {(order.city_municipality || order.city || order.shipping_city) && (
+                                      <InfoItem>
+                                        <span className="label">City:</span>
+                                        <span className="value">{safeDisplayValue(order.city_municipality || order.city || order.shipping_city, 'No City')}</span>
+                                      </InfoItem>
+                                    )}
+                                    {(order.province || order.shipping_province) && (
+                                      <InfoItem>
+                                        <span className="label">Area:</span>
+                                        <span className="value">{safeDisplayValue(order.province || order.shipping_province, 'No Province')}</span>
+                                      </InfoItem>
+                                    )}
+                                    {(order.zip_code || order.postalCode || order.postal_code || order.shipping_postal_code) && (
+                                      <InfoItem>
+                                        <span className="label">Postal Code:</span>
+                                        <span className="value">{safeDisplayValue(order.zip_code || order.postalCode || order.postal_code || order.shipping_postal_code, 'No Postal Code')}</span>
+                                      </InfoItem>
+                                    )}
+                                    {(order.contact_phone || order.shipping_phone || order.customer_phone) && (
+                                      <InfoItem>
+                                        <span className="label">Contact Phone:</span>
+                                        <span className="value">{safeDisplayValue(formatPhone(order.contact_phone || order.shipping_phone || order.customer_phone), 'No Phone')}</span>
+                                      </InfoItem>
+                                    )}
+                                  </InfoSection>
+                                )}
+                              </ExpandedContent>
+                            </ExpandedRowContainer>
                           )}
-                        </ActionsContainer>
-                      </PaymentVerificationTableRow>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                 )}
               </TransactionsTable>
             </TableWrapper>
@@ -3406,25 +4117,6 @@ const TransactionPage = () => {
         {/* Cancellation Requests Tab */}
         {activeTab === 'cancellations' && (
           <>
-            <StatsContainer>
-              <StatCard color="#000000">
-                <h3>{cancellationRequests.length}</h3>
-                <p>Total Requests</p>
-              </StatCard>
-              <StatCard color="#ffc107">
-                <h3>{cancellationRequests.filter(req => req.status === 'pending').length}</h3>
-                <p>Pending</p>
-              </StatCard>
-              <StatCard color="#28a745">
-                <h3>{cancellationRequests.filter(req => req.status === 'approved').length}</h3>
-                <p>Approved</p>
-              </StatCard>
-              <StatCard color="#dc3545">
-                <h3>{cancellationRequests.filter(req => req.status === 'rejected').length}</h3>
-                <p>Rejected</p>
-              </StatCard>
-            </StatsContainer>
-
             {/* Search Bar */}
             <ControlsSection>
               <ControlsGrid>
@@ -3448,15 +4140,16 @@ const TransactionPage = () => {
             <TableWrapper>
               <TransactionsTable>
                 <TableHeader>
-                  <div>Image</div>
-                  <div>Request ID</div>
-                  <div>Order Number</div>
-                  <div>Product</div>
-                  <div>Customer</div>
-                  <div>Amount</div>
-                  <div>Reason</div>
-                  <div>Status</div>
+                  <div></div>
+                  <div>Order #</div>
                   <div>Date</div>
+                  <div>Customer</div>
+                  <div>Products</div>
+                  <div>Amount</div>
+                  <div>Payment</div>
+                  <div>Status</div>
+                  <div>Delivery</div>
+                  <div>Created</div>
                   <div>Actions</div>
                 </TableHeader>
                 
@@ -3488,194 +4181,448 @@ const TransactionPage = () => {
                   cancellationRequests
                     .filter(request => {
                       const searchLower = searchTerm.toLowerCase();
-                      return request.order_number?.toLowerCase().includes(searchLower) ||
+                      return request.custom_order_id?.toLowerCase().includes(searchLower) ||
                              request.customer_name?.toLowerCase().includes(searchLower) ||
                              request.reason?.toLowerCase().includes(searchLower) ||
                              request.status?.toLowerCase().includes(searchLower);
                     })
-                    .map((request) => (
-                      <TableRow key={request.id}>
-                        <div style={{ width: '50px' }}>
-                          {/* Product Image - enhanced for custom orders */}
-                          {console.log('🖼️ Cancellation request:', {
-                            id: request.id,
-                            orderNumber: request.order_number,
-                            orderType: request.order_type,
-                            productImage: request.product_image,
-                            isCustomPattern: request.order_number?.startsWith('CUSTOM-')
-                          })}
-                          
-                          {request.product_image && request.product_image !== 'null' ? (
-                            <>
-                              <img 
-                                src={(() => {
-                                  // Handle different image path formats
-                                  if (request.product_image.startsWith('http')) {
-                                    return request.product_image;
-                                  } else if (request.product_image.startsWith('/uploads/')) {
-                                    return `http://localhost:5000${request.product_image}`;
-                                  } else if (request.product_image === 'default-product.png') {
-                                    return `http://localhost:5000/uploads/default-product.png`;
-                                  } else if (request.product_image.startsWith('custom-orders/')) {
-                                    return `http://localhost:5000/uploads/${request.product_image}`;
-                                  } else if (request.order_type === 'custom' || request.order_number?.startsWith('CUSTOM-')) {
-                                    // For custom orders, try custom-orders path first
-                                    return `http://localhost:5000/uploads/custom-orders/${request.product_image}`;
-                                  } else {
-                                    return `http://localhost:5000/uploads/${request.product_image}`;
-                                  }
-                                })()} 
-                                alt="Product" 
+                    .map((request, index) => {
+                      const requestId = request.id;
+                      const uniqueKey = `cancellation-${requestId}-${index}`;
+                      const isExpanded = expandedCancellationRows.has(uniqueKey);
+                      
+                      return (
+                        <React.Fragment key={uniqueKey}>
+                          <TableRow 
+                            onClick={(e) => {
+                              // Only trigger row expansion if not clicking on buttons
+                              if (!e.target.closest('button')) {
+                                console.log('🔄 Cancellation row clicked (not button), toggling:', uniqueKey);
+                                toggleCancellationRowExpansion(uniqueKey);
+                              }
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {/* Expand/Collapse Button */}
+                            <ExpandToggleButton
+                              className={isExpanded ? 'expanded' : ''}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('🔄 Cancellation button clicked, toggling:', uniqueKey);
+                                console.log('🔄 Current expanded state:', isExpanded);
+                                console.log('🔄 Current expanded rows:', Array.from(expandedCancellationRows));
+                                toggleCancellationRowExpansion(uniqueKey);
+                              }}
+                            >
+                              <FontAwesomeIcon 
+                                icon={faChevronDown} 
                                 style={{ 
-                                  width: 40, 
-                                  height: 40, 
-                                  objectFit: 'cover', 
-                                  borderRadius: 6, 
-                                  border: '1px solid #eee' 
-                                }} 
-                                onError={(e) => {
-                                  // Enhanced error handling for different image types
-                                  const originalSrc = e.target.src;
-                                  console.log('🖼️ Image load error for:', originalSrc, 'Order:', request.order_number, 'Type:', request.order_type);
-                                  
-                                  // For custom orders, try custom-orders path if not already tried
-                                  if ((request.order_type === 'custom' || request.order_number?.startsWith('CUSTOM-')) && 
-                                      !originalSrc.includes('custom-orders/')) {
-                                    e.target.src = `http://localhost:5000/uploads/custom-orders/${request.product_image}`;
-                                    return;
-                                  }
-                                  
-                                  // Try product-images path
-                                  if (!originalSrc.includes('product-images/') && !originalSrc.includes('default-product.png')) {
-                                    e.target.src = `http://localhost:5000/uploads/product-images/${request.product_image}`;
-                                  } else if (!originalSrc.includes('default-product.png')) {
-                                    e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                                  } else {
-                                    // Final fallback: hide image and show placeholder
-                                    e.target.style.display = 'none';
-                                    if (e.target.nextSibling) {
-                                      e.target.nextSibling.style.display = 'flex';
-                                    }
-                                  }
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s ease'
                                 }}
                               />
-                              <div 
-                                style={{ 
-                                  display: 'none', 
-                                  width: 40, 
-                                  height: 40, 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  backgroundColor: '#f8f9fa',
-                                  borderRadius: 6,
-                                  border: '1px solid #eee'
-                                }}
-                              >
-                                <FontAwesomeIcon icon={faImage} style={{ color: '#ccc', fontSize: 16 }} />
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              backgroundColor: '#f8f9fa',
-                              border: '1px solid #eee',
-                              borderRadius: 6,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              color: '#666'
+                            </ExpandToggleButton>
+                            
+                            {/* Order Number */}
+                            <OrderNumber>
+                              {request.order_number || 
+                               request.custom_order_id || 
+                               request.order_id || 
+                               request.transaction_id || 
+                               `${request.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${request.id}` || 
+                               'N/A'}
+                            </OrderNumber>
+                            
+                            {/* Date */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.request_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Customer */}
+                            <CustomerInfo>
+                              <div className="name">{request.customer_name}</div>
+                              <div className="separator">•</div>
+                              <div className="email">{request.customer_email}</div>
+                            </CustomerInfo>
+                            
+                            {/* Products */}
+                            <div style={{ 
+                              fontSize: '14px',
+                              maxWidth: '100%',
+                              overflow: 'hidden'
                             }}>
-                              <FontAwesomeIcon icon={faImage} style={{ color: '#ccc' }} />
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: '8px',
+                                padding: '6px 8px',
+                                backgroundColor: '#f8f9fa',
+                                borderRadius: '6px',
+                                border: '1px solid #e9ecef'
+                              }}>
+                                <div style={{ 
+                                  fontWeight: '600', 
+                                  color: '#000000',
+                                  fontSize: '13px'
+                                }}>
+                                  1 item
+                                </div>
+                              </div>
+                              <div style={{ 
+                                fontSize: '12px',
+                                color: '#555555',
+                                lineHeight: '1.4',
+                                padding: '8px 10px',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '6px',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ 
+                                    fontWeight: '600', 
+                                    color: '#000000',
+                                    marginBottom: '3px',
+                                    fontSize: '13px'
+                                  }}>
+                                    {request.product_name || request.product_type || 'Product'}
+                                  </div>
+                                  {(request.size || request.color) && (
+                                    <div style={{ 
+                                      fontSize: '11px', 
+                                      color: '#666666',
+                                      display: 'flex',
+                                      gap: '8px',
+                                      flexWrap: 'wrap'
+                                    }}>
+                                      {request.size && (
+                                        <span style={{ 
+                                          backgroundColor: '#f1f3f4', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {request.size}
+                                        </span>
+                                      )}
+                                      {request.color && (
+                                        <span style={{ 
+                                          backgroundColor: '#e8f0fe', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {request.color}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: '600',
+                                  color: '#000000',
+                                  backgroundColor: '#f8f9fa',
+                                  padding: '3px 6px',
+                                  borderRadius: '3px',
+                                  marginLeft: '8px'
+                                }}>
+                                  ×{request.quantity || 1}
+                                </div>
+                              </div>
                             </div>
+                            
+                            {/* Amount */}
+                            <OrderDetails>
+                              <div className="amount">{formatCurrency(request.final_price || request.estimated_price || 0)}</div>
+                            </OrderDetails>
+                            
+                            {/* Payment (Reason) */}
+                            <div style={{ 
+                              fontSize: '12px', 
+                              maxWidth: '85px',
+                              textAlign: 'center',
+                              lineHeight: '1.3',
+                              color: '#333'
+                            }}>
+                              {request.reason || 'No reason'}
+                            </div>
+                            
+                            {/* Status */}
+                            <StatusBadge status={request.status}>
+                              {request.status}
+                            </StatusBadge>
+                            
+                            {/* Delivery Status */}
+                            <DeliveryStatusBadge status={request.delivery_status || 'pending'}>
+                              {getDeliveryStatusInfo(request.delivery_status || 'pending').text}
+                            </DeliveryStatusBadge>
+                            
+                            {/* Created */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.request_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Actions */}
+                            <ActionsContainer>
+                              {request.status === 'pending' ? (
+                                <>
+                                  <ActionButton 
+                                    variant="approve" 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      
+                                      // Prevent double clicks with multiple checks
+                                      if (buttonLoading[`cancel_${request.id}_approve`] || buttonLoading[`cancel_${request.id}_reject`]) {
+                                        console.log('🚫 Button disabled, ignoring click');
+                                        return;
+                                      }
+                                      
+                                      // Check global debounce
+                                      const actionKey = `${request.id}_approve`;
+                                      if (window.ongoingCancellationRequests?.has(actionKey)) {
+                                        console.log('🚫 Global debounce active, ignoring click');
+                                        return;
+                                      }
+                                      
+                                      console.log('✅ Approve button clicked for request:', request.id);
+                                      processCancellationRequest(request.id, 'approve');
+                                    }}
+                                    style={{ 
+                                      marginRight: '8px',
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`cancel_${request.id}_approve`]}
+                                    disabled={
+                                      buttonLoading[`cancel_${request.id}_approve`] || 
+                                      buttonLoading[`cancel_${request.id}_reject`] ||
+                                      request.status !== 'pending' ||
+                                      (window.ongoingCancellationRequests && 
+                                       Array.from(window.ongoingCancellationRequests).some(key => key.startsWith(`${request.id}_`)))
+                                    }
+                                  >
+                                    <FontAwesomeIcon icon={faCheck} style={{ fontSize: '14px' }} />
+                                    Approve
+                                  </ActionButton>
+                                  <ActionButton 
+                                    variant="reject" 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      
+                                      // Prevent double clicks with multiple checks
+                                      if (buttonLoading[`cancel_${request.id}_approve`] || buttonLoading[`cancel_${request.id}_reject`]) {
+                                        console.log('🚫 Button disabled, ignoring click');
+                                        return;
+                                      }
+                                      
+                                      // Check global debounce
+                                      const actionKey = `${request.id}_reject`;
+                                      if (window.ongoingCancellationRequests?.has(actionKey)) {
+                                        console.log('🚫 Global debounce active, ignoring click');
+                                        return;
+                                      }
+                                      
+                                      console.log('✅ Reject button clicked for request:', request.id);
+                                      processCancellationRequest(request.id, 'reject');
+                                    }}
+                                    style={{ 
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`cancel_${request.id}_reject`]}
+                                    disabled={
+                                      buttonLoading[`cancel_${request.id}_approve`] || 
+                                      buttonLoading[`cancel_${request.id}_reject`] ||
+                                      request.status !== 'pending' ||
+                                      (window.ongoingCancellationRequests && 
+                                       Array.from(window.ongoingCancellationRequests).some(key => key.startsWith(`${request.id}_`)))
+                                    }
+                                  >
+                                    <FontAwesomeIcon icon={faTimes} style={{ fontSize: '14px' }} />
+                                    Reject
+                                  </ActionButton>
+                                </>
+                              ) : (
+                                // Request has been processed - show status with enhanced styling
+                                <div style={{ 
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '8px 16px',
+                                  borderRadius: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  background: request.status === 'approved' 
+                                    ? 'linear-gradient(135deg, #d4edda, #c3e6cb)' 
+                                    : 'linear-gradient(135deg, #f8d7da, #f5c6cb)',
+                                  color: request.status === 'approved' ? '#155724' : '#721c24',
+                                  border: `1px solid ${request.status === 'approved' ? '#c3e6cb' : '#f5c6cb'}`,
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}>
+                                  <FontAwesomeIcon 
+                                    icon={request.status === 'approved' ? faCheckCircle : faTimesCircle} 
+                                    style={{ fontSize: '14px' }}
+                                  />
+                                  {request.status === 'approved' ? 'Approved' : 'Rejected'}
+                                </div>
+                              )}
+                            </ActionsContainer>
+                          </TableRow>
+
+                          {/* Expanded Row Content */}
+                          {isExpanded && (
+                            <ExpandedRowContainer>
+                              <ExpandedContent>
+                                {/* Customer Information */}
+                                <InfoSection>
+                                  <h4>Customer Information</h4>
+                                  <HorizontalCustomerInfo>
+                                    <div className="customer-field">
+                                      <span className="label">Name:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_name, 'Unknown Customer')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Email:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_email, 'No Email')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Phone:</span>
+                                      <span className="value">{safeDisplayValue(formatPhone(request.customer_phone), 'No Phone')}</span>
+                                    </div>
+                                  </HorizontalCustomerInfo>
+                                </InfoSection>
+
+                                {/* Shipping Address */}
+                                <InfoSection>
+                                  <h4>Shipping Address</h4>
+                                  <InfoItem>
+                                    <span className="label">Address:</span>
+                                    <span className="value">
+                                      {safeDisplayValue(formatAddress([
+                                        request.street_number,
+                                        request.house_number,
+                                        request.barangay,
+                                        request.street_address,
+                                        request.address
+                                      ]), 'No Address')}
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">City:</span>
+                                    <span className="value">{safeDisplayValue(request.municipality, 'No City')}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Province:</span>
+                                    <span className="value">{safeDisplayValue(request.province, 'No Province')}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Postal Code:</span>
+                                    <span className="value">{safeDisplayValue(request.postal_code, 'No Postal Code')}</span>
+                                  </InfoItem>
+                                </InfoSection>
+
+                                {/* Order Information */}
+                                <InfoSection>
+                                  <h4>Order Information</h4>
+                                  <InfoItem>
+                                    <span className="label">Order Number:</span>
+                                    <span className="value">{safeDisplayValue(request.order_number || request.custom_order_id, 'No Order Number')}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Product Type:</span>
+                                    <span className="value">{safeDisplayValue(request.product_type, 'Unknown Product')}</span>
+                                  </InfoItem>
+                                  {request.product_name && (
+                                    <InfoItem>
+                                      <span className="label">Product Name:</span>
+                                      <span className="value">{request.product_name}</span>
+                                    </InfoItem>
+                                  )}
+                                  <InfoItem>
+                                    <span className="label">Size:</span>
+                                    <span className="value">{safeDisplayValue(request.size, 'No Size')}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Color:</span>
+                                    <span className="value">{safeDisplayValue(request.color, 'No Color')}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Quantity:</span>
+                                    <span className="value">{request.quantity || 1}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Amount:</span>
+                                    <span className="value">{formatCurrency(request.final_price || request.estimated_price || 0)}</span>
+                                  </InfoItem>
+                                  {request.special_instructions && (
+                                    <InfoItem>
+                                      <span className="label">Special Instructions:</span>
+                                      <span className="value" style={{ whiteSpace: 'pre-wrap' }}>
+                                        {request.special_instructions}
+                                      </span>
+                                    </InfoItem>
+                                  )}
+                                </InfoSection>
+
+                                {/* Cancellation Details */}
+                                <InfoSection>
+                                  <h4>Cancellation Details</h4>
+                                  <InfoItem>
+                                    <span className="label">Status:</span>
+                                    <span className="value">
+                                      <StatusBadge status={request.status}>
+                                        {request.status}
+                                      </StatusBadge>
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Requested On:</span>
+                                    <span className="value">{formatDate(request.created_at || request.date_created)}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Reason:</span>
+                                    <span className="value" style={{ whiteSpace: 'pre-wrap' }}>
+                                      {request.reason || 'No reason provided'}
+                                    </span>
+                                  </InfoItem>
+                                  {request.admin_notes && (
+                                    <InfoItem>
+                                      <span className="label">Admin Notes:</span>
+                                      <span className="value" style={{ whiteSpace: 'pre-wrap' }}>
+                                        {request.admin_notes}
+                                      </span>
+                                    </InfoItem>
+                                  )}
+                                </InfoSection>
+                              </ExpandedContent>
+                            </ExpandedRowContainer>
                           )}
-                        </div>
-                        
-                        <div>{request.id}</div>
-                        
-                        <div>
-                          <OrderNumber>{request.order_number}</OrderNumber>
-                        </div>
-                        
-                        <div>
-                          <div style={{ 
-                            fontSize: '11px', 
-                            fontWeight: '500',
-                            marginBottom: '2px' 
-                          }}>
-                            {request.product_name || 'Product'}
-                          </div>
-                          <div style={{ 
-                            fontSize: '9px', 
-                            color: '#666666',
-                            fontStyle: 'italic'
-                          }}>
-                            {request.size && `Size: ${request.size}`}
-                            {request.color && ` • Color: ${request.color}`}
-                            {request.quantity && ` • Qty: ${request.quantity}`}
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <CustomerInfo>
-                            <div className="name">{request.customer_name}</div>
-                            <div className="separator">•</div>
-                            <div className="email">{request.customer_email}</div>
-                          </CustomerInfo>
-                        </div>
-                        
-                        <div>
-                          {formatCurrency(request.amount || 0)}
-                        </div>
-                        
-                        <div style={{ fontSize: '12px', maxWidth: '200px' }}>
-                          {request.reason}
-                        </div>
-                        
-                        <div>
-                          <StatusBadge status={request.status}>
-                            {request.status}
-                          </StatusBadge>
-                        </div>
-                        
-                        <DateInfo>
-                          {formatDate(request.created_at)}
-                        </DateInfo>
-                        
-                        <ActionsContainer>
-                          {request.status === 'pending' ? (
-                            <>
-                              <ActionButton 
-                                variant="success" 
-                                onClick={() => processCancellationRequest(request.id, 'approve')}
-                                style={{ marginRight: '8px' }}
-                                loading={buttonLoading[`cancel_${request.id}_approve`]}
-                              >
-                                <FontAwesomeIcon icon={faCheck} />
-                                Approve
-                              </ActionButton>
-                              <ActionButton 
-                                variant="danger" 
-                                onClick={() => processCancellationRequest(request.id, 'deny')}
-                                loading={buttonLoading[`cancel_${request.id}_deny`]}
-                              >
-                                <FontAwesomeIcon icon={faTimes} />
-                                Deny
-                              </ActionButton>
-                            </>
-                          ) : (
-                            <ActionButton 
-                              variant="view"
-                              onClick={() => viewTransaction(request)}
-                            >
-                              <FontAwesomeIcon icon={faEye} />
-                              Details
-                            </ActionButton>
-                          )}
-                        </ActionsContainer>
-                      </TableRow>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                 )}
               </TransactionsTable>
             </TableWrapper>
@@ -3685,25 +4632,6 @@ const TransactionPage = () => {
         {/* Refund Requests Tab */}
         {activeTab === 'refund-requests' && (
           <>
-            <StatsContainer>
-              <StatCard color="#000000">
-                <h3>{refundRequests.length}</h3>
-                <p>Total Requests</p>
-              </StatCard>
-              <StatCard color="#ffc107">
-                <h3>{refundRequests.filter(req => req.status === 'pending').length}</h3>
-                <p>Pending</p>
-              </StatCard>
-              <StatCard color="#28a745">
-                <h3>{refundRequests.filter(req => req.status === 'approved').length}</h3>
-                <p>Approved</p>
-              </StatCard>
-              <StatCard color="#dc3545">
-                <h3>{refundRequests.filter(req => req.status === 'rejected').length}</h3>
-                <p>Rejected</p>
-              </StatCard>
-            </StatsContainer>
-
             {/* Search Bar */}
             <ControlsSection>
               <ControlsGrid>
@@ -3726,19 +4654,16 @@ const TransactionPage = () => {
             <TableWrapper>
               <TransactionsTable>
                 <TableHeader>
-                  <div>Image</div>
-                  <div>Request ID</div>
-                  <div>Order/Custom ID</div>
-                  <div>Product</div>
-                  <div>Reason</div>
-                  <div>Price</div>
-                  <div>Quantity</div>
-                  <div>Size</div>
-                  <div>Color</div>
-                  <div>Phone</div>
-                  <div>Shipping</div>
-                  <div>Status</div>
+                  <div></div>
+                  <div>Order #</div>
                   <div>Date</div>
+                  <div>Customer</div>
+                  <div>Products</div>
+                  <div>Amount</div>
+                  <div>Payment</div>
+                  <div>Status</div>
+                  <div>Delivery</div>
+                  <div>Created</div>
                   <div>Actions</div>
                 </TableHeader>
                 {refundRequestsLoading ? (
@@ -3765,130 +4690,383 @@ const TransactionPage = () => {
                               request.customer_name?.toLowerCase().includes(searchLower) ||
                               request.status?.toLowerCase().includes(searchLower));
                     })
-                    .map((request) => (
-                      <TableRow key={request.id}>
-                        <div style={{ width: '50px' }}>
-                          {/* Product Image - improved with better path handling */}
-                          {request.product_image ? (
-                            <img 
-                              src={request.product_image.startsWith('http') ? 
-                                request.product_image : 
-                                `http://localhost:5000/uploads/${request.product_image}`
-                              } 
-                              alt="Product" 
-                              style={{ 
-                                width: 40, 
-                                height: 40, 
-                                objectFit: 'cover', 
-                                borderRadius: 6, 
-                                border: '1px solid #eee' 
-                              }} 
-                              onError={(e) => {
-                                // Try alternative paths if the first one fails
-                                const originalSrc = e.target.src;
-                                if (!originalSrc.includes('product-images/') && !originalSrc.includes('default-product.png')) {
-                                  e.target.src = `http://localhost:5000/uploads/product-images/${request.product_image}`;
-                                } else if (!originalSrc.includes('default-product.png')) {
-                                  e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                                } else {
-                                  e.target.style.display = 'none';
-                                  if (e.target.nextSibling) {
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }
-                                }
+                    .map((request) => {
+                      const requestId = request.id;
+                      const uniqueKey = `refund-request-${requestId}`;
+                      const isExpanded = expandedRefundRows.has(requestId);
+                      
+                      return (
+                        <React.Fragment key={uniqueKey}>
+                          <TableRow 
+                            onClick={() => toggleRefundRowExpansion(requestId)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {/* Expand/Collapse Button */}
+                            <ExpandToggleButton
+                              className={isExpanded ? 'expanded' : ''}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRefundRowExpansion(requestId);
                               }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              backgroundColor: '#f8f9fa',
-                              border: '1px solid #eee',
-                              borderRadius: 6,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              color: '#666'
-                            }}>
-                              <FontAwesomeIcon icon={faImage} style={{ color: '#ccc' }} />
-                            </div>
-                          )}
-                        </div>
-                        <div>{request.id}</div>
-                        <div>{request.order_id || request.custom_order_id}</div>
-                        <div>
-                          <div style={{ 
-                            fontSize: '11px', 
-                            fontWeight: '500',
-                            marginBottom: '2px' 
-                          }}>
-                            {request.product_name}
-                          </div>
-                          <div style={{ 
-                            fontSize: '9px', 
-                            color: '#666666',
-                            fontStyle: 'italic'
-                          }}>
-                            Product Details
-                          </div>
-                        </div>
-                        
-                        <div style={{ 
-                          fontSize: '12px', 
-                          maxWidth: '200px',
-                          lineHeight: '1.3',
-                          color: '#333'
-                        }}>
-                          {request.reason || 'No reason provided'}
-                        </div>
-                        
-                        <div>{formatCurrency(request.price)}</div>
-                        <div>{request.quantity}</div>
-                        <div>{request.size}</div>
-                        <div>{request.color}</div>
-                        <div>{request.phone_number}</div>
-                        <div style={{ fontSize: 12 }}>
-                          {request.street_address}<br/>
-                          {request.city_municipality}, {request.province}
-                        </div>
-                        <div>
-                          <StatusBadge status={request.status}>{request.status}</StatusBadge>
-                        </div>
-                        <DateInfo>{formatDate(request.created_at)}</DateInfo>
-                        <ActionsContainer>
-                          {request.status === 'pending' ? (
-                            <>
-                              <ActionButton 
-                                variant="success" 
-                                onClick={() => processRefundRequest(request.id, 'approved')}
-                                style={{ marginRight: '8px' }}
-                                loading={buttonLoading[`refund_${request.id}_approve`]}
-                              >
-                                <FontAwesomeIcon icon={faCheck} />
-                                Approve
-                              </ActionButton>
-                              <ActionButton 
-                                variant="danger" 
-                                onClick={() => processRefundRequest(request.id, 'rejected')}
-                                loading={buttonLoading[`refund_${request.id}_reject`]}
-                              >
-                                <FontAwesomeIcon icon={faTimes} />
-                                Deny
-                              </ActionButton>
-                            </>
-                          ) : (
-                            <ActionButton 
-                              variant="view"
-                              onClick={() => viewTransaction(request)}
                             >
-                              <FontAwesomeIcon icon={faEye} />
-                              Details
-                            </ActionButton>
+                              <FontAwesomeIcon 
+                                icon={faChevronDown} 
+                                style={{ 
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s ease'
+                                }}
+                              />
+                            </ExpandToggleButton>
+                            
+                            {/* Order Number */}
+                            <OrderNumber>
+                              {request.order_number || 
+                               request.order_id || 
+                               request.custom_order_id || 
+                               request.transaction_id || 
+                               `${request.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${request.id}` || 
+                               'N/A'}
+                            </OrderNumber>
+                            
+                            {/* Date */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.request_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Customer */}
+                            <CustomerInfo>
+                              <div className="name">{safeDisplayValue(request.customer_name, 'Unknown Customer')}</div>
+                              <div className="separator">•</div>
+                              <div className="email">{safeDisplayValue(request.customer_email || request.phone_number, 'No Contact Info')}</div>
+                            </CustomerInfo>
+                            
+                            {/* Products */}
+                            <div style={{ 
+                              fontSize: '14px',
+                              maxWidth: '100%',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: '8px',
+                                padding: '6px 8px',
+                                backgroundColor: '#f8f9fa',
+                                borderRadius: '6px',
+                                border: '1px solid #e9ecef'
+                              }}>
+                                <div style={{ 
+                                  fontWeight: '600', 
+                                  color: '#000000',
+                                  fontSize: '13px'
+                                }}>
+                                  1 item
+                                </div>
+                              </div>
+                              <div style={{ 
+                                fontSize: '12px',
+                                color: '#555555',
+                                lineHeight: '1.4',
+                                padding: '8px 10px',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '6px',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ 
+                                    fontWeight: '600', 
+                                    color: '#000000',
+                                    marginBottom: '3px',
+                                    fontSize: '13px'
+                                  }}>
+                                    {request.product_name || 'Product'}
+                                  </div>
+                                  {(request.size || request.color) && (
+                                    <div style={{ 
+                                      fontSize: '11px', 
+                                      color: '#666666',
+                                      display: 'flex',
+                                      gap: '8px',
+                                      flexWrap: 'wrap'
+                                    }}>
+                                      {request.size && (
+                                        <span style={{ 
+                                          backgroundColor: '#f1f3f4', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {request.size}
+                                        </span>
+                                      )}
+                                      {request.color && (
+                                        <span style={{ 
+                                          backgroundColor: '#e8f0fe', 
+                                          padding: '2px 6px', 
+                                          borderRadius: '3px',
+                                          fontWeight: '500'
+                                        }}>
+                                          {request.color}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: '600',
+                                  color: '#000000',
+                                  backgroundColor: '#f8f9fa',
+                                  padding: '3px 6px',
+                                  borderRadius: '3px',
+                                  marginLeft: '8px'
+                                }}>
+                                  ×{request.quantity || 1}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Amount */}
+                            <OrderDetails>
+                              <div className="amount">{formatCurrency(request.price)}</div>
+                            </OrderDetails>
+                            
+                            {/* Payment (Reason) */}
+                            <div style={{ 
+                              fontSize: '12px', 
+                              maxWidth: '85px',
+                              textAlign: 'center',
+                              lineHeight: '1.3',
+                              color: '#333'
+                            }}>
+                              {request.reason || 'No reason'}
+                            </div>
+                            
+                            {/* Status */}
+                            <StatusBadge status={request.status}>{request.status}</StatusBadge>
+                            
+                            {/* Delivery Status */}
+                            <DeliveryStatusBadge status={request.delivery_status || 'pending'}>
+                              {getDeliveryStatusInfo(request.delivery_status || 'pending').text}
+                            </DeliveryStatusBadge>
+                            
+                            {/* Created Date */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.request_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Actions */}
+                            <ActionsContainer>
+                              {request.status === 'pending' ? (
+                                <>
+                                  <ActionButton 
+                                    variant="approve" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      processRefundRequest(request.id, 'approved');
+                                    }}
+                                    style={{ 
+                                      marginRight: '8px',
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`refund_${request.id}_approve`]}
+                                    disabled={buttonLoading[`refund_${request.id}_approve`] || buttonLoading[`refund_${request.id}_reject`]}
+                                  >
+                                    <FontAwesomeIcon icon={faCheck} style={{ fontSize: '14px' }} />
+                                    Approve
+                                  </ActionButton>
+                                  <ActionButton 
+                                    variant="reject" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      processRefundRequest(request.id, 'rejected');
+                                    }}
+                                    style={{ 
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`refund_${request.id}_reject`]}
+                                    disabled={buttonLoading[`refund_${request.id}_approve`] || buttonLoading[`refund_${request.id}_reject`]}
+                                  >
+                                    <FontAwesomeIcon icon={faTimes} style={{ fontSize: '14px' }} />
+                                    Reject
+                                  </ActionButton>
+                                </>
+                              ) : (
+                                // Request has been processed - show status with enhanced styling
+                                <div style={{ 
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '8px 16px',
+                                  borderRadius: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  background: request.status === 'approved' 
+                                    ? 'linear-gradient(135deg, #d4edda, #c3e6cb)' 
+                                    : 'linear-gradient(135deg, #f8d7da, #f5c6cb)',
+                                  color: request.status === 'approved' ? '#155724' : '#721c24',
+                                  border: `1px solid ${request.status === 'approved' ? '#c3e6cb' : '#f5c6cb'}`,
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                                }}>
+                                  <FontAwesomeIcon 
+                                    icon={request.status === 'approved' ? faCheckCircle : faTimesCircle} 
+                                    style={{ fontSize: '14px' }}
+                                  />
+                                  {request.status === 'approved' ? 'Approved' : 'Rejected'}
+                                </div>
+                            )}
+                            </ActionsContainer>
+                          </TableRow>
+
+                          {/* Expanded Row Content */}
+                          {isExpanded && (
+                            <ExpandedRowContainer>
+                              <ExpandedContent>
+                                {/* Customer Information */}
+                                <InfoSection>
+                                  <h4>Customer Information</h4>
+                                  <HorizontalCustomerInfo>
+                                    <div className="customer-field">
+                                      <span className="label">Name:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_name, 'Unknown Customer')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Email:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_email, 'No Email')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Phone:</span>
+                                      <span className="value">{safeDisplayValue(formatPhone(request.phone_number), 'No Phone')}</span>
+                                    </div>
+                                  </HorizontalCustomerInfo>
+                                </InfoSection>
+
+                                {/* Product Details */}
+                                <InfoSection>
+                                  <h4>Product Details</h4>
+                                  <InfoItem>
+                                    <span className="label">Product Name:</span>
+                                    <span className="value">{request.product_name || 'Product'}</span>
+                                  </InfoItem>
+                                  {request.size && (
+                                    <InfoItem>
+                                      <span className="label">Size:</span>
+                                      <span className="value">{request.size}</span>
+                                    </InfoItem>
+                                  )}
+                                  {request.color && (
+                                    <InfoItem>
+                                      <span className="label">Color:</span>
+                                      <span className="value">{request.color}</span>
+                                    </InfoItem>
+                                  )}
+                                  <InfoItem>
+                                    <span className="label">Quantity:</span>
+                                    <span className="value">{request.quantity || 1}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Price:</span>
+                                    <span className="value">{formatCurrency(request.price)}</span>
+                                  </InfoItem>
+                                </InfoSection>
+
+                                {/* Refund Request Details */}
+                                <InfoSection>
+                                  <h4>Refund Request Details</h4>
+                                  <InfoItem>
+                                    <span className="label">Order ID:</span>
+                                    <span className="value">
+                                      {request.order_number || 
+                                       request.order_id || 
+                                       request.custom_order_id || 
+                                       request.transaction_id || 
+                                       `${request.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${request.id}` || 
+                                       'N/A'}
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Reason:</span>
+                                    <span className="value">{request.reason || 'No reason provided'}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Status:</span>
+                                    <span className="value">
+                                      <StatusBadge status={request.status}>
+                                        {request.status}
+                                      </StatusBadge>
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Delivery Status:</span>
+                                    <span className="value">
+                                      <DeliveryStatusBadge status={request.delivery_status || 'pending'}>
+                                        {getDeliveryStatusInfo(request.delivery_status || 'pending').text}
+                                      </DeliveryStatusBadge>
+                                    </span>
+                                  </InfoItem>
+                                </InfoSection>
+
+                                {/* Product Image */}
+                                {request.product_image && (
+                                  <InfoSection>
+                                    <h4>Product Image</h4>
+                                    <img 
+                                      src={(() => {
+                                        const imagePath = request.product_image;
+                                        if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+                                          return `http://localhost:5000/uploads/default-product.png`;
+                                        }
+                                        if (imagePath.startsWith('http')) {
+                                          return imagePath;
+                                        }
+                                        if (imagePath.startsWith('/uploads/')) {
+                                          return `http://localhost:5000${imagePath}`;
+                                        }
+                                        return `http://localhost:5000/uploads/${imagePath}`;
+                                      })()} 
+                                      alt="Product" 
+                                      style={{ 
+                                        width: '120px', 
+                                        height: '120px', 
+                                        objectFit: 'cover', 
+                                        borderRadius: '6px',
+                                        border: '1px solid #e9ecef'
+                                      }} 
+                                      onError={(e) => {
+                                        e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                      }}
+                                    />
+                                  </InfoSection>
+                                )}
+
+                              </ExpandedContent>
+                            </ExpandedRowContainer>
                           )}
-                        </ActionsContainer>
-                      </TableRow>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                 )}
               </TransactionsTable>
             </TableWrapper>
@@ -3898,25 +5076,6 @@ const TransactionPage = () => {
         {/* Custom Design Requests Tab */}
         {activeTab === 'design-requests' && (
           <>
-            <StatsContainer>
-              <StatCard color="#000000">
-                <h3>{customDesignRequests.length}</h3>
-                <p>Total Requests</p>
-              </StatCard>
-              <StatCard color="#ffc107">
-                <h3>{customDesignRequests.filter(req => req.status === 'pending').length}</h3>
-                <p>Pending</p>
-              </StatCard>
-              <StatCard color="#28a745">
-                <h3>{customDesignRequests.filter(req => req.status === 'approved').length}</h3>
-                <p>Approved</p>
-              </StatCard>
-              <StatCard color="#dc3545">
-                <h3>{customDesignRequests.filter(req => req.status === 'rejected').length}</h3>
-                <p>Rejected</p>
-              </StatCard>
-            </StatsContainer>
-
             {/* Search Bar */}
             <ControlsSection>
               <ControlsGrid>
@@ -3940,14 +5099,16 @@ const TransactionPage = () => {
             <TableWrapper>
               <TransactionsTable>
                 <TableHeader>
-                  <div>Image</div>
-                  <div>Request ID</div>
-                  <div>Customer</div>
-                  <div>Product Type</div>
-                  <div>Design Details</div>
-                  <div>Amount</div>
-                  <div>Status</div>
+                  <div></div>
+                  <div>Order #</div>
                   <div>Date</div>
+                  <div>Customer</div>
+                  <div>Products</div>
+                  <div>Amount</div>
+                  <div>Payment</div>
+                  <div>Status</div>
+                  <div>Delivery</div>
+                  <div>Created</div>
                   <div>Actions</div>
                 </TableHeader>
                 
@@ -3984,185 +5145,362 @@ const TransactionPage = () => {
                              request.design_notes?.toLowerCase().includes(searchLower) ||
                              request.status?.toLowerCase().includes(searchLower);
                     })
-                    .map((request) => (
-                      <TableRow key={request.custom_order_id}>
-                        <div style={{ width: '50px' }}>
-                          {/* Product Image */}
-                          {request.image_paths && request.image_paths.length > 0 ? (
-                            <img 
-                              src={`http://localhost:5000${request.image_paths[0]}`} 
-                              alt="Custom Product" 
-                              style={{ 
-                                width: 40, 
-                                height: 40, 
-                                objectFit: 'cover', 
-                                borderRadius: 6, 
-                                border: '1px solid #eee' 
-                              }} 
-                              onError={(e) => {
-                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                    .map((request) => {
+                      const requestId = request.custom_order_id;
+                      const uniqueKey = `design-request-${requestId}`;
+                      const isExpanded = expandedCustomDesignRows.has(requestId);
+                      
+                      return (
+                        <React.Fragment key={uniqueKey}>
+                          <TableRow 
+                            onClick={() => toggleCustomDesignRowExpansion(requestId)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {/* Expand/Collapse Button */}
+                            <ExpandToggleButton
+                              className={isExpanded ? 'expanded' : ''}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCustomDesignRowExpansion(requestId);
                               }}
-                            />
-                          ) : request.product_image ? (
-                            <img 
-                              src={`http://localhost:5000/uploads/${request.product_image}`}
-                              alt="Product" 
-                              style={{ 
-                                width: 40, 
-                                height: 40, 
-                                objectFit: 'cover', 
-                                borderRadius: 6, 
-                                border: '1px solid #eee' 
-                              }} 
-                              onError={(e) => {
-                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                              }}
-                            />
-                          ) : (
-                            <div style={{
-                              width: 40,
-                              height: 40,
-                              backgroundColor: '#f8f9fa',
-                              border: '1px solid #eee',
-                              borderRadius: 6,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              color: '#666'
-                            }}>
-                              No Img
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div>{request.custom_order_id}</div>
-                        
-                        <div>
-                          <CustomerInfo>
-                            <div className="name">{request.customer_name}</div>
-                            <div className="separator">•</div>
-                            <div className="email">{request.customer_email}</div>
-                          </CustomerInfo>
-                        </div>
-                        
-                        <div>{request.product_type}</div>
-                        
-                        <div style={{ fontSize: '12px', maxWidth: '200px' }}>
-                          {request.design_notes}
-                        </div>
-                        
-                        <div>
-                          {formatCurrency(request.price || 0)}
-                        </div>
-                        
-                        <div>
-                          <StatusBadge status={request.status}>
-                            {request.status}
-                          </StatusBadge>
-                        </div>
-                        
-                        {/* Delivery Date Column */}
-                        <div style={{ fontSize: '12px', textAlign: 'center' }}>
-                          {request.estimated_delivery_date || request.scheduled_delivery_date ? (
-                            <div>
-                              <div style={{ fontWeight: '500', color: '#2c3e50', marginBottom: '2px' }}>
-                                {formatDate(request.scheduled_delivery_date || request.estimated_delivery_date)}
-                              </div>
-                              {request.delivery_time_slot && (
-                                <div style={{ fontSize: '10px', color: '#7f8c8d' }}>
-                                  {request.delivery_time_slot}
-                                </div>
-                              )}
-                              {request.delivery_status && (
-                                <div style={{ 
-                                  fontSize: '10px', 
-                                  color: request.delivery_status === 'delivered' ? '#27ae60' : 
-                                         request.delivery_status === 'in_transit' ? '#f39c12' : 
-                                         request.delivery_status === 'scheduled' ? '#3498db' : '#95a5a6',
-                                  textTransform: 'capitalize',
-                                  marginTop: '1px'
-                                }}>
-                                  {request.delivery_status.replace('_', ' ')}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ color: '#bdc3c7', fontSize: '11px', fontStyle: 'italic' }}>
-                              Not scheduled
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Courier Information Column */}
-                        <div style={{ fontSize: '12px', textAlign: 'center' }}>
-                          {request.courier_name ? (
-                            <div>
-                              <div style={{ fontWeight: '500', color: '#2c3e50', marginBottom: '2px' }}>
-                                {request.courier_name}
-                              </div>
-                              {request.courier_phone && (
-                                <div style={{ fontSize: '10px', color: '#7f8c8d' }}>
-                                  {request.courier_phone}
-                                </div>
-                              )}
-                              {request.courier_vehicle && (
-                                <div style={{ 
-                                  fontSize: '10px', 
-                                  color: '#9b59b6',
-                                  textTransform: 'capitalize',
-                                  marginTop: '1px'
-                                }}>
-                                  {request.courier_vehicle}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span style={{ color: '#bdc3c7', fontSize: '11px', fontStyle: 'italic' }}>
-                              Not assigned
-                            </span>
-                          )}
-                        </div>
-                        
-                        <DateInfo>
-                          {formatDate(request.created_at)}
-                        </DateInfo>
-                        
-                        <ActionsContainer>
-                          {request.status === 'pending' ? (
-                            <>
-                              <ActionButton 
-                                variant="approve" 
-                                onClick={() => processDesignRequest(request.custom_order_id, 'approved')}
-                                style={{ marginRight: '8px' }}
-                                loading={buttonLoading[`design_${request.custom_order_id}_approve`]}
-                                disabled={buttonLoading[`design_${request.custom_order_id}_approve`] || buttonLoading[`design_${request.custom_order_id}_reject`]}
-                              >
-                                <FontAwesomeIcon icon={faCheck} />
-                                Approve
-                              </ActionButton>
-                              <ActionButton 
-                                variant="reject" 
-                                onClick={() => processDesignRequest(request.custom_order_id, 'rejected')}
-                                loading={buttonLoading[`design_${request.custom_order_id}_reject`]}
-                                disabled={buttonLoading[`design_${request.custom_order_id}_approve`] || buttonLoading[`design_${request.custom_order_id}_reject`]}
-                              >
-                                <FontAwesomeIcon icon={faTimes} />
-                                Reject
-                              </ActionButton>
-                            </>
-                          ) : (
-                            <ActionButton 
-                              variant="view"
-                              onClick={() => viewTransaction(request)}
                             >
-                              <FontAwesomeIcon icon={faEye} />
-                              Details
-                            </ActionButton>
+                              <FontAwesomeIcon 
+                                icon={faChevronDown} 
+                                style={{ 
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s ease'
+                                }}
+                              />
+                            </ExpandToggleButton>
+                            
+                            {/* Order Number */}
+                            <OrderNumber>
+                              {request.order_number || 
+                               request.custom_order_id || 
+                               request.order_id || 
+                               request.transaction_id || 
+                               `${request.order_type === 'custom' ? 'CUSTOM' : 'ORD'}-${request.id}` || 
+                               'N/A'}
+                            </OrderNumber>
+                            
+                            {/* Date */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.order_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Customer */}
+                            <CustomerInfo>
+                              <div className="name">{request.customer_name}</div>
+                              <div className="separator">•</div>
+                              <div className="email">{request.customer_email}</div>
+                            </CustomerInfo>
+                            
+                            {/* Products */}
+                            <div style={{ 
+                              fontSize: '14px',
+                              maxWidth: '100%',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                marginBottom: '8px',
+                                padding: '6px 8px',
+                                backgroundColor: '#f8f9fa',
+                                borderRadius: '6px',
+                                border: '1px solid #e9ecef'
+                              }}>
+                                <div style={{ 
+                                  fontWeight: '600', 
+                                  color: '#000000',
+                                  fontSize: '13px'
+                                }}>
+                                  Custom Design
+                                </div>
+                              </div>
+                              <div style={{ 
+                                fontSize: '12px',
+                                color: '#555555',
+                                lineHeight: '1.4',
+                                padding: '8px 10px',
+                                border: '1px solid #e9ecef',
+                                borderRadius: '6px',
+                                backgroundColor: '#ffffff',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'flex-start'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ 
+                                    fontWeight: '600', 
+                                    color: '#000000',
+                                    marginBottom: '3px',
+                                    fontSize: '13px'
+                                  }}>
+                                    {request.product_type || 'Custom Product'}
+                                  </div>
+                                  {request.design_notes && (
+                                    <div style={{ 
+                                      fontSize: '11px', 
+                                      color: '#666666',
+                                      marginTop: '4px',
+                                      maxWidth: '120px',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      {request.design_notes}
+                                    </div>
+                                  )}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: '600',
+                                  color: '#000000',
+                                  backgroundColor: '#f8f9fa',
+                                  padding: '3px 6px',
+                                  borderRadius: '3px',
+                                  marginLeft: '8px'
+                                }}>
+                                  ×1
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Amount */}
+                            <OrderDetails>
+                              <div className="amount">{formatCurrency(request.final_price || request.estimated_price || request.total_amount || request.price || 0)}</div>
+                            </OrderDetails>
+                            
+                            {/* Payment - Design Status */}
+                            <div style={{ 
+                              fontSize: '12px', 
+                              maxWidth: '85px',
+                              textAlign: 'center',
+                              lineHeight: '1.3'
+                            }}>
+                              <div style={{
+                                padding: '2px 6px',
+                                background: request.status === 'approved' ? '#e8f5e8' : '#fff3cd',
+                                color: request.status === 'approved' ? '#155724' : '#856404',
+                                borderRadius: '10px',
+                                fontSize: '9px',
+                                fontWeight: '600'
+                              }}>
+                                {request.status === 'approved' ? 'APPROVED' : 'PENDING'}
+                              </div>
+                            </div>
+                            
+                            {/* Status */}
+                            <StatusBadge status={request.status}>
+                              {request.status}
+                            </StatusBadge>
+                            
+                            {/* Delivery Status */}
+                            <div>
+                              <DeliveryStatusBadge status={request.delivery_status || 'pending'}>
+                                {getDeliveryStatusInfo(request.delivery_status || 'pending').text}
+                              </DeliveryStatusBadge>
+                            </div>
+                            
+                            {/* Created */}
+                            <DateInfo>
+                              {(() => {
+                                const createdDate = request.created_at || request.date_created || request.order_date;
+                                return formatDate(createdDate);
+                              })()}
+                            </DateInfo>
+                            
+                            {/* Actions */}
+                            <ActionsContainer>
+                              {request.status === 'pending' ? (
+                                <>
+                                  <ActionButton 
+                                    variant="approve" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      processDesignRequest(request.custom_order_id, 'approved');
+                                    }}
+                                    style={{ 
+                                      marginRight: '8px',
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`design_${request.custom_order_id}_approve`]}
+                                    disabled={buttonLoading[`design_${request.custom_order_id}_approve`] || buttonLoading[`design_${request.custom_order_id}_reject`]}
+                                  >
+                                    <FontAwesomeIcon icon={faCheck} style={{ fontSize: '14px' }} />
+                                    Approve
+                                  </ActionButton>
+                                  <ActionButton 
+                                    variant="reject" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      processDesignRequest(request.custom_order_id, 'rejected');
+                                    }}
+                                    style={{ 
+                                      minWidth: '100px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                    loading={buttonLoading[`design_${request.custom_order_id}_reject`]}
+                                    disabled={buttonLoading[`design_${request.custom_order_id}_approve`] || buttonLoading[`design_${request.custom_order_id}_reject`]}
+                                  >
+                                    <FontAwesomeIcon icon={faTimes} style={{ fontSize: '14px' }} />
+                                    Reject
+                                  </ActionButton>
+                                  <ActionButton 
+                                    variant="view"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewDesignImages(request);
+                                    }}
+                                    style={{ 
+                                      marginLeft: '8px',
+                                      minWidth: '120px',
+                                      fontSize: '13px',
+                                      fontWeight: '600',
+                                      letterSpacing: '0.5px',
+                                      textTransform: 'uppercase'
+                                    }}
+                                  >
+                                    <FontAwesomeIcon icon={faImage} style={{ fontSize: '14px' }} />
+                                    View Images
+                                  </ActionButton>
+                                </>
+                              ) : (
+                                <ActionButton 
+                                  variant="view"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    viewDesignImages(request);
+                                  }}
+                                  style={{ 
+                                    minWidth: '120px',
+                                    fontSize: '13px',
+                                    fontWeight: '600',
+                                    letterSpacing: '0.5px',
+                                    textTransform: 'uppercase'
+                                  }}
+                                >
+                                  <FontAwesomeIcon icon={faImage} style={{ fontSize: '14px' }} />
+                                  View Images
+                                </ActionButton>
+                              )}
+                            </ActionsContainer>
+                          </TableRow>
+
+                          {/* Expanded Row Content */}
+                          {isExpanded && (
+                            <ExpandedRowContainer>
+                              <ExpandedContent>
+                                {/* Customer Information */}
+                                <InfoSection>
+                                  <h4>Customer Information</h4>
+                                  <HorizontalCustomerInfo>
+                                    <div className="customer-field">
+                                      <span className="label">Name:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_name, 'Unknown Customer')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Email:</span>
+                                      <span className="value">{safeDisplayValue(request.customer_email, 'No Email')}</span>
+                                    </div>
+                                    <span className="separator">•</span>
+                                    <div className="customer-field">
+                                      <span className="label">Phone:</span>
+                                      <span className="value">{safeDisplayValue(formatPhone(request.customer_phone), 'No Phone')}</span>
+                                    </div>
+                                  </HorizontalCustomerInfo>
+                                </InfoSection>
+
+                                {/* Design Request Details */}
+                                <InfoSection>
+                                  <h4>Design Request Details</h4>
+                                  <InfoItem>
+                                    <span className="label">Product Type:</span>
+                                    <span className="value">{request.product_type || 'Custom Product'}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Design Notes:</span>
+                                    <span className="value">{request.design_notes || 'No notes provided'}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Price:</span>
+                                    <span className="value">{formatCurrency(request.final_price || request.estimated_price || request.total_amount || request.price || 0)}</span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Status:</span>
+                                    <span className="value">
+                                      <StatusBadge status={request.status}>
+                                        {request.status}
+                                      </StatusBadge>
+                                    </span>
+                                  </InfoItem>
+                                  <InfoItem>
+                                    <span className="label">Delivery Status:</span>
+                                    <span className="value">
+                                      <DeliveryStatusBadge status={request.delivery_status || 'pending'}>
+                                        {getDeliveryStatusInfo(request.delivery_status || 'pending').text}
+                                      </DeliveryStatusBadge>
+                                    </span>
+                                  </InfoItem>
+                                </InfoSection>
+
+                                {/* Request Images */}
+                                {request.image_paths && request.image_paths.length > 0 && (
+                                  <InfoSection>
+                                    <h4>Design Images</h4>
+                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                      {request.image_paths.map((imagePath, index) => (
+                                        <img 
+                                          key={index}
+                                          src={(() => {
+                                            if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+                                              return `http://localhost:5000/uploads/default-product.png`;
+                                            }
+                                            if (imagePath.startsWith('http')) {
+                                              return imagePath;
+                                            }
+                                            if (imagePath.startsWith('/uploads/')) {
+                                              return `http://localhost:5000${imagePath}`;
+                                            }
+                                            return `http://localhost:5000/uploads/${imagePath}`;
+                                          })()}
+                                          alt={`Design ${index + 1}`}
+                                          style={{ 
+                                            width: '80px', 
+                                            height: '80px', 
+                                            objectFit: 'cover', 
+                                            borderRadius: '6px',
+                                            border: '1px solid #e9ecef',
+                                            cursor: 'pointer'
+                                          }}
+                                          onError={(e) => {
+                                            e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </InfoSection>
+                                )}
+
+                              </ExpandedContent>
+                            </ExpandedRowContainer>
                           )}
-                        </ActionsContainer>
-                      </TableRow>
-                    ))
+                        </React.Fragment>
+                      );
+                    })
                 )}
               </TransactionsTable>
             </TableWrapper>
@@ -4194,7 +5532,10 @@ const TransactionPage = () => {
                 <p><strong>Customer:</strong> {selectedTransaction.customer_name}</p>
                 <p><strong>Total:</strong> ₱{parseFloat(selectedTransaction.total_amount || 0).toFixed(2)}</p>
                 <p><strong>Status:</strong> {selectedTransaction.status}</p>
-                <p><strong>Date:</strong> {new Date(selectedTransaction.created_at).toLocaleDateString()}</p>
+                <p><strong>Date:</strong> {(() => {
+                  const createdDate = selectedTransaction.created_at || selectedTransaction.order_date || selectedTransaction.date_created;
+                  return formatDate(createdDate);
+                })()}</p>
                 {/* Invoice Download Button */}
                 {selectedTransaction.id && (
                   <ActionButton
@@ -4280,29 +5621,333 @@ const TransactionPage = () => {
             <ModalContent style={{ textAlign: 'center' }}>
               <div style={{ marginBottom: '16px' }}>
                 <strong>Customer:</strong> {selectedPaymentProof.customerName}<br />
-                <strong>Order:</strong> {selectedPaymentProof.orderNumber}
+                <strong>Order:</strong> {selectedPaymentProof.orderNumber}<br />
+                {selectedPaymentProof.gcashReference && (
+                  <><strong>GCash Reference:</strong> {selectedPaymentProof.gcashReference}<br /></>
+                )}
               </div>
-              <img 
-                src={`http://localhost:5000${selectedPaymentProof.imagePath}`}
-                alt="Payment Proof"
+              
+              {selectedPaymentProof.imagePath && selectedPaymentProof.imagePath !== 'N/A' && selectedPaymentProof.imagePath !== 'null' ? (
+                <>
+                  <img 
+                    src={(() => {
+                      const path = selectedPaymentProof.imagePath;
+                      console.log('🖼️ Original image path:', path);
+                      
+                      // Handle different path formats
+                      if (path?.startsWith('http')) {
+                        console.log('🖼️ Using HTTP path:', path);
+                        return path;
+                      } else if (path?.startsWith('/uploads/')) {
+                        const fullPath = `http://localhost:5000${path}`;
+                        console.log('🖼️ Using uploads path:', fullPath);
+                        return fullPath;
+                      } else if (path && !path.startsWith('/')) {
+                        // Just filename
+                        const fullPath = `http://localhost:5000/uploads/payment-proofs/${path}`;
+                        console.log('🖼️ Using filename path:', fullPath);
+                        return fullPath;
+                      } else {
+                        const fullPath = `http://localhost:5000${path}`;
+                        console.log('🖼️ Using default path:', fullPath);
+                        return fullPath;
+                      }
+                    })()}
+                    alt="Payment Proof"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '70vh',
+                      objectFit: 'contain',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px'
+                    }}
+                    onError={(e) => {
+                      console.error('🚨 Payment proof image failed to load:', selectedPaymentProof.imagePath);
+                      if (e.target) {
+                        e.target.style.display = 'none';
+                        if (e.target.nextSibling) {
+                          e.target.nextSibling.style.display = 'block';
+                        }
+                      }
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Payment proof image loaded successfully');
+                    }}
+                  />
+                  <div style={{ display: 'none', padding: '40px', color: '#666' }}>
+                    Failed to load payment proof image. Path: {selectedPaymentProof.imagePath}
+                  </div>
+                </>
+              ) : (
+                <div style={{ 
+                  padding: '60px 40px', 
+                  color: '#666', 
+                  fontSize: '16px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '2px dashed #dee2e6'
+                }}>
+                  <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '48px', color: '#ffc107', marginBottom: '16px' }} />
+                  <div style={{ marginBottom: '8px' }}>No payment proof image found</div>
+                  <div style={{ fontSize: '14px', color: '#999' }}>
+                    {selectedPaymentProof.gcashReference 
+                      ? `Please verify the GCash reference number: ${selectedPaymentProof.gcashReference}` 
+                      : 'Please verify payment details manually'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#ccc', marginTop: '8px' }}>
+                    Debug: imagePath = {String(selectedPaymentProof.imagePath)}
+                  </div>
+                </div>
+              )}
+            </ModalContent>
+          </Modal>
+        </ModalOverlay>
+      )}
+
+      {/* Design Images Modal */}
+      {showDesignImagesModal && selectedDesignImages && (
+        <ModalOverlay onClick={closeDesignImagesModal}>
+          <Modal onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh' }}>
+            <ModalHeader>
+              <h3>Design Images</h3>
+              <button 
+                onClick={closeDesignImagesModal}
                 style={{
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  objectFit: 'contain',
-                  border: '1px solid #ddd',
-                  borderRadius: '8px'
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
                 }}
-                onError={(e) => {
-                  if (e.target) {
-                    e.target.style.display = 'none';
-                    if (e.target.nextSibling) {
-                      e.target.nextSibling.style.display = 'block';
-                    }
-                  }
-                }}
-              />
-              <div style={{ display: 'none', padding: '40px', color: '#666' }}>
-                Failed to load payment proof image
+              >
+                ×
+              </button>
+            </ModalHeader>
+            <ModalContent style={{ textAlign: 'center' }}>
+              <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+                <strong>Customer:</strong> {selectedDesignImages.customerName}<br />
+                <strong>Order:</strong> {selectedDesignImages.orderNumber}<br />
+                <strong>Product Type:</strong> {selectedDesignImages.productType}<br />
+                {selectedDesignImages.designNotes && (
+                  <><strong>Design Notes:</strong> {selectedDesignImages.designNotes}<br /></>
+                )}
+              </div>
+              
+              {selectedDesignImages.images && selectedDesignImages.images.length > 0 ? (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                  gap: '16px',
+                  marginTop: '20px'
+                }}>
+                  {selectedDesignImages.images.map((imagePath, index) => {
+                    console.log(`🖼️ Rendering image ${index + 1}:`, imagePath);
+                    
+                    return (
+                      <div key={index} style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                          marginBottom: '8px', 
+                          fontSize: '14px', 
+                          fontWeight: '500', 
+                          color: '#666' 
+                        }}>
+                          Design {index + 1}
+                        </div>
+                        <img 
+                          src={(() => {
+                            // First, ensure imagePath is a string or convert it to string
+                            const imagePathStr = typeof imagePath === 'string' ? imagePath : String(imagePath || '');
+                            
+                            if (!imagePath || imagePath === 'null' || imagePath === 'undefined' || imagePathStr.trim() === '') {
+                              console.log(`🖼️ Image ${index + 1} is empty, using default`);
+                              return `http://localhost:5000/uploads/default-product.png`;
+                            }
+                            if (imagePathStr.startsWith('http')) {
+                              console.log(`🖼️ Image ${index + 1} is full URL:`, imagePathStr);
+                              return imagePathStr;
+                            }
+                            if (imagePathStr.startsWith('/uploads/')) {
+                              console.log(`🖼️ Image ${index + 1} starts with /uploads/:`, imagePathStr);
+                              return `http://localhost:5000${imagePathStr}`;
+                            }
+                            // Handle cases where the path might be just the filename or relative path
+                            const finalUrl = `http://localhost:5000/uploads/${imagePathStr}`;
+                            console.log(`🖼️ Image ${index + 1} final URL:`, finalUrl);
+                            return finalUrl;
+                          })()}
+                          alt={`Design ${index + 1}`}
+                          style={{
+                            width: '100%',
+                            maxWidth: '250px',
+                            height: '200px',
+                            objectFit: 'cover',
+                            border: '2px solid #ddd',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s ease'
+                          }}
+                          onError={(e) => {
+                            console.error(`🖼️ Failed to load image ${index + 1}:`, e.target.src);
+                            
+                            // Extract filename from the original imagePath for fallback URLs
+                            const originalImagePath = selectedDesignImages.images[index];
+                            let filename = originalImagePath;
+                            
+                            // Try to extract filename if it's a full URL or path
+                            if (originalImagePath.includes('/')) {
+                              filename = originalImagePath.split('/').pop();
+                            }
+                            
+                            console.log(`🖼️ Trying alternative paths for filename: ${filename}`);
+                            
+                            // Use the same fallback logic as CustomPage.js
+                            const altUrls = [
+                              `http://localhost:5000/uploads/custom-designs/${filename}`,
+                              `http://localhost:5000/uploads/${filename}`,
+                              `http://localhost:5000/images/${filename}`,
+                              `http://localhost:5000/uploads/custom-orders/${filename}`,
+                              `http://localhost:5000/uploads/default-product.png` // Final fallback
+                            ];
+                            
+                            // Try the first alternative URL
+                            const currentSrc = e.target.src;
+                            const currentIndex = altUrls.indexOf(currentSrc);
+                            const nextIndex = currentIndex + 1;
+                            
+                            if (nextIndex < altUrls.length) {
+                              console.log(`🖼️ Trying alternative URL ${nextIndex + 1}:`, altUrls[nextIndex]);
+                              e.target.src = altUrls[nextIndex];
+                            } else {
+                              console.log(`🖼️ All alternatives failed, using default`);
+                              e.target.style.border = '2px solid #dc3545';
+                              e.target.style.opacity = '0.7';
+                            }
+                          }}
+                          onLoad={(e) => {
+                            console.log(`🖼️ Successfully loaded image ${index + 1}:`, e.target.src);
+                          }}
+                          onClick={(e) => {
+                            // Show image in a larger modal instead of opening new tab
+                            e.stopPropagation();
+                            // You can implement a full-screen image viewer here
+                            // For now, let's create a simple image preview modal
+                            const imageModal = document.createElement('div');
+                            imageModal.style.cssText = `
+                              position: fixed;
+                              top: 0;
+                              left: 0;
+                              width: 100%;
+                              height: 100%;
+                              background: rgba(0, 0, 0, 0.9);
+                              display: flex;
+                              justify-content: center;
+                              align-items: center;
+                              z-index: 10000;
+                              cursor: pointer;
+                            `;
+                            
+                            const fullImage = document.createElement('img');
+                            fullImage.src = e.target.src;
+                            fullImage.style.cssText = `
+                              max-width: 90%;
+                              max-height: 90%;
+                              object-fit: contain;
+                              border-radius: 8px;
+                              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                            `;
+                            
+                            const closeButton = document.createElement('button');
+                            closeButton.innerHTML = '×';
+                            closeButton.style.cssText = `
+                              position: absolute;
+                              top: 20px;
+                              right: 30px;
+                              background: rgba(255, 255, 255, 0.9);
+                              border: none;
+                              border-radius: 50%;
+                              width: 40px;
+                              height: 40px;
+                              font-size: 24px;
+                              font-weight: bold;
+                              cursor: pointer;
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              color: #333;
+                              box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                            `;
+                            
+                            imageModal.appendChild(fullImage);
+                            imageModal.appendChild(closeButton);
+                            document.body.appendChild(imageModal);
+                            
+                            // Close modal when clicking anywhere or close button
+                            const closeModal = () => {
+                              // Check if the modal still exists and is a child of document.body before removing
+                              if (imageModal && document.body.contains(imageModal)) {
+                                document.body.removeChild(imageModal);
+                              }
+                              // Clean up event listener
+                              document.removeEventListener('keydown', handleEscape);
+                            };
+                            
+                            imageModal.onclick = closeModal;
+                            closeButton.onclick = closeModal;
+                            
+                            // Prevent image click from closing modal
+                            fullImage.onclick = (e) => e.stopPropagation();
+                            
+                            // Close with Escape key
+                            const handleEscape = (e) => {
+                              if (e.key === 'Escape') {
+                                closeModal();
+                              }
+                            };
+                            document.addEventListener('keydown', handleEscape);
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.transform = 'scale(1.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.transform = 'scale(1)';
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ 
+                  padding: '60px 40px', 
+                  color: '#666', 
+                  fontSize: '16px',
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: '8px',
+                  border: '2px dashed #dee2e6'
+                }}>
+                  <FontAwesomeIcon icon={faExclamationTriangle} style={{ fontSize: '48px', color: '#ffc107', marginBottom: '16px' }} />
+                  <div style={{ marginBottom: '8px' }}>No design images found</div>
+                  <div style={{ fontSize: '14px', color: '#999' }}>
+                    This design request doesn't have any uploaded images.
+                  </div>
+                </div>
+              )}
+              
+              <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <button
+                  onClick={closeDesignImagesModal}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Close
+                </button>
               </div>
             </ModalContent>
           </Modal>

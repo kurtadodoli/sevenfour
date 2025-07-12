@@ -409,6 +409,205 @@ exports.createOrderFromCart = async (req, res) => {
             console.log('Order created with ID:', orderId, 'for user:', req.user.id);
             console.log('=== END CREATE ORDER DEBUG ===');
             
+            // 🚨 IMMEDIATE STOCK DEDUCTION - New Feature Implementation
+            console.log('🔥 === IMMEDIATE STOCK DEDUCTION ON ORDER PLACEMENT ===');
+            
+            // Check stock availability and deduct immediately
+            const insufficientStock = [];
+            const stockUpdates = [];
+            
+            for (const item of cartItems) {
+                const finalColor = (item.color && item.color.trim() !== '') ? item.color : item.productcolor;
+                
+                console.log(`🔍 Checking and deducting stock for ${item.productname} - Size: ${item.size}, Color: ${finalColor}, Qty: ${item.quantity}`);
+                
+                // Check variant stock first
+                const [variantStock] = await connection.execute(`
+                    SELECT available_quantity, stock_quantity, reserved_quantity
+                    FROM product_variants 
+                    WHERE product_id = ? AND size = ? AND color = ?
+                `, [item.product_id, item.size || 'N/A', finalColor || 'Default']);
+                
+                if (variantStock.length > 0) {
+                    // Variant exists - check and deduct from variant
+                    const variant = variantStock[0];
+                    if (variant.available_quantity < item.quantity) {
+                        insufficientStock.push({
+                            product: item.productname,
+                            size: item.size,
+                            color: finalColor,
+                            requested: item.quantity,
+                            available: variant.available_quantity
+                        });
+                        continue;
+                    }
+                    
+                    // Deduct from variant stock immediately
+                    const [variantResult] = await connection.execute(`
+                        UPDATE product_variants 
+                        SET available_quantity = available_quantity - ?,
+                            stock_quantity = stock_quantity - ?,
+                            last_updated = CURRENT_TIMESTAMP
+                        WHERE product_id = ? AND size = ? AND color = ? AND available_quantity >= ?
+                    `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', finalColor || 'Default', item.quantity]);
+                    
+                    if (variantResult.affectedRows > 0) {
+                        console.log(`✅ Immediately deducted ${item.quantity} units from variant ${item.productname} ${item.size}/${finalColor}`);
+                        
+                        // 🔥 UPDATE THE SIZES JSON FIELD IN PRODUCTS TABLE
+                        console.log(`🔄 Updating sizes JSON field for product ${item.product_id}...`);
+                        
+                        // Get current sizes JSON
+                        const [productData] = await connection.execute(
+                            'SELECT sizes FROM products WHERE product_id = ?',
+                            [item.product_id]
+                        );
+                        
+                        if (productData.length > 0 && productData[0].sizes) {
+                            try {
+                                const sizesData = JSON.parse(productData[0].sizes);
+                                
+                                // Find and update the specific size/color stock
+                                let updated = false;
+                                for (let sizeObj of sizesData) {
+                                    if (sizeObj.size === item.size) {
+                                        for (let colorStock of sizeObj.colorStocks) {
+                                            if (colorStock.color === finalColor) {
+                                                const oldStock = colorStock.stock;
+                                                colorStock.stock = Math.max(0, colorStock.stock - item.quantity);
+                                                console.log(`📉 Updated ${item.size} ${finalColor}: ${oldStock} → ${colorStock.stock}`);
+                                                updated = true;
+                                                break;
+                                            }
+                                        }
+                                        if (updated) break;
+                                    }
+                                }
+                                
+                                if (updated) {
+                                    // Update the sizes JSON in products table
+                                    await connection.execute(
+                                        'UPDATE products SET sizes = ? WHERE product_id = ?',
+                                        [JSON.stringify(sizesData), item.product_id]
+                                    );
+                                    console.log(`✅ Updated sizes JSON for product ${item.product_id}`);
+                                }
+                            } catch (jsonError) {
+                                console.error('❌ Error updating sizes JSON:', jsonError);
+                            }
+                        }
+                        
+                        // Log the stock movement
+                        await connection.execute(`
+                            INSERT INTO stock_movements 
+                            (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
+                            VALUES (?, 'OUT', ?, ?, 'Order Placed - Immediate Stock Deduction', ?, ?, ?)
+                        `, [item.product_id, item.quantity, item.size || 'N/A', 
+                            orderId, req.user.id, `Order placed - immediately deducted ${item.quantity} units of ${item.productname} ${item.size}/${finalColor}`]);
+                        
+                        stockUpdates.push({
+                            product_id: item.product_id,
+                            product: item.productname,
+                            size: item.size,
+                            color: finalColor,
+                            quantityDeducted: item.quantity
+                        });
+                    } else {
+                        console.log(`❌ Failed to deduct from variant - insufficient stock or concurrent update`);
+                        insufficientStock.push({
+                            product: item.productname,
+                            size: item.size,
+                            color: finalColor,
+                            requested: item.quantity,
+                            available: variant.available_quantity
+                        });
+                    }
+                } else {
+                    // No variant found - check and deduct from general product stock
+                    const [productStock] = await connection.execute(`
+                        SELECT total_available_stock FROM products WHERE product_id = ?
+                    `, [item.product_id]);
+                    
+                    if (productStock.length === 0 || productStock[0].total_available_stock < item.quantity) {
+                        insufficientStock.push({
+                            product: item.productname,
+                            size: item.size,
+                            color: finalColor,
+                            requested: item.quantity,
+                            available: productStock.length > 0 ? productStock[0].total_available_stock : 0
+                        });
+                        continue;
+                    }
+                    
+                    // Deduct from general product stock
+                    await connection.execute(`
+                        UPDATE products 
+                        SET total_available_stock = total_available_stock - ?,
+                            productquantity = GREATEST(0, productquantity - ?),
+                            last_stock_update = CURRENT_TIMESTAMP
+                        WHERE product_id = ? AND total_available_stock >= ?
+                    `, [item.quantity, item.quantity, item.product_id, item.quantity]);
+                    
+                    console.log(`✅ Immediately deducted ${item.quantity} units from general stock for ${item.productname}`);
+                    
+                    stockUpdates.push({
+                        product_id: item.product_id,
+                        product: item.productname,
+                        size: item.size,
+                        color: finalColor,
+                        quantityDeducted: item.quantity
+                    });
+                }
+            }
+            
+            // If there's insufficient stock, rollback and return error
+            if (insufficientStock.length > 0) {
+                await connection.rollback();
+                await connection.end();
+                console.log('❌ Insufficient stock for items:', insufficientStock);
+                return res.status(400).json({
+                    success: false,
+                    message: 'Insufficient stock for some items',
+                    insufficientStock
+                });
+            }
+            
+            // Update overall product stock totals from variants
+            const uniqueProductIds = [...new Set(cartItems.map(item => item.product_id))];
+            
+            for (const productId of uniqueProductIds) {
+                await connection.execute(`
+                    UPDATE products p
+                    SET p.total_stock = (
+                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_available_stock = (
+                        SELECT COALESCE(SUM(pv.available_quantity), 0) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.total_reserved_stock = (
+                        SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
+                        FROM product_variants pv 
+                        WHERE pv.product_id = p.product_id
+                    ),
+                    p.stock_status = CASE 
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
+                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
+                        ELSE 'in_stock'
+                    END,
+                    p.last_stock_update = CURRENT_TIMESTAMP
+                    WHERE p.product_id = ?
+                `, [productId]);
+                
+                console.log(`✅ Updated product totals for product ID: ${productId}`);
+            }
+            
+            console.log('🔥 === STOCK IMMEDIATELY DEDUCTED ON ORDER PLACEMENT ===');
+            
             // Create order items with proper order_id reference and all required fields
             for (let index = 0; index < cartItems.length; index++) {
                 const item = cartItems[index];
@@ -461,12 +660,21 @@ exports.createOrderFromCart = async (req, res) => {
             
             res.json({
                 success: true,
-                message: 'Order created successfully',
-                data: {
-                    orderNumber,
-                    invoiceId,
-                    transactionId,
-                    totalAmount
+                message: 'Order created successfully. Stock has been updated immediately.',
+                order: {
+                    order_number: orderNumber,
+                    id: orderId,
+                    invoice_id: invoiceId,
+                    transaction_id: transactionId,
+                    total_amount: totalAmount
+                },
+                stockUpdates,
+                stockUpdateEvent: {
+                    type: 'order_placed',
+                    orderId: orderId,
+                    productIds: uniqueProductIds,
+                    timestamp: new Date().toISOString(),
+                    immediate: true
                 }
             });
             
@@ -566,8 +774,8 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Get the order items to check stock availability
-            console.log('Getting order items to verify stock...');
+            // Get the order items for reference (stock was already deducted during order creation)
+            console.log('Getting order items for confirmation...');
             const [orderItems] = await connection.execute(`
                 SELECT oi.product_id, oi.quantity, oi.size, oi.color, 
                        p.productname, p.total_available_stock
@@ -586,129 +794,7 @@ exports.confirmOrder = async (req, res) => {
                 });
             }
             
-            // Check stock availability for each variant (but don't deduct yet)
-            const insufficientStock = [];
-            for (const item of orderItems) {
-                console.log(`Checking variant stock for ${item.productname} - Size: ${item.size}, Color: ${item.color}, Qty: ${item.quantity}`);
-                
-                const [variantStock] = await connection.execute(`
-                    SELECT available_quantity, stock_quantity, reserved_quantity
-                    FROM product_variants 
-                    WHERE product_id = ? AND size = ? AND color = ?
-                `, [item.product_id, item.size || 'N/A', item.color || 'Default']);
-                
-                if (variantStock.length === 0) {
-                    // No variant found - check general product stock as fallback
-                    if (item.total_available_stock < item.quantity) {
-                        insufficientStock.push({
-                            product: item.productname,
-                            size: item.size,
-                            color: item.color,
-                            requested: item.quantity,
-                            available: item.total_available_stock
-                        });
-                    }
-                } else {
-                    // Check variant-specific stock
-                    const variant = variantStock[0];
-                    if (variant.available_quantity < item.quantity) {
-                        insufficientStock.push({
-                            product: item.productname,
-                            size: item.size,
-                            color: item.color,
-                            requested: item.quantity,
-                            available: variant.available_quantity
-                        });
-                    }
-                }
-            }
-            
-            if (insufficientStock.length > 0) {
-                await connection.rollback();
-                await connection.end();
-                console.log('❌ Insufficient stock for variants:', insufficientStock);
-                return res.status(400).json({
-                    success: false,
-                    message: 'Insufficient stock for some item variants',
-                    insufficientStock
-                });
-            }
-            
-            console.log('✅ All variants have sufficient stock');
-            
-            // Reserve stock (don't deduct yet - that happens when admin approves)
-            console.log('Reserving stock for pending verification...');
-            
-            for (const item of orderItems) {
-                // Reserve stock by increasing reserved_quantity and decreasing available_quantity
-                const [variantResult] = await connection.execute(`
-                    UPDATE product_variants 
-                    SET reserved_quantity = reserved_quantity + ?,
-                        available_quantity = GREATEST(0, available_quantity - ?),
-                        last_updated = CURRENT_TIMESTAMP
-                    WHERE product_id = ? AND size = ? AND color = ? AND available_quantity >= ?
-                `, [item.quantity, item.quantity, item.product_id, item.size || 'N/A', item.color || 'Default', item.quantity]);
-                
-                if (variantResult.affectedRows > 0) {
-                    console.log(`✅ Reserved stock: ${item.productname} ${item.size}/${item.color} +${item.quantity} reserved`);
-                    
-                    // Log the stock movement as reservation
-                    await connection.execute(`
-                        INSERT INTO stock_movements 
-                        (product_id, movement_type, quantity, size, reason, reference_number, user_id, notes)
-                        VALUES (?, 'RESERVED', ?, ?, 'Order Confirmed - Awaiting Admin Verification', ?, ?, ?)
-                    `, [item.product_id, item.quantity, item.size || 'N/A', 
-                        orderId, userId, `Order confirmed - reserved ${item.quantity} units of ${item.productname} ${item.size}/${item.color} pending admin verification`]);
-                } else {
-                    // Fallback to general product stock reservation
-                    console.log(`❌ No variant found for ${item.productname} ${item.size}/${item.color}, reserving general stock`);
-                    await connection.execute(`
-                        UPDATE products 
-                        SET total_reserved_stock = total_reserved_stock + ?,
-                            total_available_stock = GREATEST(0, total_available_stock - ?),
-                            last_stock_update = CURRENT_TIMESTAMP
-                        WHERE product_id = ? AND total_available_stock >= ?
-                    `, [item.quantity, item.quantity, item.product_id, item.quantity]);
-                }
-            }
-            
-            // Update overall product stock totals from variants
-            const uniqueProductIds = [...new Set(orderItems.map(item => item.product_id))];
-            
-            for (const productId of uniqueProductIds) {
-                await connection.execute(`
-                    UPDATE products p
-                    SET p.total_stock = (
-                        SELECT COALESCE(SUM(pv.stock_quantity), p.productquantity) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.total_available_stock = (
-                        SELECT COALESCE(SUM(pv.available_quantity), 0) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.total_reserved_stock = (
-                        SELECT COALESCE(SUM(pv.reserved_quantity), 0) 
-                        FROM product_variants pv 
-                        WHERE pv.product_id = p.product_id
-                    ),
-                    p.stock_status = CASE 
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 0 THEN 'out_of_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 5 THEN 'critical_stock'
-                        WHEN (SELECT COALESCE(SUM(pv.available_quantity), 0) FROM product_variants pv WHERE pv.product_id = p.product_id) <= 15 THEN 'low_stock'
-                        ELSE 'in_stock'
-                    END,
-                    p.last_stock_update = CURRENT_TIMESTAMP
-                    WHERE p.product_id = ?
-                `, [productId]);
-                
-                console.log(`Updated product totals for product ID: ${productId}`);
-                
-                // Sync all stock fields (totals + sizes JSON) with current variant data
-                // Temporarily disabled for debugging
-                // await syncAllStockFields(connection, productId);
-            }
+            console.log('✅ Order items found - stock was already deducted during order placement');
 
             // Update order to mark it as ready for admin verification (but keep status as 'pending')
             console.log('Marking order as ready for admin verification...');
@@ -735,24 +821,17 @@ exports.confirmOrder = async (req, res) => {
             await connection.commit();
             await connection.end();
             
-            // Prepare stock update data for real-time notifications
-            const stockUpdates = orderItems.map(item => ({
-                product_id: item.product_id,
-                product: item.productname,
-                quantityReserved: item.quantity,
-                newAvailableStock: item.total_available_stock - item.quantity
-            }));
-            
             res.json({
                 success: true,
-                message: 'Order confirmed and submitted for admin verification. Stock has been reserved.',
+                message: 'Order submitted for admin verification! Stock was already deducted when order was placed.',
                 awaitingVerification: true,
-                inventoryReserved: stockUpdates,
+                stockAlreadyDeducted: true,
                 stockUpdateEvent: {
                     type: 'order_submitted_for_verification',
                     orderId: orderId,
                     productIds: orderItems.map(item => item.product_id),
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    note: 'Stock was deducted during order placement'
                 }
             });
             
@@ -2030,6 +2109,289 @@ exports.updateOrderStatus = async (req, res) => {
     }
 };
 
+// Get specific order by ID
+exports.getOrder = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get order with user details
+        const [orders] = await connection.execute(`
+            SELECT 
+                o.*,
+                u.first_name,
+                u.last_name,
+                u.email as user_email,
+                oi.customer_name,
+                oi.customer_email,
+                oi.total_amount as invoice_total,
+                st.transaction_id,
+                st.payment_method,
+                st.transaction_status
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN order_invoices oi ON o.invoice_id = oi.invoice_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            WHERE o.id = ?
+        `, [orderId]);
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        const order = orders[0];
+        
+        // Check if user can access this order
+        if (req.user.role !== 'admin' && req.user.role !== 'staff' && order.user_id !== req.user.id) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: order
+        });
+        
+    } catch (error) {
+        console.error('Error fetching order:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order'
+        });
+    }
+};
+
+// Get order items for specific order
+exports.getOrderItems = async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // First check if order exists and user has access
+        const [orders] = await connection.execute(`
+            SELECT id, user_id FROM orders WHERE id = ?
+        `, [orderId]);
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        const order = orders[0];
+        
+        // Check if user can access this order
+        if (req.user.role !== 'admin' && req.user.role !== 'staff' && order.user_id !== req.user.id) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+        
+        // Get order items with product details
+        const [items] = await connection.execute(`
+            SELECT 
+                oi.*,
+                p.productname,
+                p.productcolor,
+                p.product_type,
+                p.productimage,
+                p.productprice as product_original_price
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.sort_order, oi.id
+        `, [orderId]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: items
+        });
+        
+    } catch (error) {
+        console.error('Error fetching order items:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch order items'
+        });
+    }
+};
+
+// Create cancellation request
+exports.createCancellationRequest = async (req, res) => {
+    try {
+        const { order_id, order_number, reason } = req.body;
+        
+        if (!order_id || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Order ID and reason are required'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Check if order exists and belongs to user
+        const [orders] = await connection.execute(`
+            SELECT id, user_id, status FROM orders WHERE id = ?
+        `, [order_id]);
+        
+        if (orders.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        
+        const order = orders[0];
+        
+        // Check if user owns the order (unless admin)
+        if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+            await connection.end();
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+        
+        // Check if order can be cancelled
+        if (order.status === 'delivered' || order.status === 'cancelled') {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot cancel order that is already delivered or cancelled'
+            });
+        }
+        
+        // Check if cancellation request already exists
+        const [existing] = await connection.execute(`
+            SELECT id FROM cancellation_requests WHERE order_id = ? AND status = 'pending'
+        `, [order_id]);
+        
+        if (existing.length > 0) {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'A cancellation request for this order is already pending'
+            });
+        }
+        
+        // Create cancellation request
+        await connection.execute(`
+            INSERT INTO cancellation_requests (order_id, order_number, user_id, reason, status, created_at)
+            VALUES (?, ?, ?, ?, 'pending', NOW())
+        `, [order_id, order_number || '', req.user.id, reason]);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: 'Cancellation request submitted successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error creating cancellation request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create cancellation request'
+        });
+    }
+};
+
+// Process cancellation request (admin only)
+exports.processCancellationRequest = async (req, res) => {
+    try {
+        const requestId = req.params.id;
+        const { action, admin_notes } = req.body;
+        
+        // Check if user is admin
+        if (req.user.role !== 'admin' && req.user.role !== 'staff') {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
+        if (!action || !['approve', 'reject'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Action must be either "approve" or "reject"'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get cancellation request details
+        const [requests] = await connection.execute(`
+            SELECT cr.*, o.status as order_status
+            FROM cancellation_requests cr
+            JOIN orders o ON cr.order_id = o.id
+            WHERE cr.id = ?
+        `, [requestId]);
+        
+        if (requests.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Cancellation request not found'
+            });
+        }
+        
+        const request = requests[0];
+        
+        if (request.status !== 'pending') {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation request has already been processed'
+            });
+        }
+        
+        // Update cancellation request
+        await connection.execute(`
+            UPDATE cancellation_requests 
+            SET status = ?, admin_notes = ?, processed_at = NOW(), processed_by = ?
+            WHERE id = ?
+        `, [action === 'approve' ? 'approved' : 'rejected', admin_notes || '', req.user.id, requestId]);
+        
+        // If approved, cancel the order
+        if (action === 'approve') {
+            await connection.execute(`
+                UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = ?
+            `, [request.order_id]);
+        }
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: `Cancellation request ${action}d successfully`
+        });
+        
+    } catch (error) {
+        console.error('Error processing cancellation request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process cancellation request'
+        });
+    }
+};
+
 async function syncAllStockFields(connection, productId) {
     try {
         console.log(`Syncing all stock fields for product ${productId}...`);
@@ -2079,8 +2441,20 @@ exports.getCancellationRequests = async (req, res) => {
         const [requests] = await connection.execute(`
             SELECT 
                 cr.*,
-                o.order_number,
-                o.total_amount,
+                -- Prioritize order_number from cancellation_requests table, fallback to orders table
+                COALESCE(cr.order_number, o.order_number) as order_number,
+                -- Handle amount for both regular and custom orders
+                CASE 
+                    WHEN cr.order_number LIKE 'CUSTOM-%' THEN
+                        COALESCE(
+                            (SELECT COALESCE(co.final_price, co.estimated_price, 0) 
+                             FROM custom_orders co 
+                             WHERE co.custom_order_id = cr.order_number),
+                            0
+                        )
+                    ELSE
+                        COALESCE(o.total_amount, 0)
+                END as total_amount,
                 u.first_name,
                 u.last_name,
                 u.email as customer_email,
@@ -2141,7 +2515,23 @@ exports.getCancellationRequests = async (req, res) => {
                 CASE 
                     WHEN cr.order_number LIKE 'CUSTOM-%' THEN 'custom'
                     ELSE 'regular'
-                END as order_type
+                END as order_type,
+                -- Add custom order details for better admin review
+                CASE 
+                    WHEN cr.order_number LIKE 'CUSTOM-%' THEN
+                        (SELECT CONCAT(
+                            COALESCE(co.product_type, 'Unknown'), ' - ',
+                            COALESCE(co.product_name, 'Custom Design'), ' (',
+                            COALESCE(co.size, 'N/A'), ', ',
+                            COALESCE(co.color, 'N/A'), ')'
+                        ) FROM custom_orders co WHERE co.custom_order_id = cr.order_number)
+                    ELSE
+                        (SELECT CONCAT(p.productname, ' (', oi.size, ')')
+                         FROM order_items oi
+                         LEFT JOIN products p ON oi.product_id = p.product_id
+                         WHERE oi.order_id = o.id
+                         LIMIT 1)
+                END as product_details
             FROM cancellation_requests cr
             LEFT JOIN orders o ON cr.order_id = o.id
             LEFT JOIN users u ON o.user_id = u.user_id
@@ -2165,401 +2555,182 @@ exports.getCancellationRequests = async (req, res) => {
     }
 };
 
-// Get all orders for admin
-exports.getAllOrders = async (req, res) => {
+// Get all rejected payments for admin
+exports.getRejectedPayments = async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
         
-        // Get query parameters for filtering and pagination
-        const { 
-            page = 1, 
-            limit = 50, 
-            status, 
-            payment_status, 
-            delivery_status,
-            search,
-            start_date,
-            end_date 
-        } = req.query;
+        // Get both regular orders and custom orders with rejected payment status
+        const [rejectedPayments] = await connection.execute(`
+            SELECT 
+                'regular' as order_type,
+                o.id,
+                o.order_number,
+                o.total_amount,
+                u.first_name,
+                u.last_name,
+                u.email as customer_email,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                o.order_date as created_at,
+                'rejected' as payment_status,
+                st.payment_method,
+                st.gcash_reference_number,
+                st.payment_proof_image,
+                'Payment was rejected by admin' as rejection_reason
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            LEFT JOIN sales_transactions st ON o.transaction_id = st.transaction_id
+            WHERE st.transaction_status = 'rejected'
+            
+            UNION ALL
+            
+            SELECT 
+                'custom' as order_type,
+                co.id,
+                co.custom_order_id as order_number,
+                COALESCE(co.final_price, co.estimated_price, 0) as total_amount,
+                u.first_name,
+                u.last_name,
+                u.email as customer_email,
+                co.customer_name,
+                co.created_at,
+                'rejected' as payment_status,
+                co.payment_method,
+                co.gcash_reference_number,
+                co.payment_proof_image,
+                'Payment was rejected by admin' as rejection_reason
+            FROM custom_orders co
+            LEFT JOIN users u ON co.user_id = u.user_id
+            WHERE co.payment_status = 'rejected'
+            
+            ORDER BY created_at DESC
+        `);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            data: rejectedPayments
+        });
+        
+    } catch (error) {
+        console.error('Error fetching rejected payments:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch rejected payments'
+        });
+    }
+};
+
+// Get all orders for admin with pagination and filtering
+exports.getAllOrders = async (req, res) => {
+    let connection;
+    try {
+        console.log('=== GET ALL ORDERS DEBUG ===');
+        console.log('User:', req.user?.id, req.user?.role);
+        console.log('Query params:', req.query);
+        
+        // Only allow admin/staff to view all orders
+        if (!['admin', 'staff'].includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access denied - Admin/staff only' 
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        console.log('✅ Database connection created');
+        
+        const { status, page = 1, limit = 10, search } = req.query;
+        const offset = (page - 1) * limit;
         
         let whereConditions = [];
         let queryParams = [];
         
-        // Add status filters
-        if (status) {
+        // Add status filter
+        if (status && status !== 'all') {
             whereConditions.push('o.status = ?');
             queryParams.push(status);
         }
         
-        if (payment_status) {
-            whereConditions.push('o.payment_status = ?');
-            queryParams.push(payment_status);
-        }
-        
-        if (delivery_status) {
-            whereConditions.push('o.delivery_status = ?');
-            queryParams.push(delivery_status);
-        }
-        
         // Add search filter
         if (search) {
-            whereConditions.push('(o.order_number LIKE ? OR o.customer_name LIKE ? OR o.customer_email LIKE ?)');
-            const searchPattern = `%${search}%`;
-            queryParams.push(searchPattern, searchPattern, searchPattern);
-        }
-        
-        // Add date range filter
-        if (start_date) {
-            whereConditions.push('DATE(o.created_at) >= ?');
-            queryParams.push(start_date);
-        }
-        
-        if (end_date) {
-            whereConditions.push('DATE(o.created_at) <= ?');
-            queryParams.push(end_date);
+            whereConditions.push(`(
+                o.order_number LIKE ? OR 
+                u.email LIKE ? OR 
+                CONCAT(u.first_name, ' ', u.last_name) LIKE ?
+            )`);
+            const searchTerm = `%${search}%`;
+            queryParams.push(searchTerm, searchTerm, searchTerm);
         }
         
         // Build WHERE clause
         const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
         
-        // Calculate offset for pagination
-        const offset = (page - 1) * limit;
-        
-        // Get total count
-        const [countResult] = await connection.execute(`
-            SELECT COUNT(*) as total
-            FROM orders o
-            ${whereClause}
-        `, queryParams);
-        
-        const total = countResult[0].total;
-        const totalPages = Math.ceil(total / limit);
-        
-        // Get orders with pagination
-        const [orders] = await connection.execute(`
+        // Get orders with user details
+        let mainQuery = `
             SELECT 
-                o.*,
-                CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                u.email as user_email
+                o.id,
+                o.order_number,
+                o.user_id,
+                o.status,
+                o.total_amount,
+                o.order_date,
+                o.shipping_address,
+                o.contact_phone,
+                o.created_at,
+                o.updated_at,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+                u.email as customer_email,
+                u.first_name,
+                u.last_name
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.user_id
             ${whereClause}
             ORDER BY o.created_at DESC
-            LIMIT ? OFFSET ?
-        `, [...queryParams, parseInt(limit), parseInt(offset)]);
+            LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+            
+        const [orders] = await connection.execute(mainQuery, queryParams);
+        
+        // Get total count for pagination
+        let countQuery = `
+            SELECT COUNT(*) as total
+            FROM orders o
+            LEFT JOIN users u ON o.user_id = u.user_id
+            ${whereClause}`;
+            
+        const [countResult] = await connection.execute(countQuery, queryParams);
+        const total = countResult[0].total;
         
         await connection.end();
         
         res.json({
             success: true,
-            data: orders,
-            pagination: {
-                currentPage: parseInt(page),
-                totalPages,
-                totalItems: total,
-                itemsPerPage: parseInt(limit)
+            data: {
+                orders,
+                pagination: {
+                    currentPage: parseInt(page),
+                    totalPages: Math.ceil(total / limit),
+                    totalItems: total,
+                    itemsPerPage: parseInt(limit)
+                }
             }
         });
         
     } catch (error) {
-        console.error('Error fetching all orders:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch orders'
-        });
-    }
-};
-
-// Get a specific order
-exports.getOrder = async (req, res) => {
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-        const orderId = req.params.id;
-        const userId = req.user.id;
-        const userRole = req.user.role;
+        console.error('❌ Error fetching orders:', error);
         
-        // Build query based on user role
-        let whereClause = '';
-        let queryParams = [orderId];
-        
-        if (userRole === 'admin' || userRole === 'staff') {
-            // Admin/staff can see any order
-            whereClause = 'WHERE o.id = ?';
-        } else {
-            // Regular users can only see their own orders
-            whereClause = 'WHERE o.id = ? AND o.user_id = ?';
-            queryParams.push(userId);
+        if (connection) {
+            try {
+                await connection.end();
+            } catch (closeError) {
+                console.error('❌ Error closing connection:', closeError.message);
+            }
         }
         
-        const [orders] = await connection.execute(`
-            SELECT 
-                o.*,
-                CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                u.email as user_email
-            FROM orders o
-            LEFT JOIN users u ON o.user_id = u.user_id
-            ${whereClause}
-        `, queryParams);
-        
-        await connection.end();
-        
-        if (orders.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found or access denied'
-            });
-        }
-        
-        res.json({
-            success: true,
-            data: orders[0]
-        });
-        
-    } catch (error) {
-        console.error('Error fetching order:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch order'
-        });
-    }
-};
-
-// Get order items for invoice
-exports.getOrderItems = async (req, res) => {
-    try {
-        const connection = await mysql.createConnection(dbConfig);
-        const orderId = req.params.id;
-        const userId = req.user.id;
-        const userRole = req.user.role;
-        
-        // Check if this is a custom order ID (they start with 'custom-')
-        if (typeof orderId === 'string' && orderId.startsWith('custom-')) {
-            await connection.end();
-            return res.status(400).json({
-                success: false,
-                message: 'Custom orders do not support this endpoint. Items are included in the main custom order response.'
-            });
-        }
-        
-        // First check if user has access to this order
-        let orderWhereClause = '';
-        let orderQueryParams = [orderId];
-        
-        if (userRole === 'admin' || userRole === 'staff') {
-            orderWhereClause = 'WHERE id = ?';
-        } else {
-            orderWhereClause = 'WHERE id = ? AND user_id = ?';
-            orderQueryParams.push(userId);
-        }
-        
-        const [orderCheck] = await connection.execute(`
-            SELECT id FROM orders ${orderWhereClause}
-        `, orderQueryParams);
-        
-        if (orderCheck.length === 0) {
-            await connection.end();
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found or access denied'
-            });
-        }
-        
-        // Get order items
-        const [items] = await connection.execute(`
-            SELECT 
-                oi.*,
-                p.productname,
-                p.productimage,
-                p.productdescription
-            FROM order_items oi
-            LEFT JOIN products p ON oi.product_id = p.product_id
-            WHERE oi.order_id = ?
-            ORDER BY oi.id
-        `, [orderId]);
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            data: items
-        });
-        
-    } catch (error) {
-        console.error('Error fetching order items:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch order items'
-        });
-    }
-};
-
-// Create a cancellation request
-exports.createCancellationRequest = async (req, res) => {
-    try {
-        const { order_id, order_number, reason } = req.body;
-        const userId = req.user.id;
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Verify that the order belongs to the user
-        const [orders] = await connection.execute(
-            'SELECT id, status, user_id FROM orders WHERE id = ? AND user_id = ?',
-            [order_id, userId]
-        );
-        
-        if (orders.length === 0) {
-            await connection.end();
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found or access denied'
-            });
-        }
-        
-        const order = orders[0];
-        
-        // Check if order can be cancelled
-        if (!['pending', 'confirmed'].includes(order.status)) {
-            await connection.end();
-            return res.status(400).json({
-                success: false,
-                message: 'Order cannot be cancelled at this stage'
-            });
-        }
-        
-        // Check if cancellation request already exists
-        const [existingRequests] = await connection.execute(
-            'SELECT id FROM cancellation_requests WHERE order_id = ?',
-            [order_id]
-        );
-        
-        if (existingRequests.length > 0) {
-            await connection.end();
-            return res.status(400).json({
-                success: false,
-                message: 'Cancellation request already exists for this order'
-            });
-        }
-        
-        // Create cancellation request
-        await connection.execute(
-            `INSERT INTO cancellation_requests (order_id, order_number, reason, status, created_at)
-             VALUES (?, ?, ?, 'pending', NOW())`,
-            [order_id, order_number, reason]
-        );
-        
-        // Update order to show cancellation pending
-        await connection.execute(
-            'UPDATE orders SET cancellation_request_status = "pending" WHERE id = ?',
-            [order_id]
-        );
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            message: 'Cancellation request submitted successfully'
-        });
-        
-    } catch (error) {
-        console.error('Error creating cancellation request:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create cancellation request'
-        });
-    }
-};
-
-// Process cancellation request (approve/deny)
-exports.processCancellationRequest = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { action, admin_notes } = req.body; // action: 'approve' or 'deny'
-        const adminId = req.user.id;
-        
-        const connection = await mysql.createConnection(dbConfig);
-        
-        // Get cancellation request details
-        const [requests] = await connection.execute(
-            `SELECT cr.*, o.id as order_id, o.status as order_status, o.user_id
-             FROM cancellation_requests cr
-             JOIN orders o ON cr.order_id = o.id
-             WHERE cr.id = ?`,
-            [id]
-        );
-        
-        if (requests.length === 0) {
-            await connection.end();
-            return res.status(404).json({
-                success: false,
-                message: 'Cancellation request not found'
-            });
-        }
-        
-        const request = requests[0];
-        
-        if (request.status !== 'pending') {
-            await connection.end();
-            return res.status(400).json({
-                success: false,
-                message: 'Cancellation request already processed'
-            });
-        }
-        
-        if (action === 'approve') {
-            // Update cancellation request status
-            await connection.execute(
-                `UPDATE cancellation_requests 
-                 SET status = 'approved', admin_notes = ?, processed_by = ?, processed_at = NOW()
-                 WHERE id = ?`,
-                [admin_notes || null, adminId, id]
-            );
-            
-            // Update order status
-            await connection.execute(
-                `UPDATE orders 
-                 SET status = 'cancelled', cancellation_request_status = 'approved'
-                 WHERE id = ?`,
-                [request.order_id]
-            );
-            
-            // TODO: Restore stock if needed
-            
-        } else if (action === 'deny') {
-            // Update cancellation request status
-            await connection.execute(
-                `UPDATE cancellation_requests 
-                 SET status = 'denied', admin_notes = ?, processed_by = ?, processed_at = NOW()
-                 WHERE id = ?`,
-                [admin_notes || null, adminId, id]
-            );
-            
-            // Update order status
-            await connection.execute(
-                `UPDATE orders 
-                 SET cancellation_request_status = 'denied'
-                 WHERE id = ?`,
-                [request.order_id]
-            );
-        } else {
-            await connection.end();
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid action. Must be "approve" or "deny"'
-            });
-        }
-        
-        await connection.end();
-        
-        res.json({
-            success: true,
-            message: `Cancellation request ${action}d successfully`
-        });
-        
-    } catch (error) {
-        console.error('Error processing cancellation request:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to process cancellation request'
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to fetch orders' 
         });
     }
 };

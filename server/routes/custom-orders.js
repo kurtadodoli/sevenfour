@@ -803,6 +803,209 @@ router.get('/approved', auth, async (req, res) => {
     }
 });
 
+// Get custom order cancellation requests (ADMIN ONLY)
+router.get('/cancellation-requests', auth, async (req, res) => {
+    console.log('🔍 GET /cancellation-requests called');
+    console.log('🔍 User:', req.user);
+    
+    let connection;
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            console.log('❌ Access denied - user is not admin');
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
+        console.log('✅ Admin access granted');
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Get custom order cancellation requests
+        const [requests] = await connection.execute(`
+            SELECT 
+                cor.*,
+                co.custom_order_id,
+                co.customer_name,
+                co.customer_email,
+                co.customer_phone,
+                co.product_type,
+                co.product_name,
+                co.size,
+                co.color,
+                co.quantity,
+                co.estimated_price,
+                co.final_price,
+                co.status as order_status,
+                co.province,
+                co.municipality,
+                co.street_number,
+                co.house_number,
+                co.barangay,
+                co.postal_code,
+                co.special_instructions,
+                co.created_at as order_created_at,
+                u.first_name,
+                u.last_name,
+                u.email as user_email
+            FROM custom_order_cancellation_requests cor
+            JOIN custom_orders co ON cor.custom_order_id = co.custom_order_id
+            LEFT JOIN users u ON co.user_id = u.user_id
+            ORDER BY cor.created_at DESC
+        `);
+        
+        console.log(`✅ Found ${requests.length} custom order cancellation requests`);
+        
+        res.json({
+            success: true,
+            data: requests,
+            count: requests.length
+        });
+        
+    } catch (error) {
+        console.error('❌ Error fetching custom order cancellation requests:', error);
+        
+        // If the table doesn't exist, return empty array
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            console.log('📝 Custom order cancellation requests table does not exist, returning empty array');
+            return res.json({
+                success: true,
+                data: [],
+                count: 0
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch custom order cancellation requests',
+            error: error.message
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
+// Create custom order cancellation request (authenticated user)
+router.post('/cancellation-requests', auth, async (req, res) => {
+    console.log('🔍 POST /cancellation-requests called');
+    console.log('🔍 User:', req.user);
+    console.log('🔍 Request body:', req.body);
+    
+    let connection;
+    try {
+        const { customOrderId, reason } = req.body;
+        
+        // Validate required fields
+        if (!customOrderId || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Custom order ID and reason are required'
+            });
+        }
+        
+        // Validate reason length
+        if (reason.trim().length < 10) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation reason must be at least 10 characters long'
+            });
+        }
+        
+        connection = await mysql.createConnection(dbConfig);
+        
+        // Check if the custom order exists and belongs to the user (or user is admin)
+        const [orderCheck] = await connection.execute(`
+            SELECT custom_order_id, status, user_id, customer_email, customer_name
+            FROM custom_orders 
+            WHERE custom_order_id = ?
+        `, [customOrderId]);
+        
+        if (orderCheck.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Custom order not found'
+            });
+        }
+        
+        const order = orderCheck[0];
+        
+        // Check if user has permission to cancel this order
+        if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'You do not have permission to cancel this order'
+            });
+        }
+        
+        // Check if order can be cancelled
+        if (order.status === 'cancelled' || order.status === 'completed' || order.status === 'delivered') {
+            return res.status(400).json({
+                success: false,
+                message: 'This order cannot be cancelled as it has already been completed, delivered, or cancelled'
+            });
+        }
+        
+        // Check if there's already a pending cancellation request
+        const [existingRequest] = await connection.execute(`
+            SELECT id, status 
+            FROM custom_order_cancellation_requests 
+            WHERE custom_order_id = ? AND status = 'pending'
+        `, [customOrderId]);
+        
+        if (existingRequest.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'A cancellation request for this order is already pending'
+            });
+        }
+        
+        // Create the cancellation request
+        const [result] = await connection.execute(`
+            INSERT INTO custom_order_cancellation_requests 
+            (custom_order_id, user_id, reason, status, created_at, updated_at)
+            VALUES (?, ?, ?, 'pending', NOW(), NOW())
+        `, [customOrderId, req.user.id, reason.trim()]);
+        
+        console.log(`✅ Created cancellation request for custom order ${customOrderId} by user ${req.user.id}`);
+        
+        res.json({
+            success: true,
+            message: 'Cancellation request submitted successfully',
+            data: {
+                requestId: result.insertId,
+                customOrderId: customOrderId,
+                reason: reason.trim(),
+                status: 'pending'
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error creating custom order cancellation request:', error);
+        
+        // Handle specific MySQL errors
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            console.log('📝 Custom order cancellation requests table does not exist');
+            return res.status(500).json({
+                success: false,
+                message: 'Cancellation requests feature is not available. Please contact support.'
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create cancellation request',
+            error: error.message
+        });
+    } finally {
+        if (connection) {
+            await connection.end();
+        }
+    }
+});
+
 // Get custom order details by ID
 router.get('/:customOrderId', auth, async (req, res) => {
     try {
@@ -1041,7 +1244,7 @@ router.get('/designs-test', async (req, res) => {
             customer_name: design.customer_name,
             customer_email: design.customer_email,
             customer_phone: design.customer_phone,
-            province: 'Metro Manila', // Default since custom_designs stores city
+            province: 'National Capital Region', // Default since custom_designs stores city
             municipality: design.city, // Map city to municipality
             street_number: design.street_address, // Map street_address
             house_number: design.house_number,
@@ -1739,6 +1942,268 @@ router.put('/admin/reject-payment/:paymentId', auth, async (req, res) => {
         if (connection) {
             await connection.end();
         }
+    }
+});
+
+// @route   POST /custom-orders/:customOrderId/mark-received
+// @desc    Mark custom order as received by customer
+// @access  Private
+router.post('/:customOrderId/mark-received', auth, async (req, res) => {
+    try {
+        console.log('=== MARK CUSTOM ORDER AS RECEIVED ===');
+        console.log('Custom Order ID:', req.params.customOrderId);
+        console.log('User ID:', req.user.id);
+        
+        const { customOrderId } = req.params;
+        const userId = req.user.id;
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        try {
+            // Add debugging for the query
+            console.log('🔍 Query parameters:');
+            console.log('  - customOrderId:', customOrderId);
+            console.log('  - userId:', userId);
+            
+            // Get user email for debugging
+            const [userInfo] = await connection.execute(`
+                SELECT email FROM users WHERE user_id = ?
+            `, [userId]);
+            
+            console.log('  - User email:', userInfo.length > 0 ? userInfo[0].email : 'NOT FOUND');
+            
+            // First, verify the custom order exists and is in deliverable status
+            let orderCheckQuery;
+            let orderCheckParams;
+            let orderCheck = [];
+            
+            if (userInfo.length > 0 && userInfo[0].email) {
+                const currentUserEmail = userInfo[0].email;
+                
+                // Check if current user is admin or owns the order
+                if (req.user.role === 'admin') {
+                    console.log('🔑 Admin user detected - checking order exists and is delivered');
+                    orderCheckQuery = `
+                        SELECT co.*
+                        FROM custom_orders co
+                        WHERE co.custom_order_id = ? 
+                        AND (co.status = 'delivered' OR co.delivery_status = 'delivered')
+                    `;
+                    orderCheckParams = [customOrderId];
+                } else {
+                    console.log('👤 Regular user detected - checking ownership and delivery status');
+                    orderCheckQuery = `
+                        SELECT co.*
+                        FROM custom_orders co
+                        WHERE co.custom_order_id = ? 
+                        AND (co.customer_email = ? OR co.user_id = ?)
+                        AND (co.status = 'delivered' OR co.delivery_status = 'delivered')
+                    `;
+                    orderCheckParams = [customOrderId, currentUserEmail, userId];
+                }
+                
+                [orderCheck] = await connection.execute(orderCheckQuery, orderCheckParams);
+                
+                console.log('🔍 Order check results:', orderCheck.length, 'orders found');
+                
+                if (orderCheck.length > 0) {
+                    console.log('✅ Found order:', {
+                        custom_order_id: orderCheck[0].custom_order_id,
+                        customer_email: orderCheck[0].customer_email,
+                        status: orderCheck[0].status,
+                        delivery_status: orderCheck[0].delivery_status
+                    });
+                } else {
+                    console.log('❌ No matching orders found');
+                    
+                    // Debug: Check if order exists at all
+                    const [orderExists] = await connection.execute(`
+                        SELECT custom_order_id, customer_email, status, delivery_status, user_id
+                        FROM custom_orders 
+                        WHERE custom_order_id = ?
+                    `, [customOrderId]);
+                    
+                    if (orderExists.length > 0) {
+                        console.log('🔍 Order exists but failed ownership/status check:');
+                        console.log('  - Order user_id:', orderExists[0].user_id);
+                        console.log('  - Order customer_email:', orderExists[0].customer_email);
+                        console.log('  - Order status:', orderExists[0].status);
+                        console.log('  - Order delivery_status:', orderExists[0].delivery_status);
+                        console.log('  - Current user_id:', userId);
+                        console.log('  - Current user_email:', currentUserEmail);
+                    } else {
+                        console.log('❌ Order does not exist with ID:', customOrderId);
+                    }
+                }
+            } else {
+                console.log('❌ Could not get user email for user_id:', userId);
+            }
+            
+            if (orderCheck.length === 0) {
+                await connection.end();
+                return res.status(404).json({
+                    success: false,
+                    message: 'Custom order not found or not eligible for received confirmation'
+                });
+            }
+            
+            console.log('✅ Custom order found and verified for user');
+            
+            // Update custom order to mark as customer-confirmed received
+            // Note: We keep status as 'delivered' since 'received' is not a valid enum value
+            // This action records that the customer confirmed receipt of their delivered order
+            const currentDate = new Date().toISOString().replace('T', ' ').substring(0, 19);
+            const receiptNote = `Customer marked as received on ${currentDate}`;
+            
+            await connection.execute(`
+                UPDATE custom_orders 
+                SET delivery_notes = CONCAT(IFNULL(delivery_notes, ''), 
+                    CASE WHEN delivery_notes IS NOT NULL AND delivery_notes != '' 
+                         THEN ' | ' ELSE '' END, ?),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE custom_order_id = ?
+            `, [receiptNote, customOrderId]);
+            
+            console.log('✅ Custom order marked as received successfully');
+            
+            await connection.end();
+            
+            res.json({
+                success: true,
+                message: 'Custom order marked as received successfully'
+            });
+            
+        } catch (error) {
+            await connection.end();
+            throw error;
+        }
+        
+    } catch (error) {
+        console.error('❌ Error marking custom order as received:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to mark custom order as received',
+            error: error.message
+        });
+    }
+});
+
+// Process custom order cancellation request (admin only)
+router.put('/cancellation-requests/:requestId', auth, async (req, res) => {
+    try {
+        console.log('🔍 CANCELLATION REQUEST ENDPOINT HIT');
+        console.log('🔍 Request ID:', req.params.requestId);
+        console.log('🔍 Request body:', JSON.stringify(req.body, null, 2));
+        console.log('🔍 User role:', req.user?.role);
+        console.log('🔍 Raw body keys:', Object.keys(req.body));
+        console.log('🔍 Action value:', JSON.stringify(req.body.action));
+        console.log('🔍 Action type:', typeof req.body.action);
+        console.log('🔍 Action length:', req.body.action?.length);
+        if (req.body.action) {
+            console.log('🔍 Action character codes:', Array.from(req.body.action).map(c => c.charCodeAt(0)));
+        }
+        
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            console.log('❌ Access denied - not admin');
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. Admin privileges required.'
+            });
+        }
+        
+        const { requestId } = req.params;
+        const { action, admin_notes } = req.body;
+        
+        console.log('🔍 Validation check - action:', action);
+        console.log('🔍 Valid actions:', ['approve', 'reject']);
+        console.log('🔍 Action includes check:', ['approve', 'reject'].includes(action));
+        
+        if (!action || !['approve', 'reject'].includes(action)) {
+            console.log('❌ VALIDATION FAILED - Invalid action:', action);
+            return res.status(400).json({
+                success: false,
+                message: 'Action must be either "approve" or "reject"'
+            });
+        }
+        
+        const connection = await mysql.createConnection(dbConfig);
+        
+        // Get cancellation request details
+        const [requestCheck] = await connection.execute(`
+            SELECT cor.*, co.custom_order_id, co.status as order_status
+            FROM custom_order_cancellation_requests cor
+            JOIN custom_orders co ON cor.custom_order_id = co.custom_order_id
+            WHERE cor.id = ?
+        `, [requestId]);
+        
+        if (requestCheck.length === 0) {
+            await connection.end();
+            return res.status(404).json({
+                success: false,
+                message: 'Cancellation request not found'
+            });
+        }
+        
+        const request = requestCheck[0];
+        
+        if (request.status !== 'pending') {
+            await connection.end();
+            return res.status(400).json({
+                success: false,
+                message: 'Cancellation request has already been processed'
+            });
+        }
+        
+        // Update cancellation request status
+        await connection.execute(`
+            UPDATE custom_order_cancellation_requests 
+            SET status = ?, admin_notes = ?, processed_at = NOW(), processed_by = ?
+            WHERE id = ?
+        `, [action === 'approve' ? 'approved' : 'rejected', admin_notes || '', req.user.id, requestId]);
+        
+        // If approved, update the custom order status
+        if (action === 'approve') {
+            await connection.execute(`
+                UPDATE custom_orders 
+                SET status = 'cancelled', updated_at = NOW()
+                WHERE custom_order_id = ?
+            `, [request.custom_order_id]);
+            
+            console.log(`✅ Custom order ${request.custom_order_id} cancelled via approved cancellation request`);
+        }
+        
+        console.log(`✅ Cancellation request ${requestId} ${action}d by admin`);
+        
+        await connection.end();
+        
+        res.json({
+            success: true,
+            message: `Cancellation request ${action}d successfully`,
+            data: {
+                requestId,
+                customOrderId: request.custom_order_id,
+                action,
+                admin_notes
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error processing custom order cancellation request:', error);
+        
+        // If the table doesn't exist, return error
+        if (error.code === 'ER_NO_SUCH_TABLE') {
+            return res.status(500).json({
+                success: false,
+                message: 'Cancellation request feature not available for custom orders yet'
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to process cancellation request',
+            error: error.message
+        });
     }
 });
 

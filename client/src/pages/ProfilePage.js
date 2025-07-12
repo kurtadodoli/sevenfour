@@ -214,7 +214,7 @@ const ProfilePage = () => {
 
                             <FormRow>
                                 <FormGroup>
-                                    <Label>Province</Label>
+                                    <Label>Area</Label>
                                     <Select
                                         name="province"
                                         value={profile.province}
@@ -222,7 +222,7 @@ const ProfilePage = () => {
                                         required
                                         disabled={loading}
                                     >
-                                        <option value="">Select Province</option>
+                                        <option value="">Select Area</option>
                                         {Object.keys(philippinesData).map(province => (
                                             <option key={province} value={province}>{province}</option>
                                         ))}
@@ -325,7 +325,7 @@ const ProfilePage = () => {
                                 <InfoValue>{formatRole(currentUser?.role)}</InfoValue>
                             </InfoRow>
                             <InfoRow>
-                                <InfoLabel>Province:</InfoLabel>
+                                <InfoLabel>Area:</InfoLabel>
                                 <InfoValue>{profile.province || 'Not provided'}</InfoValue>
                             </InfoRow>
                             <InfoRow>

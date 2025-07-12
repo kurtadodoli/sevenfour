@@ -246,7 +246,7 @@ const AccountPage = () => {
                                     />
                                 </InfoItem>
                                 <InfoItem>
-                                    <Label>Province</Label>
+                                    <Label>Area</Label>
                                     <Input
                                         name="province"
                                         value={address.province}
@@ -350,7 +350,7 @@ const AccountPage = () => {
                                     <Value>{address.city || 'Not provided'}</Value>
                                 </InfoItem>
                                 <InfoItem>
-                                    <Label>Province</Label>
+                                    <Label>Area</Label>
                                     <Value>{address.province || 'Not provided'}</Value>
                                 </InfoItem>
                                 <InfoItem>

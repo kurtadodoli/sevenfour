@@ -42,7 +42,6 @@ import ShippingPage from './pages/ShippingPage'; // Import ShippingPage
 import HelpPage from './pages/HelpPage'; // Import HelpPage
 import FAQPage from './pages/FAQPage'; // Import FAQPage
 import DeliveryPage from './pages/DeliveryPage'; // Import DeliveryPage
-import SearchPage from './pages/SearchPage'; // Import SearchPage
 import CustomPage from './pages/CustomPage'; // Import CustomPage
 
 import TransactionPage from './pages/TransactionPage'; // Import TransactionPage
@@ -118,7 +117,6 @@ const Layout = () => {
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/registration" element={<RegistrationPage />} />
             <Route path="/transactions" element={<TransactionPage />} />
-            <Route path="/search" element={<SearchPage />} />
           </Route>
           
           {/* Additional Routes */}

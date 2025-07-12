@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS custom_orders (
     customer_email VARCHAR(255) NOT NULL,
     customer_phone VARCHAR(20) NULL,
     
-    -- Shipping Address (from Step 5) - Metro Manila only
+    -- Shipping Address (from Step 5) - Metro Manila (NCR) only
     province VARCHAR(50) DEFAULT 'Metro Manila',
     municipality ENUM(
         'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong', 'Manila', 

@@ -33,7 +33,7 @@ import {
 import InvoiceModal from '../components/InvoiceModal';
 import TopBar from '../components/TopBar';
 
-// Philippine address data - Metro Manila only
+// Philippine address data - Metro Manila (NCR)
 const philippineAddressData = {
   "Metro Manila": [
     "Manila", "Quezon City", "Makati", "Pasig", "Taguig", "Muntinlupa", 
@@ -46,6 +46,21 @@ const philippineAddressData = {
 const PageContainer = styled.div`
   min-height: 100vh;
   background-color: #ffffff;
+  
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 `;
 
 const ContentWrapper = styled.div`
@@ -780,10 +795,11 @@ const DeliveryStatusBadge = styled.span`
   letter-spacing: 0.5px;
   
   ${props => {
-    // Map all backend statuses to the three allowed display statuses
+    // Map all backend statuses to the allowed display statuses
     const displayStatus = (() => {
       const status = props.status;
       if (status === 'delivered') return 'delivered';
+      if (status === 'delayed') return 'delayed';
       if (status === 'shipped' || status === 'in_transit') return 'in_transit';
       // All other statuses (pending, scheduled, confirmed, processing, etc.) map to confirmed
       return 'confirmed';
@@ -796,6 +812,8 @@ const DeliveryStatusBadge = styled.span`
         return 'background: #000000; color: #ffffff; border: 1px solid #333333;';
       case 'delivered':
         return 'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;';
+      case 'delayed':
+        return 'background: #fff3cd; color: #856404; border: 1px solid #ffeaa7;';
       default:
         return 'background: #e2e3e5; color: #383d41; border: 1px solid #d1ecf1;';
     }
@@ -1106,6 +1124,11 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
   const [refundProofPreview, setRefundProofPreview] = useState(null);
   const [refundLoading, setRefundLoading] = useState(false);
   
+  // Cancellation reason modal states
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [cancellationCallback, setCancellationCallback] = useState(null);
+  
 
   
   const { cartItems, cartTotal, cartCount, updateCartItem, removeFromCart, loading: cartLoading } = useCart();
@@ -1205,6 +1228,30 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
           status: customOrder.status,
           delivery_status: customOrder.delivery_status,
           order_type: 'custom',
+          
+          // Map delivery-related fields for custom orders
+          contact_phone: customOrder.customer_phone,
+          street_address: customOrder.street_number, // custom orders use street_number
+          city_municipality: customOrder.municipality, // custom orders use municipality
+          province: customOrder.province,
+          zip_code: customOrder.postal_code,
+          shipping_address: customOrder.shipping_address || 
+            [customOrder.street_number, customOrder.house_number, customOrder.municipality, customOrder.province].filter(Boolean).join(', '),
+          
+          // Delivery scheduling fields
+          scheduled_delivery_date: customOrder.estimated_delivery_date,
+          scheduled_delivery_time: customOrder.scheduled_delivery_time,
+          delivery_date: customOrder.actual_delivery_date,
+          delivery_notes: customOrder.delivery_notes,
+          
+          // Payment and confirmation dates
+          payment_verified_at: customOrder.payment_verified_at,
+          confirmed_at: customOrder.payment_verified_at || customOrder.created_at,
+          
+          // Courier information (may not be available in custom orders)
+          courier_name: customOrder.courier_name,
+          courier_phone: customOrder.courier_phone,
+          
           // Create items array from custom order data
           items: [{
             product_id: `custom-${customOrder.custom_order_id}`,
@@ -1444,7 +1491,30 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       });
       
       if (response.data.success) {
-        toast.success('Order created successfully! Payment will be verified by admin.');
+        toast.success('Order created successfully! Stock has been updated immediately.');
+        
+        // Update stock context immediately with the affected products
+        if (response.data.stockUpdateEvent && response.data.stockUpdateEvent.productIds) {
+          console.log('📦 Updating stock immediately for products:', response.data.stockUpdateEvent.productIds);
+          await updateMultipleProductsStock(response.data.stockUpdateEvent.productIds);
+          
+          // Broadcast stock update event for real-time UI updates
+          window.dispatchEvent(new CustomEvent('stockUpdated', {
+            detail: {
+              type: 'order_placed',
+              productIds: response.data.stockUpdateEvent.productIds,
+              timestamp: new Date().toISOString()
+            }
+          }));
+          
+          // Update localStorage for cross-tab communication
+          localStorage.setItem('stock_updated', JSON.stringify({
+            type: 'order_placed',
+            productIds: response.data.stockUpdateEvent.productIds,
+            timestamp: new Date().toISOString()
+          }));
+        }
+        
         setActiveTab('orders');
         setCheckoutForm({
           customer_name: user?.username || '',
@@ -1510,25 +1580,51 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       setLoading(true);
       console.log('🔄 Confirming order for admin verification:', orderId);
       
-      const response = await api.post(`/orders/${orderId}/confirm`);
+      // Find the order to determine its type
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        toast.error('Order not found');
+        return;
+      }
+      
+      // Use different API endpoints for custom vs regular orders
+      let apiEndpoint;
+      let actualOrderId;
+      
+      if (order.order_type === 'custom') {
+        // For custom orders, extract the numeric ID and use custom orders endpoint
+        const customOrderId = order.custom_order_data?.custom_order_id || order.order_number;
+        apiEndpoint = `/custom-orders/${customOrderId}/confirm`;
+        actualOrderId = customOrderId;
+      } else {
+        // For regular orders, use the numeric ID
+        actualOrderId = parseInt(orderId);
+        apiEndpoint = `/orders/${actualOrderId}/confirm`;
+      }
+      
+      console.log('Using endpoint:', apiEndpoint, 'for order:', actualOrderId);
+      
+      const response = await api.post(apiEndpoint);
       
       if (response.data.success) {
-        if (response.data.awaitingVerification) {
+        if (response.data.stockAlreadyDeducted) {
+          toast.success('Order submitted for admin verification! Stock was already deducted when you placed the order.');
+        } else if (response.data.awaitingVerification) {
           toast.success('Order submitted for admin verification! Your stock has been reserved.');
         } else {
           toast.success('Order confirmed successfully! Stock has been updated.');
         }
         
-        // Update stock context with the affected products
+        // Update stock context with the affected products (if not already deducted)
         if (response.data.stockUpdateEvent && response.data.stockUpdateEvent.productIds) {
-          console.log('📦 Updating stock for products:', response.data.stockUpdateEvent.productIds);
+          console.log('📦 Refreshing stock data for products:', response.data.stockUpdateEvent.productIds);
           await updateMultipleProductsStock(response.data.stockUpdateEvent.productIds);
         }
         
         // Refresh orders to show updated status
         fetchOrders();
         
-        console.log('✅ Order submitted for verification and stock reserved successfully');
+        console.log('✅ Order confirmation completed');
       }
     } catch (error) {
       console.error('❌ Error confirming order:', error);
@@ -1548,7 +1644,36 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       setLoading(true);
       console.log('🔄 Marking order as received:', orderId);
       
-      const response = await api.post(`/orders/${orderId}/mark-received`);
+      // Find the order to determine its type
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        toast.error('Order not found');
+        return;
+      }
+      
+      // Use different API endpoints for custom vs regular orders
+      let apiEndpoint;
+      let actualOrderId;
+      
+      if (order.order_type === 'custom') {
+        // For custom orders, extract the numeric ID and use custom orders endpoint
+        const customOrderId = order.custom_order_data?.custom_order_id || order.order_number;
+        apiEndpoint = `/custom-orders/${customOrderId}/mark-received`;
+        actualOrderId = customOrderId;
+        
+        console.log('🎨 Custom order debug:');
+        console.log('  - order.custom_order_data?.custom_order_id:', order.custom_order_data?.custom_order_id);
+        console.log('  - order.order_number:', order.order_number);
+        console.log('  - selected customOrderId:', customOrderId);
+      } else {
+        // For regular orders, use the numeric ID
+        actualOrderId = parseInt(orderId);
+        apiEndpoint = `/orders/${actualOrderId}/mark-received`;
+      }
+      
+      console.log('Using endpoint:', apiEndpoint, 'for order:', actualOrderId);
+      
+      const response = await api.post(apiEndpoint);
       
       if (response.data.success) {
         toast.success('Order marked as received! Admin has been notified.');
@@ -1589,33 +1714,65 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       return;
     }
 
-    // Ask for cancellation reason
-    const reason = prompt('Please provide a reason for cancelling this order (minimum 10 characters):');
-    if (!reason || reason.trim().length === 0) {
-      toast.info('Cancellation cancelled - reason is required');
-      return;
-    }
+    // Use modal instead of prompt
+    openCancellationModal((reason) => {
+      if (reason.trim().length < 10) {
+        toast.error('Cancellation reason must be at least 10 characters long');
+        return;
+      }
 
-    if (reason.trim().length < 10) {
-      toast.error('Cancellation reason must be at least 10 characters long');
+      submitCancellationRequest(orderId, reason.trim());
+    });
+  };
+
+  // Extracted function to handle the actual cancellation request
+  const submitCancellationRequest = async (orderId, reason) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) {
+      toast.error('Order not found');
       return;
     }
 
     try {
       setLoading(true);
       console.log('🔄 Creating cancellation request for order:', orderId);
-      console.log('Order details:', { id: orderId, order_number: order.order_number });
-      console.log('Reason:', reason.trim());
+      console.log('Order details:', { id: orderId, order_number: order.order_number, order_type: order.order_type });
+      console.log('Reason:', reason);
       
-      const requestData = {
-        order_id: parseInt(orderId), // Ensure it's a number
-        order_number: order.order_number,
-        reason: reason.trim()
-      };
+      // Handle custom orders vs regular orders
+      let requestData;
+      if (order.order_type === 'custom') {
+        // For custom orders, use the custom_order_id from the original data
+        const customOrderId = order.custom_order_data?.custom_order_id || order.order_number;
+        
+        // Debug: Log the custom order data structure
+        console.log('🎨 Custom order data:', order.custom_order_data);
+        console.log('🎨 Extracted custom order ID:', customOrderId);
+        console.log('🎨 Order number:', order.order_number);
+        
+        requestData = {
+          customOrderId: customOrderId,  // Backend expects camelCase customOrderId
+          reason: reason
+        };
+        console.log('Custom order cancellation request data:', requestData);
+      } else {
+        // For regular orders, use the numeric order ID
+        requestData = {
+          order_id: parseInt(orderId), // Ensure it's a number
+          order_number: order.order_number,
+          reason: reason
+        };
+        console.log('Regular order cancellation request data:', requestData);
+      }
       
       console.log('Sending request data:', requestData);
       
-      const response = await api.post('/orders/cancellation-requests', requestData);
+      // Use different API endpoints for custom vs regular orders
+      const apiEndpoint = order.order_type === 'custom' 
+        ? '/custom-orders/cancellation-requests' 
+        : '/orders/cancellation-requests';
+      
+      const response = await api.post(apiEndpoint, requestData);
       
       if (response.data.success) {
         toast.success('Cancellation request submitted successfully! Admin will review your request.');
@@ -1625,13 +1782,30 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
       }
     } catch (error) {
       console.error('❌ Error creating cancellation request:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
+      console.error('Error response:', error.response?.data || error.data);
+      console.error('Error status:', error.response?.status || error.status);
       
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else if (error.response?.status === 400) {
+      // Handle enhanced error structure from API interceptor
+      const errorMessage = error.message || error.response?.data?.message || error.data?.message;
+      const errorStatus = error.status || error.response?.status;
+      
+      if (errorMessage) {
+        // Provide additional guidance for common error scenarios
+        if (errorMessage.includes('already pending')) {
+          toast.error('A cancellation request for this order is already pending. Please wait for admin review or check your existing requests.');
+        } else if (errorMessage.includes('not found')) {
+          toast.error('Order not found or you do not have permission to cancel this order.');
+        } else if (errorMessage.includes('delivered') || errorMessage.includes('cancelled')) {
+          toast.error('This order cannot be cancelled as it has already been delivered or cancelled.');
+        } else {
+          toast.error(errorMessage);
+        }
+      } else if (errorStatus === 400) {
         toast.error('Invalid request. Please check if this order can be cancelled.');
+      } else if (errorStatus === 401) {
+        toast.error('Please login again to cancel this order.');
+      } else if (errorStatus === 403) {
+        toast.error('You do not have permission to cancel this order.');
       } else {
         toast.error('Failed to submit cancellation request. Please try again.');
       }
@@ -1727,6 +1901,20 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
     setRefundReason('');
     setRefundProofFile(null);
     setRefundProofPreview(null);
+  };
+
+  // Open cancellation reason modal
+  const openCancellationModal = (callback) => {
+    setCancellationCallback(() => callback);
+    setCancellationReason('');
+    setShowCancellationModal(true);
+  };
+
+  // Close cancellation reason modal
+  const closeCancellationModal = () => {
+    setShowCancellationModal(false);
+    setCancellationReason('');
+    setCancellationCallback(null);
   };
 
   const submitRefundRequest = async () => {
@@ -1988,12 +2176,12 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                     fontSize: '14px',
                     color: '#1976d2'
                   }}>
-                    <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila. Free delivery for all orders within our service area.
+                    <strong>🚚 Delivery Notice:</strong> We currently deliver only within Metro Manila (National Capital Region). Free delivery for all orders within our service area.
                   </div>
                   
                   <AddressGrid>
                     <FormGroup>
-                      <Label htmlFor="province">Province *</Label>
+                      <Label htmlFor="province">Area *</Label>
                       <Select
                         id="province"
                         name="province"
@@ -2229,6 +2417,43 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                 </div>
                 <OrderStatus status={displayStatus.status}>{displayStatus.displayText}</OrderStatus>
               </OrderHeader>
+              
+              {/* Delayed Order Notice */}
+              {(order.delivery_status === 'delayed') && (
+                <div style={{
+                  background: 'linear-gradient(135deg, #fff3cd, #ffeaa7)',
+                  border: '2px solid #ffd700',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  margin: '8px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  boxShadow: '0 2px 8px rgba(255, 193, 7, 0.3)'
+                }}>
+                  <div style={{
+                    fontSize: '24px',
+                    animation: 'pulse 2s infinite'
+                  }}>⚠️</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      fontWeight: '700',
+                      color: '#856404',
+                      fontSize: '14px',
+                      marginBottom: '4px'
+                    }}>
+                      DELIVERY DELAYED
+                    </div>
+                    <div style={{
+                      color: '#856404',
+                      fontSize: '12px',
+                      lineHeight: '1.4'
+                    }}>
+                      Your order delivery has been delayed. Our team is working to reschedule your delivery as soon as possible. You will be notified once a new delivery date is confirmed.
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <OrderDetails>
                 <OrderInfo>
@@ -2534,7 +2759,8 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
               )}
 
               {/* Delivery Tracking Section - Show when payment is verified or order is confirmed */}
-              {(order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped' || order.status === 'delivered') && (
+              {(order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped' || order.status === 'delivered' || 
+                (order.order_type === 'custom' && (order.payment_status === 'verified' || order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped' || order.status === 'delivered'))) && (
                 <DeliveryTrackingSection>
                   <DeliveryTrackingHeader>
                     <FontAwesomeIcon icon={faTruck} />
@@ -2570,8 +2796,9 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                               final_status: status
                             });
                             
-                            // Map all backend statuses to the three allowed display statuses
+                            // Map all backend statuses to display statuses
                             if (status === 'delivered') return 'DELIVERED';
+                            if (status === 'delayed') return '⚠️ DELAYED';
                             if (status === 'shipped' || status === 'in_transit') return 'IN TRANSIT';
                             // All other statuses (confirmed, processing, pending, etc.) map to confirmed
                             return 'CONFIRMED';
@@ -2585,8 +2812,9 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                       <span className="value">
                         {(() => {
                           const status = order.delivery_status || order.status;
-                          // Map all statuses to the three allowed ones with descriptions
+                          // Map all statuses to display descriptions
                           if (status === 'delivered') return 'Order has been delivered';
+                          if (status === 'delayed') return 'Delivery has been delayed - rescheduling in progress';
                           if (status === 'shipped' || status === 'in_transit') return 'Order is in transit';
                           // All other statuses map to confirmed
                           return 'Order confirmed - preparing for shipment';
@@ -2687,7 +2915,27 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                           order_status: order.status
                         });
                         
-                        // Show Confirmed as green if order is confirmed, regardless of delivery status
+                        // Handle delayed status specially
+                        if (status === 'delayed') {
+                          return (
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '8px',
+                              padding: '8px',
+                              background: '#fff3cd',
+                              borderRadius: '4px',
+                              border: '1px solid #ffeaa7'
+                            }}>
+                              <span style={{ color: '#856404', fontWeight: '600' }}>⚠️ DELIVERY DELAYED</span>
+                              <span style={{ fontSize: '11px', color: '#856404' }}>
+                                - Rescheduling in progress
+                              </span>
+                            </div>
+                          );
+                        }
+                        
+                        // Normal progress for other statuses
                         const isConfirmed = order.status === 'confirmed' || ['confirmed', 'processing', 'shipped', 'delivered', 'in_transit'].includes(status);
                         const isInTransit = ['shipped', 'in_transit', 'delivered'].includes(status);
                         const isDelivered = status === 'delivered';
@@ -3110,6 +3358,89 @@ const OrderPage = () => {  const [activeTab, setActiveTab] = useState('cart');
                   </RefundButton>
                 </RefundButtonGroup>
               </RefundForm>
+            </RefundModalContent>
+          </RefundModal>
+        )}
+
+        {/* Cancellation Reason Modal */}
+        {showCancellationModal && (
+          <RefundModal onClick={closeCancellationModal}>
+            <RefundModalContent onClick={(e) => e.stopPropagation()}>
+              <RefundModalHeader>
+                <h3>Enter Cancellation Reason</h3>
+                <button onClick={closeCancellationModal} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                  <FontAwesomeIcon icon={faTimes} size="lg" />
+                </button>
+              </RefundModalHeader>
+              
+              <div style={{ padding: '24px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <p style={{ margin: '0 0 16px 0', color: '#666' }}>
+                    Please provide a reason for cancelling this order:
+                  </p>
+                  <textarea
+                    value={cancellationReason}
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                    placeholder="Enter reason for cancellation (minimum 10 characters)..."
+                    style={{
+                      width: '100%',
+                      minHeight: '100px',
+                      padding: '12px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '12px', 
+                  justifyContent: 'flex-end',
+                  marginTop: '24px'
+                }}>
+                  <button
+                    onClick={closeCancellationModal}
+                    style={{
+                      padding: '10px 20px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      background: '#fff',
+                      color: '#666',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (cancellationReason.trim()) {
+                        if (cancellationCallback) {
+                          cancellationCallback(cancellationReason.trim());
+                        }
+                        closeCancellationModal();
+                      } else {
+                        toast.error('Please provide a reason for cancellation');
+                      }
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      border: 'none',
+                      borderRadius: '4px',
+                      background: '#dc3545',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                  >
+                    Submit Cancellation
+                  </button>
+                </div>
+              </div>
             </RefundModalContent>
           </RefundModal>
         )}

@@ -344,7 +344,7 @@ router.get('/products', async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
         
-        // Get products with their images and current stock (using same fields as order confirmation)
+        // Get products with their images, current stock, and variant details
         const [products] = await connection.execute(`
             SELECT p.*, 
                    p.total_available_stock,
@@ -359,21 +359,53 @@ router.get('/products', async (req, res) => {
             ORDER BY p.created_at DESC
         `);
         
+        // Get variant details for each product
+        const productsWithVariants = await Promise.all(
+            products.map(async (product) => {
+                // Get product variants from database
+                const [variants] = await connection.execute(`
+                    SELECT size, color, stock_quantity, available_quantity, reserved_quantity
+                    FROM product_variants 
+                    WHERE product_id = ?
+                    ORDER BY size, color
+                `, [product.product_id]);
+                
+                // Parse sizes JSON field for comparison
+                let sizesFromJson = [];
+                if (product.sizes) {
+                    try {
+                        sizesFromJson = JSON.parse(product.sizes);
+                    } catch (e) {
+                        console.error('Error parsing sizes JSON for product', product.product_id, e);
+                    }
+                }
+                
+                return {
+                    ...product,
+                    images: product.images ? product.images.split(',') : [],
+                    productimage: product.thumbnail || (product.images ? product.images.split(',')[0] : null),
+                    // Use total_available_stock as the display stock
+                    displayStock: product.total_available_stock || product.productquantity || 0,
+                    totalStock: product.total_available_stock || product.productquantity || 0,
+                    reservedStock: product.total_reserved_stock || 0,
+                    // Add variant information
+                    variants: variants,
+                    sizesFromJson: sizesFromJson,
+                    // Create sizeColorVariants array in the expected format for frontend
+                    sizeColorVariants: variants.map(v => ({
+                        size: v.size,
+                        color: v.color,
+                        stock: v.available_quantity,
+                        reserved: v.reserved_quantity,
+                        total: v.stock_quantity
+                    }))
+                };
+            })
+        );
+        
         await connection.end();
         
-        // Process the products to include image arrays and correct stock display
-        const processedProducts = products.map(product => ({
-            ...product,
-            images: product.images ? product.images.split(',') : [],
-            productimage: product.thumbnail || (product.images ? product.images.split(',')[0] : null),
-            // Use total_available_stock as the display stock (this is what order confirmation updates)
-            displayStock: product.total_available_stock || product.productquantity || 0,
-            // Keep original fields for compatibility
-            totalStock: product.total_available_stock || product.productquantity || 0,
-            reservedStock: product.total_reserved_stock || 0
-        }));
-        
-        res.json(processedProducts);
+        res.json(productsWithVariants);
     } catch (error) {
         console.error('Error fetching products:', error);
         res.status(500).json({ error: 'Failed to fetch products' });

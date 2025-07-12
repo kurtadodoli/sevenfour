@@ -22,19 +22,7 @@ class DeliveryController {
       
       connection = await mysql.createConnection(dbConfig);
       
-      // Get calendar entries for the month
-      const [calendarData] = await connection.execute(`
-        SELECT 
-          dc.*,
-          COUNT(DISTINCT ds.order_id) as scheduled_deliveries
-        FROM delivery_calendar dc
-        LEFT JOIN delivery_schedules_enhanced ds ON dc.calendar_date = ds.delivery_date
-        WHERE dc.calendar_date >= ? AND dc.calendar_date < ?
-        GROUP BY dc.id, dc.calendar_date
-        ORDER BY dc.calendar_date
-      `, [startDate, endDate]);
-      
-      // Get detailed delivery schedules for the month
+      // Get detailed delivery schedules for the month first (primary source of truth)
       const [deliverySchedules] = await connection.execute(`
         SELECT 
           ds.*,
@@ -57,20 +45,66 @@ class DeliveryController {
         schedulesByDate[dateKey].push(schedule);
       });
       
-      // Combine calendar data with schedules
-      const calendarWithSchedules = calendarData.map(day => ({
-        ...day,
-        deliveries: schedulesByDate[day.calendar_date.toISOString().split('T')[0]] || []
-      }));
+      // Get calendar settings for dates that have deliveries (optional settings)
+      const datesWithDeliveries = Object.keys(schedulesByDate);
+      let calendarSettings = {};
+      
+      if (datesWithDeliveries.length > 0) {
+        const placeholders = datesWithDeliveries.map(() => '?').join(',');
+        const [calendarData] = await connection.execute(`
+          SELECT 
+            dc.*
+          FROM delivery_calendar dc
+          WHERE DATE(dc.calendar_date) IN (${placeholders})
+        `, datesWithDeliveries);
+        
+        calendarData.forEach(cal => {
+          const dateKey = cal.calendar_date.toISOString().split('T')[0];
+          calendarSettings[dateKey] = cal;
+        });
+      }
+      
+      // Create calendar response with deliveries as primary data
+      // Return ALL dates that have deliveries, with default calendar settings if no calendar entry exists
+      const calendarWithSchedules = datesWithDeliveries.map(dateKey => {
+        const deliveriesCount = schedulesByDate[dateKey].length;
+        const defaultSettings = {
+          id: null,
+          calendar_date: new Date(dateKey + 'T12:00:00.000Z'),
+          max_deliveries: 3,
+          current_bookings: deliveriesCount,
+          is_available: 1,
+          is_holiday: 0,
+          is_weekend: [0, 6].includes(new Date(dateKey).getDay()) ? 1 : 0,
+          special_notes: null,
+          weather_status: 'good',
+          delivery_restrictions: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          scheduled_deliveries: deliveriesCount
+        };
+        
+        // Use calendar settings if they exist, otherwise use defaults
+        const settings = calendarSettings[dateKey] ? {
+          ...calendarSettings[dateKey],
+          scheduled_deliveries: deliveriesCount,
+          current_bookings: deliveriesCount
+        } : defaultSettings;
+        
+        return {
+          ...settings,
+          deliveries: schedulesByDate[dateKey] || []
+        };
+      }).sort((a, b) => new Date(a.calendar_date) - new Date(b.calendar_date));
       
       res.json({
         success: true,
         data: {
           calendar: calendarWithSchedules,
           summary: {
-            totalDays: calendarData.length,
+            totalDays: calendarWithSchedules.length,
             totalDeliveries: deliverySchedules.length,
-            availableDays: calendarData.filter(d => d.is_available).length
+            availableDays: calendarWithSchedules.filter(d => d.is_available).length
           }
         }
       });
@@ -154,6 +188,8 @@ class DeliveryController {
           o.status,
           o.order_date,
           o.shipping_address,
+          o.payment_reference,
+          o.payment_proof_filename,
           COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(o.shipping_address, ',', -3), ',', 1), 'Unknown City') as shipping_city,
           COALESCE(SUBSTRING_INDEX(SUBSTRING_INDEX(o.shipping_address, ',', -2), ',', 1), 'Metro Manila') as shipping_province,
           '' as shipping_postal_code,
@@ -232,13 +268,15 @@ class DeliveryController {
           c.name as courier_name,
           c.phone_number as courier_phone,
           latest_payment.verified_at as latest_payment_verified_at,
-          latest_payment.payment_amount as latest_payment_amount
+          latest_payment.payment_amount as latest_payment_amount,
+          latest_payment.gcash_reference
         FROM custom_orders co
         LEFT JOIN (
           SELECT 
             custom_order_id,
             payment_amount,
             verified_at,
+            gcash_reference,
             ROW_NUMBER() OVER (PARTITION BY custom_order_id ORDER BY verified_at DESC) as rn
           FROM custom_order_payments 
           WHERE payment_status = 'verified'
@@ -393,6 +431,98 @@ class DeliveryController {
             product_type: details.product_type,
             productimage: null // Could add design images here if available
           }];
+        }
+      }
+      
+      // Populate GCash reference for custom orders
+      console.log('💳 Setting GCash reference information for custom orders...');
+      for (let order of customOrders) {
+        try {
+          // Custom orders already have gcash_reference from the query
+          order.gcash_reference_number = order.gcash_reference || 'N/A';
+          
+          // Add mock items for custom orders for consistency
+          if (!order.items) {
+            order.items = [{
+              id: 'custom',
+              productname: `Custom ${order.product_type || 'Product'}`,
+              productcolor: order.color || null,
+              size: order.size || null,
+              quantity: order.quantity || 1,
+              product_price: order.total_amount,
+              subtotal: order.total_amount,
+              productimage: null
+            }];
+            order.item_count = 1;
+          }
+          
+        } catch (error) {
+          console.error(`Error processing custom order ${order.order_number}:`, error.message);
+          order.gcash_reference_number = 'N/A';
+          order.gcash_reference = 'N/A';
+        }
+      }
+      
+      // Populate order items and GCash reference for regular orders
+      console.log('💳 Populating GCash reference information for regular orders...');
+      for (let order of regularOrders) {
+        try {
+          // Get order items with GCash reference information
+          const [items] = await connection.execute(`
+            SELECT 
+              oi.*,
+              p.productname,
+              p.productcolor,
+              p.product_type,
+              p.productimage
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.product_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.id
+          `, [order.id]);
+          
+          // Set GCash reference using comprehensive fallback logic
+          const itemWithGcash = items.find(item => 
+            item.gcash_reference_number && 
+            item.gcash_reference_number !== 'N/A' && 
+            item.gcash_reference_number !== 'COD_ORDER'
+          );
+          
+          order.gcash_reference_number = order.payment_reference || 
+                                        (itemWithGcash ? itemWithGcash.gcash_reference_number : null) ||
+                                        'N/A';
+          
+          // Also set gcash_reference for consistency
+          order.gcash_reference = order.gcash_reference_number;
+          
+          console.log(`Order ${order.order_number} GCash debug:`, {
+            payment_reference: order.payment_reference,
+            itemWithGcash: itemWithGcash ? itemWithGcash.gcash_reference_number : 'none found',
+            final_gcash_reference: order.gcash_reference_number
+          });
+          
+          // Set payment proof path
+          if (order.payment_proof_filename) {
+            order.payment_proof_image_path = `/uploads/payment-proofs/${order.payment_proof_filename}`;
+          } else if (items.length > 0) {
+            const itemWithProof = items.find(item => item.payment_proof_image_path);
+            if (itemWithProof) {
+              order.payment_proof_image_path = itemWithProof.payment_proof_image_path.startsWith('/') 
+                ? itemWithProof.payment_proof_image_path 
+                : `/uploads/payment-proofs/${itemWithProof.payment_proof_image_path}`;
+            }
+          }
+          
+          // Add items to order
+          order.items = items;
+          order.item_count = items.length;
+          
+        } catch (error) {
+          console.error(`Error processing order ${order.order_number}:`, error.message);
+          order.gcash_reference_number = 'N/A';
+          order.gcash_reference = 'N/A';
+          order.items = [];
+          order.item_count = 0;
         }
       }
       
@@ -624,7 +754,7 @@ class DeliveryController {
         delivery_time_slot || null,
         delivery_address || orderDetails.shipping_address || orderDetails.shippingAddress || 'No address provided',
         delivery_city || deliveryCity || 'Unknown City',
-        delivery_province || deliveryProvince || 'Metro Manila',
+        delivery_province || deliveryProvince || 'National Capital Region',
         delivery_postal_code || null,
         delivery_contact_phone || orderDetails.shipping_phone || orderDetails.customer_phone || orderDetails.contact_phone || null,
         delivery_notes || '',

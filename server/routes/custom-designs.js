@@ -146,7 +146,7 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
             console.log(`❌ Invalid municipality: ${finalCity}`);
             return res.status(400).json({
                 success: false,
-                message: 'We currently only serve Metro Manila. Please select a valid Metro Manila city.'
+                message: 'We currently only serve Metro Manila (NCR). Please select a valid Metro Manila city.'
             });
         }
 

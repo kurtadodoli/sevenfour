@@ -186,6 +186,32 @@ export const StockProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [fetchStockData]);
 
+  // Update stock after order placement
+  const updateStockAfterOrder = useCallback((stockUpdates) => {
+    if (!stockUpdates || stockUpdates.length === 0) return;
+    
+    console.log('📦 Updating stock after order placement:', stockUpdates);
+    
+    const updates = {};
+    stockUpdates.forEach(update => {
+      if (update.product_id) {
+        updates[update.product_id] = {
+          ...stockData[update.product_id],
+          // Reduce available stock by the deducted quantity
+          total_available_stock: Math.max(0, 
+            (stockData[update.product_id]?.total_available_stock || 0) - (update.quantityDeducted || 0)
+          ),
+          last_stock_update: new Date().toISOString()
+        };
+      }
+    });
+    
+    setStockData(prev => ({ ...prev, ...updates }));
+    setLastUpdate(new Date());
+    
+    console.log('📦 Stock updated after order for products:', Object.keys(updates));
+  }, [stockData]);
+
   const value = {
     stockData,
     loading,
@@ -193,6 +219,7 @@ export const StockProvider = ({ children }) => {
     fetchStockData,
     updateProductStock,
     updateMultipleProductsStock,
+    updateStockAfterOrder,
     getProductStock,
     getLowStockProducts,
     getOutOfStockProducts,

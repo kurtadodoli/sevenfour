@@ -1131,7 +1131,47 @@ const DeliveryPage = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [unavailableDates, setUnavailableDates] = useState(new Set()); // User-controlled unavailable dates
-  // Memoize filtered orders to prevent unnecessary re-renders and key conflicts
+  // Laxity Least First (LLF) Algorithm Implementation
+  const calculateLaxity = useCallback((order) => {
+    const now = new Date();
+    const orderDate = new Date(order.created_at);
+    const daysSinceOrder = Math.floor((now - orderDate) / (24 * 60 * 60 * 1000));
+    
+    // Calculate deadline pressure (lower is more urgent)
+    const maxDaysForDelivery = 7; // Standard delivery window
+    const remainingDays = Math.max(0, maxDaysForDelivery - daysSinceOrder);
+    
+    // Calculate complexity factors
+    const amountComplexity = Math.min(order.total_amount / 1000, 10); // Normalize to 0-10 scale
+    const typeComplexity = order.order_type === 'custom_design' ? 3 : 
+                          order.order_type === 'custom_order' ? 2 : 1;
+    
+    // Calculate distance complexity (Metro Manila areas)
+    const addressComplexity = (() => {
+      const address = (order.shipping_address || '').toLowerCase();
+      if (address.includes('makati') || address.includes('bgc') || address.includes('manila')) return 1;
+      if (address.includes('quezon') || address.includes('pasig') || address.includes('mandaluyong')) return 2;
+      return 3; // Outer Metro Manila areas
+    })();
+    
+    // Laxity = Available Time - Required Processing Time
+    // Lower laxity = higher priority (more urgent)
+    const processingTime = typeComplexity + addressComplexity + (amountComplexity * 0.5);
+    const laxity = remainingDays - processingTime;
+    
+    return {
+      laxity: laxity,
+      urgencyScore: -laxity, // Negative laxity for sorting (lower laxity = higher urgency)
+      remainingDays: remainingDays,
+      processingTime: processingTime,
+      amountComplexity: amountComplexity,
+      typeComplexity: typeComplexity,
+      addressComplexity: addressComplexity,
+      daysSinceOrder: daysSinceOrder
+    };
+  }, []);
+
+  // Memoize filtered and sorted orders using LLF algorithm
   const filteredOrders = useMemo(() => {
     return orders
       .filter(order => {
@@ -1152,21 +1192,26 @@ const DeliveryPage = () => {
           (order.delivery_status && order.delivery_status.toLowerCase().includes(query)) ||
           (order.order_type && order.order_type.toLowerCase().includes(query))
         );
+      })
+      .map(order => ({
+        ...order,
+        laxityData: calculateLaxity(order)
+      }))
+      .sort((a, b) => {
+        // Primary sort: Laxity Least First (most urgent first)
+        if (a.laxityData.laxity !== b.laxityData.laxity) {
+          return a.laxityData.laxity - b.laxityData.laxity;
+        }
+        
+        // Secondary sort: Higher amount first (if same laxity)
+        if (a.total_amount !== b.total_amount) {
+          return b.total_amount - a.total_amount;
+        }
+        
+        // Tertiary sort: Older orders first
+        return new Date(a.created_at) - new Date(b.created_at);
       });
-  }, [orders, searchQuery]);
-
-  // Priority Algorithm Implementation - Sort by creation date and amount
-  // Debug function to manually refresh data and check status persistence
-
-
-  const calculatePriority = useCallback((order) => {
-    const now = new Date();
-    const orderDate = new Date(order.created_at);
-    const daysSinceOrder = Math.floor((now - orderDate) / (24 * 60 * 60 * 1000));
-    
-    // Higher priority for older orders and higher amounts
-    return daysSinceOrder * 10 + (order.total_amount / 100);
-  }, []);
+  }, [orders, searchQuery, calculateLaxity]);
 
 
   // Function to fetch all orders and delivery data using enhanced API
@@ -1216,12 +1261,14 @@ const DeliveryPage = () => {
         
         // Enhanced order processing for all order types
         const processedOrders = deduplicatedOrders.map(order => {
+          const laxityData = calculateLaxity(order);
+          
           // Process regular orders
           if (order.order_type === 'regular') {
             return {
               ...order,
               order_type: 'regular',
-              priority: calculatePriority(order),
+              laxityData: laxityData,
               customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
             };
           }
@@ -1231,7 +1278,7 @@ const DeliveryPage = () => {
             return {
               ...order,
               order_type: 'custom_order',
-              priority: calculatePriority(order),
+              laxityData: laxityData,
               customerName: order.customer_name || 'Unknown Customer'
             };
           }
@@ -1241,7 +1288,7 @@ const DeliveryPage = () => {
             return {
               ...order,
               order_type: 'custom_design',
-              priority: calculatePriority(order),
+              laxityData: laxityData,
               customerName: order.customer_name || 'Unknown Customer'
             };
           }
@@ -1250,7 +1297,7 @@ const DeliveryPage = () => {
           return {
             ...order,
             order_type: order.order_type || 'regular',
-            priority: calculatePriority(order),
+            laxityData: laxityData,
             customerName: order.customer_name || `${order.first_name || ''} ${order.last_name || ''}`.trim() || 'Unknown Customer'
           };
         });
@@ -1266,7 +1313,27 @@ const DeliveryPage = () => {
       });
       if (calendarResponse.data.success) {
         const calendarData = calendarResponse.data.data;
-        setDeliverySchedules(calendarData.calendar || []);
+        
+        // Flatten the calendar structure: extract all deliveries from all calendar entries
+        const allDeliveries = [];
+        if (calendarData.calendar && Array.isArray(calendarData.calendar)) {
+          calendarData.calendar.forEach(calendarEntry => {
+            if (calendarEntry.deliveries && Array.isArray(calendarEntry.deliveries)) {
+              allDeliveries.push(...calendarEntry.deliveries);
+            }
+          });
+        }
+        
+        console.log(`📅 Calendar API returned ${calendarData.calendar?.length || 0} calendar entries`);
+        console.log(`📅 Total deliveries extracted: ${allDeliveries.length}`);
+        allDeliveries.forEach(delivery => {
+          console.log(`  • ${delivery.delivery_date}: Order ${delivery.order_number}, Status: ${delivery.delivery_status}`);
+        });
+        
+        // Debug: Log the flattened deliveries with more detail
+        console.log('📅 Detailed delivery data:', allDeliveries);
+        
+        setDeliverySchedules(allDeliveries);
       }
       // Fetch couriers
       await fetchCouriers();
@@ -1280,7 +1347,7 @@ const DeliveryPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchCouriers, calculatePriority]);
+  }, [fetchCouriers, calculateLaxity]);
   
   // Fetch all orders and delivery data using enhanced API
   useEffect(() => {
@@ -1384,56 +1451,7 @@ const DeliveryPage = () => {
     }
   };
 
-  // Function to remove/delete an order completely
-  const handleRemoveOrder = async (order) => {
-    const confirmed = window.confirm(
-      `⚠️ PERMANENT DELETION WARNING ⚠️\n\nAre you sure you want to permanently remove order ${order.order_number}?\n\nThis will:\n- Delete the order from the database\n- Remove all delivery schedules\n- Cannot be undone\n\nType "DELETE" to confirm deletion.`
-    );
-    
-    if (!confirmed) return;
-    
-    // Ask for additional confirmation
-    const deleteConfirmation = prompt('Type "DELETE" to confirm permanent deletion:');
-    if (deleteConfirmation !== 'DELETE') {
-      showPopup('Deletion Cancelled', 'Order deletion cancelled. Type "DELETE" exactly to confirm.', 'info');
-      return;
-    }
 
-    try {
-      console.log(`🗑️ Attempting to delete order ${order.order_number} (ID: ${order.id})`);
-
-      // Delete regular order
-      const numericId = parseInt(order.id);
-      if (!isNaN(numericId)) {
-        await api.delete(`/orders/${numericId}`);
-        console.log(`✅ Deleted regular order ${numericId}`);
-      }
-
-      // Delete associated delivery schedule
-      const associatedSchedule = deliverySchedules.find(schedule => 
-        schedule.order_id === order.id || schedule.order_number === order.order_number
-      );
-      
-      if (associatedSchedule) {
-        await api.delete(`/delivery/schedules/${associatedSchedule.id}`);
-        console.log(`✅ Deleted delivery schedule ${associatedSchedule.id}`);
-      }
-
-      // Update local state - remove order and schedule
-      setOrders(prevOrders => prevOrders.filter(o => o.id !== order.id));
-      setDeliverySchedules(prevSchedules => 
-        prevSchedules.filter(schedule => 
-          schedule.order_id !== order.id && schedule.order_number !== order.order_number
-        )
-      );
-
-      showPopup('Order Deleted', `Order ${order.order_number} has been permanently deleted from the system.`, 'success');
-      
-    } catch (error) {
-      console.error('❌ Error deleting order:', error);
-      showPopup('Deletion Failed', `Failed to delete order ${order.order_number}. Please try again.`, 'error');
-    }
-  };
 
   // Function to handle delivery status updates
 
@@ -1659,12 +1677,31 @@ const DeliveryPage = () => {
       // Find scheduled deliveries for this date
       // Ensure deliverySchedules is an array to prevent filter errors
       const safeDeliverySchedules = Array.isArray(deliverySchedules) ? deliverySchedules : [];
+      
+      // Debug: Log delivery schedules for today's date
+      if (date.toDateString() === new Date().toDateString()) {
+        console.log(`📅 Debug for ${date.toDateString()}:`);
+        console.log(`  • Total deliverySchedules: ${safeDeliverySchedules.length}`);
+        console.log(`  • Delivery schedules:`, safeDeliverySchedules);
+        
+        // Debug each schedule individually
+        safeDeliverySchedules.forEach((schedule, idx) => {
+          console.log(`  • Schedule ${idx}:`, {
+            id: schedule.id,
+            order_id: schedule.order_id,
+            order_number: schedule.order_number,
+            delivery_date: schedule.delivery_date,
+            delivery_status: schedule.delivery_status
+          });
+        });
+      }
+      
       const dayDeliveries = safeDeliverySchedules.filter(schedule => {
         // Filter out ALL sample deliveries - comprehensive list
         const sampleOrderIds = [
           1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
-          // Additional sample IDs to ensure complete filtering
-          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+          // Additional sample IDs to ensure complete filtering (excluding real order IDs 1, 2, 4, 5, 10, 12)
+          100, 101, 102, 200, 300, 400, 500,
           1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
           99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
           // Remove orders 26-30 from calendar
@@ -1706,8 +1743,8 @@ const DeliveryPage = () => {
         // Filter out ALL sample orders - comprehensive list
         const sampleOrderIds = [
           1001, 1002, 1005, 9999, 123, 1006, 999999, 5615, 5515, 3,
-          // Additional sample IDs to ensure complete filtering
-          1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 100, 101, 102, 200, 300, 400, 500,
+          // Additional sample IDs to ensure complete filtering (excluding real order IDs 1, 2, 4, 5, 10, 12)
+          100, 101, 102, 200, 300, 400, 500,
           1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
           99999, 88888, 77777, 66666, 55555, 44444, 33333, 22222, 11111,
           // Remove orders 26-30 from calendar
@@ -1785,8 +1822,17 @@ const DeliveryPage = () => {
         scheduledOrders: dayScheduledOrders, // Add scheduled orders to day data
         availabilityStatus: availabilityStatus,
         bookingCount: Math.min(currentBookings, 3) // Cap display at 3 deliveries max
-
       });
+      
+      // Debug: Log final day data for today
+      if (date.toDateString() === new Date().toDateString()) {
+        console.log(`📅 Final day data for ${date.toDateString()}:`, {
+          deliveries: standaloneDeliveries.length,
+          orders: dayOrders.length,
+          scheduledOrders: dayScheduledOrders.length,
+          shouldShowIcon: (standaloneDeliveries.length > 0 || dayScheduledOrders.length > 0)
+        });
+      }
     }
     
     return days;
@@ -1875,7 +1921,7 @@ const DeliveryPage = () => {
   return (
     <PageContainer>
       <Header>
-        <Title>Delivery Management</Title>        <Subtitle>Schedule and manage deliveries for confirmed orders with priority-based scheduling</Subtitle>
+        <Title>Delivery Management</Title>
       </Header>
 
       <StatsGrid>
@@ -2272,20 +2318,58 @@ const DeliveryPage = () => {
                               fontSize: '1.2rem', 
                               fontWeight: '700',
                               color: '#000000',
-                              marginBottom: '0.25rem'
+                              marginBottom: '0.25rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
                             }}>
                               Order #{order.order_number || order.id}
+                              {/* LLF Priority Indicator */}
+                              {order.laxityData && (
+                                <span style={{
+                                  background: order.laxityData.laxity <= 0 ? '#dc3545' : 
+                                            order.laxityData.laxity <= 2 ? '#ffc107' : '#28a745',
+                                  color: 'white',
+                                  fontSize: '0.7rem',
+                                  padding: '0.2rem 0.5rem',
+                                  borderRadius: '12px',
+                                  fontWeight: '600',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  {order.laxityData.laxity <= 0 ? '🔥 URGENT' : 
+                                   order.laxityData.laxity <= 2 ? '⚡ HIGH' : '📅 NORMAL'}
+                                </span>
+                              )}
                             </div>
                             <div style={{ 
                               fontSize: '0.9rem', 
                               color: '#666666',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '0.5rem'
+                              gap: '0.5rem',
+                              flexWrap: 'wrap'
                             }}>
                               <span>👤 {order.customerName}</span>
                               <span style={{ color: '#dee2e6' }}>•</span>
                               <span style={{ color: '#28a745', fontWeight: '600' }}>₱{parseFloat(order.total_amount).toFixed(2)}</span>
+                              {/* LLF Details */}
+                              {order.laxityData && (
+                                <>
+                                  <span style={{ color: '#dee2e6' }}>•</span>
+                                  <span style={{ 
+                                    color: order.laxityData.laxity <= 0 ? '#dc3545' : '#6c757d',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '500'
+                                  }}>
+                                    Laxity: {order.laxityData.laxity.toFixed(1)}d
+                                  </span>
+                                  <span style={{ color: '#dee2e6' }}>•</span>
+                                  <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
+                                    Age: {order.laxityData.daysSinceOrder}d
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -3091,65 +3175,6 @@ const DeliveryPage = () => {
                                   >
                                     🔄 Restore
                                   </ActionButton>
-                                  
-                                  <ActionButton 
-                                    onClick={() => handleRemoveOrder(order)}
-                                    style={{ 
-                                      background: '#6c757d',
-                                      color: 'white', 
-                                      fontSize: '0.85rem', 
-                                      padding: '0.75rem',
-                                      fontWeight: '500',
-                                      borderRadius: '6px',
-                                      border: 'none',
-                                      flex: '1',
-                                      minHeight: '36px',
-                                      boxShadow: '0 1px 4px rgba(108, 117, 125, 0.2)',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s ease'
-                                    }}
-                                  >
-                                    🗑️ Delete
-                                  </ActionButton>
-                                </div>
-                              )}
-                              
-                              {/* Danger Zone */}
-                              {order.delivery_status !== 'delivered' && order.delivery_status !== 'cancelled' && (
-                                <div style={{
-                                  marginTop: 'auto',
-                                  borderTop: '1px solid #e0e0e0',
-                                  paddingTop: '1rem'
-                                }}>
-                                  <div style={{
-                                    fontSize: '0.75rem',
-                                    color: '#666',
-                                    marginBottom: '0.75rem',
-                                    textAlign: 'center',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
-                                  }}>
-                                    ⚠️ Danger Zone
-                                  </div>
-                                  <ActionButton 
-                                    onClick={() => handleRemoveOrder(order)}
-                                    style={{ 
-                                      background: '#dc3545',
-                                      color: 'white', 
-                                      fontSize: '0.85rem', 
-                                      padding: '0.75rem',
-                                      fontWeight: '500',
-                                      borderRadius: '6px',
-                                      border: 'none',
-                                      width: '100%',
-                                      minHeight: '36px',
-                                      boxShadow: '0 1px 4px rgba(220, 53, 69, 0.2)',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s ease'
-                                    }}
-                                  >
-                                    🗑️ Remove Order
-                                  </ActionButton>
                                 </div>
                               )}
                             </div>
@@ -3176,24 +3201,29 @@ const DeliveryPage = () => {
                 <p>3. Set delivery time and assign courier</p>
                 <p>4. Use the new action buttons to update delivery progress</p>
                 <br />
+                <p><strong>⚡ Laxity Least First (LLF) Priority System:</strong></p>
+                <p>• <span style={{color: '#dc3545', fontWeight: 'bold'}}>🔥 URGENT</span> - Laxity ≤ 0 days (immediate attention required)</p>
+                <p>• <span style={{color: '#ffc107', fontWeight: 'bold'}}>⚡ HIGH</span> - Laxity 1-2 days (high priority)</p>
+                <p>• <span style={{color: '#28a745', fontWeight: 'bold'}}>📅 NORMAL</span> - Laxity {'>'}2 days (normal priority)</p>
+                <p><em>Laxity = Available Time - Required Processing Time</em></p>
+                <p><em>Orders are sorted by laxity (most urgent first), then by amount (highest first)</em></p>
+                <br />
                 <p><strong>⚡ New Action Buttons:</strong></p>
                 <p>• <span style={{color: '#28a745', fontWeight: 'bold'}}>✅ Delivered</span> - Mark as delivered and paid (GCash)</p>
                 <p>• <span style={{color: '#17a2b8', fontWeight: 'bold'}}>🚚 In Transit</span> - Package is on the way</p>
                 <p>• <span style={{color: '#ffc107', fontWeight: 'bold'}}>⚠️ Delay</span> - Removes schedule, requires rescheduling</p>
-                <p>• <span style={{color: '#dc3545', fontWeight: 'bold'}}>🗑️ Remove</span> - Permanently delete order</p>
                 <br />
                 <p><strong>📊 Order Types:</strong></p>
                 <p>• <span style={{color: '#f093fb', fontWeight: 'bold'}}>🛍️ Regular Orders</span> - Direct scheduling</p>
                 <br />
                 <p><strong>⏰ Operating Schedule:</strong></p>
                 <p><strong>Hours:</strong> 9:00 AM - 5:00 PM</p>
-                <p><strong>Areas:</strong> Metro Manila</p>
+                <p><strong>Areas:</strong> Metro Manila (NCR)</p>
                 <p><strong>Capacity:</strong> 3 deliveries maximum per day</p>
                 <br />
                 <p><strong>📈 Status Flow:</strong></p>
                 <p>• Pending → Schedule → In Transit → Delivered</p>
                 <p>• Any status → Delay (requires rescheduling)</p>
-                <p>• Any status → Remove (permanent deletion)</p>
               </div>
             </CardContent>
           </Card>

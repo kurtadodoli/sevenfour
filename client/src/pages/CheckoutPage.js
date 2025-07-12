@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useCart } from '../context/CartContext';
+import { useStock } from '../context/StockContext';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -190,6 +191,7 @@ const SecurityNote = styled.div`
 
 const CheckoutPage = () => {
   const { cartItems, cartTotal, clearCart } = useCart();
+  const { updateStockAfterOrder } = useStock();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -217,13 +219,101 @@ const CheckoutPage = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Simulate order processing
-    setTimeout(() => {
-      alert('Order placed successfully! Redirecting to orders page...');
-      clearCart();
-      navigate('/orders');
+    try {
+      // Create FormData for order submission
+      const orderData = new FormData();
+      
+      // Add form fields
+      orderData.append('customer_name', `${formData.firstName} ${formData.lastName}`);
+      orderData.append('customer_email', formData.email);
+      orderData.append('shipping_address', `${formData.address}, ${formData.city}, ${formData.postalCode}`);
+      orderData.append('street_address', formData.address);
+      orderData.append('city_municipality', formData.city);
+      orderData.append('province', 'Metro Manila'); // Metro Manila (NCR)
+      orderData.append('zip_code', formData.postalCode);
+      orderData.append('contact_phone', formData.phone);
+      orderData.append('payment_method', 'credit_card');
+      orderData.append('payment_reference', `CC-${Date.now()}`);
+      orderData.append('notes', 'Order placed via checkout');
+      
+      // Create a simple text file as payment proof for credit card orders
+      const paymentProofContent = `
+Payment Proof - Credit Card Order
+================================
+Order Date: ${new Date().toISOString()}
+Card Number: **** **** **** ${formData.cardNumber.slice(-4)}
+Name on Card: ${formData.nameOnCard}
+Amount: ₱${cartTotal.toFixed(2)}
+Reference: CC-${Date.now()}
+================================
+This is an automated payment proof for credit card orders.
+      `;
+      
+      const blob = new Blob([paymentProofContent], { type: 'text/plain' });
+      orderData.append('payment_proof', blob, 'payment-proof.txt');
+      
+      // Submit the order
+      await submitOrderToAPI(orderData);
+      
+    } catch (error) {
+      console.error('Error preparing order:', error);
+      alert('Error preparing order. Please try again.');
       setLoading(false);
-    }, 2000);
+    }
+  };
+  
+  const submitOrderToAPI = async (orderData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to place an order');
+        navigate('/login');
+        return;
+      }
+
+      console.log('🚀 Submitting order to API...');
+      
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: orderData
+      });
+
+      const result = await response.json();
+      console.log('📝 Order API response:', result);
+
+      if (result.success) {
+        alert(`Order placed successfully! Order #${result.order.order_number}\n\nStock has been deducted immediately.`);
+        
+        // Update stock context immediately
+        if (updateStockAfterOrder) {
+          updateStockAfterOrder(result.stockUpdates || []);
+        }
+        
+        // Trigger stock update events for other components
+        window.dispatchEvent(new CustomEvent('stockUpdated', {
+          detail: { 
+            source: 'order_placement',
+            timestamp: Date.now(),
+            stockUpdates: result.stockUpdates || []
+          }
+        }));
+        
+        // Clear cart and redirect
+        clearCart();
+        navigate('/orders');
+      } else {
+        console.error('❌ Order creation failed:', result.message);
+        alert(`Failed to place order: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('❌ Error submitting order:', error);
+      alert('Error placing order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const goBack = () => {
