@@ -10,28 +10,19 @@
 
 
 ## Demo
-Here is a working live demo :  https://iharsh234.github.io/WebApp/
+Here is a working video demo :  https://iharsh234.github.io/WebApp/
 
 
 ## Site
 
-### Landing Page
-Currently it is working on all NSE (India) Stocks, BSE (India) Stocks Symbol will be added soon.
+### Screenshots
+
 
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample1.png)
-
-### Query Filled Form
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample2.png)
-
-### Charts
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample3.png)
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample4.png)
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample5.png)
-
-
-## Mobile support
-The WebApp is compatible with devices of all sizes and all OS's, and consistent improvements are being made.
-
 ![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample6.png)
 
 
