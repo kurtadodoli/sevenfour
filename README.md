@@ -66,12 +66,9 @@ If you'd like to request a new function, feel free to do so by opening an issue 
 - [Bootstrap](http://getbootstrap.com/) - Extensive list of components and  Bundled Javascript plugins.
 
 
-## To-do
-- Add BSE (India) Symbol to the current App.
-- Decide comparison models of Stocks. (suggestions are most welcome).
-- Another WebApp, capable of comparing at least 10 stocks.
 
-## Team
+
+## Developer
 
 [![Kurt Adodoli](https://avatars.githubusercontent.com/u/152001397?v=4)](https://github.com/kurtadodoli)  | [![Kenneth Marzan](https://avatars.githubusercontent.com/u/133036872?v=4)](https://github.com/kennnn1)
 ---|---
