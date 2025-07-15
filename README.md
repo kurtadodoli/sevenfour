@@ -1,9 +1,9 @@
 # ![WebApp](https://iharsh234.github.io/WebApp/images/demo/demo_landing.JPG)
-# WebApp
+# Success Comes From Failure: Product Management System for Seven Four Clothing
 <table>
 <tr>
 <td>
-  A webapp using Quandl API to display history of stock growth in a given period of time. It helps predict the growth of stocks from the  charts of stock performace in any period of time. It helps to judge stocks, with the principle of momentum investing, which returns 1% per month on average.
+  Seven Four Clothing is a comprehensive e-commerce platform specializing in custom clothing and apparel. The system combines traditional retail functionality with advanced custom design capabilities, making it a hybrid product management solution for both ready-made and personalized clothing items.
 </td>
 </tr>
 </table>
@@ -75,9 +75,9 @@ If you'd like to request a new function, feel free to do so by opening an issue 
 
 [![Harsh Vijay](https://avatars1.githubusercontent.com/u/12688534?v=3&s=144)](https://github.com/iharsh234)  | [![Quandl.com](https://github.com/iharsh234/WebApp/blob/master/images/quandl.jpg)](https://www.quandl.com/)
 ---|---
-[Harsh Vijay ](https://github.com/iharsh234) |[Quandl](https://www.quandl.com)
+[Kurt Adodoli](https://github.com/kurtadodoli) |[Kenneth Marzan](https://github.com/kennnn1)
 
-## [License](https://github.com/iharsh234/WebApp/blob/master/LICENSE.md)
+## [License](https://github.com/kurtadodoli)
 
-MIT © [Harsh Vijay ](https://github.com/iharsh234)
+TIP © [Kurt Adodoli](https://github.com/kurtadodoli)
 
