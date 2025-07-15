@@ -22,20 +22,11 @@ const testConnection = async () => {
     await connection.query('SELECT 1');
     
     console.log('✅ Database connection successful!');
-    console.log(`📊 Connected to: ${process.env.DB_NAME} on ${process.env.DB_HOST}:${process.env.DB_PORT}`);
     
     connection.release();
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:');
-    console.error('Error details:', {
-      code: error.code,
-      errno: error.errno,
-      sqlMessage: error.sqlMessage,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER
-    });
+    console.error('❌ Database connection failed:', error.message);
     return false;
   }
 };
@@ -46,12 +37,7 @@ const execute = async (sql, params = []) => {
     const [results] = await pool.execute(sql, params);
     return [results];
   } catch (error) {
-    console.error('Database query error:', {
-      sql: sql,
-      params: params,
-      error: error.message,
-      code: error.code
-    });
+    console.error('Database query error:', error.message);
     throw error;
   }
 };
@@ -82,14 +68,8 @@ const getOne = async (sql, params = []) => {
 const initDatabase = async () => {
   const isConnected = await testConnection();
   
-  if (isConnected) {
-    console.log('🎉 Database is ready to use!');
-  } else {
-    console.log('💡 Please check:');
-    console.log('   - MySQL server is running');
-    console.log('   - Database credentials in .env file');
-    console.log('   - Database "seven_four_clothing" exists');
-    console.log('   - Network connectivity');
+  if (!isConnected) {
+    console.log('💡 Please check database configuration');
   }
   
   return isConnected;

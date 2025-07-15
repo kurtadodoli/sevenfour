@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { debugToken } from '../utils/authDebug';
 import api from '../utils/api';
 
 export const AuthContext = createContext(null);
@@ -111,9 +110,6 @@ export const AuthProvider = ({ children }) => {
             
             if (token) {
                 try {
-                    // Check token validity and debug info
-                    debugToken();
-                    
                     console.log('Token found in localStorage, verifying...');
                     const verified = await verifyAndSetUser(token);
                     

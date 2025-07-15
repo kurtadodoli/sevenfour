@@ -206,9 +206,6 @@ exports.getUserOrdersWithItems = async (req, res) => {
             }
         }
         
-        console.log(`✅ Found ${orders.length} orders with items for user ID ${req.user.id}`);
-        console.log('=== END GET USER ORDERS WITH ITEMS DEBUG ===');
-        
         await connection.end();
         
         res.json({
@@ -238,17 +235,6 @@ exports.getUserOrdersWithItems = async (req, res) => {
 // Create order from cart
 exports.createOrderFromCart = async (req, res) => {
     try {
-        console.log('🚨 ===== UNIQUE LOG: JULY 4 2025 - ORDER CREATION STARTED =====');
-        console.log('🕐 Current time:', new Date().toISOString());
-        console.log('=== CREATE ORDER FROM CART DEBUG ===');
-        console.log('User ID from token:', req.user.id);
-        console.log('User email:', req.user.email);
-        console.log('User role:', req.user.role);
-        console.log('Request body:', req.body);
-        console.log('Uploaded file:', req.file);
-        console.log('=== CUSTOMER DEBUG ===');
-        console.log('customer_name from body:', req.body.customer_name);
-        console.log('=== END CUSTOMER DEBUG ===');
         
         const { 
             shipping_address, 
@@ -297,14 +283,11 @@ exports.createOrderFromCart = async (req, res) => {
                 [req.user.id]
             );
             
-            console.log(`Found ${carts.length} carts for user ID ${req.user.id}`);
-            
             if (carts.length === 0) {
                 throw new Error('Cart not found');
             }
             
             const cartId = carts[0].id;
-            console.log('Using cart ID:', cartId);
             
             // Get cart items
             const [cartItems] = await connection.execute(`
@@ -350,8 +333,6 @@ exports.createOrderFromCart = async (req, res) => {
                 customer_email || req.user.email, contact_phone, shipping_address, notes
             ]);
             
-            console.log('Invoice created with user_id:', req.user.id);
-            
             // Create transaction
             await connection.execute(`
                 INSERT INTO sales_transactions (
@@ -359,28 +340,7 @@ exports.createOrderFromCart = async (req, res) => {
                 ) VALUES (?, ?, ?, ?, ?)
             `, [transactionId, invoiceId, req.user.id, totalAmount, payment_method || 'gcash']);
             
-            console.log('Transaction created with user_id:', req.user.id);
-            
             // Create order - SIMPLIFIED VERSION WITHOUT customer_fullname
-            console.log('🚀 Creating order WITHOUT customer_fullname field...');
-            console.log('🔍 SQL STATEMENT ABOUT TO EXECUTE:');
-            console.log(`
-                INSERT INTO orders (
-                    order_number, user_id, invoice_id, transaction_id, 
-                    total_amount, shipping_address, contact_phone, notes,
-                    street_address, city_municipality, province, zip_code,
-                    payment_method, payment_reference, payment_proof_filename,
-                    payment_status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
-            console.log('🔍 VALUES:', [
-                orderNumber, req.user.id, invoiceId, transactionId,
-                totalAmount, shipping_address, contact_phone, notes,
-                street_address, city_municipality, province, zip_code,
-                payment_method || 'gcash', payment_reference, req.file.filename,
-                'pending'
-            ]);
-            
             await connection.execute(`
                 INSERT INTO orders (
                     order_number, user_id, invoice_id, transaction_id, 
@@ -397,7 +357,7 @@ exports.createOrderFromCart = async (req, res) => {
                 'pending'
             ]);
             
-            console.log('✅ Order created successfully!');
+            // Get the created order ID
             
             // Get the created order ID
             const [orderResult] = await connection.execute(
@@ -406,11 +366,7 @@ exports.createOrderFromCart = async (req, res) => {
             );
             const orderId = orderResult[0].id;
             
-            console.log('Order created with ID:', orderId, 'for user:', req.user.id);
-            console.log('=== END CREATE ORDER DEBUG ===');
-            
             // 🚨 IMMEDIATE STOCK DEDUCTION - New Feature Implementation
-            console.log('🔥 === IMMEDIATE STOCK DEDUCTION ON ORDER PLACEMENT ===');
             
             // Check stock availability and deduct immediately
             const insufficientStock = [];

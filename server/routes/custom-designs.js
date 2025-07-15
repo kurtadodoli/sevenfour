@@ -102,27 +102,11 @@ router.post('/', auth, upload.array('images', 10), async (req, res) => {
         const finalStreetAddress = shippingAddress || streetAddress;
         const finalCity = municipality || city;
         const finalPostalCode = postal_code || postalCode;
-        const finalNotes = additionalInfo || notes;console.log('📋 Validating form data...');
-        console.log('🔍 Debug - Received form data:');
-        console.log('  productType:', productType);
-        console.log('  firstName:', firstName);
-        console.log('  finalFirstName:', finalFirstName);
-        console.log('  lastName:', lastName);
-        console.log('  finalLastName:', finalLastName);
-        console.log('  municipality:', municipality);
-        console.log('  city:', city);
-        console.log('  finalCity:', finalCity);
-        console.log('  productSize:', productSize);
-        console.log('  productColor:', productColor);
-        console.log('  quantity:', quantity);
-        console.log('  req.user:', req.user);
+        const finalNotes = additionalInfo || notes;
         
         // Basic validation (no email validation needed since it comes from auth)
         if (!productType || !finalFirstName || !finalLastName || !finalCity || !productSize || !productColor || !quantity) {
-            console.log('❌ Missing required fields');
-            console.log('❌ Validation failed for:', {
-                productType: !!productType,
-                finalFirstName: !!finalFirstName,
+            return res.status(400).json({
                 finalLastName: !!finalLastName,
                 finalCity: !!finalCity,
                 productSize: !!productSize,

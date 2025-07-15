@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext, useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import styled from 'styled-components';
 
@@ -151,7 +151,7 @@ const Chart = styled.div`
 `;
 
 const ReportsPage = () => {
-  const { currentUser, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [reportType, setReportType] = useState('sales');
   const [timeFrame, setTimeFrame] = useState('monthly');
   const [startDate, setStartDate] = useState('');

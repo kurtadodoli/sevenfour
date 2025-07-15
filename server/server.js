@@ -44,11 +44,9 @@ app.use(cors({
 
 // Add request logging middleware
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`, {
-        contentType: req.get('Content-Type'),
-        contentLength: req.get('Content-Length'),
-        origin: req.get('Origin')
-    });
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`${req.method} ${req.path}`);
+    }
     next();
 });
 
@@ -73,7 +71,6 @@ app.use('/uploads', express.static('../uploads'));
 
 // Add a catch-all route for debugging
 app.use('/api/*', (req, res) => {
-    console.log('❌ Unmatched API route:', req.method, req.originalUrl);
     res.status(404).json({ 
         error: 'API route not found', 
         method: req.method, 

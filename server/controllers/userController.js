@@ -59,27 +59,10 @@ const logLoginAttempt = async (email, ip, userAgent, success) => {
 // Register new user
 exports.register = async (req, res) => {
     try {
-        // Enhanced logging for debugging
-        console.log('==== REGISTRATION REQUEST ====');
-        console.log('Time:', new Date().toISOString());
-        console.log('IP:', req.ip);
-        console.log('User-Agent:', req.get('user-agent'));
-        console.log('Headers:', JSON.stringify(req.headers, null, 2));
-        console.log('Origin:', req.get('origin'));
-        console.log('Body:', JSON.stringify(req.body, null, 2));
-        
-        // Add CORS headers directly in the handler for this specific endpoint
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');        const { first_name, last_name, email, password, gender, birthday, role } = req.body;
+        const { first_name, last_name, email, password, gender, birthday, role } = req.body;
 
         // Validate required fields
         if (!first_name || !last_name || !email || !password) {
-            console.log('Missing required fields:', { 
-                first_name: !!first_name, 
-                last_name: !!last_name, 
-                email: !!email, 
-                password: !!password
-            });
             return res.status(400).json({
                 success: false,
                 message: 'Required fields: first_name, last_name, email, password'

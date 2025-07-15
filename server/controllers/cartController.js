@@ -106,13 +106,6 @@ exports.getCart = async (req, res) => {
     // Calculate total
     const total = cartItems.reduce((sum, item) => sum + (item.productprice * item.quantity), 0);
     
-    console.log(`✅ VERIFIED: Found ${cartItems.length} items in cart for user ${req.user.id}`);
-    console.log('Cart items details:');
-    cartItems.forEach((item, index) => {
-      console.log(`  Item ${index + 1}: ${item.name}, Owner: ${item.cart_owner_id}, Cart: ${item.cart_id_verify}, Qty: ${item.quantity}`);
-    });
-    console.log('=== END GET CART DEBUG ===');
-    
     await connection.end();
     
     res.json({
@@ -151,17 +144,6 @@ exports.addToCart = async (req, res) => {
   }
   
   try {
-    console.log('=== ENHANCED ADD TO CART DEBUG ===');
-    console.log('Request User:', {
-      id: req.user.id,
-      email: req.user.email,
-      role: req.user.role
-    });
-    console.log('Product ID:', product_id);
-    console.log('Color:', color);
-    console.log('Size:', size);
-    console.log('Quantity:', quantity);
-    console.log('Request IP:', req.ip || req.connection.remoteAddress);
     
     const connection = await mysql.createConnection(dbConfig);
     

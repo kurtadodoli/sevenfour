@@ -17,10 +17,6 @@ const otpService = require('./services/otpService');
 // Load environment variables - handle both direct server run and root run
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-// Debug environment variables
-console.log('DB_PASSWORD loaded:', process.env.DB_PASSWORD ? '[SET]' : '[NOT SET]');
-console.log('DB_USER loaded:', process.env.DB_USER);
-
 // Initialize Express app
 const app = express();
 
@@ -32,28 +28,7 @@ app.use(helmet({
 app.use(security);
 
 // Rate limiting - disabled for development/testing
-// const apiLimiter = rateLimit({
-//     windowMs: 15 * 60 * 1000, // 15 minutes
-//     max: 1000, // much higher limit for development
-//     message: 'Too many requests, please try again later.'
-// });
-
-// Apply rate limiting to API routes - DISABLED for testing
-// app.use('/api/', apiLimiter);
-
-// Auth-specific rate limiting - DISABLED for testing
-// const authLimiter = rateLimit({
-//     windowMs: 60 * 60 * 1000, // 1 hour window
-//     max: 100, // increased for development
-//     message: 'Too many login attempts, please try again after an hour'
-// });
-
-// Login limiter - DISABLED for testing
-// app.use('/api/auth/login', authLimiter);
-
-// Registration limiter - DISABLED for testing
-// const registerLimiter = rateLimit({
-//     windowMs: 60 * 60 * 1000, // 1 hour window
+// For production, uncomment the rate limiting configurations below
 //     max: 50, // much higher limit for registration
 //     message: 'Too many registration attempts, please try again after an hour'
 // });
@@ -74,21 +49,16 @@ app.use(cors({
       'http://127.0.0.1:3002'
     ];
     
-    console.log('🌐 CORS Request from origin:', origin);
-    
     // In development, allow all localhost origins
     if (process.env.NODE_ENV !== 'production') {
       if (origin && origin.includes('localhost')) {
-        console.log('✅ CORS: Allowing localhost origin');
         return callback(null, true);
       }
     }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('✅ CORS: Origin allowed');
       callback(null, true);
     } else {
-      console.log('❌ CORS: Origin not allowed:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -368,8 +338,6 @@ app.get('/api/test-designs', async (req, res) => {
     
     await connection.end();
     
-    console.log(`✅ Retrieved ${ordersWithImages.length} custom designs`);
-    
     res.json({
       success: true,
       data: ordersWithImages
@@ -394,7 +362,6 @@ app.get('/api/test-designs', async (req, res) => {
 
 // Test cancelled designs endpoint without auth
 app.get('/api/test-designs-cancelled', async (req, res) => {
-  console.log('🔍 Test cancelled designs endpoint hit (public)');
   
   const mysql = require('mysql2/promise');
   const { dbConfig } = require('./config/db');
@@ -446,8 +413,6 @@ app.get('/api/test-designs-cancelled', async (req, res) => {
     }));
     
     await connection.end();
-    
-    console.log(`✅ Retrieved ${cancelledOrdersWithImages.length} cancelled custom designs`);
     
     res.json({
       success: true,
@@ -561,9 +526,7 @@ app.get('/api/user-designs/:email', async (req, res) => {
       FROM custom_designs cd
       WHERE cd.customer_email = ? AND cd.status != 'cancelled'
       ORDER BY cd.created_at DESC
-    `, [email]);
-
-    console.log(`🔍 Raw database results for ${email}:`, designs.length > 0 ? Object.keys(designs[0]) : 'No results');// Transform data to match frontend expectations
+    `, [email]);// Transform data to match frontend expectations
     const userOrdersWithImages = designs.map(design => ({
       id: design.id,
       custom_order_id: design.design_id,
@@ -605,8 +568,6 @@ app.get('/api/user-designs/:email', async (req, res) => {
     }));
     
     await connection.end();
-    
-    console.log(`✅ Retrieved ${userOrdersWithImages.length} custom designs for ${email}`);
     
     res.json({
       success: true,
@@ -697,8 +658,6 @@ app.get('/api/user-designs-cancelled/:email', async (req, res) => {
     
     await connection.end();
     
-    console.log(`✅ Retrieved ${cancelledUserOrdersWithImages.length} cancelled custom designs for ${email}`);
-    
     res.json({
       success: true,
       data: cancelledUserOrdersWithImages
@@ -723,7 +682,6 @@ app.get('/api/user-designs-cancelled/:email', async (req, res) => {
 
 // Add missing API endpoints to prevent 404 errors
 app.get('/api/deliveries/schedules', (req, res) => {
-  console.log('📦 Delivery schedules endpoint hit');
   res.json({ 
     success: true, 
     data: [],
@@ -732,7 +690,6 @@ app.get('/api/deliveries/schedules', (req, res) => {
 });
 
 app.get('/api/production/status', (req, res) => {
-  console.log('🏭 Production status endpoint hit');
   res.json({ 
     success: true, 
     data: {
@@ -1076,14 +1033,14 @@ const PORT = process.env.PORT || 5000;
 // Make sure server starts on port 5000
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Frontend should connect to: http://localhost:${PORT}`);
     
     // Test database connection
     await testDbConnection();
     
     // Initialize services
     console.log('🔧 Initializing services...');
-      // Test email service
+    
+    // Test email service
     try {
         const emailReady = await emailService.testConnection();
         if (emailReady) {
@@ -1097,7 +1054,9 @@ app.listen(PORT, async () => {
     
     // Clean up expired OTPs on startup
     const cleanedCount = await otpService.cleanupExpiredOTPs();
-    console.log(`🧹 Cleaned up ${cleanedCount} expired OTP records`);
+    if (cleanedCount > 0) {
+        console.log(`🧹 Cleaned up ${cleanedCount} expired OTP records`);
+    }
     
     // Schedule periodic cleanup every hour
     setInterval(async () => {

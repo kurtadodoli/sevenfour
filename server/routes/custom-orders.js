@@ -116,7 +116,6 @@ router.post('/', upload.array('images', 10), async (req, res) => {
                 const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret');
                 userId = decoded.id; // The JWT contains 'id', not 'user_id'
                 userEmail = decoded.email; // Use authenticated user's email
-                console.log('✅ Authenticated user:', userId, 'Email:', userEmail);
             } catch (err) {
                 console.log('⚠️ Invalid or expired token, proceeding without authentication');
             }
@@ -128,20 +127,9 @@ router.post('/', upload.array('images', 10), async (req, res) => {
         const safeCustomerPhone = customerPhone || null;
         const safeHouseNumber = houseNumber || null;
         const safeBarangay = barangay || null;
-        const safePostalCode = postalCode || null;        console.log('📝 Form data received:', {
-            productType, productName, size, color, quantity, urgency,
-            customerName, 
-            customerEmail: userEmail, // Show the automatically detected email
-            originalCustomerEmail: customerEmail, // Show the original form email for debugging
-            province, municipality, streetNumber,
-            specialInstructions: safeSpecialInstructions,
-            customerPhone: safeCustomerPhone,
-            houseNumber: safeHouseNumber,
-            barangay: safeBarangay,
-            postalCode: safePostalCode,
-            userId: safeUserId
-        });
-          // Validate required fields
+        const safePostalCode = postalCode || null;
+        
+        // Validate required fields
         // For authenticated users, email is not required in form data (taken from token)
         // For non-authenticated users, email is required in form data
         const requiredFields = [productType, size, color, customerName, province, municipality, streetNumber];
@@ -150,7 +138,6 @@ router.post('/', upload.array('images', 10), async (req, res) => {
         }
         
         if (requiredFields.some(field => !field)) {
-            await connection.rollback();
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields: productType, size, color, customerName, province, municipality, streetNumber' + 

@@ -302,19 +302,8 @@ class DeliveryController {
       `);
       
       console.log(`✅ Found ${customOrders.length} payment-verified custom orders`);
-      if (customOrders.length > 0) {
-        console.log('🔍 Sample custom order data:');
-        const sample = customOrders[0];
-        console.log(`   - Order: ${sample.order_number}`);
-        console.log(`   - Status: ${sample.status}`);
-        console.log(`   - Payment Status: ${sample.payment_status}`);
-        console.log(`   - Payment Verified At: ${sample.payment_verified_at}`);
-        console.log(`   - Created At: ${sample.order_date}`);
-      }
-      
       // Get custom designs from custom_designs table
       // Only include designs where payment has been verified by admin
-      console.log('🎨 Fetching payment-verified custom designs...');
       const [customDesigns] = await connection.execute(`
         SELECT 
           cd.id,
@@ -687,10 +676,8 @@ class DeliveryController {
         
         if (customOrders.length > 0) {
           orderDetails = customOrders[0];
-          console.log('🔍 Found custom order:', orderDetails.order_number);
         } else {
           // If not found in custom_orders, look in orders table for delivery orders
-          console.log('🔍 Not found in custom_orders, checking delivery orders...');
           const [customDeliveryOrders] = await connection.execute(`
             SELECT o.*, 
                    CONCAT(u.first_name, ' ', u.last_name) as customer_name,

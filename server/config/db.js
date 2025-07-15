@@ -40,27 +40,13 @@ const query = async (sql, params = []) => {
 
 // Test database connection
 const testConnection = async () => {
-  try {
-    console.log('Testing connection with config:', {
-      host: dbConfig.host,
-      user: dbConfig.user,
-      database: dbConfig.database,
-      port: dbConfig.port,
-      hasPassword: !!dbConfig.password
-    });
-    
+  try {    
     const connection = await pool.getConnection();
     console.log('✅ Database connection successful!');
-    console.log(`📊 Connected to: ${dbConfig.database} on ${dbConfig.host}:${dbConfig.port}`);
     connection.release();
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
-    console.error('Error details:', {
-      code: error.code,
-      errno: error.errno,
-      sqlMessage: error.sqlMessage
-    });
     return false;
   }
 };

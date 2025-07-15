@@ -44,20 +44,10 @@ class EmailService {
 
     // Send OTP email using SendGrid
     async sendOTPEmail(email, otp, purpose = 'password reset') {
-        console.log('📧 SendGrid service check:');
-        console.log('📧 Has valid credentials:', this.hasValidCredentials);
-        console.log('📧 Sending to:', email);
-        
         // Use development mode if no valid SendGrid credentials
         if (!this.hasValidCredentials) {
-            console.log('📧 ===========================================');
-            console.log('📧 DEVELOPMENT MODE - EMAIL NOT SENT');
-            console.log('📧 ===========================================');
-            console.log(`📧 To: ${email}`);
-            console.log(`📧 Subject: Seven Four Clothing - Your ${purpose} verification code`);
-            console.log(`📧 OTP Code: ${otp}`);
-            console.log(`📧 This code expires in 10 minutes`);
-            console.log('📧 ===========================================');
+            console.log('📧 Development mode - OTP email not sent');
+            console.log(`📧 To: ${email} | OTP: ${otp}`);
             console.log('📧 To enable real email sending with SendGrid:');
             console.log('📧 1. Sign up at https://sendgrid.com');
             console.log('📧 2. Create an API key in SendGrid dashboard');
