@@ -1,4 +1,4 @@
-# ![WebApp](https://iharsh234.github.io/WebApp/images/demo/demo_landing.JPG)
+# ![WebApp](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample.png)
 # Success Comes From Failure: Product Management System for Seven Four Clothing
 <table>
 <tr>
@@ -18,21 +18,21 @@ Here is a working live demo :  https://iharsh234.github.io/WebApp/
 ### Landing Page
 Currently it is working on all NSE (India) Stocks, BSE (India) Stocks Symbol will be added soon.
 
-![](https://iharsh234.github.io/WebApp/images/demo/web_app_face.JPG)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample1.png)
 
 ### Query Filled Form
-![](https://iharsh234.github.io/WebApp/images/demo/demo_query.JPG)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample2.png)
 
 ### Charts
-![](https://iharsh234.github.io/WebApp/images/demo/demo_chart1.JPG)
-![](https://iharsh234.github.io/WebApp/images/demo/demo_chart2.JPG)
-![](https://iharsh234.github.io/WebApp/images/demo/demo_chart3.JPG)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample3.png)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample4.png)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample5.png)
 
 
 ## Mobile support
 The WebApp is compatible with devices of all sizes and all OS's, and consistent improvements are being made.
 
-![](https://iharsh234.github.io/WebApp/images/demo/mobile.png)
+![](https://github.com/kurtadodoli/sevenfour/blob/main/client/src/assets/images/sfc-sample6.png)
 
 
 
