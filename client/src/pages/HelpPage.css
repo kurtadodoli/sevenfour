@@ -5,70 +5,93 @@
 }
 
 .help-container {
-  padding: 4rem 2rem;
-  max-width: 1200px;
+  padding: 6rem 2rem;
+  max-width: 1000px;
   margin: 0 auto;
   background: #ffffff;
 }
 
 .help-header {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 6rem;
   position: relative;
 }
 
 .help-header h1 {
-  font-size: 2.5rem;
+  font-size: 3rem;
   color: #000;
   margin: 0;
-  font-weight: 300;
-  letter-spacing: 2px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 200;
+  letter-spacing: -1px;
 }
 
 .header-line {
-  width: 60px;
-  height: 3px;
+  width: 40px;
+  height: 2px;
   background: #000;
-  margin: 1.5rem auto;
+  margin: 2rem auto;
 }
 
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 3rem;
-  margin-top: 2rem;
+  margin-top: 3rem;
+  align-items: start;
 }
 
 .section-content {
-  padding: 2rem;
-  background: #f8f8f8;
-  border-radius: 12px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  padding: 3rem 2rem;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
+  min-height: 450px;
+  justify-content: space-between;
 }
 
 .section-content:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  border-color: #000000;
+  transform: translateY(-2px);
 }
 
 .section-content h2 {
-  font-size: 1.5rem;
+  font-size: 1rem;
   color: #000;
-  margin-bottom: 2rem;
-  font-weight: 400;
+  margin-bottom: 3rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
   text-align: center;
   letter-spacing: 1px;
+  text-transform: uppercase;
+  position: relative;
+}
+
+.section-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 1px;
+  background: #000000;
 }
 
 .social-links {
   display: flex;
   justify-content: center;
-  gap: 2.5rem;
+  gap: 2rem;
   margin-top: 1rem;
+  flex-wrap: wrap;
+  flex: 1;
+  align-items: center;
 }
 
 .social-icon-wrapper {
@@ -77,47 +100,50 @@
   align-items: center;
   color: #000;
   text-decoration: none;
-  gap: 0.5rem;
-  transition: transform 0.2s ease;
+  gap: 1rem;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-width: 0;
 }
 
 .social-icon-wrapper:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
 }
 
 .icon-circle {
-  width: 50px;
-  height: 50px;
-  border: 2px solid #000;
+  width: 70px;
+  height: 70px;
+  border: 1px solid #e0e0e0;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   background: #fff;
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
 }
 
 .icon-circle.large {
-  width: 70px;
-  height: 70px;
-  font-size: 1.5rem;
+  width: 90px;
+  height: 90px;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
 }
 
 .social-icon-wrapper:hover .icon-circle {
   background: #000;
   color: #fff;
+  border-color: #000;
 }
 
 .icon-label {
-  font-size: 0.9rem;
-  opacity: 0;
-  transform: translateY(-10px);
-  transition: all 0.3s ease;
-}
-
-.social-icon-wrapper:hover .icon-label {
-  opacity: 1;
-  transform: translateY(0);
+  font-size: 0.75rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.8;
 }
 
 .payment-info, .faq-icon {
@@ -125,40 +151,48 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 1rem;
+  gap: 1.5rem;
+  flex: 1;
+  justify-content: center;
 }
 
 .payment-info h3 {
-  font-size: 1.2rem;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
   margin: 1rem 0 0;
+  letter-spacing: 0.5px;
+  color: #000000;
 }
 
 .payment-info p, .faq-icon p {
   color: #666;
   margin: 0;
-  font-size: 0.95rem;
-  max-width: 80%;
+  font-size: 0.9rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
+  max-width: 100%;
   line-height: 1.6;
 }
 
 /* Clickable FAQ Section */
 .faq-icon {
-  transition: all 0.3s ease;
-  padding: 1rem;
-  border-radius: 8px;
+  transition: all 0.2s ease;
+  padding: 2rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .faq-icon:hover {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: #000000;
   color: white;
-  transform: translateY(-5px);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
 }
 
 .faq-icon:hover .icon-circle {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .faq-icon:hover p {
@@ -166,19 +200,45 @@
 }
 
 .faq-icon:active {
-  transform: translateY(-2px);
+  transform: translateY(0);
+}
+
+@media (max-width: 968px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    max-width: 500px;
+    margin: 3rem auto 0;
+  }
 }
 
 @media (max-width: 768px) {
   .help-container {
-    padding: 2rem 1rem;
-  }
-
-  .content-grid {
-    gap: 2rem;
+    padding: 3rem 1rem;
   }
 
   .help-header h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
+  }
+
+  .section-content {
+    padding: 2.5rem 1.5rem;
+    min-height: 300px;
+  }
+
+  .social-links {
+    gap: 1.5rem;
+  }
+
+  .icon-circle {
+    width: 60px;
+    height: 60px;
+    font-size: 1.1rem;
+  }
+
+  .icon-circle.large {
+    width: 75px;
+    height: 75px;
+    font-size: 1.5rem;
   }
 }

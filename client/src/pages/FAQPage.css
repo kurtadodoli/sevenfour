@@ -2,24 +2,23 @@
 .faq-page-wrapper {
   min-height: 100vh;
   background: #ffffff;
-  padding: 20px;
+  padding: 2rem;
   box-sizing: border-box;
 }
 
 .faq-container {
-  max-width: 1000px;
+  max-width: 900px;
   margin: 0 auto;
   background: #ffffff;
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  padding: 4rem 2rem;
 }
 
 /* Header */
 .faq-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 5rem;
   position: relative;
+  padding-top: 4rem;
 }
 
 .back-button {
@@ -27,127 +26,154 @@
   left: 0;
   top: 0;
   background: #000000;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 25px;
+  color: #ffffff;
+  border: 1px solid #000000;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  transition: all 0.3s ease;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-decoration: none;
 }
 
 .back-button:hover {
-  background: #333333;
-  transform: translateY(-2px);
+  background: transparent;
+  color: #000000;
+  border-color: #000000;
+  transform: translateY(-1px);
 }
 
 .faq-header h1 {
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: 3rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 200;
   color: #000000;
   margin: 0;
-  padding: 20px 0 10px 0;
+  padding: 1rem 0;
+  letter-spacing: -1px;
 }
 
 .header-line {
-  width: 100px;
-  height: 4px;
+  width: 40px;
+  height: 2px;
   background: #000000;
-  margin: 0 auto;
-  border-radius: 2px;
+  margin: 2rem auto;
+  border-radius: 1px;
 }
 
 /* Controls */
 .faq-controls {
   display: flex;
-  gap: 20px;
-  margin-bottom: 30px;
+  gap: 2rem;
+  margin-bottom: 4rem;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-box {
-  flex: 1;
+  flex: 2;
   position: relative;
-  min-width: 250px;
+  min-width: 300px;
+  max-width: 500px;
 }
 
 .search-icon {
   position: absolute;
-  left: 15px;
+  left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #000000;
+  color: #999999;
   z-index: 1;
+  font-size: 1rem;
 }
 
 .search-input {
   width: 100%;
-  padding: 12px 15px 12px 45px;
-  border: 2px solid #000000;
+  padding: 1.2rem 1.2rem 1.2rem 3.5rem;
+  border: 1px solid #e0e0e0;
   border-radius: 25px;
-  font-size: 16px;
+  font-size: 1rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
   outline: none;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   box-sizing: border-box;
+  background: #ffffff;
 }
 
 .search-input:focus {
-  border-color: #333333;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #000000;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+.search-input::placeholder {
+  color: #999999;
+  font-weight: 300;
 }
 
 .category-filter {
   min-width: 200px;
+  max-width: 250px;
 }
 
 .category-select {
   width: 100%;
-  padding: 12px 15px;
-  border: 2px solid #000000;
+  padding: 1.2rem 1rem;
+  border: 1px solid #e0e0e0;
   border-radius: 25px;
-  font-size: 16px;
+  font-size: 1rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
   outline: none;
-  background: white;
+  background: #ffffff;
+  color: #000000;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .category-select:focus {
-  border-color: #333333;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
 }
 
 /* FAQ List */
 .faq-list {
-  margin-bottom: 30px;
+  margin-bottom: 4rem;
 }
 
 .faq-item {
   background: white;
-  border-radius: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  border: 1px solid #e0e0e0;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .faq-item:hover {
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  border-color: #000000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .faq-question {
-  padding: 20px;
+  padding: 2rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #f8f9fa;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  border: none;
 }
 
 .faq-question:hover {
@@ -156,33 +182,52 @@
 }
 
 .faq-question:hover .category-tag {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .faq-question h3 {
   margin: 0;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
   flex: 1;
-  margin-right: 15px;
+  margin-right: 2rem;
+  line-height: 1.5;
 }
 
 .category-tag {
-  background: #000000;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.8rem;
+  background: #f8f8f8;
+  color: #666666;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 500;
-  margin-right: 15px;
-  transition: all 0.3s ease;
+  margin-right: 1.5rem;
+  transition: all 0.2s ease;
+  border: 1px solid #e0e0e0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.faq-question:hover .category-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .expand-icon {
   font-size: 1.2rem;
-  transition: all 0.3s ease;
-  color: #000000;
+  transition: all 0.2s ease;
+  color: #999999;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .faq-question:hover .expand-icon {
@@ -190,9 +235,10 @@
 }
 
 .faq-answer {
-  padding: 25px;
+  padding: 2rem 1.5rem;
   background: white;
-  animation: slideDown 0.3s ease;
+  animation: slideDown 0.2s ease;
+  border-top: 1px solid #e0e0e0;
 }
 
 @keyframes slideDown {
@@ -205,15 +251,18 @@
   to {
     opacity: 1;
     max-height: 1000px;
-    padding-top: 25px;
-    padding-bottom: 25px;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
 }
 
 .faq-answer p {
-  margin: 0 0 15px 0;
-  line-height: 1.6;
-  color: #4a5568;
+  margin: 0 0 1rem 0;
+  line-height: 1.7;
+  color: #555555;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 300;
+  font-size: 0.95rem;
 }
 
 .faq-answer p:last-child {
@@ -328,63 +377,74 @@
 /* Responsive */
 @media (max-width: 768px) {
   .faq-page-wrapper {
-    padding: 10px;
+    padding: 1rem;
   }
   
   .faq-container {
-    padding: 20px;
+    padding: 2rem 1rem;
   }
   
   .faq-header h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
+  }
+  
+  .faq-header {
+    padding-top: 0;
+    margin-bottom: 3rem;
   }
   
   .back-button {
     position: static;
-    margin-bottom: 20px;
+    margin-bottom: 2rem;
     align-self: flex-start;
+    width: fit-content;
   }
   
   .faq-controls {
     flex-direction: column;
+    gap: 1.5rem;
+    align-items: stretch;
   }
   
   .search-box,
   .category-filter {
     min-width: auto;
+    max-width: none;
   }
   
   .faq-question {
-    padding: 15px;
+    padding: 1.5rem;
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 1rem;
   }
   
   .faq-question h3 {
     margin-right: 0;
+    margin-bottom: 0.5rem;
   }
   
   .category-tag {
     margin-right: 0;
     align-self: flex-start;
+    margin-bottom: 0.5rem;
   }
   
   .expand-icon {
     position: absolute;
-    right: 15px;
-    top: 15px;
+    right: 1.5rem;
+    top: 1.5rem;
   }
   
   .faq-answer {
-    padding: 20px 15px;
+    padding: 1.5rem;
   }
   
   .store-section {
-    padding: 15px;
+    padding: 1rem;
   }
   
   .location-item {
-    padding: 12px;
+    padding: 1rem;
   }
 }

@@ -17,7 +17,7 @@ const SidebarContainer = styled.div`
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 0.3s ease;
+  transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   &::-webkit-scrollbar {
     width: 3px;
@@ -34,14 +34,15 @@ const SidebarContainer = styled.div`
 `;
 
 const LogoSection = styled.div`
-  padding: ${props => props.$minimized ? '16px 12px' : '20px 16px'};
+  padding: 20px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   margin-bottom: 8px;
-  justify-content: ${props => props.$minimized ? 'center' : 'flex-start'};
-  /* No transition - only sidebar width should animate */
+  height: 88px;
+  position: relative;
+  transition: none;
 `;
 
 const LogoWrapper = styled.div`
@@ -52,44 +53,56 @@ const LogoWrapper = styled.div`
   justify-content: center;
   cursor: pointer;
   background: transparent;
+  position: absolute;
+  left: 20px;
+  top: 30px;
+  transition: none;
 `;
 
 const Logo = styled.img`
   width: 28px;
   height: 28px;
   object-fit: contain;
+  transition: none;
+  transform: none;
 `;
 
 const NavSection = styled.div`
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 `;
 
 const SectionTitle = styled.h3`
   color: #666;
   font-size: 11px;
   text-transform: uppercase;
-  margin: ${props => props.$minimized ? '16px 0 8px' : '0 0 12px 16px'};
+  margin: ${props => props.$minimized ? '16px 0 8px' : '0 0 16px 16px'};
   padding: 0;
   font-weight: 600;
   letter-spacing: 1px;
   opacity: ${props => props.$minimized ? '0' : '1'};
   height: ${props => props.$minimized ? '0' : 'auto'};
   overflow: hidden;
-  /* No transition - only sidebar width should animate */
+  transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+              height 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+              margin 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 `;
 
 const NavItem = styled.div`
-  margin: 2px 12px;
+  margin: 6px 12px;
 `;
 
 const StyledLink = styled(Link)`
   display: flex;
   align-items: center;
-  padding: ${props => props.$minimized ? '12px 0' : '10px 12px'};
+  padding: 14px 12px;
+  padding-left: 60px;
   color: ${props => props.$active ? '#ffffff' : '#999'};
   text-decoration: none;
   border-radius: ${props => props.$minimized ? '0' : '8px'};
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease; /* Only transition hover states */
+  transition: color 0.2s ease, 
+              background 0.2s ease, 
+              border-color 0.2s ease,
+              border-radius 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
   background: ${props => {
     if (props.$minimized) return 'transparent';
@@ -99,7 +112,6 @@ const StyledLink = styled(Link)`
     if (props.$minimized) return 'none';
     return props.$active ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid transparent';
   }};
-  justify-content: ${props => props.$minimized ? 'center' : 'flex-start'};
   
   &:hover {
     color: white;
@@ -120,16 +132,21 @@ const IconWrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: ${props => props.$minimized ? '0' : '10px'};
-  position: relative;
+  position: absolute;
+  left: 20px;
   flex-shrink: 0;
-  /* No transition - icons should remain static */
+  transition: none;
   
   svg {
     width: 18px;
     height: 18px;
     color: inherit;
-    /* No transition - icons should remain static */
+    transform: none;
+    transition: none;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
 
   ${props => props.$minimized && `
@@ -178,10 +195,13 @@ const LinkText = styled.span`
   font-weight: 500;
   color: inherit;
   opacity: ${props => props.$minimized ? '0' : '1'};
-  width: ${props => props.$minimized ? '0' : 'auto'};
   overflow: hidden;
-  /* No transition - text should appear/disappear instantly with sidebar */
+  transition: opacity 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   white-space: nowrap;
+  position: absolute;
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
 `;
 
 // Icons
@@ -285,7 +305,7 @@ const Sidebar = () => {
     const { currentUser } = useAuth();
     const { isMinimized, toggleSidebar } = useSidebar();
     const isAdmin = currentUser?.role === 'admin';    return (        <SidebarContainer $minimized={isMinimized}>
-            <LogoSection $minimized={isMinimized}>
+            <LogoSection>
                 <LogoWrapper onClick={toggleSidebar}>
                     <Logo src={logo} alt="Seven Four Clothing" />
                 </LogoWrapper>
@@ -294,19 +314,19 @@ const Sidebar = () => {
                 {!isMinimized && <SectionTitle $minimized={isMinimized}>MAIN</SectionTitle>}
                 <NavItem>
                     <StyledLink to="/" $active={location.pathname === '/'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="Home">
+                        <IconWrapper data-tooltip="Home">
                             <HomeIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>Home</LinkText>}
+                        <LinkText $minimized={isMinimized}>Home</LinkText>
                     </StyledLink>
                 </NavItem>
                 {isAdmin && (
                     <NavItem>
                         <StyledLink to="/dashboard" $active={location.pathname === '/dashboard'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Dashboard">
+                            <IconWrapper data-tooltip="Dashboard">
                                 <DashboardIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Dashboard</LinkText>}
+                            <LinkText $minimized={isMinimized}>Dashboard</LinkText>
                         </StyledLink>
                     </NavItem>
                 )}
@@ -315,26 +335,26 @@ const Sidebar = () => {
                 {!isMinimized && <SectionTitle $minimized={isMinimized}>SHOP</SectionTitle>}
                 <NavItem>
                     <StyledLink to="/products" $active={location.pathname === '/products'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="Products">
+                        <IconWrapper data-tooltip="Products">
                             <ProductIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>Products</LinkText>}
+                        <LinkText $minimized={isMinimized}>Products</LinkText>
                     </StyledLink>
                 </NavItem>
                 <NavItem>
                     <StyledLink to="/custom" $active={location.pathname === '/custom'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="Custom Design">
+                        <IconWrapper data-tooltip="Custom Design">
                             <CustomIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>Custom Design</LinkText>}
+                        <LinkText $minimized={isMinimized}>Custom Design</LinkText>
                     </StyledLink>
                 </NavItem>
                 <NavItem>
                     <StyledLink to="/orders" $active={location.pathname === '/orders'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="Orders">
+                        <IconWrapper data-tooltip="Orders">
                             <OrderIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>Orders</LinkText>}
+                        <LinkText $minimized={isMinimized}>Orders</LinkText>
                     </StyledLink>
                 </NavItem>
             </NavSection>
@@ -345,41 +365,41 @@ const Sidebar = () => {
                     {!isMinimized && <SectionTitle $minimized={isMinimized}>MANAGEMENT</SectionTitle>}
                     <NavItem>
                         <StyledLink to="/inventory" $active={location.pathname === '/inventory'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Inventory">
+                            <IconWrapper data-tooltip="Inventory">
                                 <InventoryIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Inventory</LinkText>}
+                            <LinkText $minimized={isMinimized}>Inventory</LinkText>
                         </StyledLink>
                     </NavItem>
                     <NavItem>
                         <StyledLink to="/transactions" $active={location.pathname === '/transactions'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Transactions">
+                            <IconWrapper data-tooltip="Transactions">
                                 <TransactionIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Transactions</LinkText>}
+                            <LinkText $minimized={isMinimized}>Transactions</LinkText>
                         </StyledLink>
                     </NavItem>                    <NavItem>
                         <StyledLink to="/maintenance" $active={location.pathname === '/maintenance'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Maintenance">
+                            <IconWrapper data-tooltip="Maintenance">
                                 <SettingsIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Maintenance</LinkText>}
+                            <LinkText $minimized={isMinimized}>Maintenance</LinkText>
                         </StyledLink>
                     </NavItem>
                     <NavItem>
                         <StyledLink to="/registration" $active={location.pathname === '/registration'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Registration">
+                            <IconWrapper data-tooltip="Registration">
                                 <RegistrationIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Registration</LinkText>}
+                            <LinkText $minimized={isMinimized}>Registration</LinkText>
                         </StyledLink>
                     </NavItem>
                     <NavItem>
                         <StyledLink to="/delivery" $active={location.pathname === '/delivery'} $minimized={isMinimized}>
-                            <IconWrapper $minimized={isMinimized} data-tooltip="Delivery">
+                            <IconWrapper data-tooltip="Delivery">
                                 <DeliveryIcon />
                             </IconWrapper>
-                            {!isMinimized && <LinkText $minimized={isMinimized}>Delivery</LinkText>}
+                            <LinkText $minimized={isMinimized}>Delivery</LinkText>
                         </StyledLink>
                     </NavItem>
                 </NavSection>
@@ -390,18 +410,18 @@ const Sidebar = () => {
                 {!isMinimized && <SectionTitle $minimized={isMinimized}>SUPPORT</SectionTitle>}
                 <NavItem>
                     <StyledLink to="/help" $active={location.pathname === '/help'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="Help">
+                        <IconWrapper data-tooltip="Help">
                             <HelpIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>Help</LinkText>}
+                        <LinkText $minimized={isMinimized}>Help</LinkText>
                     </StyledLink>
                 </NavItem>
                 <NavItem>
                     <StyledLink to="/about" $active={location.pathname === '/about'} $minimized={isMinimized}>
-                        <IconWrapper $minimized={isMinimized} data-tooltip="About">
+                        <IconWrapper data-tooltip="About">
                             <InfoIcon />
                         </IconWrapper>
-                        {!isMinimized && <LinkText $minimized={isMinimized}>About</LinkText>}
+                        <LinkText $minimized={isMinimized}>About</LinkText>
                     </StyledLink>
                 </NavItem>
             </NavSection>
