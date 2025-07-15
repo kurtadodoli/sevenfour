@@ -70,9 +70,9 @@ If you'd like to request a new function, feel free to do so by opening an issue 
 
 ## Developer
 
-[![Kurt Adodoli](https://avatars.githubusercontent.com/u/152001397?v=4)](https://github.com/kurtadodoli)  | [![Kenneth Marzan](https://avatars.githubusercontent.com/u/133036872?v=4)](https://github.com/kennnn1)
+[![Kurt Adodoli](https://avatars.githubusercontent.com/u/152001397?v=4)](https://github.com/kurtadodoli) 
 ---|---
-[Kurt Adodoli](https://github.com/kurtadodoli) |[Kenneth Marzan](https://github.com/kennnn1)
+[Kurt Adodoli](https://github.com/kurtadodoli) 
 
 ## [License](https://github.com/kurtadodoli)
 
