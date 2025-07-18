@@ -52,7 +52,7 @@ If you'd like to request a new function, feel free to do so by opening an issue 
 
 ## Built with 
 
-- [ReactJS](http://www.w3schools.com/jquery/jquery_ref_ajax.asp) - jQuery simplifies HTML document traversing, event handling, animating, and Ajax interactions for rapid web development.
+- [ReactJS](https://react.dev/learn/installation) - jQuery simplifies HTML document traversing, event handling, animating, and Ajax interactions for rapid web development.
 - [NodeJS](https://nodejs.org/en/download) - Free , Rich Gallery , Customizable and Cross-browser compatible.
 - [MYSQL](http://getbootstrap.com/) - Extensive list of components and  Bundled Javascript plugins.
 
