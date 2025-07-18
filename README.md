@@ -28,7 +28,6 @@ Here is a working video demo :  https://iharsh234.github.io/WebApp/
 
 
 
-## [Usage](https://iharsh234.github.io/WebApp/) 
 
 ### Development
 Want to contribute? Great!
