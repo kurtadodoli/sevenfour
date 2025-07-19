@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Carousel } from 'react-bootstrap';
 import styled, { keyframes } from 'styled-components';
+import { getSaleInfo } from '../utils/saleUtils';
+import '../styles/saleStyles.css';
 
 // Import your images with their proper file extensions
 import heroImage from '../assets/images/seven-four-hero.jpg';
@@ -462,6 +464,47 @@ const FeaturedProductPrice = styled.p`
   color: #000000;
 `;
 
+const FeaturedOriginalPrice = styled.p`
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+  color: #6c757d;
+  text-decoration: line-through;
+`;
+
+const FeaturedSalePrice = styled.p`
+  margin: 0.25rem 0;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #dc3545;
+`;
+
+const FeaturedSaleBadge = styled.div`
+  background: #dc3545;
+  color: #ffffff;
+  padding: 0.2rem 0.4rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-top: 0.25rem;
+`;
+
+const FeaturedSaleIndicator = styled.div`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #dc3545;
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+`;
+
 const LoadingSpinner = styled.div`
   display: inline-block;
   width: 40px;
@@ -658,9 +701,12 @@ const HomePage = () => {
             </ErrorContainer>
           ) : newReleases.length > 0 ? (
             <FeaturedGrid>
-              {newReleases.map((product, index) => (
+              {newReleases.map((product, index) => {
+                const saleInfo = getSaleInfo(product);
+                return (
                 <FeaturedProductCard key={product.id}>
                   {index < 3 && <NewBadge>New</NewBadge>}
+                  {saleInfo.isOnSale && <FeaturedSaleIndicator>SALE</FeaturedSaleIndicator>}
                   <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                     <ProductImage 
                       src={getProductImageUrl(product)} 
@@ -674,11 +720,25 @@ const HomePage = () => {
                     </ProductOverlay>
                     <ProductInfo>
                       <ProductName>{product.productname}</ProductName>
-                      <FeaturedProductPrice>₱{parseFloat(product.productprice || 0).toFixed(2)}</FeaturedProductPrice>
+                      {(() => {
+                        const saleInfo = getSaleInfo(product);
+                        if (saleInfo.isOnSale) {
+                          return (
+                            <div className="sale-price-container">
+                              <FeaturedOriginalPrice>₱{saleInfo.originalPrice.toFixed(2)}</FeaturedOriginalPrice>
+                              <FeaturedSalePrice>₱{saleInfo.salePrice.toFixed(2)}</FeaturedSalePrice>
+                              <FeaturedSaleBadge>-{saleInfo.discountPercentage}% OFF</FeaturedSaleBadge>
+                            </div>
+                          );
+                        } else {
+                          return <FeaturedProductPrice>₱{parseFloat(product.productprice || 0).toFixed(2)}</FeaturedProductPrice>;
+                        }
+                      })()}
                     </ProductInfo>
                   </Link>
                 </FeaturedProductCard>
-              ))}
+                )
+              })}
             </FeaturedGrid>
           ) : (
             <EmptyState>
