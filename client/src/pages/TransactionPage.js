@@ -19,6 +19,34 @@ import {
 import api from '../utils/api';
 import { toast } from 'react-toastify';
 
+// Helper function to construct image URLs properly
+const getImageUrl = (imagePath) => {
+  if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
+    return null; // Return null for invalid paths instead of showing broken images
+  }
+  
+  const baseURL = 'http://localhost:5000';
+  
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  if (imagePath.startsWith('/uploads/')) {
+    return `${baseURL}${imagePath}`;
+  }
+  if (imagePath.startsWith('uploads/')) {
+    return `${baseURL}/${imagePath}`;
+  }
+  return `${baseURL}/uploads/${imagePath}`;
+};
+
+// Helper function to handle image loading errors
+const handleImageError = (e, hideOnError = true) => {
+  console.log('Failed to load image:', e.target.src);
+  if (hideOnError) {
+    e.target.style.display = 'none'; // Hide broken images
+  }
+};
+
 const PageContainer = styled.div`
   min-height: 100vh;
   background: #ffffff;
@@ -3437,15 +3465,11 @@ const TransactionPage = () => {
                               {transaction.items.map((item, index) => (
                                 <OrderItemCard key={`modal-${(selectedTransaction?.transaction_id || selectedTransaction?.id || 'unknown')}-item-${index}`}>
                                   <OrderItemImage>
-                                    {item.productimage ? (
+                                    {item.productimage && getImageUrl(item.productimage) ? (
                                       <img
-                                        src={`http://localhost:5000/uploads/${item.productimage}`}
+                                        src={getImageUrl(item.productimage)}
                                         alt={item.productname}
-                                        onError={(e) => {
-                                          if (e.target) {
-                                            e.target.style.display = 'none';
-                                          }
-                                        }}
+                                        onError={(e) => handleImageError(e, true)}
                                       />
                                     ) : (
                                       <FontAwesomeIcon icon={faImage} />
@@ -3978,25 +4002,11 @@ const TransactionPage = () => {
                                       {order.items.map((item, index) => (
                                         <OrderItemCard key={index}>
                                           <OrderItemImage>
-                                            {item.productimage ? (
+                                            {item.productimage && getImageUrl(item.productimage) ? (
                                               <img 
-                                                src={(() => {
-                                                  const imagePath = item.productimage;
-                                                  if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
-                                                    return `http://localhost:5000/uploads/default-product.png`;
-                                                  }
-                                                  if (imagePath.startsWith('http')) {
-                                                    return imagePath;
-                                                  }
-                                                  if (imagePath.startsWith('/uploads/')) {
-                                                    return `http://localhost:5000${imagePath}`;
-                                                  }
-                                                  return `http://localhost:5000/uploads/${imagePath}`;
-                                                })()}
+                                                src={getImageUrl(item.productimage)}
                                                 alt={item.productname}
-                                                onError={(e) => {
-                                                  e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                                                }}
+                                                onError={(e) => handleImageError(e, true)}
                                               />
                                             ) : (
                                               <FontAwesomeIcon icon={faImage} />
@@ -4020,25 +4030,11 @@ const TransactionPage = () => {
                                     <OrderItemsList>
                                       <OrderItemCard>
                                         <OrderItemImage>
-                                          {order.image_paths && order.image_paths.length > 0 ? (
+                                          {order.image_paths && order.image_paths.length > 0 && getImageUrl(order.image_paths[0]) ? (
                                             <img 
-                                              src={(() => {
-                                                const imagePath = order.image_paths[0];
-                                                if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
-                                                  return `http://localhost:5000/uploads/default-product.png`;
-                                                }
-                                                if (imagePath.startsWith('http')) {
-                                                  return imagePath;
-                                                }
-                                                if (imagePath.startsWith('/uploads/')) {
-                                                  return `http://localhost:5000${imagePath}`;
-                                                }
-                                                return `http://localhost:5000/uploads/${imagePath}`;
-                                              })()}
+                                              src={getImageUrl(order.image_paths[0])}
                                               alt="Custom Product"
-                                              onError={(e) => {
-                                                e.target.src = `http://localhost:5000/uploads/default-product.png`;
-                                              }}
+                                              onError={(e) => handleImageError(e, true)}
                                             />
                                           ) : (
                                             <FontAwesomeIcon icon={faImage} />
@@ -5029,23 +5025,11 @@ const TransactionPage = () => {
                                 </InfoSection>
 
                                 {/* Product Image */}
-                                {request.product_image && (
+                                {request.product_image && getImageUrl(request.product_image) && (
                                   <InfoSection>
                                     <h4>Product Image</h4>
                                     <img 
-                                      src={(() => {
-                                        const imagePath = request.product_image;
-                                        if (!imagePath || imagePath === 'null' || imagePath === 'undefined') {
-                                          return `http://localhost:5000/uploads/default-product.png`;
-                                        }
-                                        if (imagePath.startsWith('http')) {
-                                          return imagePath;
-                                        }
-                                        if (imagePath.startsWith('/uploads/')) {
-                                          return `http://localhost:5000${imagePath}`;
-                                        }
-                                        return `http://localhost:5000/uploads/${imagePath}`;
-                                      })()} 
+                                      src={getImageUrl(request.product_image)} 
                                       alt="Product" 
                                       style={{ 
                                         width: '120px', 
@@ -5054,8 +5038,9 @@ const TransactionPage = () => {
                                         borderRadius: '6px',
                                         border: '1px solid #e9ecef'
                                       }} 
-                                      onError={(e) => {
-                                        e.target.src = `http://localhost:5000/uploads/default-product.png`;
+                                      onError={(e) => handleImageError(e, true)}
+                                      onLoad={(e) => {
+                                        console.log('Successfully loaded image:', e.target.src);
                                       }}
                                     />
                                   </InfoSection>

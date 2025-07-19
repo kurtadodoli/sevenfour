@@ -99,8 +99,12 @@ app.use(express.urlencoded({ extended: false, limit: process.env.MAX_FILE_SIZE }
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Secure uploads serving
+// Secure uploads serving with proper CORS headers
 app.use('/uploads', (req, res, next) => {
+    // Add CORS headers for image requests
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Content-Security-Policy', "default-src 'self'");
     res.setHeader('X-Content-Type-Options', 'nosniff');
     next();
@@ -177,7 +181,6 @@ const searchRoutes = require('./routes/api/search');
 const deliveryRoutes = require('./routes/delivery');
 const deliveryEnhancedRoutes = require('./routes/deliveryEnhanced');
 const courierRoutes = require('./routes/couriers');
-const testDeliveryRoutes = require('./routes/testDelivery');
 const salesReportRoutes = require('./routes/api/salesReport');
 const unifiedDeliveryStatusRoutes = require('./routes/unifiedDeliveryStatus'); // NEW: Unified delivery status routes
 const deliveryStatusFixRoutes = require('./routes/delivery-status-fix'); // DELIVERY STATUS FIX
@@ -264,11 +267,7 @@ app.use('/api/delivery-enhanced', deliveryEnhancedRoutes);
 app.use('/api/delivery-status', deliveryStatusFixRoutes); // DELIVERY STATUS FIX - Priority route
 app.use('/api/delivery-status-unified', unifiedDeliveryStatusRoutes); // Backup unified endpoint
 app.use('/api/couriers', courierRoutes);
-app.use('/api/test-delivery', testDeliveryRoutes);
 app.use('/api/sales-report', salesReportRoutes);
-
-// Test delivery routes (temporary for debugging)
-app.use('/api/test-delivery', testDeliveryRoutes);
 
 // Simple test route
 app.get('/api/test', (req, res) => {
