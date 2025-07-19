@@ -2408,34 +2408,6 @@ const DeliveryPage = () => {
                           }}>
 
                             
-                            {/* Scheduled Delivery Card */}
-                            {order.scheduled_delivery_date && (
-                              <div style={{
-                                background: 'linear-gradient(135deg, #e8f5e8, #c8e6c9)',
-                                border: '1px solid #81c784',
-                                borderRadius: '8px',
-                                padding: '0.75rem'
-                              }}>
-                                <div style={{ 
-                                  fontSize: '0.75rem', 
-                                  fontWeight: '600', 
-                                  color: '#2e7d32', 
-                                  marginBottom: '0.25rem',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px'
-                                }}>
-                                  🚚 Scheduled Delivery
-                                </div>
-                                <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#1b5e20' }}>
-                                  {new Date(order.scheduled_delivery_date).toLocaleDateString()}
-                                  {order.delivery_time_slot && (
-                                    <div style={{ fontSize: '0.8rem', fontWeight: '400', marginTop: '0.125rem' }}>
-                                      at {order.delivery_time_slot}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
                           </div>
 
                           {/* Delivery Address Card */}
