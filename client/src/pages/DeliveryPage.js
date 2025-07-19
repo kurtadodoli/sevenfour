@@ -2406,36 +2406,7 @@ const DeliveryPage = () => {
                             gap: '1rem',
                             marginBottom: '1.5rem'
                           }}>
-                            {/* Order Date Card */}
-                            <div style={{
-                              background: 'linear-gradient(135deg, #f1f8ff, #e3f2fd)',
-                              border: '1px solid #bbdefb',
-                              borderRadius: '8px',
-                              padding: '0.75rem'
-                            }}>
-                              <div style={{ 
-                                fontSize: '0.75rem', 
-                                fontWeight: '600', 
-                                color: '#1976d2', 
-                                marginBottom: '0.25rem',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px'
-                              }}>
-                                📅 Order Date
-                              </div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: '500', color: '#0d47a1' }}>
-                                {(() => {
-                                  const orderDate = order.order_date || order.created_at;
-                                  if (!orderDate) return 'Date not available';
-                                  try {
-                                    const date = new Date(orderDate);
-                                    return isNaN(date.getTime()) ? 'Invalid date' : date.toLocaleDateString();
-                                  } catch (e) {
-                                    return 'Invalid date';
-                                  }
-                                })()}
-                              </div>
-                            </div>
+
                             
                             {/* Scheduled Delivery Card */}
                             {order.scheduled_delivery_date && (
