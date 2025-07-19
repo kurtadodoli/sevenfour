@@ -1,0 +1,141 @@
+/* Sale Price Display Styles */
+.sale-price-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.sale-price {
+    color: #dc3545;
+    font-weight: 600;
+    font-size: 1.1em;
+}
+
+.sale-badge {
+    background: #dc3545;
+    color: #ffffff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    align-self: flex-start;
+    text-transform: uppercase;
+}
+
+.savings {
+    color: #28a745;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.regular-price {
+    color: #333;
+    font-weight: 500;
+}
+
+/* Card/Product styles */
+.product-card.on-sale {
+    position: relative;
+    border: 2px solid #dc3545;
+}
+
+.product-card.on-sale::before {
+    content: 'SALE';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #dc3545;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* Horizontal layout for lists */
+.sale-price-horizontal {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sale-price-horizontal .sale-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+}
+
+/* Large display for product details */
+.sale-price-large .original-price {
+    font-size: 1.2em;
+}
+
+.sale-price-large .sale-price {
+    font-size: 1.8em;
+    font-weight: 700;
+}
+
+.sale-price-large .sale-badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Invoice/receipt styles */
+.invoice-sale-price {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.invoice-sale-price .original-price {
+    font-size: 0.8em;
+    text-decoration: line-through;
+    color: #666;
+}
+
+.invoice-sale-price .sale-price {
+    font-weight: 600;
+    color: #000;
+}
+
+.invoice-sale-badge {
+    background: #dc3545;
+    color: white;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 600;
+}
+
+/* Animation for sale badges */
+@keyframes pulse-sale {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.sale-badge:hover {
+    animation: pulse-sale 0.6s ease-in-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sale-price-container {
+        gap: 0.15rem;
+    }
+    
+    .sale-badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .sale-price-large .sale-price {
+        font-size: 1.5em;
+    }
+}

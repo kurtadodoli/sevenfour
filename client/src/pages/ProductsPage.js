@@ -5,6 +5,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faSearch, faTimes, faFilter, faSort } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 import { useStock } from '../context/StockContext';
+import { getSaleInfo, isProductOnSale } from '../utils/saleUtils';
+import '../styles/saleStyles.css';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -688,6 +690,55 @@ const Price = styled.div`
   letter-spacing: -0.01em;
 `;
 
+const OriginalPrice = styled.div`
+  font-size: 1.2rem;
+  color: #6c757d;
+  text-decoration: line-through;
+  margin-bottom: 4px;
+`;
+
+const SalePrice = styled.div`
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #dc3545;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+`;
+
+const SaleBadge = styled.div`
+  background: #dc3545;
+  color: #ffffff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-self: flex-start;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+`;
+
+const SaleIndicator = styled.div`
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #dc3545;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+  animation: pulse 2s infinite;
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+`;
+
 const ProductDetails = styled.div`
   display: flex;
   flex-direction: column;
@@ -1045,12 +1096,14 @@ const ProductsPage = () => {
                 return false;
             }
             
-            // Price filter
-            const productPrice = parseFloat(product.productprice || 0);
-            if (priceRange.min !== '' && productPrice < parseFloat(priceRange.min)) {
+            // Price filter - consider sale price if product is on sale
+            const saleInfo = getSaleInfo(product);
+            const effectivePrice = saleInfo.isOnSale ? saleInfo.salePrice : parseFloat(product.productprice || 0);
+            
+            if (priceRange.min !== '' && effectivePrice < parseFloat(priceRange.min)) {
                 return false;
             }
-            if (priceRange.max !== '' && productPrice > parseFloat(priceRange.max)) {
+            if (priceRange.max !== '' && effectivePrice > parseFloat(priceRange.max)) {
                 return false;
             }
             
@@ -1074,9 +1127,17 @@ const ProductsPage = () => {
 
         // Apply sorting
         if (sortOrder === 'price-asc') {
-            filtered = filtered.sort((a, b) => parseFloat(a.productprice) - parseFloat(b.productprice));
+            filtered = filtered.sort((a, b) => {
+                const priceA = getSaleInfo(a).displayPrice;
+                const priceB = getSaleInfo(b).displayPrice;
+                return priceA - priceB;
+            });
         } else if (sortOrder === 'price-desc') {
-            filtered = filtered.sort((a, b) => parseFloat(b.productprice) - parseFloat(a.productprice));
+            filtered = filtered.sort((a, b) => {
+                const priceA = getSaleInfo(a).displayPrice;
+                const priceB = getSaleInfo(b).displayPrice;
+                return priceB - priceA;
+            });
         } else if (sortOrder === 'name-asc') {
             filtered = filtered.sort((a, b) => a.productname.localeCompare(b.productname));
         } else if (sortOrder === 'name-desc') {
@@ -1349,6 +1410,7 @@ const ProductsPage = () => {
                             const totalStock = getTotalStock(product);
                             const availableSizes = getAvailableSizes(product);
                             const availableColors = getAvailableColors(product);
+                            const saleInfo = getSaleInfo(product);
                             
                             return (
                                 <ProductCard 
@@ -1359,6 +1421,12 @@ const ProductsPage = () => {
                                     }}
                                     onClick={() => navigate(`/product/${product.product_id || product.id}`)}
                                 >
+                                    {/* Sale Indicator */}
+                                    {saleInfo.isOnSale && (
+                                        <SaleIndicator>
+                                            SALE
+                                        </SaleIndicator>
+                                    )}
                                     <ImageContainer>
                                         {product.productimage ? (
                                             <>
@@ -1416,7 +1484,20 @@ const ProductsPage = () => {
                                         </ProductDescription>
                                         
                                         <PriceSection>
-                                            <Price>₱{parseFloat(product.productprice || 0).toLocaleString()}</Price>
+                                            {(() => {
+                                                const saleInfo = getSaleInfo(product);
+                                                if (saleInfo.isOnSale) {
+                                                    return (
+                                                        <div className="sale-price-container">
+                                                            <OriginalPrice>₱{saleInfo.originalPrice.toLocaleString()}</OriginalPrice>
+                                                            <SalePrice>₱{saleInfo.salePrice.toLocaleString()}</SalePrice>
+                                                            <SaleBadge>-{saleInfo.discountPercentage}% OFF</SaleBadge>
+                                                        </div>
+                                                    );
+                                                } else {
+                                                    return <Price>₱{parseFloat(product.productprice || 0).toLocaleString()}</Price>;
+                                                }
+                                            })()}
                                         </PriceSection>
                                         
                                         <ProductDetails>

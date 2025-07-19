@@ -16,6 +16,11 @@ const MaintenancePage = () => {
         productprice: '',
         productcolor: '', // Keep for backward compatibility
         colors: [], // This will be deprecated        product_type: '',
+        // Sale fields
+        is_on_sale: false,
+        sale_discount_percentage: '',
+        sale_start_date: '',
+        sale_end_date: '',
         sizeColorVariants: [
             { 
                 size: 'S', 
@@ -289,7 +294,48 @@ const MaintenancePage = () => {
             ...prev,
             sizeColorVariants: newVariants
         }));
-    };// Calculate total stock across all variants
+    };
+
+    // Sale helper functions
+    const isProductOnSale = (product) => {
+        if (!product.is_on_sale) return false;
+        
+        const now = new Date();
+        const startDate = product.sale_start_date ? new Date(product.sale_start_date) : null;
+        const endDate = product.sale_end_date ? new Date(product.sale_end_date) : null;
+        
+        // If no dates are set, sale is active
+        if (!startDate && !endDate) return true;
+        
+        // Check if current date is within sale period
+        if (startDate && now < startDate) return false;
+        if (endDate && now > endDate) return false;
+        
+        return true;
+    };
+
+    const calculateSalePrice = (originalPrice, discountPercentage) => {
+        if (!originalPrice || !discountPercentage) return originalPrice;
+        const discount = parseFloat(discountPercentage) / 100;
+        const salePrice = parseFloat(originalPrice) * (1 - discount);
+        return salePrice.toFixed(2);
+    };
+
+    const getSaleInfo = (product) => {
+        if (!product.is_on_sale || !isProductOnSale(product)) {
+            return { isOnSale: false };
+        }
+        
+        return {
+            isOnSale: true,
+            originalPrice: parseFloat(product.productprice),
+            salePrice: parseFloat(calculateSalePrice(product.productprice, product.sale_discount_percentage)),
+            discountPercentage: product.sale_discount_percentage,
+            savings: (parseFloat(product.productprice) - parseFloat(calculateSalePrice(product.productprice, product.sale_discount_percentage))).toFixed(2)
+        };
+    };
+
+    // Calculate total stock across all variants
     const getTotalStock = () => {
         return formData.sizeColorVariants.reduce((total, sizeVariant) => {
             return total + sizeVariant.colorStocks.reduce((sizeTotal, colorStock) => {
@@ -561,7 +607,12 @@ const MaintenancePage = () => {
             productprice: '',
             productcolor: '',
             colors: [],
-            product_type: '',            sizeColorVariants: [
+            product_type: '',
+            // Sale fields
+            is_on_sale: false,
+            sale_discount_percentage: '',
+            sale_start_date: '',
+            sale_end_date: '',            sizeColorVariants: [
                 { 
                     size: 'S', 
                     colorStocks: [{ color: 'Black', stock: 0 }] 
@@ -621,6 +672,12 @@ const MaintenancePage = () => {
             
             // Send the new sizeColorVariants structure
             formDataToSend.append('sizeColorVariants', JSON.stringify(formData.sizeColorVariants));
+            
+            // Send sale data
+            formDataToSend.append('is_on_sale', formData.is_on_sale);
+            formDataToSend.append('sale_discount_percentage', formData.sale_discount_percentage || '');
+            formDataToSend.append('sale_start_date', formData.sale_start_date || '');
+            formDataToSend.append('sale_end_date', formData.sale_end_date || '');
             
             // Also send legacy formats for backward compatibility
             formDataToSend.append('colors', JSON.stringify(formData.colors));
@@ -764,6 +821,11 @@ const MaintenancePage = () => {
             productcolor: product.productcolor || '',
             colors: colors,
             product_type: product.product_type || '',
+            // Sale fields
+            is_on_sale: product.is_on_sale || false,
+            sale_discount_percentage: product.sale_discount_percentage || '',
+            sale_start_date: product.sale_start_date || '',
+            sale_end_date: product.sale_end_date || '',
             sizes: sizes,
             sizeColorVariants: sizeColorVariants
         });
@@ -1297,6 +1359,76 @@ if (typeof document !== 'undefined') {
                                             required
                                         />
                                     </div>
+                                </div>
+
+                                {/* Sale Section */}
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>SALE SETTINGS</label>
+                                    <div style={styles.saleContainer}>
+                                        <div style={styles.saleToggleRow}>
+                                            <label style={styles.checkboxLabel}>
+                                                <input
+                                                    type="checkbox"
+                                                    name="is_on_sale"
+                                                    checked={formData.is_on_sale}
+                                                    onChange={(e) => setFormData(prev => ({...prev, is_on_sale: e.target.checked}))}
+                                                    style={styles.checkbox}
+                                                />
+                                                <span style={styles.checkboxText}>Put this product on sale</span>
+                                            </label>
+                                        </div>
+                                        
+                                        {formData.is_on_sale && (
+                                            <div style={styles.saleDetailsContainer}>
+                                                <div style={styles.formRow}>
+                                                    <div style={styles.formGroupHalf}>
+                                                        <label style={styles.label}>DISCOUNT PERCENTAGE *</label>
+                                                        <input
+                                                            type="number"
+                                                            name="sale_discount_percentage"
+                                                            value={formData.sale_discount_percentage}
+                                                            onChange={handleInputChange}
+                                                            style={styles.input}
+                                                            min="1"
+                                                            max="99"
+                                                            placeholder="e.g., 20"
+                                                            required={formData.is_on_sale}
+                                                        />
+                                                    </div>
+                                                    <div style={styles.formGroupHalf}>
+                                                        <label style={styles.label}>SALE PRICE</label>
+                                                        <div style={styles.salePriceDisplay}>
+                                                            ₱{formData.productprice && formData.sale_discount_percentage ? 
+                                                                (parseFloat(formData.productprice) * (1 - parseFloat(formData.sale_discount_percentage || 0) / 100)).toFixed(2) : '0.00'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div style={styles.formRow}>
+                                                    <div style={styles.formGroupHalf}>
+                                                        <label style={styles.label}>SALE START DATE</label>
+                                                        <input
+                                                            type="date"
+                                                            name="sale_start_date"
+                                                            value={formData.sale_start_date}
+                                                            onChange={handleInputChange}
+                                                            style={styles.input}
+                                                        />
+                                                    </div>
+                                                    <div style={styles.formGroupHalf}>
+                                                        <label style={styles.label}>SALE END DATE</label>
+                                                        <input
+                                                            type="date"
+                                                            name="sale_end_date"
+                                                            value={formData.sale_end_date}
+                                                            onChange={handleInputChange}
+                                                            style={styles.input}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>                                <div style={styles.formGroup}>
                                     <label style={styles.label}>SIZE & COLOR VARIANTS</label>
                                     <div style={styles.variantContainer}>
@@ -1490,7 +1622,23 @@ if (typeof document !== 'undefined') {
                                                             {/* Product Info */}
                                                             <div style={styles.productInfo}>
                                                                 <h3 style={styles.productName}>{product.productname}</h3>
-                                                                <p style={styles.productPrice}>₱{product.productprice}</p>
+                                                                
+                                                                {/* Price with Sale Info */}
+                                                                <div style={styles.priceContainer}>
+                                                                    {product.is_on_sale && isProductOnSale(product) ? (
+                                                                        <div style={styles.salePrice}>
+                                                                            <span style={styles.originalPrice}>₱{product.productprice}</span>
+                                                                            <span style={styles.discountedPrice}>
+                                                                                ₱{calculateSalePrice(product.productprice, product.sale_discount_percentage)}
+                                                                            </span>
+                                                                            <span style={styles.saleTag}>
+                                                                                -{product.sale_discount_percentage}% OFF
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p style={styles.productPrice}>₱{product.productprice}</p>
+                                                                    )}
+                                                                </div>
                                                                                   <div style={styles.stockSection}>
                                                                     <p style={styles.productStock}>
                                                                         Total Stock: {product.total_stock || product.productquantity || 0}
@@ -1628,7 +1776,23 @@ if (typeof document !== 'undefined') {
                                                                 {/* Product Info */}
                                                                 <div style={styles.productInfo}>
                                                                     <h3 style={styles.archivedProductName}>{product.productname}</h3>
-                                                                    <p style={styles.archivedProductPrice}>₱{product.productprice}</p>
+                                                                    
+                                                                    {/* Price with Sale Info for Archived */}
+                                                                    <div style={styles.priceContainer}>
+                                                                        {product.is_on_sale && isProductOnSale(product) ? (
+                                                                            <div style={styles.salePrice}>
+                                                                                <span style={styles.originalPriceArchived}>₱{product.productprice}</span>
+                                                                                <span style={styles.discountedPriceArchived}>
+                                                                                    ₱{calculateSalePrice(product.productprice, product.sale_discount_percentage)}
+                                                                                </span>
+                                                                                <span style={styles.saleTagArchived}>
+                                                                                    -{product.sale_discount_percentage}% OFF
+                                                                                </span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <p style={styles.archivedProductPrice}>₱{product.productprice}</p>
+                                                                        )}
+                                                                    </div>
                                                                       <div style={styles.archivedLabel}>
                                                                         ARCHIVED
                                                                     </div>
@@ -1818,6 +1982,103 @@ const styles = {
         display: 'flex',
         gap: '1.5rem',
         marginBottom: '2rem'
+    },
+    // Sale styles
+    saleContainer: {
+        background: '#f8f9fa',
+        border: '1px solid #e9ecef',
+        borderRadius: '8px',
+        padding: '1.5rem',
+        marginTop: '1rem'
+    },
+    saleToggleRow: {
+        marginBottom: '1rem'
+    },
+    checkboxLabel: {
+        display: 'flex',
+        alignItems: 'center',
+        cursor: 'pointer',
+        fontSize: '1rem',
+        fontWeight: '500'
+    },
+    checkbox: {
+        marginRight: '0.75rem',
+        width: '18px',
+        height: '18px',
+        cursor: 'pointer'
+    },
+    checkboxText: {
+        color: '#333',
+        userSelect: 'none'
+    },
+    saleDetailsContainer: {
+        background: '#ffffff',
+        border: '1px solid #dee2e6',
+        borderRadius: '6px',
+        padding: '1.5rem',
+        marginTop: '1rem'
+    },
+    salePriceDisplay: {
+        padding: '1rem 1.2rem',
+        background: '#e8f5e8',
+        border: '1px solid #28a745',
+        borderRadius: '4px',
+        fontSize: '1.2rem',
+        fontWeight: '600',
+        color: '#155724',
+        textAlign: 'center'
+    },
+    // Price display styles
+    priceContainer: {
+        marginBottom: '0.5rem'
+    },
+    salePrice: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.25rem'
+    },
+    originalPrice: {
+        textDecoration: 'line-through',
+        color: '#6c757d',
+        fontSize: '0.9rem'
+    },
+    discountedPrice: {
+        color: '#dc3545',
+        fontSize: '1.1rem',
+        fontWeight: '600'
+    },
+    saleTag: {
+        background: '#dc3545',
+        color: '#ffffff',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '12px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        alignSelf: 'flex-start',
+        textTransform: 'uppercase'
+    },
+    // Archived product sale styles
+    originalPriceArchived: {
+        textDecoration: 'line-through',
+        color: '#999',
+        fontSize: '0.9rem'
+    },
+    discountedPriceArchived: {
+        color: '#dc3545',
+        fontSize: '1.1rem',
+        fontWeight: '600',
+        opacity: '0.7'
+    },
+    saleTagArchived: {
+        background: '#dc3545',
+        color: '#ffffff',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '12px',
+        fontSize: '0.75rem',
+        fontWeight: '600',
+        alignSelf: 'flex-start',
+        textTransform: 'uppercase',
+        opacity: '0.7'
     },
     label: {
         display: 'block',

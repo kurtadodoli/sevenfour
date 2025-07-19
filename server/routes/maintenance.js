@@ -155,7 +155,12 @@ router.post('/products', (req, res, next) => {
             product_type,
             sizes,
             sizeColorVariants,
-            total_stock
+            total_stock,
+            // Sale fields
+            is_on_sale,
+            sale_discount_percentage,
+            sale_start_date,
+            sale_end_date
         } = req.body;
         
         const generatedProductId = Math.floor(100000000000 + Math.random() * 899999999999);
@@ -187,8 +192,8 @@ router.post('/products', (req, res, next) => {
         console.log('Legacy Sizes:', parsedSizes);          // Insert product
         const insertQuery = `
             INSERT INTO products 
-            (product_id, productname, productdescription, productprice, productcolor, product_type, sizes, total_stock, productstatus) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (product_id, productname, productdescription, productprice, productcolor, product_type, sizes, total_stock, productstatus, is_on_sale, sale_discount_percentage, sale_start_date, sale_end_date) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         // Store sizeColorVariants in the sizes field for now
@@ -201,7 +206,12 @@ router.post('/products', (req, res, next) => {
             product_type || null,
             JSON.stringify(parsedSizeColorVariants || parsedSizes), // Prefer sizeColorVariants, fallback to sizes
             parseInt(total_stock) || 0,
-            'active'
+            'active',
+            // Sale parameters
+            is_on_sale === 'true' || is_on_sale === true,
+            sale_discount_percentage ? parseFloat(sale_discount_percentage) : null,
+            sale_start_date || null,
+            sale_end_date || null
         ];
         
         console.log('Executing product insert query:', insertQuery);
@@ -486,7 +496,12 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
             product_type,
             sizes,
             sizeColorVariants,
-            total_stock
+            total_stock,
+            // Sale fields
+            is_on_sale,
+            sale_discount_percentage,
+            sale_start_date,
+            sale_end_date
         } = req.body;
         
         const connection = await mysql.createConnection(dbConfig);
@@ -525,19 +540,28 @@ router.put('/products/:id', upload.array('images', 10), async (req, res) => {
         const updateQuery = `
             UPDATE products 
             SET productname = ?, productdescription = ?, productprice = ?, 
-                productcolor = ?, product_type = ?, sizes = ?, total_stock = ?, updated_at = CURRENT_TIMESTAMP
+                productcolor = ?, product_type = ?, sizes = ?, total_stock = ?, 
+                is_on_sale = ?, sale_discount_percentage = ?, sale_start_date = ?, sale_end_date = ?,
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
-          await connection.execute(updateQuery, [
+        
+        const updateParams = [
             productname,
             productdescription || '',
             parseFloat(productprice) || 0,
             productcolor || '',
-            product_type || '',
+            product_type || null,
             JSON.stringify(parsedSizeColorVariants || parsedSizes), // Prefer sizeColorVariants, fallback to sizes
             parseInt(total_stock) || 0,
+            // Sale parameters
+            is_on_sale === 'true' || is_on_sale === true,
+            sale_discount_percentage ? parseFloat(sale_discount_percentage) : null,
+            sale_start_date || null,
+            sale_end_date || null,
             id
-        ]);
+        ];
+          await connection.execute(updateQuery, updateParams);
         
         // Add new images if any
         if (req.files && req.files.length > 0) {

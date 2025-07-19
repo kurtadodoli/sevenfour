@@ -15,6 +15,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import TopBar from '../components/TopBar';
 import { useCart } from '../context/CartContext';
+import { getSaleInfo } from '../utils/saleUtils';
+import '../styles/saleStyles.css';
 
 // Styled Components
 const PageContainer = styled.div`
@@ -217,6 +219,48 @@ const Price = styled.div`
   @media (max-width: 768px) {
     font-size: 2rem;
   }
+`;
+
+const OriginalPrice = styled.div`
+  font-size: 1.8rem;
+  color: #6c757d;
+  text-decoration: line-through;
+  margin-bottom: 8px;
+  
+  @media (max-width: 768px) {
+    font-size: 1.4rem;
+  }
+`;
+
+const SalePrice = styled.div`
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #dc3545;
+  margin-bottom: 12px;
+  
+  @media (max-width: 768px) {
+    font-size: 2rem;
+  }
+`;
+
+const SaleBadge = styled.div`
+  background: #dc3545;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  align-self: flex-start;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+  margin-bottom: 8px;
+`;
+
+const SavingsText = styled.div`
+  color: #28a745;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 16px;
 `;
 
 const Description = styled.div`
@@ -1214,7 +1258,22 @@ const ProductDetailsPage = () => {
                     <DetailsSection>
                         <ProductName>{product.productname}</ProductName>
                         
-                        <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>
+                        {/* Price with Sale Info */}
+                        {(() => {
+                            const saleInfo = getSaleInfo(product);
+                            if (saleInfo.isOnSale) {
+                                return (
+                                    <div className="sale-price-container sale-price-large">
+                                        <OriginalPrice>₱{saleInfo.originalPrice.toFixed(2)}</OriginalPrice>
+                                        <SalePrice>₱{saleInfo.salePrice.toFixed(2)}</SalePrice>
+                                        <SaleBadge>-{saleInfo.discountPercentage}% OFF</SaleBadge>
+                                        <SavingsText>You save ₱{saleInfo.savings}</SavingsText>
+                                    </div>
+                                );
+                            } else {
+                                return <Price>₱{parseFloat(product.productprice || 0).toFixed(2)}</Price>;
+                            }
+                        })()}
                         
                         <Description>
                             <h3>Description</h3>
