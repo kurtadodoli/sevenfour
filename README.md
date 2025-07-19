@@ -9,10 +9,6 @@
 </table>
 
 
-## Demo
-Here is a working video demo :  https://iharsh234.github.io/WebApp/
-
-
 ## Site
 
 ### Screenshots
