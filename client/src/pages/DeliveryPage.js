@@ -508,20 +508,7 @@ const OrderItem = styled.div.withConfig({
   `}
 `;
 
-const OrderInfo = styled.div`
-  flex: 1;
-  padding: 1.5rem;
-`;
 
-const OrderNumber = styled.div`
-  font-weight: 600;
-  color: #000000;
-  margin-bottom: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 1.1rem;
-`;
 
 const OrderTypeIcon = styled.div`
   display: flex;
@@ -623,11 +610,7 @@ const EmptyMessage = styled.div`
   }
 `;
 
-const OrderActions = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-`;
+
 
 
 
@@ -977,6 +960,47 @@ const Textarea = styled.textarea`
   }
 `;
 
+// Tab Navigation Styled Components
+const TabContainer = styled.div`
+  display: flex;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 1.5rem;
+  background: #ffffff;
+`;
+
+const TabButton = styled.button`
+  background: none;
+  border: none;
+  padding: 1rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: ${props => props.active ? '#000000' : '#666666'};
+  border-bottom: 2px solid ${props => props.active ? '#000000' : 'transparent'};
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover {
+    color: #000000;
+    background: #f8f8f8;
+  }
+  
+  &:focus {
+    outline: none;
+  }
+`;
+
+const TabBadge = styled.span`
+  background: ${props => props.active ? '#000000' : '#e0e0e0'};
+  color: ${props => props.active ? '#ffffff' : '#666666'};
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+`;
+
 // Custom Popup Modal Styled Components
 const PopupOverlay = styled.div`
   position: fixed;
@@ -1130,6 +1154,7 @@ const DeliveryPage = () => {
   // Added state for filtering and searching orders
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all'); // 'all', 'regular', 'custom'
   const [unavailableDates, setUnavailableDates] = useState(new Set()); // User-controlled unavailable dates
   // Laxity Least First (LLF) Algorithm Implementation
   const calculateLaxity = useCallback((order) => {
@@ -1175,7 +1200,13 @@ const DeliveryPage = () => {
   const filteredOrders = useMemo(() => {
     return orders
       .filter(order => {
-        // Show all order types (regular, custom_order, custom_design)
+        // Filter by tab category first
+        if (activeTab === 'regular') {
+          return order.order_type === 'regular';
+        } else if (activeTab === 'custom') {
+          return ['custom_order', 'custom_design'].includes(order.order_type);
+        }
+        // 'all' tab shows everything
         return ['regular', 'custom_order', 'custom_design'].includes(order.order_type);
       })
       .filter(order => {
@@ -1211,7 +1242,7 @@ const DeliveryPage = () => {
         // Tertiary sort: Older orders first
         return new Date(a.created_at) - new Date(b.created_at);
       });
-  }, [orders, searchQuery, calculateLaxity]);
+  }, [orders, searchQuery, activeTab, calculateLaxity]);
 
 
   // Function to fetch all orders and delivery data using enhanced API
@@ -2225,6 +2256,37 @@ const DeliveryPage = () => {
               <CardTitle>📋 Order Management</CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Tab Navigation */}
+              <TabContainer>
+                <TabButton 
+                  active={activeTab === 'all'} 
+                  onClick={() => setActiveTab('all')}
+                >
+                  All Orders
+                  <TabBadge active={activeTab === 'all'}>
+                    {orders.filter(order => ['regular', 'custom_order', 'custom_design'].includes(order.order_type)).length}
+                  </TabBadge>
+                </TabButton>
+                <TabButton 
+                  active={activeTab === 'regular'} 
+                  onClick={() => setActiveTab('regular')}
+                >
+                  🛍️ Regular Orders
+                  <TabBadge active={activeTab === 'regular'}>
+                    {orders.filter(order => order.order_type === 'regular').length}
+                  </TabBadge>
+                </TabButton>
+                <TabButton 
+                  active={activeTab === 'custom'} 
+                  onClick={() => setActiveTab('custom')}
+                >
+                  🎨 Custom Orders
+                  <TabBadge active={activeTab === 'custom'}>
+                    {orders.filter(order => ['custom_order', 'custom_design'].includes(order.order_type)).length}
+                  </TabBadge>
+                </TabButton>
+              </TabContainer>
+
               {/* Search and Filter Controls */}              <FilterControlsContainer>
                 <SearchContainer>
                   <div style={{ position: 'relative', width: '100%' }}>
