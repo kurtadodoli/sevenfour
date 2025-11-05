@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Support Chatbot</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="chat-container">
+    <header class="chat-header">
+      <div class="bot-avatar">🤖</div>
+      <div class="bot-info">
+        <h2>Chatbot</h2>
+        <p class="status">🟢 Online • Customer Virtual Assistant</p>
+      </div>
+    </header>
+
+    <div id="chat-box" class="chat-box">
+      <div class="bot-message message">
+        <div class="bubble bot-bubble">
+          👋 Hi user! I’m <strong>Chatbot</strong>, your Customer Virtual Assistant. I’m here to help you!
+        </div>
+      </div>
+
+      <div class="suggestions">
+        <p class="suggestion-label">💡 You may want to ask:</p>
+        <div class="suggestion-buttons">
+          <button class="suggestion">Where is my order?</button>
+          <button class="suggestion">How can I request a refund?</button>
+          <button class="suggestion">Do you offer international shipping?</button>
+        </div>
+      </div>
+    </div>
+
+    <form id="chat-form" class="chat-form">
+      <input
+        type="text"
+        id="user-input"
+        placeholder="Type your message..."
+        autocomplete="off"
+        required
+      />
+      <label for="file-input" class="upload-icon">📎</label>
+      <input type="file" id="file-input" name="file" hidden />
+      <button type="submit">Send</button>
+    </form>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+    const chatForm = document.getElementById("chat-form");
+    const userInput = document.getElementById("user-input");
+    const fileInput = document.getElementById("file-input");
+
+
+    function addMessage(sender, text) {
+      const msg = document.createElement("div");
+      msg.classList.add("message", sender === "Chatbot" ? "bot-message" : "user-message");
+
+      const bubble = document.createElement("div");
+      bubble.classList.add("bubble", sender === "Chatbot" ? "bot-bubble" : "user-bubble");
+      bubble.innerHTML = text;
+
+      msg.appendChild(bubble);
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+
+    function showTyping() {
+      const typing = document.createElement("div");
+      typing.id = "typing";
+      typing.classList.add("bot-message", "message");
+      typing.innerHTML = `<div class="bubble bot-bubble typing">
+        <span></span><span></span><span></span>
+      </div>`;
+      chatBox.appendChild(typing);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function hideTyping() {
+      const typing = document.getElementById("typing");
+      if (typing) typing.remove();
+    }
+
+
+    async function sendMessage(text) {
+      if (!text) return;
+      addMessage("You", text);
+      showTyping();
+
+      const res = await fetch("/get_response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+
+      const data = await res.json();
+      hideTyping();
+      addMessage("Chatbot", data.response);
+    }
+
+  
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const text = userInput.value.trim();
+      if (!text) return;
+      userInput.value = "";
+      await sendMessage(text);
+    });
+
+
+    document.querySelectorAll(".suggestion").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.textContent.trim();
+        await sendMessage(text);
+      });
+    });
+
+
+    fileInput.addEventListener("change", async () => {
+      if (!fileInput.files.length) return;
+      const file = fileInput.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+
+      addMessage("You", `📎 Uploaded: ${file.name}`);
+      showTyping();
+
+      const res = await fetch("/upload_file", { method: "POST", body: formData });
+      const data = await res.json();
+      hideTyping();
+      addMessage("Chatbot", data.response);
+
+      if (data.follow_up && data.delay) {
+        setTimeout(() => addMessage("Chatbot", data.follow_up), data.delay);
+      }
+
+      fileInput.value = "";
+    });
+  </script>
+</body>
+</html>

@@ -49,6 +49,7 @@ import RegistrationPage from './pages/RegistrationPage'; // Import RegistrationP
 
 // Components
 import Footer from './components/Footer';
+import Chatbot from './components/Chatbot';
 import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 
@@ -159,6 +160,7 @@ function App() {
                 <ToastProvider>
                   <AppWrapper>
                     <Layout />
+                    <Chatbot />
                   </AppWrapper>
                 </ToastProvider>
               </StockProvider>

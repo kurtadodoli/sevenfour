@@ -1,0 +1,31 @@
+intent,query,response
+order_status,Where is my order?,You can track your order from your account dashboard under 'My Orders'.
+order_status,How long does shipping take?,Standard shipping usually takes 3-5 business days.
+order_status,Can I change my delivery address?,"Yes, you can update your address before the order is shipped from your account settings."
+order_status,Do you deliver internationally?,"Yes, we ship worldwide! Shipping fees and times may vary by country."
+order_status,What are your shipping options?,"We offer standard, express, and same-day delivery in select areas."
+refund_request,How do I request a refund?,You can request a refund from your 'Order History' page within 7 days of delivery.
+refund_request,How long does it take to process a refund?,Refunds are usually processed within 3-5 business days.
+refund_request,Can I return a damaged item?,Absolutely! Please contact support with photos of the damaged item for a free replacement.
+refund_request,Do I have to pay for return shipping?,Return shipping is free if the item is defective or incorrect.
+refund_request,"I received the wrong item, what should I do?",Please contact our support team immediately to arrange a replacement or refund.
+product_info,What payment methods do you accept?,"We accept Visa, Mastercard, PayPal, and GCash."
+product_info,Do you have size charts?,"Yes, you can find size charts on every product page under 'Size Guide'."
+product_info,Are your products authentic?,"Yes, all our products are 100% authentic and sourced directly from verified suppliers."
+product_info,How can I check if a product is in stock?,Stock availability is shown on the product page next to the 'Add to Cart' button.
+product_info,Do you offer product warranties?,"Yes, selected items come with a 1-year warranty. Details are listed on the product page."
+account_help,How do I reset my password?,Click 'Forgot Password' on the login page to reset it via email.
+account_help,Can I delete my account?,"Yes, please contact customer support to permanently delete your account."
+account_help,How can I contact customer service?,"You can reach us via live chat, email, or our hotline number listed on the Contact Us page."
+account_help,Where can I find my invoices?,Invoices are automatically generated and available under 'My Orders' after purchase.
+account_help,Can I change my email address?,"Yes, you can update your email from your Account Settings page."
+general_chat,Do you have gift cards?,"Yes, we offer digital gift cards available in various denominations."
+general_chat,Can I schedule a delivery?,"Yes, scheduled delivery options are available during checkout."
+general_chat,Do you offer discounts for first-time buyers?,"Yes, first-time buyers get a 10% discount using code WELCOME10."
+general_chat,What is your loyalty program?,Our loyalty program gives you points for every purchase that can be redeemed for discounts.
+general_chat,What are your store hours?,Our online store is open 24/7. Physical branches operate from 9 AM to 9 PM daily.
+general_chat,Tell me a fun fact about shopping.,Did you know? The first online purchase was a pizza in 1994!
+general_chat,Write me a short poem about delivery.,"Swift wheels on roads, parcels in flight, bringing joy to doors day and night."
+general_chat,Can you recommend a gift for someone?,"Sure! You can browse our curated gift collections by age, occasion, or interest."
+general_chat,I love your store!,Thank you! We're always happy to serve you.
+general_chat,Do you like shopping?,I love helping people shop smarter!

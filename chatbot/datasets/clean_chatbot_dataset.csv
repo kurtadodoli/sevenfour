@@ -1,0 +1,93 @@
+query,intent,response
+I forgot my password.,account_help,Click 'Forgot Password' on the login page to reset your password.
+Can I use a discount code on this item?,product_info,"Yes, discount codes apply unless the item is on clearance."
+Why was my refund rejected?,refund_request,Refunds are only approved for items returned in original condition or if damaged on delivery.
+What payment methods do you accept?,ecommerce_support,"We accept Visa, Mastercard, PayPal, and GCash."
+Hello,general_chat,Hi there! How can I help you today?
+Can you track my order?,order_status,Sure! Please check your email for the tracking link we sent.
+The order status hasn’t updated.,order_status,Sometimes tracking updates take up to 24 hours. Please check again soon.
+What are your shipping options?,ecommerce_support,"We offer standard, express, and same-day delivery in select areas."
+Do you have red shirts?,product_info,"Yes, red shirts are in stock right now."
+How do I delete my account?,account_help,We’re sorry to see you go! Please contact our support team to permanently delete your account.
+Can I schedule a delivery?,ecommerce_support,"Yes, scheduled delivery options are available during checkout."
+My package arrived damaged.,order_status,We apologize for the damage. Please attach a photo when submitting a return request.
+Can you recommend a gift for someone?,ecommerce_support,"Sure! You can browse our curated gift collections by age, occasion, or interest."
+Can I return a sale item?,refund_request,Sale or clearance items are not eligible for refunds unless damaged or defective.
+Can you tell me more about this product?,product_info,This item is made from high-quality materials and includes a 1-year warranty.
+Thanks,general_chat,Anytime! Let me know if you need anything else.
+Is this authentic?,product_info,"Yes, all our products are 100% authentic and verified by our suppliers."
+My order is late.,order_status,I apologize for the inconvenience. Let me check the status for you.
+How can I add a new address?,account_help,You can add or edit your delivery address from the Account > Addresses section.
+How long does shipping take?,ecommerce_support,Standard shipping usually takes 3-5 business days.
+Do you have shoes in size 9?,product_info,"Yes, size 9 shoes are in stock in most styles."
+How long does it take to process a refund?,ecommerce_support,Refunds are usually processed within 3-5 business days.
+Can I delete my account?,ecommerce_support,"Yes, please contact customer support to permanently delete your account."
+What courier do you use?,order_status,We usually ship orders via J&T Express or LBC depending on your location.
+My order was cancelled automatically.,order_status,This may happen if payment wasn’t confirmed in time or the item went out of stock.
+Is size medium available?,product_info,"Yes, size medium is available for most items."
+Do you deliver internationally?,ecommerce_support,"Yes, we ship worldwide! Shipping fees and times may vary by country."
+Can I return a damaged item?,ecommerce_support,Absolutely! Please contact support with photos of the damaged item for a free replacement.
+Can I cancel my order?,order_status,"Yes, you can cancel your order within 24 hours of placing it."
+How do I reset my password?,ecommerce_support,Click 'Forgot Password' on the login page to reset it via email.
+Are you a real person?,general_chat,I’m an AI assistant trained to help you quickly with your questions.
+Do I have to pay for return shipping?,ecommerce_support,Return shipping is free if the item is defective or incorrect.
+Who are you?,general_chat,"I’m your virtual assistant, here to help with orders, products, and more!"
+How can I change my email address?,account_help,Go to your profile and select 'Edit Email Address.'
+How do I change my username?,account_help,You can change your username once per month in your profile settings.
+Can I pre-order this item?,product_info,"Yes, some items allow pre-orders. Please check the product page for details."
+Why was my account suspended?,account_help,Your account may be temporarily suspended for security reasons. Contact support to resolve it.
+I received the wrong item.,order_status,We’re sorry about that! Please file a return request and we’ll fix it right away.
+Bye,general_chat,Goodbye! Have a great day!
+Where can I find my invoices?,ecommerce_support,Invoices are automatically generated and available under 'My Orders' after purchase.
+I haven’t received my order yet.,order_status,I’m sorry for the delay. Please allow 2–3 more business days for delivery.
+What colors does it come in?,product_info,"This item is available in red, black, white, and blue."
+Do you offer product warranties?,ecommerce_support,"Yes, selected items come with a 1-year warranty. Details are listed on the product page."
+Where is my order?,order_status,Your order is currently being processed and will be shipped soon.
+How long does it take to get my refund?,refund_request,Refunds usually take 3–7 business days to reflect in your account.
+Is this item available?,product_info,"Yes, it’s currently available. Would you like me to check the color options?"
+When will this product restock?,product_info,We restock every 2–3 weeks depending on supplier availability.
+Thank you,general_chat,You’re welcome! Happy to help.
+Do you offer bundle discounts?,product_info,"Yes, you can get discounts when buying 3 or more items."
+Can I change my delivery address?,order_status,"Yes, please contact our support team immediately before the order ships."
+See you later,general_chat,See you soon! Thanks for chatting with us.
+Do you have size charts?,ecommerce_support,"Yes, you can find size charts on every product page under 'Size Guide'."
+What can you do?,general_chat,"I can help you with tracking orders, returns, product info, and account support."
+Write me a short poem about delivery.,ecommerce_support,"Swift wheels on roads, parcels in flight, bringing joy to doors day and night."
+I didn’t get a tracking number.,order_status,"Please check your email’s spam folder. If you still can’t find it, contact our support."
+What are your store hours?,ecommerce_support,Our online store is open 24/7. Physical branches operate from 9 AM to 9 PM daily.
+Can I exchange my item instead of a refund?,refund_request,Yes! You can choose 'Exchange' when submitting your return form.
+Do you like shopping?,ecommerce_support,I love helping people shop smarter!
+I haven’t received my refund yet.,refund_request,I’m sorry for the delay. Refunds may take a few extra days depending on your payment method.
+I can’t log in to my account.,account_help,Please reset your password or contact support for help logging in.
+I want a refund.,refund_request,Refunds are processed within 3–5 business days after approval.
+How can I check if a product is in stock?,ecommerce_support,Stock availability is shown on the product page next to the 'Add to Cart' button.
+Can I recover my old account?,account_help,"Yes, please use your previous email to recover your account."
+Can I change my refund method?,refund_request,Refunds are automatically issued to your original payment method for security reasons.
+The product doesn’t work properly.,refund_request,We’re sorry about that! Please submit a refund or exchange request and we’ll assist immediately.
+I love your store!,ecommerce_support,Thank you! We're always happy to serve you.
+Do you offer discounts for first-time buyers?,ecommerce_support,"Yes, first-time buyers get a 10% discount using code WELCOME10."
+How do I update my payment info?,account_help,You can update your payment information under Account Settings.
+What is your return policy?,refund_request,"We accept returns within 7 days of receiving your order, as long as the item is unused and in original packaging."
+I didn’t receive a verification email.,account_help,"Please check your spam folder. If it’s not there, request a new verification email."
+Can I change my email address?,ecommerce_support,"Yes, you can update your email from your Account Settings page."
+How do I return an item?,refund_request,"Go to your Orders page, select the item, and click 'Return or Replace.'"
+How do I cancel my order?,order_status,Go to your Order History page and click the 'Cancel Order' button.
+Tell me a fun fact about shopping.,ecommerce_support,Did you know? The first online purchase was a pizza in 1994!
+Can I return an item without the box?,refund_request,Items without packaging may not be eligible for return. Please contact support for help.
+How will I get my refund?,refund_request,Refunds are credited to your original payment method unless otherwise specified.
+How can I contact customer service?,ecommerce_support,"You can reach us via live chat, email, or our hotline number listed on the Contact Us page."
+The tracking number isn’t working.,order_status,Tracking numbers may take a few hours to update. Please try again later.
+How long does delivery take?,order_status,Standard delivery takes 3–5 business days after shipping.
+Good morning,general_chat,Good morning! How can I assist you today?
+Can I get a refund for a damaged item?,refund_request,Yes! Please submit a photo of the damaged item when filing your refund request.
+Is this product waterproof?,product_info,"Yes, it’s water-resistant but not fully waterproof."
+Good afternoon,general_chat,Good afternoon! How can I assist you?
+Does this product come with a warranty?,product_info,"Yes, this item comes with a 1-year warranty for manufacturing defects."
+What is your loyalty program?,ecommerce_support,Our loyalty program gives you points for every purchase that can be redeemed for discounts.
+Are your products authentic?,ecommerce_support,"Yes, all our products are 100% authentic and sourced directly from verified suppliers."
+Do you have gift cards?,ecommerce_support,"Yes, we offer digital gift cards available in various denominations."
+Can I see customer reviews?,product_info,"Yes, scroll down the product page to view verified customer reviews."
+"I received the wrong item, can I get a refund?",refund_request,"Yes, you can choose 'Wrong Item Received' as the reason when filing a refund request."
+"I received the wrong item, what should I do?",ecommerce_support,Please contact our support team immediately to arrange a replacement or refund.
+Is this product still in stock?,product_info,"Yes, this product is available while supplies last."
+How do I request a refund?,refund_request,You can request a refund by going to your Order History and clicking 'Request Refund.'

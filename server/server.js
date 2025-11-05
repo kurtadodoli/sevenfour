@@ -18,6 +18,7 @@ const customDesignRoutes = require('./routes/custom-designs');
 const searchRoutes = require('./routes/api/search');
 const salesReportRoutes = require('./routes/api/salesReport');
 const adminRoutes = require('./routes/admin');
+const chatbotRoutes = require('./routes/chatbot');
 
 const app = express();
 
@@ -65,6 +66,7 @@ app.use('/api/custom-designs', customDesignRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/sales-report', salesReportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('../uploads'));

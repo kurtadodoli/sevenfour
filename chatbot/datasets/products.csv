@@ -1,0 +1,11 @@
+intent,query,response
+product_info,What payment methods do you accept?,We accept Visa, Mastercard, PayPal, and GCash.
+product_info,Do you have size charts?,Yes, you can find them on every product page.
+product_info,Are your products authentic?,Yes, all our products are 100% authentic.
+product_info,Is this item in stock?,Stock availability is shown on each product page.
+product_warranty,Do you offer warranties?,Yes, selected items come with a 1-year warranty.
+product_info,Do you sell eco-friendly items?,Yes! Check the “Sustainability” tag on products.
+product_recommendation,Can you recommend something for gifts?,Sure! Browse our gift section.
+product_info,Can I see reviews?,Yes, scroll to the reviews section on the product page.
+product_discount,Do you offer discounts?,First-time buyers get 10% off with code WELCOME10.
+product_info,What brands do you carry?,We carry both local and international verified brands.
