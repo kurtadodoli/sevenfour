@@ -3,7 +3,7 @@
 <table>
 <tr>
 <td>
-  Seven Four Clothing is a comprehensive e-commerce platform specializing in custom clothing and apparel. The system combines traditional retail functionality with advanced custom design capabilities, making it a hybrid product management solution for both ready-made and personalized clothing items.
+  Seven Four Clothing is a clothing platform specializing in custom clothing and apparel. The system combines traditional retail functionality with advanced custom design capabilities, making it a hybrid product management solution for both ready-made and personalized clothing items.
 </td>
 </tr>
 </table>
